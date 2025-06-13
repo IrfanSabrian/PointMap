@@ -1,22 +1,17 @@
-import { body, validationResult } from "express-validator";
+import express from "express";
+import {
+  getAllGedung,
+  addGedung,
+  updateGedung,
+  deleteGedung,
+} from "../controllers/gedung.js";
+import auth from "../middlewares/auth.js";
 
-router.post(
-  "/",
-  verifyToken,
-  [
-    body("nama").notEmpty().withMessage("Nama gedung wajib diisi"),
-    body("kode").notEmpty().withMessage("Kode gedung wajib diisi"),
-    body("jumlah_lantai")
-      .isInt({ min: 1 })
-      .withMessage("Jumlah lantai harus angka minimal 1"),
-    body("jenis_gedung").notEmpty().withMessage("Jenis gedung wajib diisi"),
-  ],
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    next();
-  },
-  addGedung
-);
+const router = express.Router();
+
+router.get("/", getAllGedung); // public
+router.post("/", auth, addGedung); // admin
+router.put("/:id", auth, updateGedung); // admin
+router.delete("/:id", auth, deleteGedung); // admin
+
+export default router;

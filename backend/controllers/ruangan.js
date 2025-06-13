@@ -1,6 +1,6 @@
 import Ruangan from "../models/Ruangan.js";
 
-// GET ruangan berdasarkan id_lantai (query: ?lantai=ID)
+// GET semua ruangan berdasarkan lantai (query: ?lantai=ID)
 export const getRuanganByLantai = async (req, res) => {
   const { lantai } = req.query;
   try {
@@ -13,7 +13,7 @@ export const getRuanganByLantai = async (req, res) => {
   }
 };
 
-// POST tambah ruangan
+// CREATE ruangan baru
 export const addRuangan = async (req, res) => {
   try {
     const {
@@ -38,13 +38,16 @@ export const addRuangan = async (req, res) => {
       latitude,
       longitude,
     });
-    res.status(201).json(ruanganBaru);
+    res.status(201).json({
+      message: "Ruangan berhasil ditambahkan",
+      data: ruanganBaru,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// PUT update ruangan
+// UPDATE ruangan
 export const updateRuangan = async (req, res) => {
   try {
     const id = req.params.id;
@@ -75,7 +78,10 @@ export const updateRuangan = async (req, res) => {
     );
     if (updated) {
       const updatedRuangan = await Ruangan.findByPk(id);
-      res.json(updatedRuangan);
+      res.json({
+        message: "Ruangan berhasil diperbarui",
+        data: updatedRuangan,
+      });
     } else {
       res.status(404).json({ error: "Ruangan tidak ditemukan" });
     }
@@ -84,16 +90,19 @@ export const updateRuangan = async (req, res) => {
   }
 };
 
-// DELETE hapus ruangan
+// DELETE ruangan
 export const deleteRuangan = async (req, res) => {
   try {
     const id = req.params.id;
-    const deleted = await Ruangan.destroy({ where: { id } });
-    if (deleted) {
-      res.json({ message: "Ruangan berhasil dihapus" });
-    } else {
-      res.status(404).json({ error: "Ruangan tidak ditemukan" });
+    const deletedRuangan = await Ruangan.findByPk(id);
+    if (!deletedRuangan) {
+      return res.status(404).json({ error: "Ruangan tidak ditemukan" });
     }
+    await deletedRuangan.destroy();
+    res.json({
+      message: "Ruangan berhasil dihapus",
+      data: deletedRuangan,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,5 +1,6 @@
 import Lantai from "../models/Lantai.js";
 
+// GET semua lantai berdasarkan gedung (query: ?gedung=ID)
 export const getLantaiByGedung = async (req, res) => {
   const { gedung } = req.query;
   try {
@@ -10,6 +11,7 @@ export const getLantaiByGedung = async (req, res) => {
   }
 };
 
+// CREATE lantai baru
 export const addLantai = async (req, res) => {
   try {
     const { nama_lantai, nomor_lantai, id_gedung } = req.body;
@@ -18,12 +20,16 @@ export const addLantai = async (req, res) => {
       nomor_lantai,
       id_gedung,
     });
-    res.status(201).json(lantaiBaru);
+    res.status(201).json({
+      message: "Lantai berhasil ditambahkan",
+      data: lantaiBaru,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+// UPDATE lantai
 export const updateLantai = async (req, res) => {
   try {
     const id = req.params.id;
@@ -34,7 +40,10 @@ export const updateLantai = async (req, res) => {
     );
     if (updated) {
       const updatedLantai = await Lantai.findByPk(id);
-      res.json(updatedLantai);
+      res.json({
+        message: "Lantai berhasil diperbarui",
+        data: updatedLantai,
+      });
     } else {
       res.status(404).json({ error: "Lantai tidak ditemukan" });
     }
@@ -43,15 +52,19 @@ export const updateLantai = async (req, res) => {
   }
 };
 
+// DELETE lantai
 export const deleteLantai = async (req, res) => {
   try {
     const id = req.params.id;
-    const deleted = await Lantai.destroy({ where: { id } });
-    if (deleted) {
-      res.json({ message: "Lantai berhasil dihapus" });
-    } else {
-      res.status(404).json({ error: "Lantai tidak ditemukan" });
+    const deletedLantai = await Lantai.findByPk(id);
+    if (!deletedLantai) {
+      return res.status(404).json({ error: "Lantai tidak ditemukan" });
     }
+    await deletedLantai.destroy();
+    res.json({
+      message: "Lantai berhasil dihapus",
+      data: deletedLantai,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

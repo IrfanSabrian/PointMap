@@ -5,20 +5,14 @@ import {
   updateRuangan,
   deleteRuangan,
 } from "../controllers/ruangan.js";
-import { verifyToken } from "../middlewares/auth.js";
+import auth from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// GET semua ruangan berdasarkan lantai (public)
 router.get("/", getRuanganByLantai);
 
-// Tambah ruangan (admin)
-router.post("/", verifyToken, addRuangan);
-
-// Edit ruangan (admin)
-router.put("/:id", verifyToken, updateRuangan);
-
-// Hapus ruangan (admin)
-router.delete("/:id", verifyToken, deleteRuangan);
+router.post("/", auth, addRuangan);
+router.put("/:id", auth, updateRuangan);
+router.delete("/:id", auth, deleteRuangan);
 
 export default router;
