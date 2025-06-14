@@ -19,6 +19,10 @@ export const addGedung = async (req, res) => {
       kode,
       jumlah_lantai,
       jenis_gedung,
+      latitude,
+      longitude,
+      x_pixel,
+      y_pixel,
     });
     res.status(201).json({
       message: "Gedung berhasil ditambahkan",
@@ -35,7 +39,7 @@ export const updateGedung = async (req, res) => {
   const { nama, kode, jumlah_lantai, jenis_gedung } = req.body;
   try {
     const [updated] = await Gedung.update(
-      { nama, kode, jumlah_lantai, jenis_gedung },
+      { nama, kode, jumlah_lantai, jenis_gedung, latitude, longitude, x_pixel, y_pixel },
       { where: { id } }
     );
     if (updated) {

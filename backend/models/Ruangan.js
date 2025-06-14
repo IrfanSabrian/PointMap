@@ -11,8 +11,6 @@ const Ruangan = sequelize.define(
     fungsi: DataTypes.STRING,
     x_pixel: DataTypes.INTEGER,
     y_pixel: DataTypes.INTEGER,
-    latitude: DataTypes.DECIMAL,
-    longitude: DataTypes.DECIMAL,
   },
   {
     tableName: "ruangan",

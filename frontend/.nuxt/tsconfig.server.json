@@ -99,12 +99,6 @@
       ],
       "#unhead/composables": [
         "../node_modules/nuxt/dist/head/runtime/composables/v3"
-      ],
-      "#tailwindcss": [
-        "./tailwind"
-      ],
-      "#tailwindcss/sources": [
-        "./tailwindcss/sources"
       ]
     },
     "lib": [

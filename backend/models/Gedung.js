@@ -21,6 +21,10 @@ const Gedung = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
+    latitude: DataTypes.DECIMAL,
+    longitude: DataTypes.DECIMAL,
+    x_pixel: DataTypes.INTEGER,
+    y_pixel: DataTypes.INTEGER,
   },
   {
     tableName: "gedung",

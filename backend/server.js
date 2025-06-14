@@ -9,9 +9,9 @@ import gedungRoutes from "./routes/gedung.js";
 import lantaiRoutes from "./routes/lantai.js";
 import ruanganRoutes from "./routes/ruangan.js";
 import authRoutes from "./routes/auth.js";
+import logRoutes from "./routes/log.js";
 
 await sequelize.sync(); // pastikan tabel otomatis dibuat (jika belum ada)
-
 dotenv.config();
 
 const app = express();
@@ -22,8 +22,33 @@ app.use("/api/gedung", gedungRoutes);
 app.use("/api/lantai", lantaiRoutes);
 app.use("/api/ruangan", ruanganRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/log", logRoutes);
 
-app.get("/", (req, res) => res.send("API aktif!"));
+// ROUTE "/" MENAMPILKAN DATA DATABASE
+app.get("/", async (req, res) => {
+  try {
+    const daftarGedung = await Gedung.findAll();
+    const daftarLantai = await Lantai.findAll();
+    const daftarRuangan = await Ruangan.findAll();
+
+    res.json({
+      status: "API aktif & koneksi DB OK",
+      jumlah_gedung: daftarGedung.length,
+      jumlah_lantai: daftarLantai.length,
+      jumlah_ruangan: daftarRuangan.length,
+      data: {
+        gedung: daftarGedung,
+        lantai: daftarLantai,
+        ruangan: daftarRuangan,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "Gagal ambil data database",
+      error: err.message,
+    });
+  }
+});
 
 try {
   await sequelize.authenticate();

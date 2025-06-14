@@ -103,12 +103,6 @@
       "#imports": [
         "./imports"
       ],
-      "#tailwindcss": [
-        "./tailwind"
-      ],
-      "#tailwindcss/sources": [
-        "./tailwindcss/sources"
-      ],
       "#app-manifest": [
         "./manifest/meta/dev"
       ],

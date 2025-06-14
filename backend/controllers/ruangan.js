@@ -24,8 +24,6 @@ export const addRuangan = async (req, res) => {
       fungsi,
       x_pixel,
       y_pixel,
-      latitude,
-      longitude,
     } = req.body;
     const ruanganBaru = await Ruangan.create({
       nama_ruangan,
@@ -35,8 +33,6 @@ export const addRuangan = async (req, res) => {
       fungsi,
       x_pixel,
       y_pixel,
-      latitude,
-      longitude,
     });
     res.status(201).json({
       message: "Ruangan berhasil ditambahkan",
@@ -59,8 +55,6 @@ export const updateRuangan = async (req, res) => {
       fungsi,
       x_pixel,
       y_pixel,
-      latitude,
-      longitude,
     } = req.body;
     const [updated] = await Ruangan.update(
       {
@@ -71,8 +65,6 @@ export const updateRuangan = async (req, res) => {
         fungsi,
         x_pixel,
         y_pixel,
-        latitude,
-        longitude,
       },
       { where: { id } }
     );
