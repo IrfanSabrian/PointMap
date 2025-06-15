@@ -22,9 +22,12 @@ export const addGedung = async (req, res) => {
     x_pixel,
     y_pixel,
   } = req.body;
+<<<<<<< HEAD
   if (!nama || !kode || !jumlah_lantai || !jenis_gedung) {
     return res.status(400).json({ error: "Semua kolom wajib diisi!" });
   }
+=======
+>>>>>>> 89f68f53254217ce9dcf08fc341818c4a6ccaa8f
   try {
     const baru = await Gedung.create({
       nama,
@@ -58,9 +61,12 @@ export const updateGedung = async (req, res) => {
     x_pixel,
     y_pixel,
   } = req.body;
+<<<<<<< HEAD
   if (!nama || !kode || !jumlah_lantai || !jenis_gedung) {
     return res.status(400).json({ error: "Semua kolom wajib diisi!" });
   }
+=======
+>>>>>>> 89f68f53254217ce9dcf08fc341818c4a6ccaa8f
   try {
     const [updated] = await Gedung.update(
       {
