@@ -12,7 +12,16 @@ export const getAllGedung = async (req, res) => {
 
 // CREATE (tambah) gedung baru
 export const addGedung = async (req, res) => {
-  const { nama, kode, jumlah_lantai, jenis_gedung } = req.body;
+  const {
+    nama,
+    kode,
+    jumlah_lantai,
+    jenis_gedung,
+    latitude,
+    longitude,
+    x_pixel,
+    y_pixel,
+  } = req.body;
   try {
     const baru = await Gedung.create({
       nama,
@@ -36,10 +45,28 @@ export const addGedung = async (req, res) => {
 // UPDATE gedung
 export const updateGedung = async (req, res) => {
   const id = req.params.id;
-  const { nama, kode, jumlah_lantai, jenis_gedung } = req.body;
+  const {
+    nama,
+    kode,
+    jumlah_lantai,
+    jenis_gedung,
+    latitude,
+    longitude,
+    x_pixel,
+    y_pixel,
+  } = req.body;
   try {
     const [updated] = await Gedung.update(
-      { nama, kode, jumlah_lantai, jenis_gedung, latitude, longitude, x_pixel, y_pixel },
+      {
+        nama,
+        kode,
+        jumlah_lantai,
+        jenis_gedung,
+        latitude,
+        longitude,
+        x_pixel,
+        y_pixel,
+      },
       { where: { id } }
     );
     if (updated) {
