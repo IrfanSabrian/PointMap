@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { FiSun, FiMoon, FiChevronDown } from "react-icons/fi";
 
 export default function Home() {
   const [isDark, setIsDark] = useState(false);
@@ -134,26 +135,9 @@ export default function Home() {
             className="rounded-full p-2 hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
           >
             {!isDark ? (
-              <svg
-                width="22"
-                height="22"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="11" cy="11" r="5" />
-                <path d="M11 1v2M11 19v2M4.22 4.22l1.42 1.42M16.36 16.36l1.42 1.42M1 11h2M19 11h2M4.22 17.78l1.42-1.42M16.36 7.64l1.42-1.42" />
-              </svg>
+              <FiSun className="w-6 h-6 text-dark" />
             ) : (
-              <svg
-                width="22"
-                height="22"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
-              </svg>
+              <FiMoon className="w-6 h-6 text-accent" />
             )}
           </button>
           <Link
@@ -167,7 +151,7 @@ export default function Home() {
 
       {/* HERO */}
       <section className="flex flex-col items-center justify-center text-center py-14 md:py-24 px-4">
-        <h1 className="text-3xl md:text-5xl font-extrabold text-dark dark:text-accent mb-5 drop-shadow">
+        <h1 className="text-3xl md:text-5xl font-extrabold text-dark dark:text-accent mb-5 drop-shadow font-heading">
           Selamat Datang di{" "}
           <span className="text-primary dark:text-tosca">PointMap Polnep</span>
         </h1>
@@ -212,16 +196,7 @@ export default function Home() {
           <span className="bg-primary text-white px-8 py-3 rounded-xl text-lg font-extrabold shadow-lg border-b-4 border-dark animate-bounce transition">
             Scroll
           </span>
-          <svg
-            className="mt-2 animate-bounce"
-            width="28"
-            height="28"
-            fill="none"
-            stroke="#34729C"
-            strokeWidth="3"
-          >
-            <path d="M4 10l10 10 10-10" />
-          </svg>
+          <FiChevronDown className="mt-2 w-7 h-7 text-primary animate-bounce" />
         </button>
       </section>
 
