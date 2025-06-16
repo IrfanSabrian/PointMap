@@ -1,1 +1,0 @@
-export { default } from "file:///D:/Tugas%20Akhir/PointMap/frontend/node_modules/@nuxt/vite-builder/dist/runtime/vite-node.mjs"
