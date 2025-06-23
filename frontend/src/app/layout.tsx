@@ -16,7 +16,12 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "PointMap",
-  description: "Sistem Informasi Geografis Kampus",
+  description: "Polnep Interactive Map",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

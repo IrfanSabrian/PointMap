@@ -38,21 +38,8 @@ export default function Login() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl px-8 py-10 border-t-4 border-primary relative">
         {/* LOGO/HEADER */}
         <div className="flex flex-col items-center mb-7">
-          <div className="rounded-full bg-accent p-3 shadow-lg mb-2">
-            <svg width="42" height="42" viewBox="0 0 48 48">
-              <circle cx="24" cy="24" r="24" fill="#34729C" />
-              <text
-                x="50%"
-                y="56%"
-                textAnchor="middle"
-                fill="white"
-                fontSize="19"
-                fontFamily="Arial"
-                dy=".3em"
-              >
-                PM
-              </text>
-            </svg>
+          <div className="rounded-full bg-accent p-4 shadow-lg mb-2">
+            <img src="/logo.svg" alt="Logo" className="w-16 h-16" />
           </div>
           <h1 className="text-2xl font-extrabold text-primary">Login Admin</h1>
           <span className="text-xs text-tosca font-bold mt-1">

@@ -9,7 +9,6 @@ import gedungRoutes from "./routes/gedung.js";
 import lantaiRoutes from "./routes/lantai.js";
 import ruanganRoutes from "./routes/ruangan.js";
 import authRoutes from "./routes/auth.js";
-import logRoutes from "./routes/log.js";
 
 await sequelize.sync(); // pastikan tabel otomatis dibuat (jika belum ada)
 dotenv.config();
@@ -22,7 +21,6 @@ app.use("/api/gedung", gedungRoutes);
 app.use("/api/lantai", lantaiRoutes);
 app.use("/api/ruangan", ruanganRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/log", logRoutes);
 
 // ROUTE "/" MENAMPILKAN DATA DATABASE
 app.get("/", async (req, res) => {

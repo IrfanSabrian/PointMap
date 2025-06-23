@@ -3,15 +3,40 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FiSun, FiMoon, FiChevronDown } from "react-icons/fi";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 export default function Home() {
   const [isDark, setIsDark] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [cuaca, setCuaca] = useState<string | null>(null);
   const [hari, setHari] = useState("");
   const [tanggal, setTanggal] = useState("");
   const [statistik, setStatistik] = useState({ today: 0, month: 0 });
   const [onlineNow, setOnlineNow] = useState(5);
   const mapArea = useRef<HTMLDivElement>(null);
+
+  // Konfigurasi slider
+  const sliderSettings = {
+    dots: false,
+    infinite: true,
+    speed: 4000,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 5000,
+    fade: true,
+    arrows: false,
+    pauseOnHover: false,
+  };
+
+  const backgroundImages = [
+    "/Background1.jpg",
+    "/Background2.jpg",
+    "/Background3.jpg",
+    "/Background4.jpg",
+  ];
 
   // Cuaca Pontianak dengan OpenWeatherMap
   const fetchCuaca = async () => {
@@ -92,6 +117,15 @@ export default function Home() {
     fetchCuaca();
     getTanggal();
     fetchStatistik();
+
+    // Event listener untuk scroll
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
@@ -101,27 +135,17 @@ export default function Home() {
       }`}
     >
       {/* NAVBAR */}
-      <nav className="flex items-center justify-between px-6 py-3 shadow-lg bg-white/60 dark:bg-dark/90 sticky top-0 z-30">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full border-2 border-primary shadow-sm bg-white flex items-center justify-center">
-            <svg width="36" height="36" viewBox="0 0 48 48">
-              <circle cx="24" cy="24" r="24" fill="#34729C" />
-              <text
-                x="50%"
-                y="56%"
-                textAnchor="middle"
-                fill="white"
-                fontSize="15"
-                fontFamily="Arial"
-                dy=".3em"
-              >
-                LOGO
-              </text>
-            </svg>
+      <nav
+        className={`flex items-center justify-between px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          isScrolled
+            ? "bg-white/90 dark:bg-dark/90 shadow-lg backdrop-blur-md"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-auto h-16">
+            <img src="/logo.svg" alt="Logo" className="w-full h-full" />
           </div>
-          <span className="font-extrabold text-primary text-lg dark:text-accent">
-            Politeknik Negeri Pontianak
-          </span>
         </div>
         <div className="hidden md:flex items-center gap-3 text-dark dark:text-accent/90 text-sm font-semibold">
           {cuaca !== null && <span>{cuaca}&nbsp;|</span>}
@@ -150,54 +174,44 @@ export default function Home() {
       </nav>
 
       {/* HERO */}
-      <section className="flex flex-col items-center justify-center text-center py-14 md:py-24 px-4">
-        <h1 className="text-3xl md:text-5xl font-extrabold text-dark dark:text-accent mb-5 drop-shadow font-heading">
-          Selamat Datang di{" "}
-          <span className="text-primary dark:text-tosca">PointMap Polnep</span>
-        </h1>
-        <p className="max-w-2xl mx-auto text-lg md:text-xl text-primary dark:text-tosca mb-7">
-          Temukan kampus Politeknik Negeri Pontianak secara interaktif! Jelajahi
-          gedung, lab, dan fasilitas favoritmu lewat peta digital yang mudah dan
-          selalu update.
-          <br />
-          <span className="font-bold text-dark dark:text-accent">
-            PointMap Polnep
-          </span>{" "}
-          bikin eksplorasi kampus lebih seru!
-        </p>
-
-        {/* STATISTIK PENGUNJUNG */}
-        <div className="flex flex-col md:flex-row gap-3 md:gap-6 items-center justify-center mb-10">
-          <div className="stat-card">
-            <span className="text-2xl font-bold text-primary">
-              {statistik.today}
-            </span>
-            <span className="text-xs text-dark dark:text-accent">Hari ini</span>
-          </div>
-          <div className="stat-card">
-            <span className="text-2xl font-bold text-primary">
-              {statistik.month}
-            </span>
-            <span className="text-xs text-dark dark:text-accent">
-              Bulan ini
-            </span>
-          </div>
-          <div className="stat-card">
-            <span className="text-2xl font-bold text-tosca">{onlineNow}</span>
-            <span className="text-xs text-dark dark:text-accent">Online</span>
-          </div>
+      <section className="relative h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden">
+        {/* Background Slideshow */}
+        <div className="absolute inset-0 z-0">
+          <Slider {...sliderSettings} className="h-full">
+            {backgroundImages.map((image, index) => (
+              <div key={index} className="relative h-screen">
+                <div
+                  className="w-full h-full bg-cover bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${image})` }}
+                />
+                <div className="absolute inset-0 bg-black/40 dark:bg-black/60"></div>
+              </div>
+            ))}
+          </Slider>
         </div>
 
-        {/* BUTTON SCROLL */}
-        <button
-          onClick={scrollToMap}
-          className="mt-2 group flex flex-col items-center mx-auto"
-        >
-          <span className="bg-primary text-white px-8 py-3 rounded-xl text-lg font-extrabold shadow-lg border-b-4 border-dark animate-bounce transition">
-            Scroll
-          </span>
-          <FiChevronDown className="mt-2 w-7 h-7 text-primary animate-bounce" />
-        </button>
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center max-w-4xl mx-auto">
+          <p className="text-xl md:text-2xl text-white drop-shadow-md font-heading">
+            Selamat Datang di
+          </p>
+          <h1 className="text-6xl md:text-8xl font-extrabold text-white my-2 drop-shadow-lg font-heading">
+            PointMap Polnep
+          </h1>
+          <p className="max-w-2xl mx-auto text-lg md:text-xl text-white/90 mb-8 drop-shadow">
+            Temukan kampus Politeknik Negeri Pontianak secara interaktif!
+            Jelajahi gedung, lab, dan fasilitas favoritmu lewat peta digital
+            yang mudah dan selalu update.
+          </p>
+
+          {/* BUTTON SCROLL */}
+          <button
+            onClick={scrollToMap}
+            className="bg-accent text-white px-8 py-3 rounded-xl text-lg font-extrabold shadow-lg hover:bg-accent/90 border-b-4 border-primary transition"
+          >
+            Jelajahi Peta
+          </button>
+        </div>
       </section>
 
       {/* MAP / CANVAS AREA */}
