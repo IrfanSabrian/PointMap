@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import ThemeRegistry from "./theme-provider";
+import { useEffect, useState } from "react";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,28 +17,21 @@ const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
 });
 
-export const metadata: Metadata = {
-  title: "PointMap",
-  description: "Polnep Interactive Map",
-  icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
-  },
-};
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
+      <head />
       <body
+        suppressHydrationWarning={true}
         className={`${inter.variable} ${plusJakarta.variable} antialiased`}
-        suppressHydrationWarning
       >
-        {children}
+        <ThemeRegistry>{mounted ? children : null}</ThemeRegistry>
       </body>
     </html>
   );

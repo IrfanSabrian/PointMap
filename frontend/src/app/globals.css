@@ -4,19 +4,25 @@
 
 @layer base {
   body {
-    @apply bg-white;
+    @apply bg-background text-muted transition-colors duration-300;
+  }
+  .dark body {
+    @apply bg-background-dark text-muted-dark;
   }
 }
 
 @layer components {
   .input {
-    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition;
+    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-surface text-muted;
+    @apply dark:bg-surface-dark dark:text-muted-dark dark:border-accent-dark dark:focus:border-primary-dark dark:focus:ring-primary-dark/20;
   }
   .btn-icon {
-    @apply p-2 rounded-lg text-white hover:opacity-90 transition;
+    @apply p-2 rounded-lg text-white hover:opacity-90 transition bg-primary;
+    @apply dark:bg-primary-dark;
   }
   .stat-card {
-    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105;
+    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-surface text-muted;
+    @apply dark:bg-surface-dark dark:text-muted-dark;
   }
 }
 
