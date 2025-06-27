@@ -57,4 +57,127 @@
       opacity: 1;
     }
   }
+  .animate-fadeInUp {
+    animation: fadeInUp 0.8s ease-out;
+  }
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fadeInRight {
+    animation: fadeInRight 0.8s ease-out;
+  }
+  @keyframes fadeInRight {
+    0% {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+  .animation-delay-600 {
+    animation-delay: 0.6s;
+  }
+  .hover-shadow-3xl {
+    box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
+  }
+  .animate-spin-fast {
+    animation: spin 0.5s linear;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  .floating-anim {
+    animation: floating 3.5s ease-in-out infinite;
+  }
+  @keyframes floating {
+    0% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-16px);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+  /* Animasi partikel polkadot (floating acak) */
+  .animate-floating-particle {
+    animation: floating-particle 4s ease-in-out infinite;
+    animation-delay: calc(-2s + 4s * var(--i, 0));
+  }
+  @keyframes floating-particle {
+    0% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-12px);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+  /* Animasi bintang (twinkle) */
+  .animate-twinkle-particle {
+    animation: twinkle-particle 2.5s ease-in-out infinite;
+    animation-delay: calc(-1.25s + 2.5s * var(--i, 0));
+  }
+  @keyframes twinkle-particle {
+    0%,
+    100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+/* Custom slider dots styling */
+.hero-dots {
+  bottom: 20px !important;
+}
+
+.hero-dots li {
+  margin: 0 4px !important;
+}
+
+.hero-dots li button:before {
+  color: white !important;
+  font-size: 10px !important;
+  opacity: 0.5 !important;
+  transition: all 0.3s ease !important;
+}
+
+.hero-dots li.slick-active button:before {
+  color: white !important;
+  opacity: 1 !important;
+  transform: scale(1.2) !important;
+}
+
+/* Responsive dots untuk mobile */
+@media (max-width: 768px) {
+  .hero-dots {
+    bottom: 15px !important;
+  }
+
+  .hero-dots li button:before {
+    font-size: 8px !important;
+  }
 }
