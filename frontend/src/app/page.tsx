@@ -9,6 +9,7 @@ import "slick-carousel/slick/slick-theme.css";
 import { useTheme } from "next-themes";
 import React from "react";
 import ParticlesCustom from "@/components/ParticlesCustom";
+import GoogleMaps from "@/components/GoogleMapsTile";
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
@@ -28,6 +29,9 @@ export default function Home() {
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const [isAtBoundary, setIsAtBoundary] = useState(false);
+
+  // State untuk memilih jenis peta (hanya Google Maps sekarang)
+  const [mapType, setMapType] = useState<"google">("google");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -63,19 +67,6 @@ export default function Home() {
     },
   };
 
-  // Fungsi untuk mendapatkan semua gambar dari folder Slider secara dinamis
-  const getAllSliderImages = () => {
-    const images = [
-      "/Slider/Background1.jpg",
-      "/Slider/Background2.jpg",
-      "/Slider/Background3.jpg",
-      "/Slider/Background4.jpg",
-    ];
-    console.log("Slider images:", images);
-    return images;
-  };
-
-  const sliderImages = getAllSliderImages();
   const [searchText, setSearchText] = useState("");
   const { theme, setTheme } = useTheme();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -189,212 +180,19 @@ export default function Home() {
     mapArea.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Initialize canvas dan load image
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    setCtx(context);
-
-    const img = new Image();
-    img.src = "/maps.svg";
-    img.onload = () => {
-      imageRef.current = img;
-      setIsImageLoaded(true);
-    };
-    img.onerror = (e) => {
-      console.error("Error loading image:", e);
-    };
-
-    const resizeCanvas = () => {
-      const container = canvas.parentElement;
-      if (!container) return;
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-      if (imageRef.current) drawImage();
-    };
-
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
-
-  useEffect(() => {
-    if (isImageLoaded) drawImage();
-  }, [isImageLoaded, position, scale]);
-
-  const drawImage = () => {
-    if (!ctx || !imageRef.current || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const img = imageRef.current;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
-    ctx.translate(position.x + centerX, position.y + centerY);
-    ctx.scale(scale, scale);
-
-    const imgAspectRatio = img.width / img.height;
-    const canvasAspectRatio = canvas.width / canvas.height;
-
-    let drawWidth = canvas.width;
-    let drawHeight = canvas.height;
-
-    if (imgAspectRatio > canvasAspectRatio) {
-      drawHeight = canvas.height;
-      drawWidth = canvas.height * imgAspectRatio;
-    } else {
-      drawWidth = canvas.width;
-      drawHeight = canvas.width / imgAspectRatio;
-    }
-
-    ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-    ctx.restore();
+  // Fungsi untuk mendapatkan semua gambar dari folder Slider secara dinamis
+  const getAllSliderImages = () => {
+    const images = [
+      "/Slider/Background1.jpg",
+      "/Slider/Background2.jpg",
+      "/Slider/Background3.jpg",
+      "/Slider/Background4.jpg",
+    ];
+    console.log("Slider images:", images);
+    return images;
   };
 
-  useEffect(() => {
-    drawImage();
-  }, [position, scale]);
-
-  // Prevent scroll saat di area canvas
-  useEffect(() => {
-    const preventDefault = (e: WheelEvent) => {
-      if (!isHovering) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const zoomIntensity = 0.05;
-      const delta = e.deltaY < 0 ? zoomIntensity : -zoomIntensity;
-      const newScale = Math.min(Math.max(1, scale + delta), 4);
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-
-      const mouseOffsetX = mouseX - centerX;
-      const mouseOffsetY = mouseY - centerY;
-
-      const scaleChange = newScale - scale;
-      const newPosition = {
-        x: position.x - (mouseOffsetX * scaleChange) / scale,
-        y: position.y - (mouseOffsetY * scaleChange) / scale,
-      };
-
-      const limitedPosition = constrainPosition(newPosition, newScale);
-      setPosition(limitedPosition);
-      setScale(newScale);
-    };
-
-    const canvasSection = mapArea.current;
-    if (canvasSection) {
-      canvasSection.addEventListener("wheel", preventDefault, {
-        passive: false,
-      });
-    }
-
-    return () => {
-      if (canvasSection) {
-        canvasSection.removeEventListener("wheel", preventDefault);
-      }
-    };
-  }, [isHovering, scale, position]);
-
-  const handleMouseEnter = () => setIsHovering(true);
-  const handleMouseLeave = () => {
-    setIsHovering(false);
-    setIsDragging(false);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
-    if (!isHovering) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-    setStartPos({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
-    if (!isDragging || !isHovering) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    const newPosition = {
-      x: e.clientX - startPos.x,
-      y: e.clientY - startPos.y,
-    };
-
-    const limitedPosition = constrainPosition(newPosition, scale);
-    setPosition(limitedPosition);
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
-    if (!isHovering) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const resetZoom = () => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-  };
-
-  const constrainPosition = (
-    pos: { x: number; y: number },
-    currentScale: number
-  ) => {
-    const canvas = canvasRef.current;
-    const img = imageRef.current;
-
-    if (!canvas || !img) return pos;
-
-    const imgAspectRatio = img.width / img.height;
-    const canvasAspectRatio = canvas.width / canvas.height;
-
-    let drawWidth = canvas.width;
-    let drawHeight = canvas.height;
-
-    if (imgAspectRatio > canvasAspectRatio) {
-      drawHeight = canvas.height;
-      drawWidth = canvas.height * imgAspectRatio;
-    } else {
-      drawWidth = canvas.width;
-      drawHeight = canvas.width / imgAspectRatio;
-    }
-
-    const maxX = Math.max(0, (drawWidth * currentScale - canvas.width) / 2);
-    const maxY = Math.max(0, (drawHeight * currentScale - canvas.height) / 2);
-
-    const constrainedPos = {
-      x: Math.max(-maxX, Math.min(maxX, pos.x)),
-      y: Math.max(-maxY, Math.min(maxY, pos.y)),
-    };
-
-    const isAtBoundary =
-      Math.abs(constrainedPos.x) >= maxX - 1 ||
-      Math.abs(constrainedPos.y) >= maxY - 1;
-
-    setIsAtBoundary(isAtBoundary);
-    return constrainedPos;
-  };
+  const sliderImages = getAllSliderImages();
 
   useEffect(() => {
     fetchCuaca();
@@ -574,7 +372,7 @@ export default function Home() {
           <p className="text-lg sm:text-xl md:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 font-heading animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
             Polnep Interactive Map
           </p>
-          <p className="max-w-xl text-base sm:text-lg md:text-xl text-muted dark:text-muted-dark mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300 cursor-pointer hover:underline hover:underline-offset-4">
+          <p className="max-w-xl text-base sm:text-lg md:text-xl text-muted dark:text-muted-dark mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300">
             Navigasi digital untuk menjelajahi setiap sudut kampus Politeknik
             Negeri Pontianak. Temukan gedung, ruang kelas, dan fasilitas lainnya
             dengan mudah.
@@ -647,125 +445,30 @@ export default function Home() {
         style={{ position: "relative", zIndex: 1 }}
       >
         <div className="w-full">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl">
-            Polnep Interactive Map
-          </div>
-        </div>
-        <div
-          className={`w-full h-[350px] md:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200 ${
-            isAtBoundary ? "ring-2 ring-orange-400 ring-opacity-50" : ""
-          }`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        >
-          <canvas
-            ref={canvasRef}
-            id="mapCanvas"
-            className="w-full h-full bg-white"
-            style={{
-              cursor: isDragging
-                ? isAtBoundary
-                  ? "not-allowed"
-                  : "grabbing"
-                : isHovering
-                ? "grab"
-                : "default",
-              borderBottomLeftRadius: "1rem",
-              borderBottomRightRadius: "1rem",
-              display: "block",
-            }}
-          />
+          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between">
+            <span>Polnep Interactive Map</span>
 
-          <div className="absolute left-8 top-8 z-50">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Cari lokasi..."
-                className="pl-10 pr-4 py-2 rounded-lg bg-white text-dark shadow-lg w-64 border border-white/20 focus:border-white/40 focus:ring-2 focus:ring-white/20 outline-none"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark/70"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+            {/* Map Type Selector - Hanya Google Maps */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-normal">Peta:</span>
+              <div className="bg-white text-primary px-3 py-1 rounded-lg text-sm font-medium">
+                Google Maps
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="absolute right-8 bottom-8 z-50 flex flex-col gap-2">
-            <button
-              onClick={() => setScale((prev) => Math.min(prev + 0.2, 4))}
-              className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-white/90 transition-colors"
-              title="Zoom In"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-dark"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => setScale((prev) => Math.max(prev - 0.2, 1))}
-              className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-white/90 transition-colors"
-              title="Zoom Out"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-dark"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 12H4"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={resetZoom}
-              className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-white/90 transition-colors"
-              title="Reset View"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-dark"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
+        <div
+          className={`w-full h-[350px] md:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
+        >
+          {/* Google Maps */}
+          <div className="w-full h-full">
+            <GoogleMaps
+              initialLat={-0.0}
+              initialLng={109.3333}
+              initialZoom={15}
+              className="w-full h-full"
+            />
           </div>
         </div>
       </section>
