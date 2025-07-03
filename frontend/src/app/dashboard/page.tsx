@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Fragment } from "react";
+import Image from "next/image";
 
 type Gedung = { id: number; nama: string; kode: string };
 type Lantai = {
@@ -307,20 +308,14 @@ export default function Dashboard() {
         {/* Logo dan Header */}
         <div className="flex items-center mb-8 gap-2">
           <div className="rounded-full bg-white text-primary font-bold w-12 h-12 flex items-center justify-center shadow-lg">
-            <svg width="30" height="30" viewBox="0 0 48 48">
-              <circle cx="24" cy="24" r="24" fill="#34729C" />
-              <text
-                x="50%"
-                y="56%"
-                textAnchor="middle"
-                fill="white"
-                fontSize="18"
-                fontFamily="Arial"
-                dy=".3em"
-              >
-                PM
-              </text>
-            </svg>
+            <Image
+              width={30}
+              height={30}
+              src="/logo.svg"
+              alt="Logo"
+              className="w-full h-full select-none"
+              priority
+            />
           </div>
           <div className="ml-2 font-extrabold text-lg leading-tight">
             Admin
@@ -409,16 +404,13 @@ export default function Dashboard() {
               : "hidden"
           }`}
         >
-          <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="12" fill="#6EC1D1" />
-            <path
-              d="M7 13l3 3 6-6"
-              stroke="#fff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <Image
+            width={28}
+            height={28}
+            src="/check.svg"
+            alt="Check"
+            className="w-7 h-7"
+          />
           <span>{toast.msg}</span>
         </div>
 
