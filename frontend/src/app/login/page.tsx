@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FiUser, FiLock } from "react-icons/fi";
+import Image from "next/image";
 
 export default function Login() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function Login() {
       } else {
         setErrorMsg(data.error || "Login gagal. Username atau password salah.");
       }
-    } catch (err) {
+    } catch {
       setErrorMsg("Tidak dapat terhubung ke server.");
     }
     setLoading(false);
@@ -42,10 +43,13 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center min-h-screen px-4 md:px-0">
         <div className="w-full max-w-md bg-surface/80 dark:bg-surface-dark/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-accent/40 dark:border-accent-dark/40 px-8 py-12 animate-bounceIn transition-colors">
           <div className="flex flex-col items-center mb-8">
-            <img
+            <Image
               src="/logo.svg"
               alt="Logo"
+              width={80}
+              height={80}
               className="w-20 h-20 mb-2 drop-shadow-xl"
+              priority
             />
             <h2 className="text-3xl font-heading font-semibold text-primary dark:text-primary-dark mb-1 tracking-wide">
               Login Admin
@@ -159,10 +163,13 @@ export default function Login() {
       </div>
       {/* Kanan: Branding/Ilustrasi */}
       <div className="hidden md:flex flex-1 flex-col justify-center items-center min-h-screen bg-gradient-to-br from-background/10 via-accent/30 to-surface/0 dark:from-background-dark/10 dark:via-accent-dark/30 dark:to-surface-dark/0 animate-slideInLeft transition-colors">
-        <img
+        <Image
           src="/logo.svg"
           alt="Logo"
+          width={192}
+          height={192}
           className="w-48 h-48 mb-8 drop-shadow-2xl opacity-90 animate-bounceIn"
+          priority
         />
         <h1 className="text-5xl font-heading font-semibold text-primary dark:text-primary-dark drop-shadow-lg mb-2 tracking-wide animate-slideInLeft opacity-90">
           PointMap

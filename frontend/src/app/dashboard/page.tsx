@@ -4,20 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Fragment } from "react";
 
-interface Gedung {
-  id: number;
-  nama: string;
-  kode: string;
-}
-
-interface Lantai {
+type Gedung = { id: number; nama: string; kode: string };
+type Lantai = {
   id: number;
   nama_lantai: string;
   nomor_lantai: number;
   id_gedung: number;
-}
-
-interface Ruangan {
+};
+type Ruangan = {
   id: number;
   nama_ruangan: string;
   fungsi: string;
@@ -25,7 +19,7 @@ interface Ruangan {
   y_pixel: number;
   id_lantai: number;
   id_gedung: number;
-}
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -42,7 +36,6 @@ export default function Dashboard() {
   const [searchRuangan, setSearchRuangan] = useState("");
 
   const [currentTab, setCurrentTab] = useState("dashboard");
-  const [sidebarMobile, setSidebarMobile] = useState(false);
 
   // Statistik
   const [statistik, setStatistik] = useState({
@@ -54,19 +47,29 @@ export default function Dashboard() {
   });
 
   // Modal
-  const [modal, setModal] = useState({
+  const [modal, setModal] = useState<{
+    show: boolean;
+    type: string;
+    mode: string;
+    form: Record<string, unknown>;
+    entityId: number | null;
+  }>({
     show: false,
     type: "",
     mode: "",
-    form: {} as any,
-    entityId: null as number | null,
+    form: {},
+    entityId: null,
   });
 
   // Toast
-  const [toast, setToast] = useState({
+  const [toast, setToast] = useState<{
+    show: boolean;
+    msg: string;
+    timer: NodeJS.Timeout | null;
+  }>({
     show: false,
     msg: "",
-    timer: null as NodeJS.Timeout | null,
+    timer: null,
   });
 
   // Fetch Data
@@ -149,7 +152,8 @@ export default function Dashboard() {
     });
   };
 
-  const editEntity = (type: string, entity: any) => {
+  type Entity = Gedung | Lantai | Ruangan;
+  const editEntity = (type: string, entity: Entity) => {
     setModal({
       show: true,
       type,
@@ -223,7 +227,7 @@ export default function Dashboard() {
     }
   };
 
-  const deleteEntity = async (type: string, entity: any) => {
+  const deleteEntity = async (type: string, entity: Entity) => {
     if (!confirm(`Yakin hapus ${type} ini?`)) return;
     const token = localStorage.getItem("token");
     let url = "";
@@ -250,10 +254,11 @@ export default function Dashboard() {
 
   const showToast = (msg: string) => {
     setToast((prev) => ({
+      ...prev,
       msg,
       show: true,
       timer: setTimeout(
-        () => setToast((prev) => ({ ...prev, show: false })),
+        () => setToast((prev2) => ({ ...prev2, show: false })),
         1600
       ),
     }));
@@ -286,23 +291,10 @@ export default function Dashboard() {
       r.fungsi?.toLowerCase().includes(searchRuangan.toLowerCase())
   );
 
-  // Statistik Data
-  const statChartData = {
-    labels: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
-    datasets: [
-      {
-        label: "Kunjungan",
-        backgroundColor: "#6EC1D1",
-        borderColor: "#34729C",
-        borderWidth: 2,
-        data: statistik.chart || [],
-      },
-    ],
-  };
-
   useEffect(() => {
     fetchGedung();
     fetchStatistik();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -372,10 +364,7 @@ export default function Dashboard() {
         {/* HEADER */}
         <header className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <button
-              className="md:hidden text-2xl p-2 rounded-lg hover:bg-accent/30 transition"
-              onClick={() => setSidebarMobile(true)}
-            >
+            <button className="md:hidden text-2xl p-2 rounded-lg hover:bg-accent/30 transition">
               <svg
                 width="28"
                 height="28"
