@@ -46,21 +46,6 @@ export default function Dashboard() {
     chart: [0, 0, 0, 0, 0, 0, 0],
   });
 
-  // Modal
-  const [modal, setModal] = useState<{
-    show: boolean;
-    type: string;
-    mode: string;
-    form: Record<string, unknown>;
-    entityId: number | null;
-  }>({
-    show: false,
-    type: "",
-    mode: "",
-    form: {},
-    entityId: null,
-  });
-
   // Toast
   const [toast, setToast] = useState<{
     show: boolean;
@@ -138,39 +123,12 @@ export default function Dashboard() {
   };
 
   const openForm = (type: string) => {
-    setModal({
-      show: true,
-      type,
-      mode: "add",
-      form:
-        type === "lantai" && gedung
-          ? { id_gedung: gedung.id }
-          : type === "ruangan" && gedung && lantai
-          ? { id_gedung: gedung.id, id_lantai: lantai.id }
-          : {},
-      entityId: null,
-    });
+    // modal sudah dihapus
   };
 
   type Entity = Gedung | Lantai | Ruangan;
   const editEntity = (type: string, entity: Entity) => {
-    setModal({
-      show: true,
-      type,
-      mode: "edit",
-      form: { ...entity },
-      entityId: entity.id,
-    });
-  };
-
-  const closeForm = () => {
-    setModal({
-      show: false,
-      type: "",
-      form: {},
-      mode: "",
-      entityId: null,
-    });
+    // modal sudah dihapus
   };
 
   const deleteEntity = async (type: string, entity: Entity) => {

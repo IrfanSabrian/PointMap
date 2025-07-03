@@ -21,10 +21,6 @@ export default function Home() {
   const [tanggal, setTanggal] = useState("");
   const mapArea = useRef<HTMLDivElement>(null);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
-
   // Konfigurasi slider
   const sliderSettings = {
     dots: true,
