@@ -41,8 +41,8 @@ const config: Config = {
         dark: "#1E5470",
       },
       fontFamily: {
-        sans: ["var(--font-inter)"],
-        heading: ["var(--font-plus-jakarta)"],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        heading: ["var(--font-oswald)", "system-ui", "sans-serif"],
       },
     },
   },

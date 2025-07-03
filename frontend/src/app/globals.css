@@ -4,24 +4,40 @@
 
 @layer base {
   body {
-    @apply bg-background text-muted transition-colors duration-300;
+    @apply bg-background text-muted transition-colors duration-300 font-sans;
   }
   .dark body {
     @apply bg-background-dark text-muted-dark;
+  }
+
+  /* Font smoothing untuk tampilan yang lebih halus */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Heading styles dengan font Oswald */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading font-medium;
   }
 }
 
 @layer components {
   .input {
-    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-surface text-muted;
+    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-surface text-muted font-sans;
     @apply dark:bg-surface-dark dark:text-muted-dark dark:border-accent-dark dark:focus:border-primary-dark dark:focus:ring-primary-dark/20;
   }
   .btn-icon {
-    @apply p-2 rounded-lg text-white hover:opacity-90 transition bg-primary;
+    @apply p-2 rounded-lg text-white hover:opacity-90 transition bg-primary font-sans;
     @apply dark:bg-primary-dark;
   }
   .stat-card {
-    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-surface text-muted;
+    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-surface text-muted font-sans;
     @apply dark:bg-surface-dark dark:text-muted-dark;
   }
 }

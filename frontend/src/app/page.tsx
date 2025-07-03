@@ -9,7 +9,7 @@ import "slick-carousel/slick/slick-theme.css";
 import { useTheme } from "next-themes";
 import React from "react";
 import ParticlesCustom from "@/components/ParticlesCustom";
-import GoogleMaps from "@/components/GoogleMapsTile";
+import EsriMap from "@/components/EsriMap";
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
@@ -29,9 +29,6 @@ export default function Home() {
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const [isAtBoundary, setIsAtBoundary] = useState(false);
-
-  // State untuk memilih jenis peta (hanya Google Maps sekarang)
-  const [mapType, setMapType] = useState<"google">("google");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -59,12 +56,6 @@ export default function Home() {
         },
       },
     ],
-    beforeChange: (current: number, next: number) => {
-      console.log(`Changing from slide ${current} to ${next}`);
-    },
-    afterChange: (current: number) => {
-      console.log(`Now on slide ${current}`);
-    },
   };
 
   const [searchText, setSearchText] = useState("");
@@ -106,7 +97,15 @@ export default function Home() {
   useEffect(() => {
     setIsClient(true);
     setIsDark(theme === "dark");
+    if (theme === "dark") {
+      console.log("Dark mode aktif");
+    } else if (theme === "light") {
+      console.log("Light mode aktif");
+    }
   }, [theme]);
+
+  // Timeout global untuk auto-hide navbar
+  const navbarTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Cuaca Pontianak dengan OpenWeatherMap
   const fetchCuaca = async () => {
@@ -188,7 +187,6 @@ export default function Home() {
       "/Slider/Background3.jpg",
       "/Slider/Background4.jpg",
     ];
-    console.log("Slider images:", images);
     return images;
   };
 
@@ -199,25 +197,23 @@ export default function Home() {
     getTanggal();
 
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setIsScrolled(scrollY > 50);
-
-      if (scrollY > 100) {
+      setIsScrolled(window.scrollY > 50);
+      if (window.scrollY === 0) {
         setShowNavbar(true);
-        if (hideTimeout.current) clearTimeout(hideTimeout.current);
-        hideTimeout.current = setTimeout(() => {
+        if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+      } else {
+        setShowNavbar(true);
+        if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+        navbarTimeout.current = setTimeout(() => {
           setShowNavbar(false);
         }, 3000);
-      } else {
-        if (hideTimeout.current) clearTimeout(hideTimeout.current);
-        setShowNavbar(true);
       }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      if (hideTimeout.current) clearTimeout(hideTimeout.current);
+      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
     };
   }, []);
 
@@ -229,6 +225,13 @@ export default function Home() {
           : "bg-gradient-to-tr from-background via-surface to-accent"
       } ${isDark ? "dark" : ""}`}
     >
+      {/* Area hover atas untuk munculkan navbar */}
+      <div
+        className="fixed top-0 left-0 w-full h-8 z-40"
+        style={{ pointerEvents: "auto" }}
+        onMouseEnter={() => setShowNavbar(true)}
+      />
+
       {/* NAVBAR */}
       <nav
         className={`flex items-center justify-between px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-500 group/navbar ${
@@ -239,8 +242,25 @@ export default function Home() {
           showNavbar
             ? "translate-y-0 opacity-100"
             : "-translate-y-full opacity-0 pointer-events-none"
-        } hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
+        } group-hover/navbar:translate-y-0 group-hover/navbar:opacity-100 group-hover/navbar:pointer-events-auto hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
         style={{ willChange: "transform, opacity" }}
+        onMouseEnter={() => {
+          setShowNavbar(true);
+          if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+        }}
+        onMouseLeave={() => {
+          if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+          navbarTimeout.current = setTimeout(() => {
+            setShowNavbar(false);
+          }, 5000);
+        }}
+        onClick={() => {
+          setShowNavbar(true);
+          if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+          navbarTimeout.current = setTimeout(() => {
+            setShowNavbar(false);
+          }, 5000);
+        }}
       >
         {/* Logo kiri */}
         <div className="flex items-center gap-3">
@@ -358,7 +378,7 @@ export default function Home() {
         <ParticlesCustom isDark={isDark} />
         {/* Kiri: Text Content */}
         <div className="flex-1 z-10 flex flex-col items-center md:items-start justify-center max-w-2xl text-center md:text-left animate-fadeInUp">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-6 text-[#1a1a1a] dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-semibold leading-tight mb-6 text-[#1a1a1a] dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1">
             {"PointMap".split("").map((char, i) => (
               <span
                 key={i}
@@ -369,7 +389,7 @@ export default function Home() {
               </span>
             ))}
           </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 font-heading animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
+          <p className="text-lg sm:text-xl md:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
             Polnep Interactive Map
           </p>
           <p className="max-w-xl text-base sm:text-lg md:text-xl text-muted dark:text-muted-dark mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300">
@@ -436,6 +456,30 @@ export default function Home() {
             <div className="absolute bottom-4 right-4 w-2 h-2 bg-white/40 rounded-full animate-ping group-hover:bg-white/60 transition-colors duration-300"></div>
           </div>
         </div>
+        {/* Tombol Scroll absolut di tengah bawah hero section */}
+        <button
+          onClick={scrollToMap}
+          className="absolute left-1/2 -translate-x-1/2 bottom-6 z-30 flex flex-col items-center group focus:outline-none"
+          style={{ background: "none", border: "none" }}
+          aria-label="Scroll ke bawah"
+        >
+          <span className="text-sm text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark font-medium transition-colors">
+            Scroll
+          </span>
+          <svg
+            className="w-6 h-6 text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark animate-bounce mt-0.5 transition-colors"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
       </section>
 
       {/* MAP / CANVAS AREA */}
@@ -447,43 +491,123 @@ export default function Home() {
         <div className="w-full">
           <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between">
             <span>Polnep Interactive Map</span>
-
-            {/* Map Type Selector - Hanya Google Maps */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-normal">Peta:</span>
-              <div className="bg-white text-primary px-3 py-1 rounded-lg text-sm font-medium">
-                Google Maps
-              </div>
-            </div>
           </div>
         </div>
 
         <div
           className={`w-full h-[350px] md:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
+          style={{ minHeight: 350, height: "100%", maxHeight: 600 }}
         >
-          {/* Google Maps */}
-          <div className="w-full h-full">
-            <GoogleMaps
+          {/* EsriMap Only */}
+          <div
+            className="w-full h-full"
+            style={{ minHeight: 350, height: "100%" }}
+          >
+            <EsriMap
               initialLat={-0.0}
               initialLng={109.3333}
               initialZoom={15}
               className="w-full h-full"
+              isDark={isDark}
             />
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-surface dark:bg-surface-dark text-muted dark:text-muted-dark py-8 text-center px-4 transition-colors">
-        <p className="font-bold text-xl">PointMap</p>
-        <p className="text-sm text-accent dark:text-accent-dark/80">
-          Polnep Interactive Map
-        </p>
-        <p className="text-xs mt-4">
+      <footer className="bg-surface dark:bg-surface-dark/90 border-t border-primary/20 dark:border-primary-dark/30 shadow-inner shadow-primary/5 dark:shadow-primary-dark/10 px-4 py-10 md:py-12 transition-colors backdrop-blur-md">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+          {/* Kiri: Logo & deskripsi */}
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <img
+              src="/logo.svg"
+              alt="Logo PointMap"
+              className="h-14 select-none mb-2"
+            />
+            <span className="font-bold text-lg text-primary dark:text-primary-dark">
+              PointMap
+            </span>
+            <span className="text-xs text-muted dark:text-muted-dark text-center md:text-left max-w-xs">
+              Polnep Interactive Map - Navigasi digital kampus Politeknik Negeri
+              Pontianak.
+            </span>
+          </div>
+          {/* Tengah: Ikuti Kami */}
+          <div className="flex flex-col items-center gap-2">
+            <span className="font-semibold text-base text-accent dark:text-accent-dark mb-1">
+              Ikuti Kami
+            </span>
+            <div className="flex gap-4">
+              <a
+                href="#"
+                title="Instagram"
+                className="hover:scale-110 transition-transform"
+              >
+                <svg
+                  className="w-6 h-6 text-muted dark:text-muted-dark hover:text-primary dark:hover:text-primary-dark"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2zm0 1.5A4.25 4.25 0 0 0 3.5 7.75v8.5A4.25 4.25 0 0 0 7.75 20.5h8.5A4.25 4.25 0 0 0 20.5 16.25v-8.5A4.25 4.25 0 0 0 16.25 3.5zm4.25 3.25a5.25 5.25 0 1 1 0 10.5a5.25 5.25 0 0 1 0-10.5zm0 1.5a3.75 3.75 0 1 0 0 7.5a3.75 3.75 0 0 0 0-7.5zm5.25.75a1 1 0 1 1-2 0a1 1 0 0 1 2 0z" />
+                </svg>
+              </a>
+              <a
+                href="#"
+                title="LinkedIn"
+                className="hover:scale-110 transition-transform"
+              >
+                <svg
+                  className="w-6 h-6 text-muted dark:text-muted-dark hover:text-primary dark:hover:text-primary-dark"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-9h3v9zm-1.5-10.28c-.97 0-1.75-.79-1.75-1.75s.78-1.75 1.75-1.75s1.75.79 1.75 1.75s-.78 1.75-1.75 1.75zm13.5 10.28h-3v-4.5c0-1.08-.02-2.47-1.5-2.47c-1.5 0-1.73 1.17-1.73 2.39v4.58h-3v-9h2.88v1.23h.04c.4-.75 1.38-1.54 2.85-1.54c3.05 0 3.62 2.01 3.62 4.62v4.69z" />
+                </svg>
+              </a>
+              <a
+                href="#"
+                title="Email"
+                className="hover:scale-110 transition-transform"
+              >
+                <svg
+                  className="w-6 h-6 text-muted dark:text-muted-dark hover:text-primary dark:hover:text-primary-dark"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 2v.01L12 13L4 6.01V6h16zM4 20v-9.99l7.29 6.71c.39.36 1.02.36 1.41 0L20 10.01V20H4z" />
+                </svg>
+              </a>
+            </div>
+            <span className="text-xs text-muted dark:text-muted-dark mt-2">
+              polnep@ac.id
+            </span>
+          </div>
+          {/* Kanan: Kontak & Lokasi */}
+          <div className="flex flex-col items-center md:items-end gap-2 text-center md:text-right">
+            <span className="font-semibold text-base text-accent dark:text-accent-dark mb-1">
+              Kontak & Lokasi
+            </span>
+            <span className="text-xs text-muted dark:text-muted-dark">
+              Jl. Ahmad Yani, Pontianak, Kalimantan Barat
+            </span>
+            <span className="text-xs text-muted dark:text-muted-dark">
+              Jam Operasional: 07.00 - 17.00 WIB
+            </span>
+            <a
+              href="https://maps.app.goo.gl/2Qw1v8k8k8k8k8k8A"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary dark:text-primary-dark underline hover:text-accent dark:hover:text-accent-dark transition-colors"
+            >
+              Lihat di Google Maps
+            </a>
+          </div>
+        </div>
+        <div className="mt-8 text-center text-xs text-muted dark:text-muted-dark/80">
           {isClient
             ? `© ${new Date().getFullYear()} Politeknik Negeri Pontianak. Hak Cipta Dilindungi.`
             : null}
-        </p>
+        </div>
       </footer>
     </div>
   );

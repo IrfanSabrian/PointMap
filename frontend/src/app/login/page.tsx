@@ -47,7 +47,7 @@ export default function Login() {
               alt="Logo"
               className="w-20 h-20 mb-2 drop-shadow-xl"
             />
-            <h2 className="text-3xl font-extrabold text-primary dark:text-primary-dark mb-1 tracking-wide">
+            <h2 className="text-3xl font-heading font-semibold text-primary dark:text-primary-dark mb-1 tracking-wide">
               Login Admin
             </h2>
             <span className="text-xs text-accent dark:text-accent-dark font-bold tracking-widest">
@@ -164,10 +164,10 @@ export default function Login() {
           alt="Logo"
           className="w-48 h-48 mb-8 drop-shadow-2xl opacity-90 animate-bounceIn"
         />
-        <h1 className="text-5xl font-extrabold text-primary dark:text-primary-dark drop-shadow-lg mb-2 tracking-wide animate-slideInLeft opacity-90">
+        <h1 className="text-5xl font-heading font-semibold text-primary dark:text-primary-dark drop-shadow-lg mb-2 tracking-wide animate-slideInLeft opacity-90">
           PointMap
         </h1>
-        <p className="text-lg text-primary/80 dark:text-primary-dark/80 font-semibold mb-4 animate-slideInLeft opacity-80">
+        <p className="text-lg text-primary/80 dark:text-primary-dark/80 font-heading font-medium mb-4 animate-slideInLeft opacity-80">
           Polnep Interactive Map
         </p>
         <p className="max-w-md text-muted dark:text-muted-dark text-base text-center animate-slideInLeft opacity-70">

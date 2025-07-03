@@ -1,20 +1,20 @@
 "use client";
 
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Oswald } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "./theme-provider";
 import { useEffect, useState } from "react";
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"],
   variable: "--font-inter",
 });
 
-const plusJakarta = Plus_Jakarta_Sans({
+const oswald = Oswald({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-plus-jakarta",
+  weight: ["200", "300", "400", "500", "600", "700"],
+  variable: "--font-oswald",
 });
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
       <head />
       <body
         suppressHydrationWarning={true}
-        className={`${inter.variable} ${plusJakarta.variable} antialiased`}
+        className={`${inter.variable} ${oswald.variable} antialiased`}
       >
         <ThemeRegistry>{mounted ? children : null}</ThemeRegistry>
       </body>
