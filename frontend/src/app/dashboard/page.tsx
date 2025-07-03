@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import BarChart from "@/components/BarChart";
-import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 
 interface Gedung {
@@ -310,113 +308,7 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen bg-gradient-to-tr from-accent via-white to-toscaLight">
       {/* SIDEBAR MOBILE OVERLAY */}
-      <Transition show={sidebarMobile} as={Fragment}>
-        <Dialog
-          as="div"
-          className="relative z-40 md:hidden"
-          onClose={() => setSidebarMobile(false)}
-        >
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black/40" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-hidden">
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="pointer-events-none fixed inset-y-0 left-0 flex max-w-full">
-                <Transition.Child
-                  as={Fragment}
-                  enter="transform transition ease-in-out duration-300"
-                  enterFrom="-translate-x-full"
-                  enterTo="translate-x-0"
-                  leave="transform transition ease-in-out duration-300"
-                  leaveFrom="translate-x-0"
-                  leaveTo="-translate-x-full"
-                >
-                  <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
-                    <div className="flex h-full flex-col bg-primary text-white px-5 py-8 shadow-2xl">
-                      <button
-                        className="self-end text-3xl mb-4"
-                        onClick={() => setSidebarMobile(false)}
-                      >
-                        &times;
-                      </button>
-                      {/* Logo dan Header */}
-                      <div className="flex items-center mb-8 gap-2">
-                        <div className="rounded-full bg-white text-primary font-bold w-12 h-12 flex items-center justify-center shadow-lg">
-                          <svg width="30" height="30" viewBox="0 0 48 48">
-                            <circle cx="24" cy="24" r="24" fill="#34729C" />
-                            <text
-                              x="50%"
-                              y="56%"
-                              textAnchor="middle"
-                              fill="white"
-                              fontSize="18"
-                              fontFamily="Arial"
-                              dy=".3em"
-                            >
-                              PM
-                            </text>
-                          </svg>
-                        </div>
-                        <div className="ml-2 font-extrabold text-lg leading-tight">
-                          Admin
-                          <br />
-                          <span className="text-tosca text-xs font-bold">
-                            PointMap
-                          </span>
-                        </div>
-                      </div>
-                      <nav className="flex flex-col gap-3 mt-2">
-                        <button
-                          className={`flex items-center gap-3 py-2 px-4 rounded-xl font-bold transition ${
-                            currentTab === "dashboard"
-                              ? "bg-white/20 ring-2 ring-accent text-tosca"
-                              : "hover:bg-white/10"
-                          }`}
-                          onClick={() => {
-                            setCurrentTab("dashboard");
-                            setSidebarMobile(false);
-                          }}
-                        >
-                          Dashboard
-                        </button>
-                        <button
-                          className={`flex items-center gap-3 py-2 px-4 rounded-xl font-bold transition ${
-                            currentTab === "statistik"
-                              ? "bg-white/20 ring-2 ring-accent text-tosca"
-                              : "hover:bg-white/10"
-                          }`}
-                          onClick={() => {
-                            setCurrentTab("statistik");
-                            setSidebarMobile(false);
-                          }}
-                        >
-                          Statistik
-                        </button>
-                      </nav>
-                      <div className="flex-1" />
-                      <button
-                        onClick={logout}
-                        className="bg-red-500 w-full py-2 rounded-xl font-bold hover:bg-red-600 shadow mt-8 transition flex items-center justify-center gap-2"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
+      {/* Sidebar mobile dihapus bersama Transition/Dialog */}
 
       {/* SIDEBAR DESKTOP */}
       <aside className="hidden md:flex flex-col w-56 bg-primary text-white px-5 py-8 rounded-tr-3xl shadow-2xl h-screen">
@@ -521,29 +413,25 @@ export default function Dashboard() {
         </header>
 
         {/* TOAST SUKSES */}
-        <Transition
-          show={toast.show}
-          enter="transition ease-out duration-300"
-          enterFrom="transform translate-y-2 opacity-0"
-          enterTo="transform translate-y-0 opacity-100"
-          leave="transition ease-in duration-200"
-          leaveFrom="transform translate-y-0 opacity-100"
-          leaveTo="transform translate-y-2 opacity-0"
+        <div
+          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 ${
+            toast.show
+              ? "bg-white shadow-lg px-6 py-3 rounded-xl border-2 border-tosca font-semibold text-dark text-base"
+              : "hidden"
+          }`}
         >
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white shadow-lg px-6 py-3 rounded-xl border-2 border-tosca font-semibold text-dark text-base">
-            <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="12" fill="#6EC1D1" />
-              <path
-                d="M7 13l3 3 6-6"
-                stroke="#fff"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>{toast.msg}</span>
-          </div>
-        </Transition>
+          <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="12" fill="#6EC1D1" />
+            <path
+              d="M7 13l3 3 6-6"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>{toast.msg}</span>
+        </div>
 
         {/* DASHBOARD / STATISTIK */}
         {currentTab === "dashboard" ? (
@@ -876,306 +764,9 @@ export default function Dashboard() {
                   <div className="text-xs text-tosca font-semibold">Total</div>
                 </div>
               </div>
-              <BarChart dataStat={statChartData} />
             </div>
           </div>
         )}
-
-        {/* MODAL CRUD */}
-        <Transition show={modal.show} as={Fragment}>
-          <Dialog as="div" className="relative z-50" onClose={closeForm}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-90"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-90"
-            >
-              <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel
-                  className={`w-full max-w-md rounded-2xl bg-white p-8 shadow-xl border-t-4 relative ${
-                    modal.type === "gedung"
-                      ? "border-primary"
-                      : modal.type === "lantai"
-                      ? "border-secondary"
-                      : "border-tosca"
-                  }`}
-                >
-                  <Dialog.Title className="font-bold text-lg mb-6 text-primary capitalize">
-                    {modal.mode === "edit" ? "Edit" : "Tambah"} {modal.type}
-                  </Dialog.Title>
-                  <button
-                    className="absolute right-4 top-4 text-3xl text-gray-300 hover:text-primary"
-                    onClick={closeForm}
-                    aria-label="Tutup"
-                  >
-                    &times;
-                  </button>
-                  <form onSubmit={submitForm} className="space-y-4">
-                    {modal.type === "gedung" && (
-                      <>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Nama Gedung
-                          </label>
-                          <input
-                            value={modal.form.nama || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: { ...prev.form, nama: e.target.value },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Nama Gedung"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Kode Gedung
-                          </label>
-                          <input
-                            value={modal.form.kode || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: { ...prev.form, kode: e.target.value },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Kode Gedung"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Jumlah Lantai
-                          </label>
-                          <input
-                            value={modal.form.jumlah_lantai || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  jumlah_lantai: parseInt(e.target.value),
-                                },
-                              }))
-                            }
-                            type="number"
-                            min="1"
-                            required
-                            className="input"
-                            placeholder="Jumlah Lantai"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Jenis Gedung
-                          </label>
-                          <input
-                            value={modal.form.jenis_gedung || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  jenis_gedung: e.target.value,
-                                },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Jenis Gedung"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Latitude
-                          </label>
-                          <input
-                            value={modal.form.latitude || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  latitude: e.target.value,
-                                },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Latitude"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Longitude
-                          </label>
-                          <input
-                            value={modal.form.longitude || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  longitude: e.target.value,
-                                },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Longitude"
-                          />
-                        </div>
-                      </>
-                    )}
-                    {modal.type === "lantai" && (
-                      <>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Nama Lantai
-                          </label>
-                          <input
-                            value={modal.form.nama_lantai || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  nama_lantai: e.target.value,
-                                },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Nama Lantai"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Nomor Lantai
-                          </label>
-                          <input
-                            value={modal.form.nomor_lantai || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  nomor_lantai: parseInt(e.target.value),
-                                },
-                              }))
-                            }
-                            type="number"
-                            min="1"
-                            required
-                            className="input"
-                            placeholder="Nomor Lantai"
-                          />
-                        </div>
-                      </>
-                    )}
-                    {modal.type === "ruangan" && (
-                      <>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Nama Ruangan
-                          </label>
-                          <input
-                            value={modal.form.nama_ruangan || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  nama_ruangan: e.target.value,
-                                },
-                              }))
-                            }
-                            required
-                            className="input"
-                            placeholder="Nama Ruangan"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            Fungsi
-                          </label>
-                          <input
-                            value={modal.form.fungsi || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: { ...prev.form, fungsi: e.target.value },
-                              }))
-                            }
-                            className="input"
-                            placeholder="Fungsi"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            x_pixel
-                          </label>
-                          <input
-                            value={modal.form.x_pixel || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  x_pixel: parseInt(e.target.value),
-                                },
-                              }))
-                            }
-                            type="number"
-                            min="0"
-                            required
-                            className="input"
-                            placeholder="x_pixel"
-                          />
-                        </div>
-                        <div>
-                          <label className="block mb-1 font-semibold text-dark">
-                            y_pixel
-                          </label>
-                          <input
-                            value={modal.form.y_pixel || ""}
-                            onChange={(e) =>
-                              setModal((prev) => ({
-                                ...prev,
-                                form: {
-                                  ...prev.form,
-                                  y_pixel: parseInt(e.target.value),
-                                },
-                              }))
-                            }
-                            type="number"
-                            min="0"
-                            required
-                            className="input"
-                            placeholder="y_pixel"
-                          />
-                        </div>
-                      </>
-                    )}
-                    <button
-                      className="bg-primary text-white w-full py-2 rounded-xl font-bold hover:bg-dark transition mt-2"
-                      type="submit"
-                    >
-                      {modal.mode === "edit" ? "Simpan Perubahan" : "Tambah"}
-                    </button>
-                  </form>
-                </Dialog.Panel>
-              </div>
-            </Transition.Child>
-          </Dialog>
-        </Transition>
       </main>
     </div>
   );
