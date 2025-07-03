@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Fragment } from "react";
 import Image from "next/image";
 
 type Gedung = { id: number; nama: string; kode: string };
@@ -172,60 +171,6 @@ export default function Dashboard() {
       mode: "",
       entityId: null,
     });
-  };
-
-  const submitForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
-    let url = "";
-    let method = "";
-    let body = {};
-
-    if (modal.type === "gedung") {
-      url = `http://localhost:3001/api/gedung${
-        modal.mode === "edit" ? `/${modal.entityId}` : ""
-      }`;
-      method = modal.mode === "edit" ? "PUT" : "POST";
-      body = { ...modal.form };
-    }
-    if (modal.type === "lantai") {
-      url = `http://localhost:3001/api/lantai${
-        modal.mode === "edit" ? `/${modal.entityId}` : ""
-      }`;
-      method = modal.mode === "edit" ? "PUT" : "POST";
-      body = { ...modal.form };
-    }
-    if (modal.type === "ruangan") {
-      url = `http://localhost:3001/api/ruangan${
-        modal.mode === "edit" ? `/${modal.entityId}` : ""
-      }`;
-      method = modal.mode === "edit" ? "PUT" : "POST";
-      body = { ...modal.form };
-    }
-
-    const res = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (res.ok) {
-      closeForm();
-      showToast(
-        modal.mode === "edit"
-          ? `Berhasil update ${modal.type}!`
-          : `Berhasil tambah ${modal.type}!`
-      );
-      if (modal.type === "gedung") fetchGedung();
-      if (modal.type === "lantai" && gedung) fetchLantai(gedung.id);
-      if (modal.type === "ruangan" && lantai) fetchRuangan(lantai.id);
-      fetchStatistik();
-    }
   };
 
   const deleteEntity = async (type: string, entity: Entity) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FiSun, FiMoon } from "react-icons/fi";
 import Slider from "react-slick";
@@ -16,19 +16,10 @@ export default function Home() {
   const [isDark, setIsDark] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
-  const hideTimeout = useRef<NodeJS.Timeout | null>(null);
   const [cuaca, setCuaca] = useState<string | null>(null);
   const [hari, setHari] = useState("");
   const [tanggal, setTanggal] = useState("");
   const mapArea = useRef<HTMLDivElement>(null);
-
-  // State untuk zoom dan pan
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [isHovering, setIsHovering] = useState(false);
-  const [isAtBoundary, setIsAtBoundary] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
