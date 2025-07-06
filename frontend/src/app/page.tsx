@@ -491,9 +491,9 @@ export default function Home() {
             style={{ minHeight: 350, height: "100%" }}
           >
             <EsriMap
-              initialLat={-0.0}
-              initialLng={109.3333}
-              initialZoom={15}
+              initialLat={-0.0545}
+              initialLng={109.3465}
+              initialZoom={18}
               className="w-full h-full"
               isDark={isDark}
             />

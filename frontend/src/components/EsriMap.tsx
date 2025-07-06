@@ -23,9 +23,9 @@ const BASEMAPS = [
 
 const EsriMap: React.FC<EsriMapProps> = ({
   isDark,
-  initialLat = -0.0,
-  initialLng = 109.3333,
-  initialZoom = 15,
+  initialLat = -0.0545, // Posisi tengah kampus Polnep (dihitung dari GeoJSON)
+  initialLng = 109.3465, // Posisi tengah kampus Polnep (dihitung dari GeoJSON)
+  initialZoom = 18, // Zoom yang lebih dekat untuk melihat detail kampus
   className = "",
 }) => {
   const mapDiv = useRef<HTMLDivElement>(null);
@@ -45,6 +45,9 @@ const EsriMap: React.FC<EsriMapProps> = ({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [allFeatures, setAllFeatures] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  // State untuk hover effect
+  const [hoveredFeature, setHoveredFeature] = useState<any>(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   // Selalu update basemap dan reset tombol jika mode dark/light berubah
   useEffect(() => {
@@ -83,14 +86,32 @@ const EsriMap: React.FC<EsriMapProps> = ({
       scriptLoaded.current = true;
       initMap();
     }
+
     function initMap() {
       if (!(window as any).require || !mapDiv.current) return;
+
+      // Hitung center point dari GeoJSON jika data sudah tersedia
+      let centerLng = initialLng;
+      let centerLat = initialLat;
+
+      if (allFeatures.length > 0) {
+        const center = calculateGeoJSONCenter(allFeatures);
+        centerLng = center.lng;
+        centerLat = center.lat;
+        console.log("Menggunakan center point dari GeoJSON:", center);
+      } else {
+        console.log("Menggunakan center point default:", {
+          lng: centerLng,
+          lat: centerLat,
+        });
+      }
+
       console.log(
         "[EsriMap] Inisialisasi MapView dengan basemap:",
         basemap,
         "center:",
-        initialLng,
-        initialLat,
+        centerLng,
+        centerLat,
         "zoom:",
         initialZoom
       );
@@ -213,12 +234,87 @@ const EsriMap: React.FC<EsriMapProps> = ({
           const view = new MapView({
             container: mapDiv.current,
             map,
-            center: [initialLng, initialLat],
+            center: [centerLng, centerLat],
             zoom: initialZoom,
             ui: { components: [] },
           });
           viewRef.current = view;
           setGeojsonLayerRef(geojsonLayer);
+
+          // Event handlers untuk hover effect
+          view.on("pointer-move", (event: any) => {
+            view.hitTest(event).then((response: any) => {
+              if (response.results.length > 0) {
+                const result = response.results[0];
+                if (result.graphic && result.graphic.layer === geojsonLayer) {
+                  const feature = result.graphic;
+                  const properties = feature.attributes;
+
+                  if (properties && properties.nama) {
+                    setHoveredFeature(feature);
+                    setTooltipPosition({ x: event.x, y: event.y });
+
+                    // Tambahkan efek hover pada feature
+                    feature.symbol = {
+                      ...feature.symbol,
+                      color: feature.symbol.color.map((c: number, i: number) =>
+                        i === 3 ? Math.min(c + 0.2, 1) : c
+                      ),
+                    };
+                  } else {
+                    setHoveredFeature(null);
+                  }
+                } else {
+                  setHoveredFeature(null);
+                }
+              } else {
+                setHoveredFeature(null);
+              }
+            });
+          });
+
+          // Event handler untuk pointer leave
+          view.on("pointer-leave", () => {
+            setHoveredFeature(null);
+            // Reset semua feature ke warna asli
+            geojsonLayer.queryFeatures().then((results: any) => {
+              results.features.forEach((feature: any) => {
+                if (feature.symbol && feature.symbol.color) {
+                  // Reset ke warna asli berdasarkan kategori
+                  const kategori = feature.attributes?.kategori;
+                  let originalColor: number[];
+
+                  switch (kategori) {
+                    case "Bangunan":
+                      originalColor = [58, 134, 255, 0.7];
+                      break;
+                    case "Kanopi":
+                      originalColor = [255, 190, 11, 0.6];
+                      break;
+                    case "Jalan":
+                      originalColor = [67, 170, 139, 0.8];
+                      break;
+                    case "Parkir":
+                      originalColor = [128, 128, 128, 0.6];
+                      break;
+                    case "Lahan":
+                      originalColor = [34, 197, 94, 0.5];
+                      break;
+                    case "Kolam":
+                      originalColor = [59, 130, 246, 0.4];
+                      break;
+                    default:
+                      originalColor = [173, 181, 189, 0.5];
+                  }
+
+                  feature.symbol = {
+                    ...feature.symbol,
+                    color: originalColor,
+                  };
+                }
+              });
+            });
+          });
 
           // Setelah layer selesai dimuat, auto zoom ke extent GeoJSON
           geojsonLayer.when(() => {
@@ -291,7 +387,23 @@ const EsriMap: React.FC<EsriMapProps> = ({
       setIsLoadingData(true);
       const response = await fetch("/geojson/Polnep WGS_1984.geojson");
       const data = await response.json();
-      setAllFeatures(data.features || []);
+      const features = data.features || [];
+      setAllFeatures(features);
+
+      // Hitung center point dan update posisi default
+      const center = calculateGeoJSONCenter(features);
+      console.log("Center point GeoJSON:", center);
+
+      // Update posisi default jika view sudah ada
+      if (viewRef.current) {
+        viewRef.current.goTo({
+          center: [center.lng, center.lat],
+          zoom: 16,
+        });
+      } else {
+        // Jika view belum ada, tunggu sampai script dimuat
+        console.log("View belum ada, menunggu script dimuat...");
+      }
     } catch (error) {
       console.error("Error loading GeoJSON data:", error);
     } finally {
@@ -361,6 +473,63 @@ const EsriMap: React.FC<EsriMapProps> = ({
     loadGeoJSONData();
   }, []);
 
+  // Re-inisialisasi map jika data GeoJSON berubah dan map belum ada
+  useEffect(() => {
+    if (allFeatures.length > 0 && !viewRef.current && scriptLoaded.current) {
+      console.log("Data GeoJSON tersedia, inisialisasi map...");
+      // Map akan diinisialisasi dengan center point yang benar di dalam initMap
+    }
+  }, [allFeatures]);
+
+  // Update center point jika data GeoJSON berubah dan map sudah ada
+  useEffect(() => {
+    if (allFeatures.length > 0 && viewRef.current) {
+      const center = calculateGeoJSONCenter(allFeatures);
+      console.log("Update center point ke:", center);
+      viewRef.current.goTo({
+        center: [center.lng, center.lat],
+        zoom: 16,
+      });
+    }
+  }, [allFeatures]);
+
+  // Fungsi untuk menghitung center point dari GeoJSON
+  const calculateGeoJSONCenter = (features: any[]) => {
+    if (features.length === 0) return { lat: -0.0545, lng: 109.3465 };
+
+    let minLng = Infinity,
+      maxLng = -Infinity;
+    let minLat = Infinity,
+      maxLat = -Infinity;
+
+    features.forEach((feature) => {
+      if (feature.geometry && feature.geometry.coordinates) {
+        let coordinates: number[][][] = [];
+
+        if (feature.geometry.type === "Polygon") {
+          coordinates = feature.geometry.coordinates;
+        } else if (feature.geometry.type === "MultiPolygon") {
+          coordinates = feature.geometry.coordinates.flat();
+        }
+
+        coordinates.forEach((ring) => {
+          ring.forEach((coord) => {
+            const [lng, lat] = coord;
+            minLng = Math.min(minLng, lng);
+            maxLng = Math.max(maxLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLat = Math.max(maxLat, lat);
+          });
+        });
+      }
+    });
+
+    return {
+      lat: (minLat + maxLat) / 2,
+      lng: (minLng + maxLng) / 2,
+    };
+  };
+
   // Event listener untuk menutup dropdown ketika mengklik di luar
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -379,13 +548,7 @@ const EsriMap: React.FC<EsriMapProps> = ({
   return (
     <div
       className={`relative w-full h-full ${className}`}
-      style={{ minHeight: 350, cursor: undefined }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.cursor = "grab";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.cursor = "auto";
-      }}
+      style={{ minHeight: 350 }}
     >
       {/* Search Box ala Google Maps */}
       <form
@@ -510,8 +673,143 @@ const EsriMap: React.FC<EsriMapProps> = ({
           </div>
         )}
       </form>
+
+      {/* Tooltip untuk hover effect */}
+      {hoveredFeature && (
+        <div
+          className={`fixed z-50 px-3 py-2 rounded-lg shadow-lg border text-sm font-medium pointer-events-none transition-all ${
+            isDark
+              ? "bg-gray-800 border-gray-700 text-white"
+              : "bg-white border-gray-200 text-gray-900"
+          }`}
+          style={{
+            left: tooltipPosition.x + 10,
+            top: tooltipPosition.y - 40,
+            transform: "translateY(-100%)",
+          }}
+        >
+          {hoveredFeature.attributes?.nama || "Tanpa Nama"}
+          <div
+            className={`absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent ${
+              isDark ? "border-t-gray-800" : "border-t-white"
+            }`}
+          ></div>
+        </div>
+      )}
+
       {/* Basemap toggle button kiri bawah */}
       <div className="absolute left-4 bottom-4 z-20 flex flex-col gap-2">
+        {/* Zoom Controls */}
+        <div className="flex flex-col gap-1">
+          {/* Zoom In Button */}
+          <button
+            onClick={() => {
+              if (viewRef.current) {
+                viewRef.current.goTo({
+                  zoom: viewRef.current.zoom + 1,
+                });
+              }
+            }}
+            className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
+              ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  : "bg-white border-gray-200 hover:bg-gray-100"
+              }
+            `}
+            style={{ width: 48, height: 48 }}
+            title="Zoom In"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={isDark ? "#fff" : "#1e293b"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+              <path d="M11 8v6" />
+              <path d="M8 11h6" />
+            </svg>
+          </button>
+
+          {/* Zoom Out Button */}
+          <button
+            onClick={() => {
+              if (viewRef.current) {
+                viewRef.current.goTo({
+                  zoom: viewRef.current.zoom - 1,
+                });
+              }
+            }}
+            className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
+              ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  : "bg-white border-gray-200 hover:bg-gray-100"
+              }
+            `}
+            style={{ width: 48, height: 48 }}
+            title="Zoom Out"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={isDark ? "#fff" : "#1e293b"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+              <path d="M8 11h6" />
+            </svg>
+          </button>
+
+          {/* Reset Zoom Button */}
+          <button
+            onClick={() => {
+              if (viewRef.current && allFeatures.length > 0) {
+                const center = calculateGeoJSONCenter(allFeatures);
+                viewRef.current.goTo({
+                  center: [center.lng, center.lat],
+                  zoom: initialZoom,
+                });
+              }
+            }}
+            className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
+              ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                  : "bg-white border-gray-200 hover:bg-gray-100"
+              }
+            `}
+            style={{ width: 48, height: 48 }}
+            title="Reset ke Posisi Awal"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={isDark ? "#fff" : "#1e293b"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M8 21v-5h5" />
+            </svg>
+          </button>
+        </div>
         <button
           onClick={handleToggleBasemap}
           className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
