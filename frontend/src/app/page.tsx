@@ -9,7 +9,14 @@ import "slick-carousel/slick/slick-theme.css";
 import { useTheme } from "next-themes";
 import React from "react";
 import ParticlesCustom from "@/components/ParticlesCustom";
-import EsriMap from "@/components/EsriMap";
+import dynamic from "next/dynamic";
+
+const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
+  ssr: false,
+});
+const EsriMap = dynamic(() => import("@/components/EsriMap"), {
+  ssr: false,
+});
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
@@ -203,6 +210,8 @@ export default function Home() {
       if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
     };
   }, []);
+
+  const [mapType, setMapType] = useState<"leaflet" | "esri">("leaflet");
 
   return (
     <div
@@ -481,15 +490,38 @@ export default function Home() {
           </div>
         </div>
 
+        <div className="flex gap-2 mb-4">
+          <button
+            className={`px-4 py-2 rounded ${
+              mapType === "leaflet" ? "bg-blue-500 text-white" : "bg-gray-200"
+            }`}
+            onClick={() => setMapType("leaflet")}
+          >
+            Leaflet
+          </button>
+          <button
+            className={`px-4 py-2 rounded ${
+              mapType === "esri" ? "bg-blue-500 text-white" : "bg-gray-200"
+            }`}
+            onClick={() => setMapType("esri")}
+          >
+            Esri
+          </button>
+        </div>
+
         <div
           className={`w-full h-[350px] md:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
           style={{ minHeight: 350, height: "100%", maxHeight: 600 }}
         >
-          {/* EsriMap Only */}
-          <div
-            className="w-full h-full"
-            style={{ minHeight: 350, height: "100%" }}
-          >
+          {mapType === "leaflet" ? (
+            <LeafletMap
+              initialLat={-0.0545}
+              initialLng={109.3465}
+              initialZoom={18}
+              className="w-full h-full"
+              isDark={isDark}
+            />
+          ) : (
             <EsriMap
               initialLat={-0.0545}
               initialLng={109.3465}
@@ -497,7 +529,7 @@ export default function Home() {
               className="w-full h-full"
               isDark={isDark}
             />
-          </div>
+          )}
         </div>
       </section>
 
