@@ -766,71 +766,69 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       )}
 
       {/* Kontrol kiri bawah: basemap dan toggle layer */}
-      {!selectedFeature && (
-        <div
-          className="absolute left-4 bottom-4 z-50 flex flex-col gap-2"
-          style={{ zIndex: 1050 }}
+      <div
+        className="absolute left-4 bottom-4 z-50 flex flex-col gap-2"
+        style={{ zIndex: 1050 }}
+      >
+        {/* Toggle Layer Button (ikon mata) */}
+        <button
+          onClick={handleToggleLayer}
+          className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
+          ${
+            isDark
+              ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
+              : "bg-white border-gray-200 hover:bg-gray-100"
+          }
+        `}
+          style={{ width: 64, height: 64 }}
         >
-          {/* Toggle Layer Button (ikon mata) */}
-          <button
-            onClick={handleToggleLayer}
-            className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
-            ${
-              isDark
-                ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
-                : "bg-white border-gray-200 hover:bg-gray-100"
-            }
-          `}
-            style={{ width: 64, height: 64 }}
-          >
-            {layerVisible ? (
-              // Ikon layer visible saja, tanpa teks 'Sembunyikan'
-              <FontAwesomeIcon icon={faLayerGroup} />
-            ) : (
-              // Ikon layer hidden saja, tanpa teks 'Tampilkan'
-              <FontAwesomeIcon icon={faLayerGroup} />
-            )}
-          </button>
-          {/* Basemap Toggle Button identik EsriMap */}
-          <button
-            onClick={handleToggleBasemap}
-            className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
-            ${
-              isDark
-                ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
-                : "bg-white border-gray-200 hover:bg-gray-100"
-            }
-          `}
-            style={{ width: 64, height: 64 }}
-          >
-            {isSatellite ? (
-              <>
-                {/* Ikon globe/peta */}
-                <FontAwesomeIcon icon={faGlobe} />
-                <span
-                  className={`text-xs font-bold ${
-                    isDark ? "text-white" : "text-gray-700"
-                  }`}
-                >
-                  Peta
-                </span>
-              </>
-            ) : (
-              <>
-                {/* Ikon satelit */}
-                <FontAwesomeIcon icon={faGlobe} />
-                <span
-                  className={`text-xs font-bold ${
-                    isDark ? "text-white" : "text-gray-700"
-                  }`}
-                >
-                  Satelit
-                </span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
+          {layerVisible ? (
+            // Ikon layer visible saja, tanpa teks 'Sembunyikan'
+            <FontAwesomeIcon icon={faLayerGroup} />
+          ) : (
+            // Ikon layer hidden saja, tanpa teks 'Tampilkan'
+            <FontAwesomeIcon icon={faLayerGroup} />
+          )}
+        </button>
+        {/* Basemap Toggle Button identik EsriMap */}
+        <button
+          onClick={handleToggleBasemap}
+          className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-primary/30
+          ${
+            isDark
+              ? "bg-gray-800 border-gray-700 hover:bg-gray-700"
+              : "bg-white border-gray-200 hover:bg-gray-100"
+          }
+        `}
+          style={{ width: 64, height: 64 }}
+        >
+          {isSatellite ? (
+            <>
+              {/* Ikon globe/peta */}
+              <FontAwesomeIcon icon={faGlobe} />
+              <span
+                className={`text-xs font-bold ${
+                  isDark ? "text-white" : "text-gray-700"
+                }`}
+              >
+                Peta
+              </span>
+            </>
+          ) : (
+            <>
+              {/* Ikon satelit */}
+              <FontAwesomeIcon icon={faGlobe} />
+              <span
+                className={`text-xs font-bold ${
+                  isDark ? "text-white" : "text-gray-700"
+                }`}
+              >
+                Satelit
+              </span>
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Sidebar Gedung (ganti dengan floating card kanan bawah) */}
       {selectedFeature && (
@@ -861,13 +859,17 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
             </button>
           </div>
           <div className="flex-1 flex flex-col gap-3 px-4 py-4">
-            <button
-              className="w-full py-2 rounded-lg font-bold text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark mb-1"
-              onClick={() => setShow3DMallCanvas(true)}
-            >
-              <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
-              Detail Gedung
-            </button>
+            {selectedFeature.properties?.interaksi &&
+              selectedFeature.properties.interaksi.toLowerCase() ===
+                "interaktif" && (
+                <button
+                  className="w-full py-2 rounded-lg font-bold text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark mb-1"
+                  onClick={() => setShow3DMallCanvas(true)}
+                >
+                  <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
+                  Detail Bangunan
+                </button>
+              )}
             <button className="w-full py-2 rounded-lg font-bold text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark">
               <FontAwesomeIcon icon={faRoute} className="mr-2" />
               Rute

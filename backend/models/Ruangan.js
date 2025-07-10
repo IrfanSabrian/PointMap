@@ -13,7 +13,7 @@ const Ruangan = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    id_lantai: {
+    nomor_lantai: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },

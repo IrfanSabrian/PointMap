@@ -1,11 +1,11 @@
 import Ruangan from "../models/Ruangan.js";
 
-// GET semua ruangan berdasarkan lantai (query: ?lantai=ID)
+// GET semua ruangan berdasarkan nomor lantai (query: ?lantai=nomor)
 export const getRuanganByLantai = async (req, res) => {
   const { lantai } = req.query;
   try {
     const ruangan = await Ruangan.findAll({
-      where: { id_lantai: lantai },
+      where: { nomor_lantai: lantai },
     });
     res.json(ruangan);
   } catch (err) {
@@ -16,11 +16,11 @@ export const getRuanganByLantai = async (req, res) => {
 // CREATE ruangan baru
 export const addRuangan = async (req, res) => {
   try {
-    const { nama_ruangan, id_lantai, id_bangunan, id_prodi, deskripsi } =
+    const { nama_ruangan, nomor_lantai, id_bangunan, id_prodi, deskripsi } =
       req.body;
     const ruanganBaru = await Ruangan.create({
       nama_ruangan,
-      id_lantai,
+      nomor_lantai,
       id_bangunan,
       id_prodi,
       deskripsi,
@@ -38,12 +38,12 @@ export const addRuangan = async (req, res) => {
 export const updateRuangan = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nama_ruangan, id_lantai, id_bangunan, id_prodi, deskripsi } =
+    const { nama_ruangan, nomor_lantai, id_bangunan, id_prodi, deskripsi } =
       req.body;
     const [updated] = await Ruangan.update(
       {
         nama_ruangan,
-        id_lantai,
+        nomor_lantai,
         id_bangunan,
         id_prodi,
         deskripsi,
