@@ -4,6 +4,7 @@ import {
   addBangunan,
   updateBangunan,
   deleteBangunan,
+  getBangunanGeoJSON,
 } from "../controllers/bangunan.js";
 import auth from "../middlewares/auth.js";
 
@@ -13,5 +14,6 @@ router.get("/", getAllBangunan); // public
 router.post("/", auth, addBangunan); // admin
 router.put("/:id", auth, updateBangunan); // admin
 router.delete("/:id", auth, deleteBangunan); // admin
+router.get("/geojson", getBangunanGeoJSON);
 
 export default router;

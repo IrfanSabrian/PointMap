@@ -64,3 +64,25 @@ export const deleteBangunan = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const getBangunanGeoJSON = async (req, res) => {
+  try {
+    const bangunan = await Bangunan.findAll();
+    const features = bangunan.map((b) => ({
+      type: "Feature",
+      geometry: JSON.parse(b.geometri),
+      properties: {
+        id: b.id_bangunan,
+        nama: b.nama,
+        interaksi: b.interaksi,
+        lantai: b.lantai,
+      },
+    }));
+    res.json({
+      type: "FeatureCollection",
+      features,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

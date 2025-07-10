@@ -21,7 +21,8 @@ interface LeafletMapProps {
   className?: string;
 }
 
-const geojsonUrl = "/geojson/Polnep WGS_1984.geojson";
+const geojsonBangunanUrl = "http://localhost:3001/api/bangunan/geojson";
+const geojsonStatisUrl = "/geojson/Polnep WGS_1984.geojson";
 
 const kategoriStyle: Record<string, L.PathOptions> = {
   Bangunan: {
@@ -128,6 +129,33 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   const [cardVisible, setCardVisible] = useState(false);
   // State untuk menampilkan canvas 3D Mall Map di area peta
   const [show3DMallCanvas, setShow3DMallCanvas] = useState(false);
+  const nonBangunanLayerRef = useRef<L.GeoJSON<any> | null>(null);
+  const bangunanLayerRef = useRef<L.GeoJSON<any> | null>(null);
+  const [nonBangunanFeatures, setNonBangunanFeatures] = useState<any[]>([]);
+  const [bangunanFeatures, setBangunanFeatures] = useState<any[]>([]);
+
+  // Load data non-bangunan dari file statis
+  useEffect(() => {
+    fetch(geojsonStatisUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        const nonBangunan = (data.features || []).filter(
+          (f: any) => f.properties?.kategori !== "Bangunan"
+        );
+        setNonBangunanFeatures(nonBangunan);
+      });
+  }, []);
+
+  // Load data bangunan dari API
+  useEffect(() => {
+    setIsLoadingData(true);
+    fetch(geojsonBangunanUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        setBangunanFeatures(data.features || []);
+      })
+      .finally(() => setIsLoadingData(false));
+  }, []);
 
   // Inisialisasi map hanya sekali
   useEffect(() => {
@@ -151,16 +179,35 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     tileLayer.addTo(map);
     basemapLayerRef.current = tileLayer;
 
-    // GeoJSON Layer
-    const geoJsonLayer = L.geoJSON(undefined, {
+    // Layer non-bangunan (ditambahkan lebih dulu)
+    const nonBangunanLayer = L.geoJSON(undefined, {
       style: (feature: any) => {
         const kategori = feature?.properties?.kategori;
         return kategoriStyle[kategori] || defaultStyle;
       },
       onEachFeature: (feature: any, layer: any) => {
+        // Pastikan cursor menjadi 'grab' untuk semua tipe geometry
+        const setGrabCursor = () => {
+          if (layer._path) layer._path.style.cursor = "grab";
+          if (layer._container) layer._container.style.cursor = "grab";
+        };
+        layer.on("mouseover", setGrabCursor);
+        layer.on("mousemove", setGrabCursor);
+        layer.on("mouseout", setGrabCursor);
+      },
+    });
+    nonBangunanLayer.addTo(map);
+    nonBangunanLayerRef.current = nonBangunanLayer;
+
+    // Layer bangunan (di atas non-bangunan)
+    const bangunanLayer = L.geoJSON(undefined, {
+      style: (feature: any) => {
+        const kategori = feature?.properties?.kategori || "Bangunan";
+        return kategoriStyle[kategori] || defaultStyle;
+      },
+      onEachFeature: (feature: any, layer: any) => {
         const nama = feature.properties?.nama || "Tanpa Nama";
-        const kategori = feature.properties?.kategori || "-";
-        const subtipe = feature.properties?.subtipe || "-";
+        const kategori = feature.properties?.kategori || "Bangunan";
         layer.on("mouseover", function (e: any) {
           setHoveredFeature(feature);
           setTooltipPosition({
@@ -192,8 +239,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         }
       },
     });
-    geoJsonLayer.addTo(map);
-    geoJsonLayerRef.current = geoJsonLayer;
+    bangunanLayer.addTo(map);
+    bangunanLayerRef.current = bangunanLayer;
 
     // Cleanup
     return () => {
@@ -206,7 +253,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         map.remove();
       } catch {}
       leafletMapRef.current = null;
-      geoJsonLayerRef.current = null;
+      nonBangunanLayerRef.current = null;
+      bangunanLayerRef.current = null;
       basemapLayerRef.current = null;
     };
   }, []); // hanya sekali
@@ -232,36 +280,37 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     basemapLayerRef.current = tileLayer;
   }, [basemap]);
 
-  // Load GeoJSON data
+  // Update non-bangunan layer jika data berubah
   useEffect(() => {
-    setIsLoadingData(true);
-    fetch(geojsonUrl)
-      .then((res) => res.json())
-      .then((data) => {
-        setAllFeatures(data.features || []);
-      })
-      .finally(() => setIsLoadingData(false));
-  }, []);
-
-  // Update GeoJSON layer jika data berubah
-  useEffect(() => {
-    const geoJsonLayer = geoJsonLayerRef.current;
-    const map = leafletMapRef.current;
-    if (!geoJsonLayer || !map) return;
-    geoJsonLayer.clearLayers();
-    if (layerVisible) {
-      geoJsonLayer.addData({
+    const nonBangunanLayer = nonBangunanLayerRef.current;
+    if (!nonBangunanLayer) return;
+    nonBangunanLayer.clearLayers();
+    if (layerVisible && nonBangunanFeatures.length > 0) {
+      nonBangunanLayer.addData({
         type: "FeatureCollection",
-        features: allFeatures,
-      });
-      if (allFeatures.length > 0) {
-        const bounds = geoJsonLayer.getBounds();
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { maxZoom: 19, padding: [20, 20] });
-        }
+        features: nonBangunanFeatures,
+      } as any);
+    }
+  }, [nonBangunanFeatures, layerVisible]);
+
+  // Update bangunan layer jika data berubah
+  useEffect(() => {
+    const bangunanLayer = bangunanLayerRef.current;
+    const map = leafletMapRef.current;
+    if (!bangunanLayer || !map) return;
+    bangunanLayer.clearLayers();
+    if (layerVisible && bangunanFeatures.length > 0) {
+      bangunanLayer.addData({
+        type: "FeatureCollection",
+        features: bangunanFeatures,
+      } as any);
+      // Fit bounds ke bangunan jika ada
+      const bounds = bangunanLayer.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { maxZoom: 19, padding: [20, 20] });
       }
     }
-  }, [allFeatures, layerVisible]);
+  }, [bangunanFeatures, layerVisible]);
 
   // Search logic
   useEffect(() => {
