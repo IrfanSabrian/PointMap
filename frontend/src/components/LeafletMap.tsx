@@ -128,11 +128,31 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   // State animasi card
   const [cardVisible, setCardVisible] = useState(false);
   // State untuk menampilkan canvas 3D Mall Map di area peta
-  const [show3DMallCanvas, setShow3DMallCanvas] = useState(false);
+  const [showBuildingDetailCanvas, setShowBuildingDetailCanvas] =
+    useState(false);
   const nonBangunanLayerRef = useRef<L.GeoJSON<any> | null>(null);
   const bangunanLayerRef = useRef<L.GeoJSON<any> | null>(null);
   const [nonBangunanFeatures, setNonBangunanFeatures] = useState<any[]>([]);
   const [bangunanFeatures, setBangunanFeatures] = useState<any[]>([]);
+  // State animasi fade-out untuk modal Building Detail
+  const [isBuildingDetailFadingOut, setIsBuildingDetailFadingOut] =
+    useState(false);
+  // State animasi fade-in untuk modal Building Detail
+  const [isBuildingDetailFadingIn, setIsBuildingDetailFadingIn] =
+    useState(false);
+  // State untuk highlight bangunan hasil pencarian
+  const [highlightedFeatureId, setHighlightedFeatureId] = useState<
+    string | number | null
+  >(null);
+
+  // Fungsi untuk membuka modal dengan animasi fade-in
+  const openBuildingDetailModal = () => {
+    setIsBuildingDetailFadingIn(true);
+    setShowBuildingDetailCanvas(true);
+    setTimeout(() => {
+      setIsBuildingDetailFadingIn(false);
+    }, 300); // durasi animasi fade
+  };
 
   // Load data non-bangunan dari file statis
   useEffect(() => {
@@ -156,6 +176,11 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       })
       .finally(() => setIsLoadingData(false));
   }, []);
+
+  // Gabungkan data bangunan dan non-bangunan untuk pencarian
+  useEffect(() => {
+    setAllFeatures([...bangunanFeatures, ...nonBangunanFeatures]);
+  }, [bangunanFeatures, nonBangunanFeatures]);
 
   // Inisialisasi map hanya sekali
   useEffect(() => {
@@ -364,7 +389,16 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         [Math.min(...lats), Math.min(...lngs)],
         [Math.max(...lats), Math.max(...lngs)]
       );
+      // Zoom ke lokasi, lalu highlight setelah animasi selesai
       map.fitBounds(bounds, { padding: [50, 50] });
+      // Tunggu event moveend baru highlight
+      const onMoveEnd = () => {
+        highlightFeature(feature);
+        map.off("moveend", onMoveEnd);
+      };
+      map.on("moveend", onMoveEnd);
+    } else {
+      highlightFeature(feature);
     }
     setSearchText(feature.properties?.nama || "");
     setShowSearchResults(false);
@@ -533,6 +567,57 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       }
     };
   }, [userLocation, searchText, searchResults]);
+
+  // Fungsi untuk menutup modal dengan animasi fade
+  const closeBuildingDetailModal = () => {
+    setIsBuildingDetailFadingOut(true);
+    setTimeout(() => {
+      setShowBuildingDetailCanvas(false);
+      setIsBuildingDetailFadingOut(false);
+    }, 300); // durasi animasi fade
+  };
+
+  // Event listener pesan close-buildingdetail dari iframe
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.data === "close-buildingdetail") {
+        closeBuildingDetailModal();
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  // Fungsi untuk highlight bangunan selama 1 detik dengan efek fade
+  const highlightFeature = (feature: any) => {
+    if (!feature) return;
+    const bangunanLayer = bangunanLayerRef.current;
+    if (!bangunanLayer) return;
+    bangunanLayer.eachLayer((layer: any) => {
+      if (
+        layer.feature &&
+        layer.feature.properties?.id === feature.properties?.id
+      ) {
+        // Simpan style awal
+        const kategori = feature?.properties?.kategori || "Bangunan";
+        const defaultStyle = kategoriStyle[kategori] || {
+          color: "#adb5bd",
+          fillColor: "#adb5bd",
+          fillOpacity: 0.5,
+        };
+        // Highlight ke merah terang
+        layer.setStyle({
+          color: "#ff3333",
+          fillColor: "#ff3333",
+          fillOpacity: 0.7,
+          opacity: 1,
+        });
+        setTimeout(() => {
+          layer.setStyle(defaultStyle);
+        }, 1000);
+      }
+    });
+  };
 
   return (
     <div
@@ -864,7 +949,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
                 "interaktif" && (
                 <button
                   className="w-full py-2 rounded-lg font-bold text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark mb-1"
-                  onClick={() => setShow3DMallCanvas(true)}
+                  onClick={openBuildingDetailModal}
                 >
                   <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
                   Detail Bangunan
@@ -889,23 +974,23 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           height: "100%",
           minHeight: 350,
           zIndex: 1,
-          display: show3DMallCanvas ? "none" : "block",
+          display: showBuildingDetailCanvas ? "none" : "block",
         }}
         className="w-full h-full"
       />
-      {show3DMallCanvas && (
-        <div className="absolute inset-0 w-full h-full flex flex-col z-[2000] bg-white dark:bg-gray-900">
-          <div className="flex justify-end p-2">
-            <button
-              onClick={() => setShow3DMallCanvas(false)}
-              className="px-4 py-2 rounded-lg bg-primary text-white font-bold shadow hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/80 focus:outline-none"
-            >
-              Kembali ke Peta
-            </button>
-          </div>
+      {showBuildingDetailCanvas && (
+        <div
+          className={`absolute inset-0 w-full h-full flex flex-col z-[2000] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
+            isBuildingDetailFadingOut
+              ? "opacity-0"
+              : isBuildingDetailFadingIn
+              ? "opacity-0 animate-fade-in"
+              : "opacity-100"
+          }`}
+        >
           <iframe
-            src="/Interactive3DMallMap/index.html"
-            title="3D Mall Map"
+            src="/building-details/index.html"
+            title="Building Detail"
             className="flex-1 w-full h-full border-0 rounded-b-xl"
             style={{ minHeight: "350px" }}
           />
