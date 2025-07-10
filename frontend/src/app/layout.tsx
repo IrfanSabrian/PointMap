@@ -1,6 +1,6 @@
 "use client";
 
-import { Inter, Oswald } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "./theme-provider";
 import { useEffect, useState } from "react";
@@ -11,11 +11,10 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const oswald = Oswald({
-  subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700"],
+// Fallback untuk Oswald font menggunakan Google Fonts CDN
+const oswald = {
   variable: "--font-oswald",
-});
+};
 
 export default function RootLayout({
   children,
@@ -26,7 +25,22 @@ export default function RootLayout({
   useEffect(() => setMounted(true), []);
   return (
     <html lang="id" suppressHydrationWarning>
-      <head />
+      <head>
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
         suppressHydrationWarning={true}
         className={`${inter.variable} ${oswald.variable} antialiased`}

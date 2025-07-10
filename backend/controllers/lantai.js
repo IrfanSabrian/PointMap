@@ -1,10 +1,10 @@
 import Lantai from "../models/Lantai.js";
 
-// GET semua lantai berdasarkan gedung (query: ?gedung=ID)
-export const getLantaiByGedung = async (req, res) => {
-  const { gedung } = req.query;
+// GET semua lantai berdasarkan bangunan (query: ?bangunan=ID)
+export const getLantaiByBangunan = async (req, res) => {
+  const { bangunan } = req.query;
   try {
-    const lantai = await Lantai.findAll({ where: { id_gedung: gedung } });
+    const lantai = await Lantai.findAll({ where: { id_bangunan: bangunan } });
     res.json(lantai);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -14,11 +14,11 @@ export const getLantaiByGedung = async (req, res) => {
 // CREATE lantai baru
 export const addLantai = async (req, res) => {
   try {
-    const { nama_lantai, nomor_lantai, id_gedung } = req.body;
+    const { nama_lantai, nomor_lantai, id_bangunan } = req.body;
     const lantaiBaru = await Lantai.create({
       nama_lantai,
       nomor_lantai,
-      id_gedung,
+      id_bangunan,
     });
     res.status(201).json({
       message: "Lantai berhasil ditambahkan",
@@ -33,10 +33,10 @@ export const addLantai = async (req, res) => {
 export const updateLantai = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nama_lantai, nomor_lantai, id_gedung } = req.body;
+    const { nama_lantai, nomor_lantai, id_bangunan } = req.body;
     const [updated] = await Lantai.update(
-      { nama_lantai, nomor_lantai, id_gedung },
-      { where: { id } }
+      { nama_lantai, nomor_lantai, id_bangunan },
+      { where: { id_lantai: id } }
     );
     if (updated) {
       const updatedLantai = await Lantai.findByPk(id);

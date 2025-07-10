@@ -198,7 +198,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     // Cleanup
     return () => {
       try {
-        map.eachLayer((layer) => {
+        map.eachLayer((layer: any) => {
           try {
             map.removeLayer(layer);
           } catch {}

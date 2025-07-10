@@ -16,23 +16,14 @@ export const getRuanganByLantai = async (req, res) => {
 // CREATE ruangan baru
 export const addRuangan = async (req, res) => {
   try {
-    const {
-      nama_ruangan,
-      id_lantai,
-      id_gedung,
-      id_prodi,
-      fungsi,
-      x_pixel,
-      y_pixel,
-    } = req.body;
+    const { nama_ruangan, id_lantai, id_bangunan, id_prodi, deskripsi } =
+      req.body;
     const ruanganBaru = await Ruangan.create({
       nama_ruangan,
       id_lantai,
-      id_gedung,
+      id_bangunan,
       id_prodi,
-      fungsi,
-      x_pixel,
-      y_pixel,
+      deskripsi,
     });
     res.status(201).json({
       message: "Ruangan berhasil ditambahkan",
@@ -47,26 +38,17 @@ export const addRuangan = async (req, res) => {
 export const updateRuangan = async (req, res) => {
   try {
     const id = req.params.id;
-    const {
-      nama_ruangan,
-      id_lantai,
-      id_gedung,
-      id_prodi,
-      fungsi,
-      x_pixel,
-      y_pixel,
-    } = req.body;
+    const { nama_ruangan, id_lantai, id_bangunan, id_prodi, deskripsi } =
+      req.body;
     const [updated] = await Ruangan.update(
       {
         nama_ruangan,
         id_lantai,
-        id_gedung,
+        id_bangunan,
         id_prodi,
-        fungsi,
-        x_pixel,
-        y_pixel,
+        deskripsi,
       },
-      { where: { id } }
+      { where: { id_ruangan: id } }
     );
     if (updated) {
       const updatedRuangan = await Ruangan.findByPk(id);

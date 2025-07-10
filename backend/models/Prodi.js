@@ -1,31 +1,27 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
 
-const Lantai = sequelize.define(
-  "Lantai",
+const Prodi = sequelize.define(
+  "Prodi",
   {
-    id_lantai: {
+    id_prodi: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
-    nama_lantai: {
+    id_jurusan: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    nama_prodi: {
       type: DataTypes.STRING,
-      allowNull: false,
-    },
-    nomor_lantai: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    id_bangunan: {
-      type: DataTypes.INTEGER,
       allowNull: false,
     },
   },
   {
-    tableName: "lantai",
+    tableName: "prodi",
     timestamps: false,
   }
 );
 
-export default Lantai;
+export default Prodi;

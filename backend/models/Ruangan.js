@@ -4,13 +4,31 @@ import sequelize from "../config/db.js";
 const Ruangan = sequelize.define(
   "Ruangan",
   {
-    nama_ruangan: DataTypes.STRING,
-    id_lantai: DataTypes.INTEGER,
-    id_gedung: DataTypes.INTEGER,
-    id_prodi: DataTypes.INTEGER,
-    fungsi: DataTypes.STRING,
-    x_pixel: DataTypes.INTEGER,
-    y_pixel: DataTypes.INTEGER,
+    id_ruangan: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    nama_ruangan: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    id_lantai: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    id_bangunan: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    id_prodi: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    deskripsi: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     tableName: "ruangan",
