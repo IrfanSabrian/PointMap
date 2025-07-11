@@ -177,6 +177,40 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       .finally(() => setIsLoadingData(false));
   }, []);
 
+  // Kirim data nama gedung & jumlah lantai ke iframe saat modal building-detail dibuka
+  useEffect(() => {
+    if (showBuildingDetailCanvas && selectedFeature) {
+      const namaGedung = selectedFeature.properties?.nama;
+      const jumlahLantai = Number(selectedFeature.properties?.lantai) || 0;
+      const iframe = document.querySelector(
+        'iframe[title="Building Detail"]'
+      ) as HTMLIFrameElement | null;
+      if (iframe && namaGedung && jumlahLantai > 0) {
+        let count = 0;
+        const interval = setInterval(() => {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage(
+              {
+                type: "set-building-detail",
+                namaGedung,
+                jumlahLantai,
+              },
+              "*"
+            );
+            // DEBUG: log setiap kirim pesan
+            console.log("Kirim postMessage ke iframe:", {
+              namaGedung,
+              jumlahLantai,
+            });
+            count++;
+            if (count > 12) clearInterval(interval);
+          }
+        }, 200);
+        setTimeout(() => clearInterval(interval), 2500);
+      }
+    }
+  }, [showBuildingDetailCanvas, selectedFeature]);
+
   // Gabungkan data bangunan dan non-bangunan untuk pencarian
   useEffect(() => {
     setAllFeatures([...bangunanFeatures, ...nonBangunanFeatures]);
