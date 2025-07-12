@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS ruangan (
     nomor_lantai INT NOT NULL,
     id_bangunan INT NOT NULL,
     id_prodi INT,
-    deskripsi VARCHAR(100),
     FOREIGN KEY (id_bangunan) REFERENCES bangunan(id_bangunan) ON DELETE CASCADE,
     FOREIGN KEY (id_prodi) REFERENCES prodi(id_prodi) ON DELETE SET NULL
 );
@@ -114,8 +113,8 @@ INSERT INTO prodi (id_jurusan, nama_prodi) VALUES
 
 
 -- Input 4 data ke tabel ruangan (perbaikan sintaks: gunakan satu statement dan koma antar baris, titik koma di akhir)
-INSERT INTO ruangan (nama_ruangan, nomor_lantai, id_bangunan, id_prodi, deskripsi) VALUES
-('Ruang TI-11', 2, 45, 1, 'Lab Teknik Informatika di Gedung Lab'),
-('Ruang TI-12', 2, 45, 1, 'Lab Teknik Informatika di Gedung Lab'),
-('Ruang TI-13', 2, 45, 1, 'Lab Teknik Informatika di Gedung Lab'),
-('Ruang TI-14', 1, 45, 1, 'Lab Teknik Informatika di Gedung Lab');
+INSERT INTO ruangan (nama_ruangan, nomor_lantai, id_bangunan, id_prodi) VALUES
+('Ruang TI-11', 2, 45, 1),
+('Ruang TI-12', 2, 45, 1),
+('Ruang TI-13', 2, 45, 1),
+('Ruang TI-14', 1, 45, 1);

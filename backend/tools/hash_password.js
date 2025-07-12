@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 
-const passwordPlain = "pointmap2025"; // ganti dengan password admin yang kamu mau
+const passwordPlain = "irfanlogin"; // ganti dengan password admin yang kamu mau
 const saltRounds = 10;
 
 bcrypt.hash(passwordPlain, saltRounds, (err, hash) => {
@@ -10,3 +10,5 @@ bcrypt.hash(passwordPlain, saltRounds, (err, hash) => {
   }
   console.log("Password yang sudah di-hash:\n", hash);
 });
+
+// cara jalankan, tulis node backend/tools/hash_password.js di terminal

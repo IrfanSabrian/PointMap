@@ -3,9 +3,24 @@ import { Ruangan, Prodi, Jurusan } from "../models/index.js";
 // GET semua ruangan
 export const getAllRuangan = async (req, res) => {
   try {
-    const ruangan = await Ruangan.findAll();
+    const ruangan = await Ruangan.findAll({
+      include: [
+        {
+          model: Prodi,
+          as: "prodi",
+          include: [
+            {
+              model: Jurusan,
+              as: "jurusan",
+            },
+          ],
+        },
+      ],
+      order: [["nama_ruangan", "ASC"]],
+    });
     res.json(ruangan);
   } catch (err) {
+    console.error("Error in getAllRuangan:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -76,14 +91,12 @@ export const getRuanganByBangunan = async (req, res) => {
 // CREATE ruangan baru
 export const addRuangan = async (req, res) => {
   try {
-    const { nama_ruangan, nomor_lantai, id_bangunan, id_prodi, deskripsi } =
-      req.body;
+    const { nama_ruangan, nomor_lantai, id_bangunan, id_prodi } = req.body;
     const ruanganBaru = await Ruangan.create({
       nama_ruangan,
       nomor_lantai,
       id_bangunan,
       id_prodi,
-      deskripsi,
     });
     res.status(201).json({
       message: "Ruangan berhasil ditambahkan",
@@ -98,15 +111,13 @@ export const addRuangan = async (req, res) => {
 export const updateRuangan = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nama_ruangan, nomor_lantai, id_bangunan, id_prodi, deskripsi } =
-      req.body;
+    const { nama_ruangan, nomor_lantai, id_bangunan, id_prodi } = req.body;
     const [updated] = await Ruangan.update(
       {
         nama_ruangan,
         nomor_lantai,
         id_bangunan,
         id_prodi,
-        deskripsi,
       },
       { where: { id_ruangan: id } }
     );

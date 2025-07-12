@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getAllRuangan,
   getRuanganByLantai,
   getRuanganByBangunan,
   addRuangan,
@@ -10,7 +11,8 @@ import auth from "../middlewares/auth.js";
 
 const router = express.Router();
 
-router.get("/", getRuanganByLantai);
+router.get("/", getAllRuangan);
+router.get("/lantai", getRuanganByLantai);
 router.get("/bangunan/:id_bangunan", getRuanganByBangunan);
 router.post("/", auth, addRuangan);
 router.put("/:id", auth, updateRuangan);

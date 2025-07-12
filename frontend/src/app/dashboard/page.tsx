@@ -1,657 +1,988 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import {
+  FiSun,
+  FiMoon,
+  FiLogOut,
+  FiPlus,
+  FiEdit,
+  FiTrash2,
+  FiSave,
+  FiX,
+} from "react-icons/fi";
+import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
+import ParticlesCustom from "@/components/ParticlesCustom";
+import { LeafletMapRef } from "@/components/LeafletMap";
 
-type Gedung = { id: number; nama: string; kode: string };
-type Lantai = {
-  id: number;
-  nama_lantai: string;
-  nomor_lantai: number;
-  id_gedung: number;
-};
-type Ruangan = {
-  id: number;
+const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
+  ssr: false,
+});
+
+interface Bangunan {
+  id_bangunan: number;
+  nama: string;
+  interaksi: string;
+  lantai: number;
+  geometri: string;
+}
+
+interface Ruangan {
+  id_ruangan: number;
   nama_ruangan: string;
-  fungsi: string;
-  x_pixel: number;
-  y_pixel: number;
-  id_lantai: number;
-  id_gedung: number;
-};
+  nomor_lantai: number;
+  id_bangunan: number;
+  id_prodi?: number;
+}
+
+interface Jurusan {
+  id_jurusan: number;
+  nama_jurusan: string;
+}
+
+interface Prodi {
+  id_prodi: number;
+  id_jurusan: number;
+  nama_prodi: string;
+}
 
 export default function Dashboard() {
   const router = useRouter();
-  const [gedungList, setGedungList] = useState<Gedung[]>([]);
-  const [lantaiList, setLantaiList] = useState<Lantai[]>([]);
-  const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
+  const [isClient, setIsClient] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [activeTab, setActiveTab] = useState("bangunan");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [highlightedItem, setHighlightedItem] = useState<any>(null);
+  const [selectedSidebarItem, setSelectedSidebarItem] = useState<any>(null);
 
-  const [gedung, setGedung] = useState<Gedung | null>(null);
-  const [lantai, setLantai] = useState<Lantai | null>(null);
-  const [ruangan, setRuangan] = useState<Ruangan | null>(null);
+  // Ref untuk LeafletMap component
+  const mapRef = useRef<LeafletMapRef | null>(null);
+  // Ref untuk item yang terselect di sidebar
+  const selectedItemRef = useRef<HTMLDivElement | null>(null);
 
-  const [searchGedung, setSearchGedung] = useState("");
-  const [searchLantai, setSearchLantai] = useState("");
-  const [searchRuangan, setSearchRuangan] = useState("");
+  // Data states
+  const [bangunan, setBangunan] = useState<Bangunan[]>([]);
+  const [ruangan, setRuangan] = useState<Ruangan[]>([]);
+  const [jurusan, setJurusan] = useState<Jurusan[]>([]);
+  const [prodi, setProdi] = useState<Prodi[]>([]);
 
-  const [currentTab, setCurrentTab] = useState("dashboard");
-
-  // Statistik
-  const [statistik, setStatistik] = useState({
-    today: 0,
-    week: 0,
-    month: 0,
-    total: 0,
-    chart: [0, 0, 0, 0, 0, 0, 0],
+  // Form states
+  const [formData, setFormData] = useState({
+    nama: "",
+    interaksi: "Noninteraktif",
+    lantai: 1,
+    geometri: "",
+    nama_ruangan: "",
+    nomor_lantai: 1,
+    id_bangunan: 1,
+    id_prodi: 1,
+    nama_jurusan: "",
+    nama_prodi: "",
+    id_jurusan: 1,
   });
 
-  // Toast
-  const [toast, setToast] = useState<{
-    show: boolean;
-    msg: string;
-    timer: NodeJS.Timeout | null;
-  }>({
-    show: false,
-    msg: "",
-    timer: null,
-  });
+  const { theme, setTheme } = useTheme();
 
-  // Fetch Data
-  const fetchGedung = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-    const res = await fetch("http://localhost:3001/api/gedung", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setGedungList(await res.json());
-  };
+  useEffect(() => {
+    setMounted(true);
+    setIsClient(true);
+    setIsDark(theme === "dark");
 
-  const fetchLantai = async (idGedung: number) => {
+    // Check authentication
     const token = localStorage.getItem("token");
-    if (!token) return;
-    const res = await fetch(
-      `http://localhost:3001/api/lantai?gedung=${idGedung}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    setLantaiList(await res.json());
-  };
+    if (!token) {
+      router.push("/login");
+      return;
+    }
 
-  const fetchRuangan = async (idLantai: number) => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    const res = await fetch(
-      `http://localhost:3001/api/ruangan?lantai=${idLantai}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    setRuanganList(await res.json());
-  };
+    // Load data
+    fetchData();
+  }, [theme, router]);
 
-  const fetchStatistik = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    const res = await fetch("http://localhost:3001/api/log/statistik", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setStatistik((prev) => ({ ...prev, ...data }));
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+
+      // Fetch all data
+      const [bangunanRes, ruanganRes, jurusanRes, prodiRes] = await Promise.all(
+        [
+          fetch("http://localhost:3001/api/bangunan", { headers }),
+          fetch("http://localhost:3001/api/ruangan", { headers }),
+          fetch("http://localhost:3001/api/jurusan", { headers }),
+          fetch("http://localhost:3001/api/prodi", { headers }),
+        ]
+      );
+
+      if (bangunanRes.ok) setBangunan(await bangunanRes.json());
+      if (ruanganRes.ok) setRuangan(await ruanganRes.json());
+      if (jurusanRes.ok) setJurusan(await jurusanRes.json());
+      if (prodiRes.ok) setProdi(await prodiRes.json());
+    } catch (error) {
+      console.error("Error fetching data:", error);
     }
   };
 
-  // Handlers
-  const selectGedung = (g: Gedung) => {
-    setGedung(g);
-    setLantai(null);
-    setRuangan(null);
-    fetchLantai(g.id);
-    setRuanganList([]);
-  };
-
-  const selectLantai = (l: Lantai) => {
-    setLantai(l);
-    setRuangan(null);
-    fetchRuangan(l.id);
-  };
-
-  const selectRuangan = (r: Ruangan) => {
-    setRuangan(r);
-  };
-
-  const openForm = (type: string) => {
-    // modal sudah dihapus
-  };
-
-  type Entity = Gedung | Lantai | Ruangan;
-  const editEntity = (type: string, entity: Entity) => {
-    // modal sudah dihapus
-  };
-
-  const deleteEntity = async (type: string, entity: Entity) => {
-    if (!confirm(`Yakin hapus ${type} ini?`)) return;
-    const token = localStorage.getItem("token");
-    let url = "";
-    if (type === "gedung")
-      url = `http://localhost:3001/api/gedung/${entity.id}`;
-    if (type === "lantai")
-      url = `http://localhost:3001/api/lantai/${entity.id}`;
-    if (type === "ruangan")
-      url = `http://localhost:3001/api/ruangan/${entity.id}`;
-
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (res.ok) {
-      showToast(`Berhasil hapus ${type}!`);
-      if (type === "gedung") fetchGedung();
-      if (type === "lantai" && gedung) fetchLantai(gedung.id);
-      if (type === "ruangan" && lantai) fetchRuangan(lantai.id);
-      fetchStatistik();
-    }
-  };
-
-  const showToast = (msg: string) => {
-    setToast((prev) => ({
-      ...prev,
-      msg,
-      show: true,
-      timer: setTimeout(
-        () => setToast((prev2) => ({ ...prev2, show: false })),
-        1600
-      ),
-    }));
-  };
-
-  const logout = () => {
+  const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     router.push("/login");
   };
 
-  // Filtered Lists
-  const filteredGedung = gedungList.filter(
-    (g) =>
-      !searchGedung ||
-      g.nama?.toLowerCase().includes(searchGedung.toLowerCase()) ||
-      g.kode?.toLowerCase().includes(searchGedung.toLowerCase())
-  );
+  const toggleDark = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
-  const filteredLantai = lantaiList.filter(
-    (l) =>
-      !searchLantai ||
-      l.nama_lantai?.toLowerCase().includes(searchLantai.toLowerCase()) ||
-      String(l.nomor_lantai)?.includes(searchLantai)
-  );
+  const handleEdit = (item: any, type: string) => {
+    setIsEditing(true);
+    setEditingItem({ ...item, type });
+    setFormData({
+      nama:
+        item.nama ||
+        item.nama_ruangan ||
+        item.nama_jurusan ||
+        item.nama_prodi ||
+        "",
+      interaksi: item.interaksi || "Noninteraktif",
+      lantai: item.lantai || item.nomor_lantai || 1,
+      geometri: item.geometri || "",
+      nama_ruangan: item.nama_ruangan || "",
+      nomor_lantai: item.nomor_lantai || 1,
+      id_bangunan: item.id_bangunan || 1,
+      id_prodi: item.id_prodi || 1,
+      nama_jurusan: item.nama_jurusan || "",
+      nama_prodi: item.nama_prodi || "",
+      id_jurusan: item.id_jurusan || 1,
+    });
+  };
 
-  const filteredRuangan = ruanganList.filter(
-    (r) =>
-      !searchRuangan ||
-      r.nama_ruangan?.toLowerCase().includes(searchRuangan.toLowerCase()) ||
-      r.fungsi?.toLowerCase().includes(searchRuangan.toLowerCase())
-  );
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
 
+      let url = "";
+      let method = "POST";
+      let data = {};
+
+      switch (editingItem.type) {
+        case "bangunan":
+          url = "http://localhost:3001/api/bangunan";
+          data = {
+            nama: formData.nama,
+            interaksi: formData.interaksi,
+            lantai: formData.lantai,
+            geometri: formData.geometri,
+          };
+          if (editingItem.id_bangunan) {
+            url += `/${editingItem.id_bangunan}`;
+            method = "PUT";
+          }
+          break;
+        case "ruangan":
+          url = "http://localhost:3001/api/ruangan";
+          data = {
+            nama_ruangan: formData.nama_ruangan,
+            nomor_lantai: formData.nomor_lantai,
+            id_bangunan: formData.id_bangunan,
+            id_prodi: formData.id_prodi,
+          };
+          if (editingItem.id_ruangan) {
+            url += `/${editingItem.id_ruangan}`;
+            method = "PUT";
+          }
+          break;
+        case "jurusan":
+          url = "http://localhost:3001/api/jurusan";
+          data = { nama_jurusan: formData.nama_jurusan };
+          if (editingItem.id_jurusan) {
+            url += `/${editingItem.id_jurusan}`;
+            method = "PUT";
+          }
+          break;
+        case "prodi":
+          url = "http://localhost:3001/api/prodi";
+          data = {
+            nama_prodi: formData.nama_prodi,
+            id_jurusan: formData.id_jurusan,
+          };
+          if (editingItem.id_prodi) {
+            url += `/${editingItem.id_prodi}`;
+            method = "PUT";
+          }
+          break;
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        await fetchData();
+        setIsEditing(false);
+        setEditingItem(null);
+        setFormData({
+          nama: "",
+          interaksi: "Noninteraktif",
+          lantai: 1,
+          geometri: "",
+          nama_ruangan: "",
+          nomor_lantai: 1,
+          id_bangunan: 1,
+          id_prodi: 1,
+          nama_jurusan: "",
+          nama_prodi: "",
+          id_jurusan: 1,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving data:", error);
+    }
+  };
+
+  const handleDelete = async (id: number, type: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+
+      let url = "";
+      switch (type) {
+        case "bangunan":
+          url = `http://localhost:3001/api/bangunan/${id}`;
+          break;
+        case "ruangan":
+          url = `http://localhost:3001/api/ruangan/${id}`;
+          break;
+        case "jurusan":
+          url = `http://localhost:3001/api/jurusan/${id}`;
+          break;
+        case "prodi":
+          url = `http://localhost:3001/api/prodi/${id}`;
+          break;
+      }
+
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (response.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error deleting data:", error);
+    }
+  };
+
+  const handleAddNew = () => {
+    setIsEditing(true);
+    setEditingItem({ type: activeTab });
+    setFormData({
+      nama: "",
+      interaksi: "Noninteraktif",
+      lantai: 1,
+      geometri: "",
+      nama_ruangan: "",
+      nomor_lantai: 1,
+      id_bangunan: 1,
+      id_prodi: 1,
+      nama_jurusan: "",
+      nama_prodi: "",
+      id_jurusan: 1,
+    });
+  };
+
+  // Fungsi untuk highlight item di peta
+  const handleHighlight = (item: any, type: string) => {
+    console.log("handleHighlight called:", { item, type });
+    setSelectedSidebarItem(item); // Update selected item di sidebar
+
+    if (type === "bangunan") {
+      // Untuk bangunan, set highlight dan kirim pesan ke peta
+      setHighlightedItem({ ...item, type });
+
+      // Kirim pesan ke LeafletMap untuk highlight
+      if (mapRef.current) {
+        console.log(
+          "mapRef.current exists, calling highlightFeature for building"
+        );
+        mapRef.current.highlightFeature(type, item.id_bangunan, item.nama);
+      } else {
+        console.log("mapRef.current is null");
+      }
+    } else if (type === "ruangan") {
+      // Untuk ruangan, kirim pesan ke peta untuk zoom ke bangunan dan highlight
+      setHighlightedItem(null); // Clear highlight untuk ruangan
+
+      // Kirim pesan ke LeafletMap untuk handle ruangan seperti pencarian
+      if (mapRef.current) {
+        console.log("mapRef.current exists, calling highlightFeature for room");
+        mapRef.current.highlightFeature(
+          type,
+          item.id_ruangan,
+          item.nama_ruangan
+        );
+      } else {
+        console.log("mapRef.current is null");
+      }
+    }
+  };
+
+  // Clear highlight saat tab berubah (tapi tetap pertahankan selected item)
   useEffect(() => {
-    fetchGedung();
-    fetchStatistik();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setHighlightedItem(null);
+    // Tidak clear selectedSidebarItem agar tetap bisa scroll ke item yang dipilih
+  }, [activeTab]);
+
+  // Effect untuk mengirim pesan highlight ke peta (hanya untuk bangunan)
+  useEffect(() => {
+    if (
+      highlightedItem &&
+      highlightedItem.type === "bangunan" &&
+      mapRef.current
+    ) {
+      mapRef.current.highlightFeature(
+        highlightedItem.type,
+        highlightedItem.id_bangunan,
+        highlightedItem.nama
+      );
+    }
+  }, [highlightedItem]);
+
+  // Effect untuk mendengarkan pesan klik bangunan dan ruangan dari peta
+  useEffect(() => {
+    const handleMapClick = (event: MessageEvent) => {
+      console.log("Dashboard received message:", event.data);
+
+      if (event.data.type === "building-clicked") {
+        const { buildingId, buildingName } = event.data;
+        console.log("Building clicked on map:", buildingId, buildingName);
+
+        // Cari bangunan di data
+        const clickedBuilding = bangunan.find(
+          (b) => b.id_bangunan === buildingId
+        );
+        if (clickedBuilding) {
+          // Update selected item di sidebar
+          setSelectedSidebarItem(clickedBuilding);
+          setActiveTab("bangunan"); // Pastikan tab bangunan aktif
+          setShowSidebar(true); // Buka sidebar jika tertutup
+
+          // Highlight item di sidebar
+          setHighlightedItem({ ...clickedBuilding, type: "bangunan" });
+        }
+      } else if (event.data.type === "room-clicked") {
+        const { roomId, roomName } = event.data;
+        console.log("Room clicked on map:", roomId, roomName);
+        console.log(
+          "Available rooms in dashboard:",
+          ruangan.map((r) => ({ id: r.id_ruangan, nama: r.nama_ruangan }))
+        );
+
+        // Cari ruangan di data
+        const clickedRoom = ruangan.find((r) => r.id_ruangan === roomId);
+        console.log("Found clicked room:", clickedRoom);
+        if (clickedRoom) {
+          // Update selected item di sidebar (tanpa highlight merah)
+          setSelectedSidebarItem(clickedRoom);
+          setActiveTab("ruangan"); // Pastikan tab ruangan aktif
+          setShowSidebar(true); // Buka sidebar jika tertutup
+          console.log("Updated sidebar for room:", clickedRoom.nama_ruangan);
+
+          // Tidak set highlightedItem untuk ruangan (tidak ada highlight merah)
+        } else {
+          console.log("Room not found in data:", roomId);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMapClick);
+    return () => window.removeEventListener("message", handleMapClick);
+  }, [bangunan, ruangan]);
+
+  // Effect untuk auto-scroll ke item yang terselect
+  useEffect(() => {
+    if (selectedSidebarItem && selectedItemRef.current) {
+      // Tunggu sebentar agar DOM sudah ter-render
+      setTimeout(() => {
+        selectedItemRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      }, 100);
+    }
+  }, [selectedSidebarItem]);
+
+  if (!mounted) return null;
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-tr from-accent via-white to-toscaLight">
-      {/* SIDEBAR MOBILE OVERLAY */}
-      {/* Sidebar mobile dihapus bersama Transition/Dialog */}
-
-      {/* SIDEBAR DESKTOP */}
-      <aside className="hidden md:flex flex-col w-56 bg-primary text-white px-5 py-8 rounded-tr-3xl shadow-2xl h-screen">
-        {/* Logo dan Header */}
-        <div className="flex items-center mb-8 gap-2">
-          <div className="rounded-full bg-white text-primary font-bold w-12 h-12 flex items-center justify-center shadow-lg">
-            <Image
-              width={30}
-              height={30}
-              src="/logo.svg"
-              alt="Logo"
-              className="w-full h-full select-none"
-              priority
-            />
-          </div>
-          <div className="ml-2 font-extrabold text-lg leading-tight">
-            Admin
-            <br />
-            <span className="text-tosca text-xs font-bold">PointMap</span>
-          </div>
+    <div
+      className={`min-h-screen transition-colors ${
+        isDark
+          ? "bg-background-dark"
+          : "bg-gradient-to-tr from-background via-surface to-accent"
+      } ${isDark ? "dark" : ""}`}
+    >
+      {/* NAVBAR */}
+      <nav className="flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-surface-dark/90 shadow-lg backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="Logo" className="h-12 select-none" />
+          <span className="font-bold text-xl text-primary dark:text-primary-dark">
+            PointMap Dashboard
+          </span>
         </div>
-        <nav className="flex flex-col gap-3 mt-2">
-          <button
-            className={`flex items-center gap-3 py-2 px-4 rounded-xl font-bold transition ${
-              currentTab === "dashboard"
-                ? "bg-white/20 ring-2 ring-accent text-tosca"
-                : "hover:bg-white/10"
-            }`}
-            onClick={() => setCurrentTab("dashboard")}
-          >
-            Dashboard
-          </button>
-          <button
-            className={`flex items-center gap-3 py-2 px-4 rounded-xl font-bold transition ${
-              currentTab === "statistik"
-                ? "bg-white/20 ring-2 ring-accent text-tosca"
-                : "hover:bg-white/10"
-            }`}
-            onClick={() => setCurrentTab("statistik")}
-          >
-            Statistik
-          </button>
-        </nav>
-        <div className="flex-1" />
-        <button
-          onClick={logout}
-          className="bg-red-500 w-full py-2 rounded-xl font-bold hover:bg-red-600 shadow mt-8 transition flex items-center justify-center gap-2"
-        >
-          Logout
-        </button>
-      </aside>
 
-      {/* MAIN */}
-      <main className="flex-1 min-h-screen p-3 sm:p-4 md:p-6 flex flex-col">
-        {/* HEADER */}
-        <header className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button className="md:hidden text-2xl p-2 rounded-lg hover:bg-accent/30 transition">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={toggleDark}
+            className="rounded-full p-2 hover:bg-primary/20 dark:hover:bg-primary-dark/20 focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-primary-dark/40 transition-colors duration-200"
+          >
+            {theme === "dark" ? (
+              <FiMoon className="w-5 h-5 text-accent-dark" />
+            ) : (
+              <FiSun className="w-5 h-5 text-primary" />
+            )}
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-lg bg-red-500 text-white font-semibold text-sm shadow-lg hover:bg-red-600 transition-all duration-200 flex items-center gap-2"
+          >
+            <FiLogOut className="w-4 h-4" />
+            Logout
+          </button>
+        </div>
+      </nav>
+
+      <div className="h-[calc(100vh-80px)] relative">
+        {/* MAIN CONTENT - MAP */}
+        <div className="w-full h-full relative">
+          <div className="bg-primary text-white text-lg font-bold py-3 px-6 shadow">
+            <span>Polnep Interactive Map - Admin Dashboard</span>
+          </div>
+          <div className="h-[calc(100%-60px)] bg-white rounded-b-lg overflow-hidden relative">
+            <LeafletMap
+              initialLat={-0.0545}
+              initialLng={109.3465}
+              initialZoom={18}
+              className="w-full h-full"
+              isDark={isDark}
+              ref={mapRef}
+            />
+
+            {/* Toggle Sidebar Button */}
+            <button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className={`absolute z-[10000] p-3 rounded-lg border-2 shadow-xl transition-all duration-300 ${
+                showSidebar
+                  ? "left-96 top-1/2 -translate-y-1/2"
+                  : "left-4 top-1/2 -translate-y-1/2"
+              } ${
+                isDark
+                  ? "bg-gray-800 text-white hover:bg-gray-700 border-gray-600 shadow-gray-900/50"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300 shadow-gray-500/30"
+              }`}
+              title={showSidebar ? "Sembunyikan Panel" : "Tampilkan Panel"}
+            >
               <svg
-                width="28"
-                height="28"
+                className={`w-5 h-5 transition-transform duration-300 ${
+                  showSidebar ? "rotate-180" : ""
+                }`}
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
                 viewBox="0 0 24 24"
               >
-                <line x1="4" y1="6" x2="20" y2="6" />
-                <line x1="4" y1="12" x2="20" y2="12" />
-                <line x1="4" y1="18" x2="20" y2="18" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d={showSidebar ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"}
+                />
               </svg>
             </button>
-            <div>
-              <h1 className="text-2xl font-extrabold text-dark">
-                {currentTab === "dashboard"
-                  ? "Dashboard Admin"
-                  : "Statistik Pengunjung"}
-              </h1>
-              <div className="text-xs text-primary">
-                {currentTab === "dashboard"
-                  ? "Kelola Gedung, Lantai, dan Ruangan Polnep"
-                  : "Grafik statistik kunjungan aplikasi PointMap"}
-              </div>
-            </div>
-          </div>
-          {currentTab === "dashboard" && (
-            <button
-              onClick={() => openForm("gedung")}
-              className="bg-primary text-white px-5 py-2 rounded-xl font-bold shadow hover:bg-dark transition"
+
+            {/* SIDEBAR - Inside Canvas */}
+            <div
+              className={`absolute top-0 left-0 h-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-xl border-r border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 z-[9999] ${
+                showSidebar ? "w-96 translate-x-0" : "w-96 -translate-x-full"
+              }`}
             >
-              + Gedung Baru
-            </button>
-          )}
-        </header>
+              {/* Header - Sticky */}
+              <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 p-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                  Panel Admin
+                </h2>
 
-        {/* TOAST SUKSES */}
-        <div
-          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 ${
-            toast.show
-              ? "bg-white shadow-lg px-6 py-3 rounded-xl border-2 border-tosca font-semibold text-dark text-base"
-              : "hidden"
-          }`}
-        >
-          <Image
-            width={28}
-            height={28}
-            src="/check.svg"
-            alt="Check"
-            className="w-7 h-7"
-          />
-          <span>{toast.msg}</span>
-        </div>
-
-        {/* DASHBOARD / STATISTIK */}
-        {currentTab === "dashboard" ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow">
-            {/* GEDUNG LIST */}
-            <section className="bg-white rounded-xl shadow-lg p-5 flex flex-col">
-              <div className="flex flex-col gap-2 mb-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-bold text-primary text-lg">Gedung</h2>
-                  <input
-                    value={searchGedung}
-                    onChange={(e) => setSearchGedung(e.target.value)}
-                    type="text"
-                    placeholder="Cari gedung..."
-                    className="input w-40 ml-2"
-                  />
-                </div>
-              </div>
-              <div className="overflow-auto flex-1">
-                <ul className="space-y-4">
-                  {filteredGedung.map((g) => (
-                    <li
-                      key={g.id}
-                      className={`relative p-5 flex justify-between items-center rounded-2xl border-2 transition-all duration-300 shadow ${
-                        gedung && gedung.id === g.id
-                          ? "border-primary bg-accent/70 shadow-lg ring-4 ring-primary ring-opacity-30"
-                          : "border-accent bg-accent/30 hover:border-primary hover:bg-accent/50"
+                {/* Tabs - 2x2 Grid */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { key: "bangunan", label: "Bangunan", icon: "🏛️" },
+                    { key: "ruangan", label: "Ruangan", icon: "🏢" },
+                    { key: "jurusan", label: "Jurusan", icon: "🎓" },
+                    { key: "prodi", label: "Prodi", icon: "📚" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 border ${
+                        activeTab === tab.key
+                          ? "bg-primary text-white border-primary shadow-md"
+                          : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
                       }`}
-                      onClick={() => selectGedung(g)}
-                      style={{ cursor: "pointer" }}
                     >
-                      <div>
-                        <div className="font-bold text-lg text-dark group-hover:text-primary">
-                          {g.nama}
-                        </div>
-                        <div className="text-xs text-primary">
-                          Kode: {g.kode}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            editEntity("gedung", g);
-                          }}
-                          className="btn-icon bg-tosca"
-                          aria-label="Edit"
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            stroke="currentColor"
-                            fill="none"
-                            strokeWidth="2"
-                          >
-                            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5Z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteEntity("gedung", g);
-                          }}
-                          className="btn-icon bg-red-400"
-                          aria-label="Hapus"
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            stroke="currentColor"
-                            fill="none"
-                            strokeWidth="2"
-                          >
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
+                      <span className="mr-1">{tab.icon}</span>
+                      {tab.label}
+                    </button>
                   ))}
-                  {!filteredGedung.length && (
-                    <div className="text-center text-gray-400 py-8">
-                      Tidak ditemukan.
-                    </div>
-                  )}
-                </ul>
-              </div>
-            </section>
+                </div>
 
-            {/* LANTAI LIST */}
-            <section className="bg-white rounded-xl shadow-lg p-5 flex flex-col">
-              <div className="flex flex-col gap-2 mb-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-bold text-secondary text-lg">Lantai</h2>
-                  <input
-                    value={searchLantai}
-                    onChange={(e) => setSearchLantai(e.target.value)}
-                    type="text"
-                    placeholder="Cari lantai..."
-                    className="input w-32 ml-2"
-                  />
-                  <button
-                    onClick={() => openForm("lantai")}
-                    disabled={!gedung}
-                    className="bg-secondary text-white px-3 py-1 rounded-xl font-bold hover:bg-tosca transition disabled:opacity-60 ml-2"
-                  >
-                    + Lantai
-                  </button>
-                </div>
-              </div>
-              {gedung ? (
-                <div className="overflow-auto flex-1">
-                  <ul className="space-y-4">
-                    {filteredLantai.map((l) => (
-                      <li
-                        key={l.id}
-                        className={`relative p-5 flex justify-between items-center rounded-2xl border-2 transition-all duration-300 shadow ${
-                          lantai && lantai.id === l.id
-                            ? "border-secondary bg-toscaLight/80 shadow-lg ring-4 ring-secondary ring-opacity-30"
-                            : "border-toscaLight bg-toscaLight/40 hover:border-secondary hover:bg-toscaLight/70"
-                        }`}
-                        onClick={() => selectLantai(l)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <div>
-                          <div className="font-bold text-dark group-hover:text-secondary">
-                            Lantai {l.nomor_lantai}
-                          </div>
-                          <div className="text-xs text-primary">
-                            {l.nama_lantai}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              editEntity("lantai", l);
-                            }}
-                            className="btn-icon bg-tosca"
-                            aria-label="Edit"
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              stroke="currentColor"
-                              fill="none"
-                              strokeWidth="2"
-                            >
-                              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5Z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteEntity("lantai", l);
-                            }}
-                            className="btn-icon bg-red-400"
-                            aria-label="Hapus"
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              stroke="currentColor"
-                              fill="none"
-                              strokeWidth="2"
-                            >
-                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                    {!filteredLantai.length && (
-                      <div className="text-center text-gray-400 py-8">
-                        Tidak ditemukan.
-                      </div>
-                    )}
-                  </ul>
-                </div>
-              ) : (
-                <div className="text-gray-400 py-8 text-center">
-                  Pilih gedung dulu.
-                </div>
-              )}
-            </section>
-
-            {/* RUANGAN LIST */}
-            <section className="bg-white rounded-xl shadow-lg p-5 flex flex-col">
-              <div className="flex flex-col gap-2 mb-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-bold text-tosca text-lg">Ruangan</h2>
-                  <input
-                    value={searchRuangan}
-                    onChange={(e) => setSearchRuangan(e.target.value)}
-                    type="text"
-                    placeholder="Cari ruangan..."
-                    className="input w-32 ml-2"
-                  />
-                  <button
-                    onClick={() => openForm("ruangan")}
-                    disabled={!lantai}
-                    className="bg-tosca text-white px-3 py-1 rounded-xl font-bold hover:bg-secondary transition disabled:opacity-60 ml-2"
-                  >
-                    + Ruangan
-                  </button>
-                </div>
-              </div>
-              {lantai ? (
-                <div className="overflow-auto flex-1">
-                  <ul className="space-y-4">
-                    {filteredRuangan.map((r) => (
-                      <li
-                        key={r.id}
-                        className={`relative p-5 flex flex-col rounded-2xl border-2 transition-all duration-300 shadow ${
-                          ruangan && ruangan.id === r.id
-                            ? "border-tosca bg-toscaLight/80 shadow-lg ring-4 ring-tosca ring-opacity-30"
-                            : "border-toscaLight bg-toscaLight/40 hover:border-tosca hover:bg-toscaLight/70"
-                        }`}
-                        onClick={() => selectRuangan(r)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <div className="font-bold text-dark">
-                          {r.nama_ruangan}
-                        </div>
-                        <div className="text-xs text-primary mb-1">
-                          Fungsi: {r.fungsi || "-"}
-                        </div>
-                        <div className="text-xs text-tosca">
-                          x: {r.x_pixel}, y: {r.y_pixel}
-                        </div>
-                        <div className="flex gap-2 mt-2 self-end">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              editEntity("ruangan", r);
-                            }}
-                            className="btn-icon bg-tosca"
-                            aria-label="Edit"
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              stroke="currentColor"
-                              fill="none"
-                              strokeWidth="2"
-                            >
-                              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5Z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteEntity("ruangan", r);
-                            }}
-                            className="btn-icon bg-red-400"
-                            aria-label="Hapus"
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              stroke="currentColor"
-                              fill="none"
-                              strokeWidth="2"
-                            >
-                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                    {!filteredRuangan.length && (
-                      <div className="text-center text-gray-400 py-8">
-                        Tidak ditemukan.
-                      </div>
-                    )}
-                  </ul>
-                </div>
-              ) : (
-                <div className="text-gray-400 py-8 text-center">
-                  Pilih lantai dulu.
-                </div>
-              )}
-            </section>
-          </div>
-        ) : (
-          <div className="max-w-3xl mx-auto w-full">
-            <div className="rounded-2xl bg-white shadow-xl p-8 border-2 border-toscaLight">
-              <h2 className="text-xl font-bold mb-6 text-tosca flex items-center gap-2">
-                <svg
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
+                {/* Add New Button */}
+                <button
+                  onClick={handleAddNew}
+                  className="w-full px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
                 >
-                  <line x1="12" x2="12" y1="20" y2="10" />
-                  <line x1="18" x2="18" y1="20" y2="4" />
-                  <line x1="6" x2="6" y1="20" y2="16" />
-                </svg>
-                Statistik Pengunjung PointMap
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="rounded-2xl bg-accent/40 shadow flex flex-col items-center px-4 py-2 border-2 border-toscaLight min-w-[80px]">
-                  <div className="font-bold text-lg text-dark">
-                    {statistik.today}
-                  </div>
-                  <div className="text-xs text-tosca font-semibold">
-                    Hari ini
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-accent/40 shadow flex flex-col items-center px-4 py-2 border-2 border-toscaLight min-w-[80px]">
-                  <div className="font-bold text-lg text-dark">
-                    {statistik.week}
-                  </div>
-                  <div className="text-xs text-tosca font-semibold">
-                    Minggu ini
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-accent/40 shadow flex flex-col items-center px-4 py-2 border-2 border-toscaLight min-w-[80px]">
-                  <div className="font-bold text-lg text-dark">
-                    {statistik.month}
-                  </div>
-                  <div className="text-xs text-tosca font-semibold">
-                    Bulan ini
-                  </div>
-                </div>
-                <div className="rounded-2xl bg-accent/40 shadow flex flex-col items-center px-4 py-2 border-2 border-toscaLight min-w-[80px]">
-                  <div className="font-bold text-lg text-dark">
-                    {statistik.total}
-                  </div>
-                  <div className="text-xs text-tosca font-semibold">Total</div>
+                  <FiPlus className="w-4 h-4" />
+                  Tambah{" "}
+                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                </button>
+              </div>
+
+              {/* Data List - Scrollable */}
+              <div className="h-[calc(100%-180px)] overflow-y-auto p-4">
+                <div className="space-y-3">
+                  {activeTab === "bangunan" &&
+                    bangunan.map((item) => (
+                      <div
+                        key={item.id_bangunan}
+                        ref={
+                          selectedSidebarItem?.id_bangunan === item.id_bangunan
+                            ? selectedItemRef
+                            : null
+                        }
+                        className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border shadow-sm ${
+                          selectedSidebarItem?.id_bangunan === item.id_bangunan
+                            ? "bg-green-50 dark:bg-green-900/30 border-2 border-green-500 dark:border-green-400 shadow-md"
+                            : highlightedItem?.id_bangunan ===
+                                item.id_bangunan &&
+                              highlightedItem?.type === "bangunan"
+                            ? "bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-500 dark:border-blue-400 shadow-md"
+                            : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 hover:shadow-md"
+                        }`}
+                        onClick={() => handleHighlight(item, "bangunan")}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                              {item.nama || "Unnamed"}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              {item.interaksi} • Lantai {item.lantai}
+                            </p>
+                          </div>
+                          <div
+                            className="flex gap-1 ml-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => handleEdit(item, "bangunan")}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                            >
+                              <FiEdit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDelete(item.id_bangunan, "bangunan")
+                              }
+                              className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                  {activeTab === "ruangan" &&
+                    ruangan.map((item) => (
+                      <div
+                        key={item.id_ruangan}
+                        ref={
+                          selectedSidebarItem?.id_ruangan === item.id_ruangan
+                            ? selectedItemRef
+                            : null
+                        }
+                        className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border shadow-sm ${
+                          selectedSidebarItem?.id_ruangan === item.id_ruangan
+                            ? "bg-green-50 dark:bg-green-900/30 border-2 border-green-500 dark:border-green-400 shadow-md"
+                            : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 hover:shadow-md"
+                        }`}
+                        onClick={() => handleHighlight(item, "ruangan")}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                              {item.nama_ruangan}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              Lantai {item.nomor_lantai} • Bangunan ID:{" "}
+                              {item.id_bangunan}
+                            </p>
+                          </div>
+                          <div
+                            className="flex gap-1 ml-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => handleEdit(item, "ruangan")}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                            >
+                              <FiEdit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDelete(item.id_ruangan, "ruangan")
+                              }
+                              className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                  {activeTab === "jurusan" &&
+                    jurusan.map((item) => (
+                      <div
+                        key={item.id_jurusan}
+                        className="p-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:shadow-md transition-all duration-200 shadow-sm"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                              {item.nama_jurusan}
+                            </h3>
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                            <button
+                              onClick={() => handleEdit(item, "jurusan")}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                            >
+                              <FiEdit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDelete(item.id_jurusan, "jurusan")
+                              }
+                              className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                  {activeTab === "prodi" &&
+                    prodi.map((item) => (
+                      <div
+                        key={item.id_prodi}
+                        className="p-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 hover:shadow-md transition-all duration-200 shadow-sm"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                              {item.nama_prodi}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              Jurusan ID: {item.id_jurusan}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                            <button
+                              onClick={() => handleEdit(item, "prodi")}
+                              className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                            >
+                              <FiEdit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleDelete(item.id_prodi, "prodi")
+                              }
+                              className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      </div>
+
+      {/* EDIT MODAL */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {editingItem?.id_bangunan ||
+                editingItem?.id_ruangan ||
+                editingItem?.id_jurusan ||
+                editingItem?.id_prodi
+                  ? "Edit"
+                  : "Tambah"}{" "}
+                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+              </h3>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {activeTab === "bangunan" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nama Bangunan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nama}
+                      onChange={(e) =>
+                        setFormData({ ...formData, nama: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Interaksi
+                    </label>
+                    <select
+                      value={formData.interaksi}
+                      onChange={(e) =>
+                        setFormData({ ...formData, interaksi: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="Interaktif">Interaktif</option>
+                      <option value="Noninteraktif">Noninteraktif</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Jumlah Lantai
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.lantai}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          lantai: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Geometri (GeoJSON)
+                    </label>
+                    <textarea
+                      value={formData.geometri}
+                      onChange={(e) =>
+                        setFormData({ ...formData, geometri: e.target.value })
+                      }
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder='{"type":"Polygon","coordinates":[...]}'
+                    />
+                  </div>
+                </>
+              )}
+
+              {activeTab === "ruangan" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nama Ruangan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nama_ruangan}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          nama_ruangan: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nomor Lantai
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.nomor_lantai}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          nomor_lantai: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Bangunan
+                    </label>
+                    <select
+                      value={formData.id_bangunan}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          id_bangunan: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      {bangunan.map((b) => (
+                        <option key={b.id_bangunan} value={b.id_bangunan}>
+                          {b.nama || `Bangunan ${b.id_bangunan}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Program Studi
+                    </label>
+                    <select
+                      value={formData.id_prodi}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          id_prodi: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Pilih Prodi</option>
+                      {prodi.map((p) => (
+                        <option key={p.id_prodi} value={p.id_prodi}>
+                          {p.nama_prodi}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {activeTab === "jurusan" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Nama Jurusan
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nama_jurusan}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nama_jurusan: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              )}
+
+              {activeTab === "prodi" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nama Program Studi
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.nama_prodi}
+                      onChange={(e) =>
+                        setFormData({ ...formData, nama_prodi: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Jurusan
+                    </label>
+                    <select
+                      value={formData.id_jurusan}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          id_jurusan: parseInt(e.target.value),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      {jurusan.map((j) => (
+                        <option key={j.id_jurusan} value={j.id_jurusan}>
+                          {j.nama_jurusan}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiSave className="w-4 h-4" />
+                  Simpan
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

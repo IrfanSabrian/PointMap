@@ -12,12 +12,38 @@ export const loginAdmin = async (req, res) => {
     if (!valid) return res.status(401).json({ error: "Password salah" });
 
     const token = jwt.sign(
-      { id: admin.id, username: admin.username },
+      { id: admin.id_admin, username: admin.username },
       process.env.JWT_SECRET,
       { expiresIn: "2h" }
     );
 
-    res.json({ token });
+    res.json({
+      message: "Login berhasil",
+      token,
+      user: {
+        id: admin.id_admin,
+        username: admin.username,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const verifyToken = async (req, res) => {
+  try {
+    res.json({
+      message: "Token valid",
+      user: req.user,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    res.json({ message: "Logout berhasil" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

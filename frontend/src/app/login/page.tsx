@@ -3,184 +3,236 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FiUser, FiLock } from "react-icons/fi";
 import Image from "next/image";
 
 export default function Login() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isVisible, setIsVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [focus, setFocus] = useState({ user: false, pass: false });
+  const [focusedField, setFocusedField] = useState("");
 
-  const login = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
+
     try {
-      const res = await fetch("http://localhost:3001/api/auth/login", {
+      const response = await fetch("http://localhost:3001/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json();
-      if (res.ok && data.token) {
+
+      const data = await response.json();
+
+      if (response.ok) {
         localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
         router.push("/dashboard");
       } else {
-        setErrorMsg(data.error || "Login gagal. Username atau password salah.");
+        setErrorMsg(data.error || "Login gagal");
       }
-    } catch {
-      setErrorMsg("Tidak dapat terhubung ke server.");
+    } catch (error) {
+      setErrorMsg("Terjadi kesalahan pada server");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-tr from-background via-surface to-accent relative overflow-hidden dark:from-background-dark dark:via-surface-dark dark:to-accent-dark transition-colors">
-      {/* Kiri: Form Login */}
-      <div className="flex-1 flex items-center justify-center min-h-screen px-4 md:px-0">
-        <div className="w-full max-w-md bg-surface/80 dark:bg-surface-dark/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-accent/40 dark:border-accent-dark/40 px-8 py-12 animate-bounceIn transition-colors">
-          <div className="flex flex-col items-center mb-8">
-            <Image
-              src="/logo.svg"
-              alt="Logo"
-              width={80}
-              height={80}
-              className="w-20 h-20 mb-2 drop-shadow-xl"
-              priority
-            />
-            <h2 className="text-3xl font-heading font-semibold text-primary dark:text-primary-dark mb-1 tracking-wide">
-              Login Admin
-            </h2>
-            <span className="text-xs text-accent dark:text-accent-dark font-bold tracking-widest">
-              PointMap
-            </span>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <Image
+          src="/maps.svg"
+          alt="Interactive Map Background"
+          fill
+          className="object-cover opacity-10"
+          priority
+        />
+        {/* Multiple Gradient Layers - Enhanced */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-purple-600/35 to-fuchsia-600/40"></div>
+        <div className="absolute inset-0 bg-gradient-to-tl from-cyan-500/30 via-blue-500/25 to-indigo-500/30"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-cyan-500/20"></div>
+        <div className="absolute inset-0 bg-gradient-to-bl from-pink-500/15 via-rose-500/10 to-red-500/15"></div>
+      </div>
+
+      {/* Floating Elements */}
+      <div className="absolute top-20 right-20 w-64 h-64 bg-violet-400/25 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-20 left-20 w-80 h-80 bg-cyan-400/30 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-400/25 rounded-full blur-3xl animate-pulse"></div>
+
+      {/* Login Card */}
+      <div className="relative w-full max-w-sm z-10">
+        <div className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-2xl shadow-2xl border border-white/30 dark:border-gray-700/30 p-8 min-h-[520px] flex flex-col justify-center">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/logo.svg"
+                alt="PointMap Logo"
+                width={120}
+                height={46}
+                className="drop-shadow-lg"
+                priority
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 drop-shadow-lg">
+              Login
+            </h1>
           </div>
 
-          {/* ALERT ERROR */}
-          {errorMsg && (
-            <div className="flex items-center gap-2 bg-error/10 border border-error/30 text-error font-semibold px-4 py-2 rounded-xl mb-5 shadow w-full animate-bounceIn dark:bg-error-dark/10 dark:border-error-dark/30 dark:text-error-dark transition-colors">
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="10" cy="10" r="9" stroke="#fb7185" />
-                <path d="M10 6v4m0 4h.01" stroke="#fb7185" />
-              </svg>
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {/* FORM LOGIN */}
-          <form onSubmit={login} className="space-y-7 w-full mt-2">
-            {/* Username */}
+          {/* Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6 flex-1 flex flex-col justify-center"
+          >
+            {/* Username Field */}
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-accent dark:text-accent-dark">
-                <FiUser className="w-5 h-5" />
-              </span>
               <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="username"
                 type="text"
                 required
-                id="username"
-                className={`block w-full pl-10 pr-4 py-3 rounded-lg border-2 bg-surface/90 dark:bg-surface-dark/90 border-accent/30 dark:border-accent-dark/30 focus:border-primary focus:ring-2 focus:ring-primary/30 dark:focus:border-primary-dark dark:focus:ring-primary-dark/30 outline-none transition-all duration-200 text-base shadow peer text-muted dark:text-muted-dark placeholder:text-accent/60 dark:placeholder:text-accent-dark/60 ${
-                  focus.user || username
-                    ? "ring-2 ring-primary border-primary dark:ring-primary-dark dark:border-primary-dark"
-                    : ""
-                }`}
-                onFocus={() => setFocus((f) => ({ ...f, user: true }))}
-                onBlur={() => setFocus((f) => ({ ...f, user: false }))}
                 autoComplete="username"
+                className={`block w-full bg-white/10 backdrop-blur-sm border-0 border-b-2 appearance-none focus:outline-none focus:ring-0 text-gray-900 dark:text-white placeholder-transparent transition-all duration-200 pb-2 pr-12 rounded-t-lg px-3 py-2 ${
+                  focusedField === "username" || username
+                    ? "border-blue-600 dark:border-blue-400"
+                    : "border-gray-400 dark:border-gray-500"
+                }`}
                 placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onFocus={() => setFocusedField("username")}
+                onBlur={() => setFocusedField("")}
               />
-            </div>
-            {/* Password */}
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-accent dark:text-accent-dark">
-                <FiLock className="w-5 h-5" />
+              <label
+                htmlFor="username"
+                className={`absolute left-3 top-2 text-gray-600 dark:text-gray-300 pointer-events-none transition-all duration-200 ${
+                  focusedField === "username" || username
+                    ? "text-xs -top-3.5 text-blue-600 dark:text-blue-400"
+                    : "text-base top-2"
+                }`}
+              >
+                Username
+              </label>
+              <span className="absolute right-4 top-2 text-gray-500 dark:text-gray-400 text-lg">
+                <i className="fas fa-user"></i>
               </span>
+            </div>
+
+            {/* Password Field */}
+            <div className="relative">
               <input
+                id="password"
+                type={isVisible ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                className={`block w-full bg-white/10 backdrop-blur-sm border-0 border-b-2 appearance-none focus:outline-none focus:ring-0 text-gray-900 dark:text-white placeholder-transparent transition-all duration-200 pb-2 pr-16 rounded-t-lg px-3 py-2 ${
+                  focusedField === "password" || password
+                    ? "border-blue-600 dark:border-blue-400"
+                    : "border-gray-400 dark:border-gray-500"
+                }`}
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                required
-                id="password"
-                className={`block w-full pl-10 pr-4 py-3 rounded-lg border-2 bg-surface/90 dark:bg-surface-dark/90 border-accent/30 dark:border-accent-dark/30 focus:border-primary focus:ring-2 focus:ring-primary/30 dark:focus:border-primary-dark dark:focus:ring-primary-dark/30 outline-none transition-all duration-200 text-base shadow peer text-muted dark:text-muted-dark placeholder:text-accent/60 dark:placeholder:text-accent-dark/60 ${
-                  focus.pass || password
-                    ? "ring-2 ring-primary border-primary dark:ring-primary-dark dark:border-primary-dark"
-                    : ""
-                }`}
-                onFocus={() => setFocus((f) => ({ ...f, pass: true }))}
-                onBlur={() => setFocus((f) => ({ ...f, pass: false }))}
-                autoComplete="current-password"
-                placeholder="Password"
+                onFocus={() => setFocusedField("password")}
+                onBlur={() => setFocusedField("")}
               />
+              <label
+                htmlFor="password"
+                className={`absolute left-3 top-2 text-gray-600 dark:text-gray-300 pointer-events-none transition-all duration-200 ${
+                  focusedField === "password" || password
+                    ? "text-xs -top-3.5 text-blue-600 dark:text-blue-400"
+                    : "text-base top-2"
+                }`}
+              >
+                Password
+              </label>
+              <span
+                className="absolute right-10 top-2 text-gray-500 dark:text-gray-400 text-lg cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                onClick={() => setIsVisible(!isVisible)}
+              >
+                <i
+                  className={`fas ${isVisible ? "fa-eye-slash" : "fa-eye"}`}
+                ></i>
+              </span>
+              <span className="absolute right-4 top-2 text-gray-500 dark:text-gray-400 text-lg">
+                <i className="fas fa-lock"></i>
+              </span>
             </div>
-            <button
-              disabled={loading}
-              className="w-full py-3 rounded-xl font-bold text-lg shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 mt-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark"
-            >
-              {loading && (
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
+
+            {/* Error Message */}
+            {errorMsg && (
+              <div className="bg-red-500/20 backdrop-blur-sm border border-red-500/30 text-red-800 dark:text-red-200 px-4 py-3 rounded-xl text-sm animate-fadeInUp mb-4">
+                <div className="flex items-center">
+                  <svg
+                    className="w-4 h-4 mr-2"
                     fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8H4z"
-                  />
-                </svg>
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {errorMsg}
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading || !username || !password}
+              className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Login...
+                </div>
+              ) : (
+                "Login"
               )}
-              Login
             </button>
           </form>
-          <div className="mt-8 text-center text-sm text-muted dark:text-muted-dark">
+
+          {/* Tombol Kembali */}
+          <div className="mt-6 text-center">
             <Link
               href="/"
-              className="hover:underline text-primary dark:text-primary-dark font-semibold"
+              className="inline-flex items-center text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 group"
             >
+              <i className="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform duration-200"></i>
               Kembali ke Beranda
             </Link>
           </div>
         </div>
-      </div>
-      {/* Kanan: Branding/Ilustrasi */}
-      <div className="hidden md:flex flex-1 flex-col justify-center items-center min-h-screen bg-gradient-to-br from-background/10 via-accent/30 to-surface/0 dark:from-background-dark/10 dark:via-accent-dark/30 dark:to-surface-dark/0 animate-slideInLeft transition-colors">
-        <Image
-          src="/logo.svg"
-          alt="Logo"
-          width={192}
-          height={192}
-          className="w-48 h-48 mb-8 drop-shadow-2xl opacity-90 animate-bounceIn"
-          priority
-        />
-        <h1 className="text-5xl font-heading font-semibold text-primary dark:text-primary-dark drop-shadow-lg mb-2 tracking-wide animate-slideInLeft opacity-90">
-          PointMap
-        </h1>
-        <p className="text-lg text-primary/80 dark:text-primary-dark/80 font-heading font-medium mb-4 animate-slideInLeft opacity-80">
-          Polnep Interactive Map
-        </p>
-        <p className="max-w-md text-muted dark:text-muted-dark text-base text-center animate-slideInLeft opacity-70">
-          Platform peta digital interaktif untuk menjelajahi kampus Politeknik
-          Negeri Pontianak.
-        </p>
       </div>
     </div>
   );

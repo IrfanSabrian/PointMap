@@ -1,6 +1,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+
+// Load environment variables first
+dotenv.config();
+
 import {
   sequelize,
   Bangunan,
@@ -15,7 +19,6 @@ import prodiRoutes from "./routes/prodi.js";
 import authRoutes from "./routes/auth.js";
 
 await sequelize.sync(); // pastikan tabel otomatis dibuat (jika belum ada)
-dotenv.config();
 
 const app = express();
 app.use(cors());

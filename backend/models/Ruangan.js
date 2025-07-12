@@ -25,10 +25,6 @@ const Ruangan = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    deskripsi: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
   },
   {
     tableName: "ruangan",

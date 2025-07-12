@@ -4,6 +4,11 @@ import sequelize from "../config/db.js";
 const Admin = sequelize.define(
   "Admin",
   {
+    id_admin: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     username: {
       type: DataTypes.STRING,
       allowNull: false,
