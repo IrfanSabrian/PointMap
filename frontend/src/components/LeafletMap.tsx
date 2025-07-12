@@ -1023,7 +1023,9 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
           }`}
         >
           <iframe
-            src="/building-details/index.html"
+            src={`/building-details/index.html?id=${
+              selectedFeature?.properties?.id || "45"
+            }`}
             title="Building Detail"
             className="flex-1 w-full h-full border-0 rounded-b-xl"
             style={{ minHeight: "350px" }}

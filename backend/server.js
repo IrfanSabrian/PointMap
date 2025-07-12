@@ -1,11 +1,13 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import sequelize from "./config/db.js";
-import Bangunan from "./models/Bangunan.js";
-import Ruangan from "./models/Ruangan.js";
-import Jurusan from "./models/Jurusan.js";
-import Prodi from "./models/Prodi.js";
+import {
+  sequelize,
+  Bangunan,
+  Ruangan,
+  Jurusan,
+  Prodi,
+} from "./models/index.js";
 import bangunanRoutes from "./routes/bangunan.js";
 import ruanganRoutes from "./routes/ruangan.js";
 import jurusanRoutes from "./routes/jurusan.js";

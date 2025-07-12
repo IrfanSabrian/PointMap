@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getRuanganByLantai,
+  getRuanganByBangunan,
   addRuangan,
   updateRuangan,
   deleteRuangan,
@@ -10,6 +11,7 @@ import auth from "../middlewares/auth.js";
 const router = express.Router();
 
 router.get("/", getRuanganByLantai);
+router.get("/bangunan/:id_bangunan", getRuanganByBangunan);
 router.post("/", auth, addRuangan);
 router.put("/:id", auth, updateRuangan);
 router.delete("/:id", auth, deleteRuangan);

@@ -1,4 +1,14 @@
-import Ruangan from "../models/Ruangan.js";
+import { Ruangan, Prodi, Jurusan } from "../models/index.js";
+
+// GET semua ruangan
+export const getAllRuangan = async (req, res) => {
+  try {
+    const ruangan = await Ruangan.findAll();
+    res.json(ruangan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // GET semua ruangan berdasarkan nomor lantai (query: ?lantai=nomor)
 export const getRuanganByLantai = async (req, res) => {
@@ -8,6 +18,56 @@ export const getRuanganByLantai = async (req, res) => {
       where: { nomor_lantai: lantai },
     });
     res.json(ruangan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET ruangan berdasarkan id_bangunan dan dikelompokkan berdasarkan lantai
+export const getRuanganByBangunan = async (req, res) => {
+  try {
+    const { id_bangunan } = req.params;
+    const ruangan = await Ruangan.findAll({
+      where: { id_bangunan: id_bangunan },
+      include: [
+        {
+          model: Prodi,
+          as: "prodi",
+          include: [
+            {
+              model: Jurusan,
+              as: "jurusan",
+            },
+          ],
+        },
+      ],
+      order: [["nomor_lantai", "ASC"]],
+    });
+
+    // Kelompokkan ruangan berdasarkan lantai
+    const ruanganByLantai = {};
+    ruangan.forEach((r) => {
+      const lantai = r.nomor_lantai;
+      if (!ruanganByLantai[lantai]) {
+        ruanganByLantai[lantai] = [];
+      }
+
+      // Tambahkan data prodi dan jurusan ke ruangan
+      const ruanganData = r.toJSON();
+      if (r.prodi) {
+        ruanganData.nama_prodi = r.prodi.nama_prodi;
+        ruanganData.nama_jurusan = r.prodi.jurusan
+          ? r.prodi.jurusan.nama_jurusan
+          : null;
+      } else {
+        ruanganData.nama_prodi = null;
+        ruanganData.nama_jurusan = null;
+      }
+
+      ruanganByLantai[lantai].push(ruanganData);
+    });
+
+    res.json(ruanganByLantai);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

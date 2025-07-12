@@ -10,6 +10,20 @@ export const getAllBangunan = async (req, res) => {
   }
 };
 
+// GET bangunan berdasarkan ID
+export const getBangunanById = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const bangunan = await Bangunan.findByPk(id);
+    if (!bangunan) {
+      return res.status(404).json({ error: "Bangunan tidak ditemukan" });
+    }
+    res.json(bangunan);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // CREATE bangunan baru
 export const addBangunan = async (req, res) => {
   try {
