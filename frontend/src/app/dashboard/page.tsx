@@ -110,15 +110,24 @@ export default function Dashboard() {
       const headers = {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       };
 
       // Fetch all data
       const [bangunanRes, ruanganRes, jurusanRes, prodiRes] = await Promise.all(
         [
-          fetch("http://localhost:3001/api/bangunan", { headers }),
-          fetch("http://localhost:3001/api/ruangan", { headers }),
-          fetch("http://localhost:3001/api/jurusan", { headers }),
-          fetch("http://localhost:3001/api/prodi", { headers }),
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`, {
+            headers,
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`, {
+            headers,
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/jurusan`, {
+            headers,
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/prodi`, {
+            headers,
+          }),
         ]
       );
 
@@ -170,6 +179,7 @@ export default function Dashboard() {
       const headers = {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       };
 
       let url = "";
@@ -178,7 +188,7 @@ export default function Dashboard() {
 
       switch (editingItem.type) {
         case "bangunan":
-          url = "http://localhost:3001/api/bangunan";
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`;
           data = {
             nama: formData.nama,
             interaksi: formData.interaksi,
@@ -191,7 +201,7 @@ export default function Dashboard() {
           }
           break;
         case "ruangan":
-          url = "http://localhost:3001/api/ruangan";
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`;
           data = {
             nama_ruangan: formData.nama_ruangan,
             nomor_lantai: formData.nomor_lantai,
@@ -204,7 +214,7 @@ export default function Dashboard() {
           }
           break;
         case "jurusan":
-          url = "http://localhost:3001/api/jurusan";
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/jurusan`;
           data = { nama_jurusan: formData.nama_jurusan };
           if (editingItem.id_jurusan) {
             url += `/${editingItem.id_jurusan}`;
@@ -212,7 +222,7 @@ export default function Dashboard() {
           }
           break;
         case "prodi":
-          url = "http://localhost:3001/api/prodi";
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/prodi`;
           data = {
             nama_prodi: formData.nama_prodi,
             id_jurusan: formData.id_jurusan,
@@ -261,21 +271,22 @@ export default function Dashboard() {
       const headers = {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
       };
 
       let url = "";
       switch (type) {
         case "bangunan":
-          url = `http://localhost:3001/api/bangunan/${id}`;
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${id}`;
           break;
         case "ruangan":
-          url = `http://localhost:3001/api/ruangan/${id}`;
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan/${id}`;
           break;
         case "jurusan":
-          url = `http://localhost:3001/api/jurusan/${id}`;
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/jurusan/${id}`;
           break;
         case "prodi":
-          url = `http://localhost:3001/api/prodi/${id}`;
+          url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/prodi/${id}`;
           break;
       }
 

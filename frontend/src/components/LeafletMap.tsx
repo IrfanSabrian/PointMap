@@ -35,7 +35,7 @@ export interface LeafletMapRef {
   ) => void;
 }
 
-const geojsonBangunanUrl = "http://localhost:3001/api/bangunan/geojson";
+const geojsonBangunanUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/geojson`;
 const geojsonStatisUrl = "/geojson/Polnep WGS_1984.geojson";
 
 const kategoriStyle: Record<string, L.PathOptions> = {
@@ -236,7 +236,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Load data bangunan dari API
     useEffect(() => {
       setIsLoadingData(true);
-      fetch(geojsonBangunanUrl)
+      fetch(geojsonBangunanUrl, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
@@ -261,7 +263,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Load data ruangan dari API
     useEffect(() => {
-      fetch("http://localhost:3001/api/ruangan")
+      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
