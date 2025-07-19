@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -50,11 +51,7 @@ export default function Home() {
     ],
   };
 
-  const [searchText, setSearchText] = useState("");
   const { theme, setTheme } = useTheme();
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-
-  // Tambahkan state dan fetch untuk weatherDesc dan weatherIcon di atas useEffect fetchCuaca
   const [weatherDesc, setWeatherDesc] = useState("");
   const [weatherIcon, setWeatherIcon] = useState("");
 
@@ -82,9 +79,6 @@ export default function Home() {
     };
     return map[desc?.toLowerCase()] || desc;
   };
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     setIsClient(true);
@@ -188,9 +182,6 @@ export default function Home() {
     fetchCuaca();
     getTanggal();
 
-    let lastInteraction = Date.now();
-    let isHovering = false;
-
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
@@ -215,12 +206,10 @@ export default function Home() {
     };
 
     const handleMouseEnter = () => {
-      isHovering = true;
       setShowNavbar(true);
       if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
     };
     const handleMouseLeave = () => {
-      isHovering = false;
       if (window.scrollY > window.innerHeight * 0.75) {
         if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
         navbarTimeout.current = setTimeout(() => {

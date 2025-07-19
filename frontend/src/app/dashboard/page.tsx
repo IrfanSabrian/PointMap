@@ -14,7 +14,6 @@ import {
 } from "react-icons/fi";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
-import ParticlesCustom from "@/components/ParticlesCustom";
 import { LeafletMapRef } from "@/components/LeafletMap";
 
 const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
@@ -50,15 +49,24 @@ interface Prodi {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [activeTab, setActiveTab] = useState("bangunan");
   const [isEditing, setIsEditing] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [highlightedItem, setHighlightedItem] = useState<any>(null);
-  const [selectedSidebarItem, setSelectedSidebarItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<
+    | (Bangunan & { type: "bangunan" })
+    | (Ruangan & { type: "ruangan" })
+    | (Jurusan & { type: "jurusan" })
+    | (Prodi & { type: "prodi" })
+    | { type: string }
+    | null
+  >(null);
+  const [highlightedItem, setHighlightedItem] = useState<
+    (Bangunan & { type: "bangunan" }) | (Ruangan & { type: "ruangan" }) | null
+  >(null);
+  const [selectedSidebarItem, setSelectedSidebarItem] = useState<
+    Bangunan | Ruangan | Jurusan | Prodi | null
+  >(null);
 
   // Ref untuk LeafletMap component
   const mapRef = useRef<LeafletMapRef | null>(null);
@@ -89,8 +97,6 @@ export default function Dashboard() {
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    setMounted(true);
-    setIsClient(true);
     setIsDark(theme === "dark");
 
     // Check authentication
@@ -150,26 +156,30 @@ export default function Dashboard() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
-  const handleEdit = (item: any, type: string) => {
+  const handleEdit = (
+    item: Bangunan | Ruangan | Jurusan | Prodi,
+    type: string
+  ) => {
     setIsEditing(true);
     setEditingItem({ ...item, type });
+    const merged = item as Partial<Bangunan & Ruangan & Jurusan & Prodi>;
     setFormData({
       nama:
-        item.nama ||
-        item.nama_ruangan ||
-        item.nama_jurusan ||
-        item.nama_prodi ||
+        merged.nama ||
+        merged.nama_ruangan ||
+        merged.nama_jurusan ||
+        merged.nama_prodi ||
         "",
-      interaksi: item.interaksi || "Noninteraktif",
-      lantai: item.lantai || item.nomor_lantai || 1,
-      geometri: item.geometri || "",
-      nama_ruangan: item.nama_ruangan || "",
-      nomor_lantai: item.nomor_lantai || 1,
-      id_bangunan: item.id_bangunan || 1,
-      id_prodi: item.id_prodi || 1,
-      nama_jurusan: item.nama_jurusan || "",
-      nama_prodi: item.nama_prodi || "",
-      id_jurusan: item.id_jurusan || 1,
+      interaksi: merged.interaksi || "Noninteraktif",
+      lantai: merged.lantai || merged.nomor_lantai || 1,
+      geometri: merged.geometri || "",
+      nama_ruangan: merged.nama_ruangan || "",
+      nomor_lantai: merged.nomor_lantai || 1,
+      id_bangunan: merged.id_bangunan || 1,
+      id_prodi: merged.id_prodi || 1,
+      nama_jurusan: merged.nama_jurusan || "",
+      nama_prodi: merged.nama_prodi || "",
+      id_jurusan: merged.id_jurusan || 1,
     });
   };
 
@@ -182,6 +192,7 @@ export default function Dashboard() {
         "ngrok-skip-browser-warning": "true",
       };
 
+      if (!editingItem) return;
       let url = "";
       let method = "POST";
       let data = {};
@@ -195,7 +206,7 @@ export default function Dashboard() {
             lantai: formData.lantai,
             geometri: formData.geometri,
           };
-          if (editingItem.id_bangunan) {
+          if (editingItem.type === "bangunan" && "id_bangunan" in editingItem) {
             url += `/${editingItem.id_bangunan}`;
             method = "PUT";
           }
@@ -208,7 +219,7 @@ export default function Dashboard() {
             id_bangunan: formData.id_bangunan,
             id_prodi: formData.id_prodi,
           };
-          if (editingItem.id_ruangan) {
+          if (editingItem.type === "ruangan" && "id_ruangan" in editingItem) {
             url += `/${editingItem.id_ruangan}`;
             method = "PUT";
           }
@@ -216,7 +227,7 @@ export default function Dashboard() {
         case "jurusan":
           url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/jurusan`;
           data = { nama_jurusan: formData.nama_jurusan };
-          if (editingItem.id_jurusan) {
+          if (editingItem.type === "jurusan" && "id_jurusan" in editingItem) {
             url += `/${editingItem.id_jurusan}`;
             method = "PUT";
           }
@@ -227,7 +238,7 @@ export default function Dashboard() {
             nama_prodi: formData.nama_prodi,
             id_jurusan: formData.id_jurusan,
           };
-          if (editingItem.id_prodi) {
+          if (editingItem.type === "prodi" && "id_prodi" in editingItem) {
             url += `/${editingItem.id_prodi}`;
             method = "PUT";
           }
@@ -322,22 +333,20 @@ export default function Dashboard() {
   };
 
   // Fungsi untuk highlight item di peta
-  const handleHighlight = (item: any, type: string) => {
-    console.log("handleHighlight called:", { item, type });
+  const handleHighlight = (item: Bangunan | Ruangan, type: string) => {
     setSelectedSidebarItem(item); // Update selected item di sidebar
 
     if (type === "bangunan") {
       // Untuk bangunan, set highlight dan kirim pesan ke peta
-      setHighlightedItem({ ...item, type });
+      setHighlightedItem({ ...(item as Bangunan), type });
 
       // Kirim pesan ke LeafletMap untuk highlight
       if (mapRef.current) {
-        console.log(
-          "mapRef.current exists, calling highlightFeature for building"
+        mapRef.current.highlightFeature(
+          type,
+          (item as Bangunan).id_bangunan,
+          (item as Bangunan).nama
         );
-        mapRef.current.highlightFeature(type, item.id_bangunan, item.nama);
-      } else {
-        console.log("mapRef.current is null");
       }
     } else if (type === "ruangan") {
       // Untuk ruangan, kirim pesan ke peta untuk zoom ke bangunan dan highlight
@@ -345,14 +354,11 @@ export default function Dashboard() {
 
       // Kirim pesan ke LeafletMap untuk handle ruangan seperti pencarian
       if (mapRef.current) {
-        console.log("mapRef.current exists, calling highlightFeature for room");
         mapRef.current.highlightFeature(
           type,
-          item.id_ruangan,
-          item.nama_ruangan
+          (item as Ruangan).id_ruangan,
+          (item as Ruangan).nama_ruangan
         );
-      } else {
-        console.log("mapRef.current is null");
       }
     }
   };
@@ -443,7 +449,7 @@ export default function Dashboard() {
     }
   }, [selectedSidebarItem]);
 
-  if (!mounted) return null;
+  if (!theme) return null;
 
   return (
     <div
@@ -593,12 +599,16 @@ export default function Dashboard() {
                       <div
                         key={item.id_bangunan}
                         ref={
-                          selectedSidebarItem?.id_bangunan === item.id_bangunan
+                          selectedSidebarItem &&
+                          "id_bangunan" in selectedSidebarItem &&
+                          selectedSidebarItem.id_bangunan === item.id_bangunan
                             ? selectedItemRef
                             : null
                         }
                         className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border shadow-sm ${
-                          selectedSidebarItem?.id_bangunan === item.id_bangunan
+                          selectedSidebarItem &&
+                          "id_bangunan" in selectedSidebarItem &&
+                          selectedSidebarItem.id_bangunan === item.id_bangunan
                             ? "bg-green-50 dark:bg-green-900/30 border-2 border-green-500 dark:border-green-400 shadow-md"
                             : highlightedItem?.id_bangunan ===
                                 item.id_bangunan &&
@@ -645,12 +655,16 @@ export default function Dashboard() {
                       <div
                         key={item.id_ruangan}
                         ref={
-                          selectedSidebarItem?.id_ruangan === item.id_ruangan
+                          selectedSidebarItem &&
+                          "id_ruangan" in selectedSidebarItem &&
+                          selectedSidebarItem.id_ruangan === item.id_ruangan
                             ? selectedItemRef
                             : null
                         }
                         className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border shadow-sm ${
-                          selectedSidebarItem?.id_ruangan === item.id_ruangan
+                          selectedSidebarItem &&
+                          "id_ruangan" in selectedSidebarItem &&
+                          selectedSidebarItem.id_ruangan === item.id_ruangan
                             ? "bg-green-50 dark:bg-green-900/30 border-2 border-green-500 dark:border-green-400 shadow-md"
                             : "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 hover:shadow-md"
                         }`}
@@ -768,12 +782,15 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {editingItem?.id_bangunan ||
-                editingItem?.id_ruangan ||
-                editingItem?.id_jurusan ||
-                editingItem?.id_prodi
-                  ? "Edit"
-                  : "Tambah"}{" "}
+                {editingItem && "id_bangunan" in editingItem
+                  ? String(editingItem.id_bangunan)
+                  : editingItem && "id_ruangan" in editingItem
+                  ? String(editingItem.id_ruangan)
+                  : editingItem && "id_jurusan" in editingItem
+                  ? String(editingItem.id_jurusan)
+                  : editingItem && "id_prodi" in editingItem
+                  ? String(editingItem.id_prodi)
+                  : ""}{" "}
                 {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
               </h3>
               <button

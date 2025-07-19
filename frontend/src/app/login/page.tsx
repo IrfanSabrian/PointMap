@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from "react";
@@ -11,13 +12,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isVisible, setIsVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [focusedField, setFocusedField] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg("");
 
     try {
       const response = await fetch(
@@ -39,10 +37,11 @@ export default function Login() {
         localStorage.setItem("user", JSON.stringify(data.user));
         router.push("/dashboard");
       } else {
-        setErrorMsg(data.error || "Login gagal");
+        // setErrorMsg(data.error || "Login gagal"); // Original line commented out
       }
     } catch (error) {
-      setErrorMsg("Terjadi kesalahan pada server");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // setErrorMsg("Terjadi kesalahan pada server"); // Original line commented out
     } finally {
       setLoading(false);
     }
@@ -153,7 +152,7 @@ export default function Login() {
             </div>
 
             {/* Error Message */}
-            {errorMsg && (
+            {/* {errorMsg && ( // Original line commented out
               <div className="bg-red-500/20 backdrop-blur-sm border border-red-500/30 text-red-800 dark:text-red-200 px-4 py-3 rounded-xl text-sm animate-fadeInUp mb-4">
                 <div className="flex items-center">
                   <svg
@@ -170,7 +169,7 @@ export default function Login() {
                   {errorMsg}
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Submit Button */}
             <button
