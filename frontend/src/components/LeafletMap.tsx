@@ -411,10 +411,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const nonBangunanLayer = L.geoJSON(undefined, {
         style: (feature) => {
           const kategori =
-            (feature &&
-              feature.properties &&
-              (feature.properties as FeatureProperties).kategori) ||
-            undefined;
+            feature &&
+            feature.properties &&
+            (feature.properties as FeatureProperties).kategori;
           return kategoriStyle[kategori as string] || defaultStyle;
         },
         onEachFeature: (feature, layer) => {
@@ -441,14 +440,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Layer bangunan (di atas non-bangunan)
       const bangunanLayer = L.geoJSON(undefined, {
-        style: (featureParam) => {
-          const feature = featureParam as FeatureFixed | undefined;
-          const kategori =
-            feature && feature.properties
-              ? feature.properties.kategori
-              : undefined;
-          return kategoriStyle[kategori as string] || defaultStyle;
-        },
+        style: () => kategoriStyle["Bangunan"] || defaultStyle,
         onEachFeature: (feature, layer) => {
           layer.on("mouseover", function (e: L.LeafletMouseEvent) {
             // setTooltipPosition({ // Removed as per new_code
@@ -460,7 +452,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // setHoveredFeature(null); // Removed as per new_code
           });
           // Hanya kategori Bangunan yang bisa diklik
-          if (feature.properties?.kategori === "Bangunan") {
+          if (feature.properties?.id) {
             layer.on("click", function (e: L.LeafletMouseEvent) {
               // Jika rute sedang tampil, blok interaksi klik bangunan lain
               if (routeLine) {
