@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Detail Bangunan - PointMap</title>
+    <meta
+      name="description"
+      content="Detail bangunan dengan informasi ruangan yang dinamis berdasarkan database"
+    />
+    <meta
+      name="keywords"
+      content="building map, 3d, css, javascript, pin, levels, floor map"
+    />
+    <meta name="author" content="PointMap" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+    <script src="js/modernizr-custom.js"></script>
+  </head>
+  <body class="buildingdetail">
+    <div class="container">
+      <div class="buildingdetails-main">
+        <header class="detail-header">
+          <a
+            class="detail-icon detail-icon--prev"
+            href="#"
+            title="Kembali"
+            onclick="window.parent.postMessage('close-buildingdetail', '*'); return false;"
+          >
+            <i class="fas fa-arrow-left"></i>
+            <span style="margin-left: 0.5em; vertical-align: middle"
+              >Kembali</span
+            >
+          </a>
+          <h1 id="building-title">Detail Bangunan</h1>
+        </header>
+
+        <div class="building">
+          <div class="levels" id="levels-container">
+            <!-- Levels akan di-generate secara dinamis -->
+            <div class="loading">
+              <i class="fas fa-spinner fa-spin"></i>
+              <p>Memuat data bangunan...</p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          class="boxbutton boxbutton--dark open-search"
+          aria-label="Show search"
+        >
+          <i class="fas fa-search"></i>
+        </button>
+
+        <nav class="buildingnav buildingnav--hidden">
+          <button class="boxbutton buildingnav__button--up" aria-label="Go up">
+            <i class="fas fa-angle-up"></i>
+          </button>
+          <button
+            class="boxbutton boxbutton--dark buildingnav__button--all-levels"
+            aria-label="Back to all levels"
+          >
+            <i class="fas fa-layer-group"></i>
+          </button>
+          <button
+            class="boxbutton buildingnav__button--down"
+            aria-label="Go down"
+          >
+            <i class="fas fa-angle-down"></i>
+          </button>
+        </nav>
+
+        <div class="buildingdetails-content" id="content-area"></div>
+      </div>
+
+      <aside class="spaces-list" id="spaces-list">
+        <div class="loading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Memuat daftar ruangan...</p>
+        </div>
+      </aside>
+    </div>
+
+    <script>
+      // Konfigurasi API
+      const API_BASE_URL = "http://localhost:3001/api";
+
+      // Fungsi untuk mendapatkan parameter dari URL
+      function getUrlParameter(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      }
+
+      // Fungsi untuk mendapatkan data bangunan dan ruangan
+      async function loadBuildingData() {
+        try {
+          const buildingId = getUrlParameter("id") || "1"; // Default ke ID 1
+          const buildingName = getUrlParameter("name") || "Bangunan";
+
+          // Ambil data bangunan
+          const buildingResponse = await fetch(
+            `${API_BASE_URL}/bangunan/${buildingId}`
+          );
+          if (!buildingResponse.ok) {
+            throw new Error(`HTTP error! status: ${buildingResponse.status}`);
+          }
+          const buildingData = await buildingResponse.json();
+
+          // Ambil data ruangan untuk bangunan ini
+          const ruanganResponse = await fetch(
+            `${API_BASE_URL}/ruangan/bangunan/${buildingId}`
+          );
+          if (!ruanganResponse.ok) {
+            throw new Error(`HTTP error! status: ${ruanganResponse.status}`);
+          }
+          const ruanganData = await ruanganResponse.json();
+
+          // Cek apakah data ruangan kosong atau tidak ada
+          if (!ruanganData || Object.keys(ruanganData).length === 0) {
+            throw new Error("Data ruangan tidak ditemukan untuk bangunan ini");
+          }
+
+          // Render bangunan
+          renderBuilding(buildingData, ruanganData);
+        } catch (error) {
+          console.error("Error loading building data:", error);
+
+          // Redirect ke halaman error dengan parameter yang diperlukan
+          const buildingId = getUrlParameter("id") || "1";
+          let buildingName = getUrlParameter("name") || "Bangunan";
+
+          // Jika error terjadi setelah data bangunan berhasil diambil, gunakan nama dari API
+          if (error.message.includes("Data ruangan tidak ditemukan")) {
+            // Gunakan fetch tanpa await karena di dalam catch block
+            fetch(`${API_BASE_URL}/bangunan/${buildingId}`)
+              .then((response) => {
+                if (response.ok) {
+                  return response.json();
+                }
+                throw new Error("Failed to fetch building data");
+              })
+              .then((buildingData) => {
+                buildingName = buildingData.nama || buildingName;
+                const errorUrl = `error.html?id=${buildingId}&name=${encodeURIComponent(
+                  buildingName
+                )}&error=${encodeURIComponent(error.message)}`;
+                window.location.href = errorUrl;
+              })
+              .catch((fetchError) => {
+                console.error("Error fetching building name:", fetchError);
+                const errorUrl = `error.html?id=${buildingId}&name=${encodeURIComponent(
+                  buildingName
+                )}&error=${encodeURIComponent(error.message)}`;
+                window.location.href = errorUrl;
+              });
+            return; // Keluar dari catch block
+          }
+
+          const errorUrl = `error.html?id=${buildingId}&name=${encodeURIComponent(
+            buildingName
+          )}&error=${encodeURIComponent(error.message)}`;
+
+          window.location.href = errorUrl;
+        }
+      }
+
+      // Fungsi untuk render bangunan
+      function renderBuilding(buildingData, ruanganData) {
+        const levelsContainer = document.getElementById("levels-container");
+        const contentArea = document.getElementById("content-area");
+        const spacesList = document.getElementById("spaces-list");
+
+        // Update judul bangunan
+        document.getElementById("building-title").textContent =
+          buildingData.nama || "Detail Bangunan";
+
+        // Render levels
+        let levelsHTML = "";
+        let contentItems = [];
+        let spacesListData = [];
+
+        // Dapatkan semua lantai yang ada dari data ruangan
+        const allLevels = Object.keys(ruanganData)
+          .map(Number)
+          .sort((a, b) => a - b);
+
+        allLevels.forEach((lantai) => {
+          const ruanganLantai = ruanganData[lantai] || [];
+
+          // Tentukan path SVG berdasarkan nama bangunan
+          let svgPath = "";
+          if (buildingData.nama === "Gedung Lab Teknik Informatika") {
+            svgPath = `../svg/Gedung Lab Teknik Informatika/Lt${lantai}.svg`;
+          } else if (buildingData.nama === "Jurusan Teknik Mesin") {
+            svgPath = `../svg/Jurusan Teknik Mesin/Lt${lantai}.svg`;
+          } else {
+            // Fallback untuk bangunan lain
+            svgPath = `img/default.svg`;
+          }
+
+          // Tambahkan level HTML
+          levelsHTML += `
+            <div class="level level--${lantai}" aria-label="Lantai ${lantai}">
+              <img
+                class="map map--${lantai}"
+                src="${svgPath}"
+                alt="Map Lantai ${lantai}"
+                width="100%"
+                height="100%"
+                style="display: block"
+                onerror="this.src='img/default.svg'"
+              />
+              <div class="level__pins" id="level${lantai}-pins"></div>
+            </div>
+          `;
+
+          // Tambahkan data pin dan konten untuk setiap ruangan
+          ruanganLantai.forEach((ruangan, ruanganIndex) => {
+            const spaceId = `${lantai}.${String(ruanganIndex + 1).padStart(
+              2,
+              "0"
+            )}`;
+
+            // Data untuk konten
+            contentItems.push({
+              space: spaceId,
+              title: ruangan.nama_ruangan,
+              jurusan: ruangan.nama_jurusan || "Tidak ada jurusan",
+              prodi: ruangan.nama_prodi || "Tidak ada prodi",
+              ruangan: ruangan,
+            });
+
+            // Data untuk spaces list
+            spacesListData.push({
+              level: parseInt(lantai),
+              space: spaceId,
+              name: ruangan.nama_ruangan,
+            });
+          });
+        });
+
+        // Render levels
+        levelsContainer.innerHTML = levelsHTML;
+
+        // Render pins untuk setiap level
+        allLevels.forEach((lantai) => {
+          const ruanganLantai = ruanganData[lantai] || [];
+          const pinsContainer = document.getElementById(`level${lantai}-pins`);
+
+          ruanganLantai.forEach((ruangan, ruanganIndex) => {
+            const spaceId = `${lantai}.${String(ruanganIndex + 1).padStart(
+              2,
+              "0"
+            )}`;
+
+            const pinElement = document.createElement("a");
+            pinElement.className = `pin pin--${lantai}-${ruanganIndex + 1}`;
+            pinElement.setAttribute("data-space", spaceId);
+            pinElement.setAttribute("href", "#");
+            pinElement.setAttribute(
+              "aria-label",
+              `Pin untuk ${ruangan.nama_ruangan}`
+            );
+
+            const span = document.createElement("span");
+            span.className = "pin__icon";
+
+            const icon = document.createElement("i");
+            icon.className = "fas fa-map-marker-alt";
+            span.appendChild(icon);
+
+            pinElement.appendChild(span);
+            pinsContainer.appendChild(pinElement);
+          });
+        });
+
+        // Render konten
+        renderContent(contentItems, buildingData.nama);
+
+        // Render spaces list
+        renderSpacesList(spacesListData, allLevels);
+
+        // Re-initialize main.js functionality after dynamic content is loaded
+        setTimeout(() => {
+          if (typeof window.buildingDetailsInit === "function") {
+            window.buildingDetailsInit();
+          }
+        }, 100);
+      }
+
+      // Fungsi untuk membuat HTML konten
+      function renderContent(items, buildingName) {
+        const contentArea = document.getElementById("content-area");
+
+        const contentHTML = items
+          .map((item) => {
+            return `
+              <div class="content__item" data-space="${item.space}">
+                <div class="content__item-details">
+                  <h3 class="content__item-title">${item.title}</h3>
+                <div class="content__meta">
+                  <div class="content__meta-item">
+                    <strong>Bangunan:</strong> ${buildingName}
+                  </div>
+                  <div class="content__meta-item">
+                    <strong>Lantai:</strong> ${item.ruangan.nomor_lantai}
+                  </div>
+                  <div class="content__meta-item">
+                    <strong>Jurusan:</strong> ${item.jurusan}
+                  </div>
+                  <div class="content__meta-item">
+                    <strong>Program Studi:</strong> ${item.prodi}
+                  </div>
+                </div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+
+        contentArea.innerHTML = contentHTML;
+
+        // Tambahkan tombol close
+        const closeButton = document.createElement("button");
+        closeButton.setAttribute(
+          "class",
+          "boxbutton boxbutton--dark content__button content__button--hidden"
+        );
+        closeButton.setAttribute("aria-label", "Close details");
+        closeButton.innerHTML = '<i class="fas fa-times"></i>';
+        contentArea.appendChild(closeButton);
+      }
+
+      // Fungsi untuk membuat HTML aside spaces-list
+      function renderSpacesList(spacesListData, levels) {
+        const spacesList = document.getElementById("spaces-list");
+
+        let html = `
+            <div class="search">
+            <input class="search__input" placeholder="Cari ruangan..." />
+            <button class="boxbutton boxbutton--darker close-search" aria-label="Close details">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <ul class="buildingdetails-list grouped-by-level">
+          `;
+
+        levels.forEach((level) => {
+          const items = spacesListData.filter(
+            (item) => item.level === parseInt(level)
+          );
+          if (items.length > 0) {
+            html += `<div class="list__level-title">Lantai ${level}</div>`;
+            items.forEach((item) => {
+              html += `
+                <li class="list__item" data-level="${item.level}" data-space="${item.space}">
+                  <a href="#" class="list__link">${item.name}</a>
+                </li>
+              `;
+            });
+          }
+        });
+
+        html += "</ul>";
+        spacesList.innerHTML = html;
+      }
+
+      // Load data saat halaman dimuat
+      document.addEventListener("DOMContentLoaded", function () {
+        // Load building data first
+        loadBuildingData();
+      });
+    </script>
+
+    <script src="js/list.min.js"></script>
+    <script src="js/classie.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

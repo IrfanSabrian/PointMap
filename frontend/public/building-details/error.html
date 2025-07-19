@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Error - Detail Bangunan</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+    <style>
+      body {
+        background: rgba(0, 0, 0, 0.12);
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      .modal-error {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        z-index: 2000 !important;
+        background: #fff !important;
+        border-radius: 18px !important;
+        box-shadow: 0 8px 32px 0 rgba(30, 41, 59, 0.18) !important;
+        min-width: 340px !important;
+        max-width: 95vw !important;
+        width: 400px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        animation: fadeInModal 0.3s !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      @keyframes fadeInModal {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -60%);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%);
+        }
+      }
+      .modal-error .buildingdetails-content {
+        padding: 0 !important;
+        background: none !important;
+        box-shadow: none !important;
+        position: static !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+      .modal-error .error-content {
+        padding: 2em 2em 1.5em 2em;
+        text-align: center;
+      }
+      .modal-error .error-icon {
+        font-size: 3.5em;
+        color: #e74c3c;
+        margin-bottom: 0.5em;
+      }
+      .modal-error .error-title {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #e74c3c;
+        margin-bottom: 0.5em;
+      }
+      .modal-error .error-subtitle {
+        color: #7f8c8d;
+        margin-bottom: 1em;
+        font-size: 1em;
+      }
+      .modal-error .error-description {
+        color: #34495e;
+        font-size: 0.98em;
+        margin-bottom: 1em;
+      }
+      .modal-error .error-solutions {
+        background: #f8f9fa;
+        border-left: 4px solid #3498db;
+        padding: 1em 1.2em;
+        margin: 1em 0;
+        text-align: left;
+        font-size: 0.97em;
+        border-radius: 6px;
+      }
+
+      .modal-error .error-solutions-container {
+        display: flex;
+        gap: 1.5em;
+        margin: 1em 0;
+      }
+
+      .modal-error .error-solutions-container .error-solutions {
+        flex: 1;
+        margin: 0;
+      }
+
+      @media (max-width: 768px) {
+        .modal-error .error-solutions-container {
+          flex-direction: column;
+          gap: 1em;
+        }
+      }
+      .modal-error .error-solutions h3 {
+        color: #2c3e50;
+        margin-bottom: 0.5em;
+        font-size: 1em;
+      }
+      .modal-error .error-solutions ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .modal-error .error-solutions li {
+        padding: 0.3em 0 0.3em 1.2em;
+        color: #555;
+        position: relative;
+      }
+      .modal-error .error-solutions li:before {
+        content: "•";
+        color: #3498db;
+        font-weight: bold;
+        position: absolute;
+        left: 0;
+      }
+      .modal-error .error-code {
+        background: #ecf0f1;
+        padding: 0.7em 1em;
+        border-radius: 6px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+        color: #2c3e50;
+        margin: 1em 0;
+        text-align: left;
+      }
+      .modal-error .error-actions {
+        margin-top: 1.2em;
+        display: flex;
+        justify-content: center;
+        gap: 1em;
+      }
+      .modal-error .btn-retry,
+      .modal-error .btn-home {
+        background: #3498db;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .modal-error .btn-retry:hover {
+        background: #2980b9;
+      }
+      .modal-error .btn-home {
+        background: #95a5a6;
+      }
+      .modal-error .btn-home:hover {
+        background: #7f8c8d;
+      }
+      @media (max-width: 500px) {
+        .modal-error {
+          min-width: 0;
+          width: 98vw;
+          padding: 0;
+        }
+        .modal-error .error-content {
+          padding: 1em 0.5em 1em 0.5em;
+        }
+      }
+    </style>
+  </head>
+  <body class="buildingdetail">
+    <div class="container">
+      <div class="buildingdetails-main">
+        <header class="detail-header">
+          <a
+            class="detail-icon detail-icon--prev"
+            href="#"
+            title="Kembali"
+            onclick="window.parent.postMessage('close-buildingdetail', '*'); return false;"
+          >
+            <i class="fas fa-arrow-left"></i>
+            <span style="margin-left: 0.5em; vertical-align: middle"
+              >Kembali</span
+            >
+          </a>
+          <h1 id="building-title">Detail Bangunan</h1>
+        </header>
+      </div>
+    </div>
+
+    <!-- Modal Error -->
+    <div class="modal-error">
+      <div class="buildingdetails-content" id="content-area">
+        <div class="error-content">
+          <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h1 class="error-title" id="errorTitle">Data Tidak Ditemukan</h1>
+          <p class="error-subtitle" id="errorSubtitle">
+            Maaf, data detail bangunan yang Anda cari tidak dapat ditemukan atau
+            sedang mengalami masalah.
+          </p>
+          <div class="error-description" id="errorDescription">
+            <p>Kemungkinan penyebab masalah ini:</p>
+          </div>
+          <div class="error-solutions-container" id="errorSolutionsContainer">
+            <div class="error-solutions">
+              <h3>Kemungkinan Penyebab:</h3>
+              <ul>
+                <li>Data bangunan belum tersedia di database</li>
+                <li>Koneksi ke server mengalami gangguan</li>
+                <li>ID bangunan yang diminta tidak valid</li>
+                <li>Server sedang dalam maintenance</li>
+                <li>Cache browser yang perlu dibersihkan</li>
+              </ul>
+            </div>
+            <div class="error-solutions">
+              <h3>Cara Mengatasi:</h3>
+              <ul>
+                <li>Periksa kembali koneksi internet Anda</li>
+                <li>Refresh halaman ini beberapa kali</li>
+                <li>Bersihkan cache browser Anda</li>
+                <li>Coba akses kembali dari halaman utama</li>
+                <li>Hubungi administrator jika masalah berlanjut</li>
+              </ul>
+            </div>
+          </div>
+          <div class="error-code">
+            <strong>Error Code:</strong> DATA_NOT_FOUND_404<br />
+            <strong>Timestamp:</strong> <span id="errorTimestamp"></span>
+          </div>
+          <div class="error-actions">
+            <button class="btn-retry" onclick="retryLoad()">Coba Lagi</button>
+            <button class="btn-home" onclick="goToHome()">
+              Kembali ke Peta
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Set timestamp
+      document.getElementById("errorTimestamp").textContent =
+        new Date().toLocaleString("id-ID");
+
+      // Ambil nama bangunan dari URL parameter
+      function getBuildingName() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const buildingName = urlParams.get("name") || "Bangunan";
+        document.getElementById("building-title").textContent = buildingName;
+
+        // Update title halaman juga
+        document.title = `Error - ${buildingName}`;
+      }
+
+      // Fungsi untuk menangani berbagai jenis error
+      function handleErrorType() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorMessage = urlParams.get("error") || "";
+        const errorTitle = document.getElementById("errorTitle");
+        const errorSubtitle = document.getElementById("errorSubtitle");
+        const errorDescription = document.getElementById("errorDescription");
+        const errorSolutionsContainer = document.getElementById(
+          "errorSolutionsContainer"
+        );
+
+        // Tentukan jenis error berdasarkan pesan
+        if (
+          errorMessage.includes("404") ||
+          errorMessage.toLowerCase().includes("not found")
+        ) {
+          errorTitle.textContent = "Data Tidak Ditemukan";
+          errorSubtitle.textContent =
+            "Maaf, data detail bangunan yang Anda cari tidak dapat ditemukan di database.";
+        } else if (
+          errorMessage.includes("500") ||
+          errorMessage.includes("Internal Server Error")
+        ) {
+          errorTitle.textContent = "Server Error";
+          errorSubtitle.textContent =
+            "Maaf, server sedang mengalami masalah. Silakan coba lagi beberapa saat.";
+        } else if (
+          errorMessage.toLowerCase().includes("network") ||
+          errorMessage.toLowerCase().includes("fetch")
+        ) {
+          errorTitle.textContent = "Koneksi Error";
+          errorSubtitle.textContent =
+            "Maaf, tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+        } else if (errorMessage.includes("Data ruangan tidak ditemukan")) {
+          errorTitle.textContent = "Data Ruangan Kosong";
+          errorSubtitle.textContent =
+            "Maaf, bangunan ini belum memiliki data ruangan yang tersedia.";
+          errorDescription.style.display = "none";
+          errorSolutionsContainer.style.display = "none";
+        } else if (errorMessage) {
+          errorTitle.textContent = "Terjadi Kesalahan";
+          errorSubtitle.textContent = errorMessage;
+        } else {
+          errorTitle.textContent = "Terjadi Kesalahan";
+          errorSubtitle.textContent =
+            "Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.";
+        }
+      }
+
+      // Fungsi kembali ke halaman sebelumnya
+      function goBack() {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage("close-buildingdetail", "*");
+        } else {
+          window.history.back();
+        }
+      }
+
+      // Fungsi coba lagi
+      function retryLoad() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const buildingId = urlParams.get("id");
+        const buildingName = urlParams.get("name");
+
+        if (buildingId) {
+          window.location.href = `index.html?id=${buildingId}&name=${encodeURIComponent(
+            buildingName || ""
+          )}`;
+        } else {
+          goToHome();
+        }
+      }
+
+      // Fungsi kembali ke peta utama
+      function goToHome() {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage("close-buildingdetail", "*");
+        } else {
+          window.location.href = "/";
+        }
+      }
+
+      // Inisialisasi saat halaman dimuat
+      document.addEventListener("DOMContentLoaded", function () {
+        getBuildingName();
+        handleErrorType();
+      });
+
+      // Tambahkan event listener untuk tombol escape
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          goBack();
+        }
+      });
+    </script>
+  </body>
+</html>
