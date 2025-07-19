@@ -265,7 +265,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         .then((data) => {
           if (!data || !Array.isArray(data.features)) {
             console.error("Data bangunan tidak valid:", data);
-            setBangunanFeatures([]);
+            // Tambahkan data dummy jika gagal
+            setBangunanFeatures([
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [109.346, -0.054],
+                      [109.347, -0.054],
+                      [109.347, -0.055],
+                      [109.346, -0.055],
+                      [109.346, -0.054],
+                    ],
+                  ],
+                },
+                properties: {
+                  id: 1,
+                  nama: "Gedung Dummy 1",
+                  lantai: 3,
+                  kategori: "Bangunan",
+                  interaksi: "interaktif",
+                },
+              },
+              {
+                type: "Feature",
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [109.348, -0.054],
+                      [109.349, -0.054],
+                      [109.349, -0.055],
+                      [109.348, -0.055],
+                      [109.348, -0.054],
+                    ],
+                  ],
+                },
+                properties: {
+                  id: 2,
+                  nama: "Gedung Dummy 2",
+                  lantai: 2,
+                  kategori: "Bangunan",
+                  interaksi: "interaktif",
+                },
+              },
+            ]);
             return;
           }
           setBangunanFeatures(data.features || []);
@@ -273,7 +319,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         })
         .catch((error) => {
           console.error("Error loading bangunan data:", error);
-          setBangunanFeatures([]);
+          // Tambahkan data dummy jika gagal
+          setBangunanFeatures([
+            {
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [109.346, -0.054],
+                    [109.347, -0.054],
+                    [109.347, -0.055],
+                    [109.346, -0.055],
+                    [109.346, -0.054],
+                  ],
+                ],
+              },
+              properties: {
+                id: 1,
+                nama: "Gedung Dummy 1",
+                lantai: 3,
+                kategori: "Bangunan",
+                interaksi: "interaktif",
+              },
+            },
+            {
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [109.348, -0.054],
+                    [109.349, -0.054],
+                    [109.349, -0.055],
+                    [109.348, -0.055],
+                    [109.348, -0.054],
+                  ],
+                ],
+              },
+              properties: {
+                id: 2,
+                nama: "Gedung Dummy 2",
+                lantai: 2,
+                kategori: "Bangunan",
+                interaksi: "interaktif",
+              },
+            },
+          ]);
         })
         .finally(() => setIsLoadingData(false));
     }, []);
@@ -293,54 +385,119 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Pastikan data adalah array
           if (!Array.isArray(data)) {
             console.error("Data ruangan bukan array:", data);
-            setRuanganFeatures([]);
+            // Tambahkan data dummy jika gagal
+            setRuanganFeatures([
+              {
+                type: "Feature",
+                geometry: {
+                  type: "GeometryCollection",
+                  geometries: [],
+                },
+                properties: {
+                  id: 101,
+                  nama: "Ruang Dummy 1",
+                  kategori: "Ruangan",
+                  subtipe: "Lab Komputer",
+                  lantai: 1,
+                  bangunan_id: 1,
+                  jurusan: "Teknik Dummy",
+                  prodi: "Dummy Informatika",
+                  isRuangan: true,
+                },
+              },
+              {
+                type: "Feature",
+                geometry: {
+                  type: "GeometryCollection",
+                  geometries: [],
+                },
+                properties: {
+                  id: 102,
+                  nama: "Ruang Dummy 2",
+                  kategori: "Ruangan",
+                  subtipe: "Kelas",
+                  lantai: 2,
+                  bangunan_id: 2,
+                  jurusan: "Teknik Dummy",
+                  prodi: "Dummy Mesin",
+                  isRuangan: true,
+                },
+              },
+            ]);
             return;
           }
 
-          // Konversi data ruangan ke format yang bisa dicari
-          interface RuanganAPI {
-            properties: {
-              id_ruangan?: number;
-              nama_ruangan?: string;
-              deskripsi?: string;
-              nomor_lantai?: number;
-              id_bangunan?: number;
-              prodi?: {
-                nama_prodi?: string;
-                jurusan?: { nama_jurusan?: string };
-              };
+          // Perbaiki mapping agar support dua struktur
+          const ruanganForSearch = data.map((ruangan: any) => {
+            // Jika ada ruangan.properties, gunakan itu. Jika tidak, ambil langsung dari root.
+            const props = ruangan.properties || ruangan;
+            return {
+              type: "Feature",
+              geometry: {
+                type: "GeometryCollection",
+                geometries: [],
+              } as GeoJSON.GeometryCollection,
+              properties: {
+                id: props.id_ruangan,
+                nama: props.nama_ruangan,
+                kategori: "Ruangan",
+                subtipe: props.deskripsi || "Ruangan",
+                lantai: props.nomor_lantai,
+                bangunan_id: props.id_bangunan,
+                jurusan:
+                  props.prodi && props.prodi.jurusan
+                    ? props.prodi.jurusan.nama_jurusan
+                    : "",
+                prodi: props.prodi ? props.prodi.nama_prodi : "",
+                searchable: true,
+                isRuangan: true,
+              },
             };
-          }
-          const ruanganForSearch = data.map((ruangan: RuanganAPI) => ({
-            type: "Feature",
-            geometry: {
-              type: "GeometryCollection",
-              geometries: [],
-            } as GeoJSON.GeometryCollection,
-            properties: {
-              id: ruangan.properties?.id_ruangan,
-              nama: ruangan.properties?.nama_ruangan,
-              kategori: "Ruangan",
-              subtipe: ruangan.properties?.deskripsi || "Ruangan",
-              lantai: ruangan.properties?.nomor_lantai,
-              bangunan_id: ruangan.properties?.id_bangunan,
-              jurusan:
-                ruangan.properties?.prodi && ruangan.properties.prodi.jurusan
-                  ? ruangan.properties.prodi.jurusan.nama_jurusan
-                  : "",
-              prodi: ruangan.properties?.prodi
-                ? ruangan.properties.prodi.nama_prodi
-                : "",
-              searchable: true,
-              isRuangan: true,
-            },
-          })) as FeatureFixed[];
+          }) as FeatureFixed[];
           setRuanganFeatures(ruanganForSearch);
           console.log("Ruangan data loaded:", ruanganForSearch.length, "items");
         })
         .catch((error) => {
           console.error("Error loading ruangan data:", error);
-          setRuanganFeatures([]);
+          // Tambahkan data dummy jika gagal
+          setRuanganFeatures([
+            {
+              type: "Feature",
+              geometry: {
+                type: "GeometryCollection",
+                geometries: [],
+              },
+              properties: {
+                id: 101,
+                nama: "Ruang Dummy 1",
+                kategori: "Ruangan",
+                subtipe: "Lab Komputer",
+                lantai: 1,
+                bangunan_id: 1,
+                jurusan: "Teknik Dummy",
+                prodi: "Dummy Informatika",
+                isRuangan: true,
+              },
+            },
+            {
+              type: "Feature",
+              geometry: {
+                type: "GeometryCollection",
+                geometries: [],
+              },
+              properties: {
+                id: 102,
+                nama: "Ruang Dummy 2",
+                kategori: "Ruangan",
+                subtipe: "Kelas",
+                lantai: 2,
+                bangunan_id: 2,
+                jurusan: "Teknik Dummy",
+                prodi: "Dummy Mesin",
+                isRuangan: true,
+              },
+            },
+          ]);
         });
     }, []);
 
@@ -857,7 +1014,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
 
-      setSearchText(""); // Bersihkan input pencarian
+      // Tambahan: reset input dan tutup dropdown setelah pilih hasil
+      setSearchText("");
       setShowSearchResults(false);
 
       if (
@@ -1485,11 +1643,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 setSearchText(e.target.value);
                 setShowSearchResults(true);
               }}
-              onFocus={() => {
-                if (searchText.trim()) {
-                  setShowSearchResults(true);
-                }
-              }}
+              onFocus={() => setShowSearchResults(true)}
               placeholder="Cari nama bangunan atau ruangan..."
               className={`pl-9 pr-2 py-1.5 w-full bg-transparent outline-none text-sm rounded-xl ${
                 isDark

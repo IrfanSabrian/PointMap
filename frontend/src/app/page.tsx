@@ -536,8 +536,8 @@ export default function Home() {
         </div>
 
         <div
-          className={`w-full h-[320px] md:h-[540px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
-          style={{ minHeight: 320, height: "100%", maxHeight: 540 }}
+          className={`w-full h-[320px] md:h-[540px] lg:h-[700px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
+          style={{ minHeight: 320, height: "100%", maxHeight: 700 }}
         >
           <LeafletMap
             initialLat={-0.0545}
