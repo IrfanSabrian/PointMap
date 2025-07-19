@@ -1946,4 +1946,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
   }
 );
 
+LeafletMap.displayName = "LeafletMap";
+
 export default LeafletMap;
