@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 
-const passwordPlain = "irfanlogin"; // ganti dengan password admin yang kamu mau
+const passwordPlain = ""; // ganti dengan password admin yang kamu mau
 const saltRounds = 10;
 
 bcrypt.hash(passwordPlain, saltRounds, (err, hash) => {

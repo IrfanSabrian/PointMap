@@ -165,6 +165,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [highlightedFeatureId, setHighlightedFeatureId] = useState<
       string | number | null
     >(null);
+    // Tambahkan state untuk animasi card agar fade-in juga smooth
+    const [cardAnimation, setCardAnimation] = useState(false);
+    // State untuk modal rute
+    const [showRouteModal, setShowRouteModal] = useState(false);
+    const [routeStartType, setRouteStartType] = useState("my-location");
+    const [routeStartId, setRouteStartId] = useState("");
+    const [routeEndType, setRouteEndType] = useState("bangunan");
+    const [routeEndId, setRouteEndId] = useState("");
+    // State untuk polyline rute
+    const [routeLine, setRouteLine] = useState<L.Polyline | null>(null);
+    const [routeDistance, setRouteDistance] = useState<number | null>(null);
 
     // Fungsi untuk membuka modal dengan animasi fade-in
     const openBuildingDetailModal = (selectedRuangan?: any) => {
@@ -342,6 +353,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         minZoom: 2,
       });
       leafletMapRef.current = map;
+      // Set posisi awal sama dengan tombol reset
+      map.setView([initialLat, initialLng], initialZoom, { animate: false });
 
       // Basemap awal
       const bm = BASEMAPS.find((b) => b.key === basemap) || BASEMAPS[1];
@@ -394,9 +407,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Hanya kategori Bangunan yang bisa diklik
           if (kategori === "Bangunan") {
             layer.on("click", function (e: any) {
+              // Jika rute sedang tampil, blok interaksi klik bangunan lain
+              if (routeLine) {
+                if (
+                  e &&
+                  e.originalEvent &&
+                  typeof e.originalEvent.stopPropagation === "function"
+                ) {
+                  e.originalEvent.stopPropagation();
+                }
+                return;
+              }
               setSelectedFeature(feature);
               setCardVisible(true);
-
               // Kirim pesan ke dashboard untuk update sidebar
               window.postMessage(
                 {
@@ -487,11 +510,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           type: "FeatureCollection",
           features: bangunanFeatures,
         } as any);
-        // Fit bounds ke bangunan jika ada
-        const bounds = bangunanLayer.getBounds();
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { maxZoom: 19, padding: [20, 20] });
-        }
       }
     }, [bangunanFeatures, layerVisible]);
 
@@ -803,24 +821,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         console.log("Map not ready");
         return;
       }
-
-      // Coba fit bounds ke semua bangunan jika ada data
-      const bangunanLayer = bangunanLayerRef.current;
-      if (bangunanLayer && bangunanFeatures.length > 0) {
-        const bounds = bangunanLayer.getBounds();
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, {
-            maxZoom: 19,
-            padding: [20, 20],
-            animate: true,
-            duration: 0.5,
-          });
-          console.log("Reset to bounds of all buildings");
-          return;
-        }
-      }
-
-      // Fallback ke posisi awal jika tidak ada data bangunan
+      // Fallback ke posisi awal
       const initialPosition = L.latLng(initialLat, initialLng);
       map.setView(initialPosition, initialZoom, {
         animate: true,
@@ -1202,6 +1203,146 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       },
     }));
 
+    // Saat cardVisible berubah ke true, trigger animasi fade-in
+    useEffect(() => {
+      if (cardVisible) {
+        setTimeout(() => setCardAnimation(true), 10);
+      } else {
+        setCardAnimation(false);
+      }
+    }, [cardVisible]);
+
+    // Highlight merah persist selama card detail bangunan terbuka
+    useEffect(() => {
+      const bangunanLayer = bangunanLayerRef.current;
+      if (!bangunanLayer) return;
+      // Reset semua bangunan ke style default
+      bangunanLayer.eachLayer((layer: any) => {
+        if (layer.feature && layer.feature.properties?.id) {
+          const kategori = layer.feature?.properties?.kategori || "Bangunan";
+          const defaultStyle = kategoriStyle[kategori] || {
+            color: "#adb5bd",
+            fillColor: "#adb5bd",
+            fillOpacity: 0.5,
+          };
+          layer.setStyle(defaultStyle);
+        }
+      });
+      // Highlight merah hanya pada bangunan yang sedang aktif
+      if (cardVisible && selectedFeature?.properties?.id) {
+        const featureId = selectedFeature.properties.id;
+        bangunanLayer.eachLayer((layer: any) => {
+          if (layer.feature && layer.feature.properties?.id === featureId) {
+            layer.setStyle({
+              color: "#ff3333",
+              fillColor: "#ff3333",
+              fillOpacity: 0.7,
+              opacity: 1,
+              weight: 3,
+            });
+          }
+        });
+      }
+    }, [cardVisible, selectedFeature]);
+
+    // Fungsi untuk dapatkan koordinat centroid dari featureId (bangunan/ruangan)
+    const getCentroidById = (type: "bangunan" | "ruangan", id: string) => {
+      let feature = null;
+      if (type === "bangunan") {
+        feature = bangunanFeatures.find((b: any) => b.properties.id == id);
+      } else if (type === "ruangan") {
+        feature = ruanganFeatures.find((r: any) => r.properties.id == id);
+      }
+      if (!feature || !feature.geometry) return null;
+      let coords: number[][] = [];
+      if (feature.geometry.type === "Polygon") {
+        coords = feature.geometry.coordinates[0];
+      } else if (feature.geometry.type === "MultiPolygon") {
+        coords = feature.geometry.coordinates.flat(2);
+      }
+      if (!coords.length) return null;
+      const lats = coords.map((c) => c[1]);
+      const lngs = coords.map((c) => c[0]);
+      const lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+      return [lat, lng];
+    };
+
+    // Fungsi untuk handle submit rute
+    const handleRouteSubmit = async () => {
+      let startLatLng: [number, number] | null = null;
+      let endLatLng: [number, number] | null = null;
+      setRouteDistance(null);
+      // Titik awal
+      if (routeStartId === "my-location" && userLocation) {
+        startLatLng = [userLocation.lat, userLocation.lng];
+      } else if (routeStartId) {
+        startLatLng = getCentroidById("bangunan", routeStartId) as [
+          number,
+          number
+        ];
+      }
+      // Titik tujuan (selalu bangunan)
+      if (routeEndType === "bangunan" && routeEndId) {
+        endLatLng = getCentroidById("bangunan", routeEndId) as [number, number];
+      }
+      // Gambar polyline jika kedua titik valid
+      if (startLatLng && endLatLng && leafletMapRef.current) {
+        if (routeLine) {
+          leafletMapRef.current.removeLayer(routeLine);
+        }
+        const polyline = L.polyline([startLatLng, endLatLng], {
+          color: "#ff6600",
+          weight: 5,
+          opacity: 0.8,
+          dashArray: "8 8",
+        });
+        polyline.addTo(leafletMapRef.current);
+        setRouteLine(polyline);
+        // Zoom ke rute
+        leafletMapRef.current.fitBounds(
+          L.latLngBounds([startLatLng, endLatLng]),
+          { padding: [40, 40], maxZoom: 19 }
+        );
+        // Hitung jarak jika titik awal lokasi saya
+        if (routeStartId === "my-location") {
+          const R = 6371000; // meter
+          const toRad = (deg: number) => (deg * Math.PI) / 180;
+          const dLat = toRad(endLatLng[0] - startLatLng[0]);
+          const dLng = toRad(endLatLng[1] - startLatLng[1]);
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(startLatLng[0])) *
+              Math.cos(toRad(endLatLng[0])) *
+              Math.sin(dLng / 2) *
+              Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const d = R * c;
+          setRouteDistance(Math.round(d));
+        }
+      }
+      setShowRouteModal(false);
+    };
+
+    // Hapus rute saat card bangunan di-close
+    useEffect(() => {
+      if (!cardVisible && routeLine && leafletMapRef.current) {
+        leafletMapRef.current.removeLayer(routeLine);
+        setRouteLine(null);
+        setRouteDistance(null);
+      }
+    }, [cardVisible]);
+
+    // Debug: log kategori setiap kali selectedFeature berubah
+    useEffect(() => {
+      if (selectedFeature) {
+        console.log(
+          "DEBUG selectedFeature kategori:",
+          selectedFeature?.properties?.kategori
+        );
+      }
+    }, [selectedFeature]);
+
     return (
       <div
         className={`relative w-full h-full ${className}`}
@@ -1359,41 +1500,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             className="absolute right-4 bottom-4 z-50 flex flex-col gap-2"
             style={{ zIndex: 1050 }}
           >
-            {/* Tombol GPS di atas kontrol zoom */}
-            <button
-              onClick={handleLocateMe}
-              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer
-            ${
-              isDark
-                ? "bg-blue-900 border-blue-700 hover:bg-blue-800 text-white"
-                : "bg-blue-100 border-blue-300 hover:bg-blue-200 text-blue-900"
-            }
-            ${isLocating ? "opacity-50 cursor-not-allowed" : ""}
-          `}
-              style={{ width: 48, height: 48 }}
-              title="Tampilkan Lokasi Saya"
-              disabled={isLocating}
-            >
-              {isLocating ? (
-                <svg
-                  className="animate-spin"
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
-                  <path d="M12 2a10 10 0 0 1 10 10" />
-                </svg>
-              ) : (
-                // Ikon GPS/Target yang lebih jelas
-                <FontAwesomeIcon icon={faCrosshairs} />
-              )}
-            </button>
             {/* Zoom Controls */}
             <div className="flex flex-col gap-1 mb-2">
               {/* Zoom In Button */}
@@ -1537,11 +1643,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Sidebar Gedung (ganti dengan floating card kanan bawah) */}
         {selectedFeature && (
           <div
-            className={`absolute right-4 bottom-4 z-[201] w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-400 ${
-              cardVisible
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 translate-y-8 pointer-events-none"
-            }`}
+            className={`absolute right-4 bottom-4 z-[201] w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
+              ${
+                cardVisible && cardAnimation
+                  ? "opacity-100 translate-y-0 scale-100"
+                  : "opacity-0 translate-y-4 scale-95 pointer-events-none"
+              }
+            `}
             style={{
               boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)",
               minHeight: 120,
@@ -1574,10 +1682,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     Detail Bangunan
                   </button>
                 )}
-              <button className="w-full py-2 rounded-lg font-bold text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark">
-                <FontAwesomeIcon icon={faRoute} className="mr-2" />
-                Rute
-              </button>
+              {selectedFeature?.properties?.id &&
+                selectedFeature?.properties?.nama && (
+                  <button
+                    className="w-full py-2 rounded-lg font-bold text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark"
+                    onClick={() => {
+                      // Set tujuan otomatis ke bangunan yang sedang diklik
+                      setRouteEndType("bangunan");
+                      setRouteEndId(selectedFeature.properties.id);
+                      setTimeout(() => setShowRouteModal(true), 10);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faRoute} className="mr-2" />
+                    Rute
+                  </button>
+                )}
+              {!selectedFeature?.properties?.id && (
+                <div className="text-xs text-red-500">
+                  [DEBUG] Ini bukan bangunan dari API (tidak ada properti id)
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1591,7 +1715,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           style={{
             width: "100%",
             height: "100%",
-            minHeight: 350,
+            minHeight: 300,
             zIndex: 1,
             display: showBuildingDetailCanvas ? "none" : "block",
           }}
@@ -1613,8 +1737,98 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }`}
               title="Building Detail"
               className="flex-1 w-full h-full border-0 rounded-b-xl"
-              style={{ minHeight: "350px" }}
+              style={{ minHeight: "300px" }}
             />
+          </div>
+        )}
+
+        {/* MODAL RUTE (di dalam canvas) */}
+        {showRouteModal && (
+          <div className="absolute inset-0 z-[3000] flex items-center justify-center">
+            {/* Overlay */}
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowRouteModal(false)}
+            />
+            {/* Modal */}
+            <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 z-[3010] animate-fadeInUp">
+              {/* Tombol tutup */}
+              <button
+                className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl focus:outline-none"
+                onClick={() => setShowRouteModal(false)}
+                title="Tutup"
+              >
+                ×
+              </button>
+              <h3 className="text-lg font-bold mb-4 text-primary dark:text-primary-dark text-center">
+                Rute
+              </h3>
+              <form
+                className="flex flex-col gap-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleRouteSubmit();
+                }}
+              >
+                {/* Titik Awal */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Titik Awal
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    value={routeStartId || "my-location"}
+                    onChange={(e) => setRouteStartId(e.target.value)}
+                  >
+                    <option value="my-location">Lokasi Saya</option>
+                    {bangunanFeatures.map((b: any) => (
+                      <option key={b.properties.id} value={b.properties.id}>
+                        {b.properties.nama}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Titik Tujuan */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Titik Tujuan
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white cursor-not-allowed"
+                    value={(() => {
+                      if (routeEndType === "bangunan") {
+                        const b = bangunanFeatures.find(
+                          (b: any) => b.properties.id == routeEndId
+                        );
+                        return b ? b.properties.nama : "Bangunan";
+                      } else if (routeEndType === "ruangan") {
+                        const r = ruanganFeatures.find(
+                          (r: any) => r.properties.id == routeEndId
+                        );
+                        return r ? r.properties.nama : "Ruangan";
+                      }
+                      return "";
+                    })()}
+                    readOnly
+                    disabled
+                  />
+                </div>
+                {/* Tombol submit */}
+                <button
+                  type="submit"
+                  className="w-full py-2 rounded-lg bg-primary text-white font-bold mt-2 hover:bg-primary/90 transition-all"
+                >
+                  Cari Rute
+                </button>
+              </form>
+              {/* Jarak rute jika lokasi saya */}
+              {routeDistance !== null && (
+                <div className="mt-2 text-center text-sm text-primary font-semibold">
+                  Jarak: {routeDistance} meter
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

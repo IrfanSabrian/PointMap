@@ -93,75 +93,57 @@ export default function Login() {
             className="space-y-6 flex-1 flex flex-col justify-center"
           >
             {/* Username Field */}
-            <div className="relative">
+            <div className="relative mb-4">
               <input
-                id="username"
                 type="text"
-                required
+                id="username"
+                name="username"
+                className="peer block w-full px-4 pt-6 pb-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                placeholder=" "
                 autoComplete="username"
-                className={`block w-full bg-white/10 backdrop-blur-sm border-0 border-b-2 appearance-none focus:outline-none focus:ring-0 text-gray-900 dark:text-white placeholder-transparent transition-all duration-200 pb-2 pr-12 rounded-t-lg px-3 py-2 ${
-                  focusedField === "username" || username
-                    ? "border-blue-600 dark:border-blue-400"
-                    : "border-gray-400 dark:border-gray-500"
-                }`}
-                placeholder="Username"
+                required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                onFocus={() => setFocusedField("username")}
-                onBlur={() => setFocusedField("")}
               />
               <label
                 htmlFor="username"
-                className={`absolute left-3 top-2 text-gray-600 dark:text-gray-300 pointer-events-none transition-all duration-200 ${
-                  focusedField === "username" || username
-                    ? "text-xs -top-3.5 text-blue-600 dark:text-blue-400"
-                    : "text-base top-2"
-                }`}
+                className="absolute left-4 top-2 text-gray-500 text-sm duration-200 transform -translate-y-1 scale-90 origin-[0] bg-white px-1 pointer-events-none peer-placeholder-shown:top-4 peer-placeholder-shown:scale-100 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:scale-90 peer-focus:text-primary"
               >
                 Username
               </label>
-              <span className="absolute right-4 top-2 text-gray-500 dark:text-gray-400 text-lg">
+              <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
                 <i className="fas fa-user"></i>
               </span>
             </div>
 
             {/* Password Field */}
-            <div className="relative">
+            <div className="relative mb-4">
               <input
-                id="password"
                 type={isVisible ? "text" : "password"}
-                required
+                id="password"
+                name="password"
+                className="peer block w-full px-4 pt-6 pb-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                placeholder=" "
                 autoComplete="current-password"
-                className={`block w-full bg-white/10 backdrop-blur-sm border-0 border-b-2 appearance-none focus:outline-none focus:ring-0 text-gray-900 dark:text-white placeholder-transparent transition-all duration-200 pb-2 pr-16 rounded-t-lg px-3 py-2 ${
-                  focusedField === "password" || password
-                    ? "border-blue-600 dark:border-blue-400"
-                    : "border-gray-400 dark:border-gray-500"
-                }`}
-                placeholder="Password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onFocus={() => setFocusedField("password")}
-                onBlur={() => setFocusedField("")}
               />
               <label
                 htmlFor="password"
-                className={`absolute left-3 top-2 text-gray-600 dark:text-gray-300 pointer-events-none transition-all duration-200 ${
-                  focusedField === "password" || password
-                    ? "text-xs -top-3.5 text-blue-600 dark:text-blue-400"
-                    : "text-base top-2"
-                }`}
+                className="absolute left-4 top-2 text-gray-500 text-sm duration-200 transform -translate-y-1 scale-90 origin-[0] bg-white px-1 pointer-events-none peer-placeholder-shown:top-4 peer-placeholder-shown:scale-100 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:scale-90 peer-focus:text-primary"
               >
                 Password
               </label>
               <span
-                className="absolute right-10 top-2 text-gray-500 dark:text-gray-400 text-lg cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                className="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
                 onClick={() => setIsVisible(!isVisible)}
               >
                 <i
                   className={`fas ${isVisible ? "fa-eye-slash" : "fa-eye"}`}
                 ></i>
               </span>
-              <span className="absolute right-4 top-2 text-gray-500 dark:text-gray-400 text-lg">
+              <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
                 <i className="fas fa-lock"></i>
               </span>
             </div>
@@ -189,7 +171,6 @@ export default function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || !username || !password}
               className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg"
             >
               {loading ? (

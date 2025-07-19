@@ -100,7 +100,6 @@ INSERT INTO bangunan (nama, interaksi, lantai, geometri) VALUES
 -- Input 2 data ke tabel admin
 INSERT INTO admin (username, password) VALUES 
 ('adminpolnep', 'pointmap2025'),
-('admin2', 'password2');
 
 -- Input 2 data ke tabel jurusan
 INSERT INTO jurusan (nama_jurusan) VALUES 

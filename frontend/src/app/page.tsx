@@ -20,6 +20,7 @@ export default function Home() {
   const [isDark, setIsDark] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
+  const [isInHeroSection, setIsInHeroSection] = useState(true);
   const [cuaca, setCuaca] = useState<string | null>(null);
   const [hari, setHari] = useState("");
   const [tanggal, setTanggal] = useState("");
@@ -187,23 +188,71 @@ export default function Home() {
     fetchCuaca();
     getTanggal();
 
+    let lastInteraction = Date.now();
+    let isHovering = false;
+
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-      if (window.scrollY === 0) {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const threshold = windowHeight * 0.75;
+
+      setIsScrolled(scrollY > 50);
+      setIsInHeroSection(scrollY < windowHeight * 0.8);
+
+      // Jika scroll < 3/4 layar, navbar selalu terlihat
+      if (scrollY < threshold) {
         setShowNavbar(true);
         if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-      } else {
-        setShowNavbar(true);
+        return;
+      }
+
+      // Jika scroll > 3/4 layar, mulai logika auto-hide
+      setShowNavbar(true);
+      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+      navbarTimeout.current = setTimeout(() => {
+        setShowNavbar(false);
+      }, 5000);
+    };
+
+    const handleMouseEnter = () => {
+      isHovering = true;
+      setShowNavbar(true);
+      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+    };
+    const handleMouseLeave = () => {
+      isHovering = false;
+      if (window.scrollY > window.innerHeight * 0.75) {
         if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
         navbarTimeout.current = setTimeout(() => {
           setShowNavbar(false);
-        }, 3000);
+        }, 5000);
+      }
+    };
+    const handleClick = () => {
+      setShowNavbar(true);
+      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+      if (window.scrollY > window.innerHeight * 0.75) {
+        navbarTimeout.current = setTimeout(() => {
+          setShowNavbar(false);
+        }, 5000);
       }
     };
 
     window.addEventListener("scroll", handleScroll);
+    window.addEventListener("click", handleClick);
+    const navbar = document.getElementById("navbar-main");
+    if (navbar) {
+      navbar.addEventListener("mouseenter", handleMouseEnter);
+      navbar.addEventListener("mouseleave", handleMouseLeave);
+    }
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("click", handleClick);
+      if (navbar) {
+        navbar.removeEventListener("mouseenter", handleMouseEnter);
+        navbar.removeEventListener("mouseleave", handleMouseLeave);
+      }
       if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
     };
   }, []);
@@ -216,16 +265,19 @@ export default function Home() {
           : "bg-gradient-to-tr from-background via-surface to-accent"
       } ${isDark ? "dark" : ""}`}
     >
-      {/* Area hover atas untuk munculkan navbar */}
-      <div
-        className="fixed top-0 left-0 w-full h-8 z-40"
-        style={{ pointerEvents: "auto" }}
-        onMouseEnter={() => setShowNavbar(true)}
-      />
+      {/* Area hover atas untuk munculkan navbar - hanya aktif di luar hero section */}
+      {!isInHeroSection && (
+        <div
+          className="fixed top-0 left-0 w-full h-8 z-40"
+          style={{ pointerEvents: "auto" }}
+          onMouseEnter={() => setShowNavbar(true)}
+        />
+      )}
 
       {/* NAVBAR */}
       <nav
-        className={`flex items-center justify-between px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-500 group/navbar ${
+        id="navbar-main"
+        className={`flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-500 group/navbar ${
           isScrolled
             ? "bg-white/80 dark:bg-surface-dark/90 shadow-lg backdrop-blur-md"
             : "bg-transparent"
@@ -233,30 +285,17 @@ export default function Home() {
           showNavbar
             ? "translate-y-0 opacity-100"
             : "-translate-y-full opacity-0 pointer-events-none"
-        } group-hover/navbar:translate-y-0 group-hover/navbar:opacity-100 group-hover/navbar:pointer-events-auto hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
+        } ${
+          !isInHeroSection
+            ? "group-hover/navbar:translate-y-0 group-hover/navbar:opacity-100 group-hover/navbar:pointer-events-auto"
+            : ""
+        } hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
         style={{ willChange: "transform, opacity" }}
-        onMouseEnter={() => {
-          setShowNavbar(true);
-          if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-        }}
-        onMouseLeave={() => {
-          if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-          navbarTimeout.current = setTimeout(() => {
-            setShowNavbar(false);
-          }, 5000);
-        }}
-        onClick={() => {
-          setShowNavbar(true);
-          if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-          navbarTimeout.current = setTimeout(() => {
-            setShowNavbar(false);
-          }, 5000);
-        }}
       >
         {/* Logo kiri */}
         <div className="flex items-center gap-3">
           <div
-            className="w-auto h-16 cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
+            className="w-auto h-12 lg:h-16 cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
             onClick={() => {
               const logo = document.getElementById("logo-navbar");
               if (logo) {
@@ -278,15 +317,15 @@ export default function Home() {
         </div>
 
         {/* Kontrol kanan: cuaca & tanggal, darkmode, login */}
-        <div className="flex items-center gap-4">
-          {/* Cuaca & tanggal kanan sejajar */}
+        <div className="flex items-center gap-2 lg:gap-4">
+          {/* Cuaca & tanggal - tampil di tablet dan desktop */}
           {isClient &&
           cuaca &&
           weatherDesc &&
           weatherIcon &&
           hari &&
           tanggal ? (
-            <div className="flex items-center gap-8 animate-fadeInUp">
+            <div className="hidden lg:flex items-center gap-8 animate-fadeInUp">
               {/* Cuaca */}
               <div className="flex items-center gap-2">
                 <span className="w-8 h-8 flex items-center justify-center">
@@ -307,13 +346,30 @@ export default function Home() {
                 </div>
               </div>
               {/* Tanggal */}
-              <span className="text-base md:text-lg font-bold text-muted dark:text-muted-dark whitespace-nowrap">
+              <span className="text-base lg:text-lg font-bold text-muted dark:text-muted-dark whitespace-nowrap">
                 {hari}, {tanggal}
               </span>
             </div>
           ) : (
-            <div style={{ width: 220 }} />
+            <div className="hidden lg:block" style={{ width: 220 }} />
           )}
+
+          {/* Cuaca mobile - hanya icon dan suhu */}
+          {isClient && cuaca && weatherIcon ? (
+            <div className="lg:hidden flex items-center gap-1">
+              <span className="w-6 h-6 flex items-center justify-center">
+                <img
+                  src={weatherIcon}
+                  alt="icon cuaca"
+                  className="w-5 h-5"
+                  style={{ filter: theme === "dark" ? "invert(1)" : "none" }}
+                />
+              </span>
+              <span className="text-sm font-bold text-primary dark:text-primary-dark">
+                {cuaca}
+              </span>
+            </div>
+          ) : null}
 
           {/* Tombol darkmode */}
           <button
@@ -340,10 +396,11 @@ export default function Home() {
             )}
           </button>
 
-          {/* Tombol Login */}
+          {/* Tombol Login - tablet dan desktop dengan teks, mobile hanya icon */}
           <Link
             href="/login"
-            className="px-4 py-2 rounded-lg bg-primary text-white font-semibold text-sm shadow-lg hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl"
+            className="rounded-lg bg-primary text-white font-semibold text-sm shadow-lg hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl px-2 py-2 lg:px-4 lg:py-2"
+            title="Login"
           >
             <svg
               className="w-4 h-4"
@@ -358,107 +415,111 @@ export default function Home() {
                 d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
               />
             </svg>
-            Login
+            <span className="hidden lg:inline">Login</span>
           </Link>
         </div>
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative flex flex-col md:flex-row items-center justify-between min-h-screen w-full pt-24 md:pt-32 pb-0 px-4 md:px-16 overflow-hidden gap-8 md:gap-12">
-        {/* Partikel Custom Polkadot/Bintang */}
-        <ParticlesCustom isDark={isDark} />
-        {/* Kiri: Text Content */}
-        <div className="flex-1 z-10 flex flex-col items-center md:items-start justify-center max-w-2xl text-center md:text-left animate-fadeInUp">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-semibold leading-tight mb-6 text-[#1a1a1a] dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1">
-            {"PointMap".split("").map((char, i) => (
-              <span
-                key={i}
-                className="inline-block transition-all duration-300 hover:scale-125 hover:text-primary dark:hover:text-primary-dark hover:drop-shadow-lg hover:animate-bounce"
-                style={{ transitionDelay: `${i * 40}ms` }}
-              >
-                {char}
-              </span>
-            ))}
-          </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
-            Polnep Interactive Map
-          </p>
-          <p className="max-w-xl text-base sm:text-lg md:text-xl text-muted dark:text-muted-dark mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300">
-            Navigasi digital untuk menjelajahi setiap sudut kampus Politeknik
-            Negeri Pontianak. Temukan gedung, ruang kelas, dan fasilitas lainnya
-            dengan mudah.
-          </p>
-          <button
-            onClick={scrollToMap}
-            className="group px-6 sm:px-8 py-3 sm:py-4 bg-primary text-white font-bold text-base sm:text-lg rounded-xl shadow-lg hover:bg-gradient-to-r hover:from-primary hover:to-accent dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
-            style={{ position: "relative" }}
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              Jelajahi Peta
-              <svg
-                className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:rotate-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-            </span>
-            <span className="absolute left-0 top-0 w-full h-full pointer-events-none ripple-effect"></span>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-          </button>
-        </div>
+      <section className="relative flex flex-col lg:flex-row items-center justify-between min-h-screen w-full pt-20 lg:pt-32 pb-0 px-2 lg:px-16 overflow-hidden gap-6 lg:gap-12">
+        <div className="w-full max-w-screen-sm lg:max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-12">
+          {/* Partikel Custom Polkadot/Bintang */}
+          <ParticlesCustom isDark={isDark} />
 
-        {/* Kanan: Image Slider */}
-        <div className="flex-1 flex items-center justify-center relative h-[200px] sm:h-[250px] md:h-[350px] w-full animate-fadeInRight">
-          <div className="relative h-full w-full max-w-2xl overflow-hidden rounded-3xl shadow-[0_16px_64px_0_rgba(30,41,59,0.35)] bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md z-20 -translate-y-4 md:-translate-y-8 transition-all duration-500 floating-anim">
-            <Slider {...sliderSettings} className="w-full h-full">
-              {sliderImages.map((image, index) => (
-                <div
-                  key={index}
-                  className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800"
-                  style={{ minHeight: "200px" }}
+          {/* Kiri: Text Content */}
+          <div className="flex-1 z-10 flex flex-col items-center lg:items-start justify-center max-w-2xl text-center lg:text-left animate-fadeInUp order-2 lg:order-1">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-heading font-semibold leading-tight mb-2 lg:mb-6 text-[#1a1a1a] dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1 justify-center lg:justify-start">
+              {"PointMap".split("").map((char, i) => (
+                <span
+                  key={i}
+                  className="inline-block transition-all duration-300 hover:scale-125 hover:text-primary dark:hover:text-primary-dark hover:drop-shadow-lg hover:animate-bounce"
+                  style={{ transitionDelay: `${i * 40}ms` }}
                 >
-                  <img
-                    src={image}
-                    alt={`Background ${index + 1}`}
-                    className="h-full w-auto object-cover transition-all duration-700 rounded-2xl shadow-xl hover:scale-105 hover:-translate-y-1 group-hover:scale-105 group-hover:-translate-y-1"
-                    style={{ maxHeight: "100%", maxWidth: "100%" }}
-                    onError={(e) => {
-                      console.error(`Error loading image: ${image}`);
-                      e.currentTarget.style.display = "none";
-                    }}
-                    onLoad={() => {
-                      console.log(`Image loaded successfully: ${image}`);
-                    }}
-                  />
-                </div>
+                  {char}
+                </span>
               ))}
-            </Slider>
-            <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent pointer-events-none group-hover:from-black/10 transition-all duration-300" />
+            </h1>
+            <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-primary/80 dark:text-primary-dark/80 my-3 lg:my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
+              Polnep Interactive Map
+            </p>
+            <p className="max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-muted dark:text-muted-dark mb-6 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300 px-2 lg:px-0">
+              Navigasi digital untuk menjelajahi setiap sudut kampus Politeknik
+              Negeri Pontianak. Temukan gedung, ruang kelas, dan fasilitas
+              lainnya dengan mudah.
+            </p>
+            <button
+              onClick={scrollToMap}
+              className="group px-5 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-4 bg-primary text-white font-bold text-sm sm:text-base lg:text-lg rounded-xl shadow-lg hover:bg-gradient-to-r hover:from-primary hover:to-accent dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              style={{ position: "relative" }}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Jelajahi Peta
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:rotate-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </span>
+              <span className="absolute left-0 top-0 w-full h-full pointer-events-none ripple-effect"></span>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+            </button>
+          </div>
 
-            {/* Floating elements untuk interaktivitas */}
-            <div className="absolute top-4 left-4 w-3 h-3 bg-white/30 rounded-full animate-pulse group-hover:bg-white/50 transition-colors duration-300"></div>
-            <div className="absolute bottom-4 right-4 w-2 h-2 bg-white/40 rounded-full animate-ping group-hover:bg-white/60 transition-colors duration-300"></div>
+          {/* Kanan: Image Slider */}
+          <div className="flex-1 flex items-center justify-center relative h-[140px] sm:h-[180px] lg:h-[350px] w-full max-w-xs sm:max-w-md lg:max-w-2xl animate-fadeInRight order-1 lg:order-2 mb-1 lg:mb-0">
+            <div className="relative h-full w-full max-w-xs sm:max-w-md lg:max-w-2xl overflow-hidden rounded-2xl lg:rounded-3xl shadow-[0_8px_32px_0_rgba(30,41,59,0.25)] lg:shadow-[0_16px_64px_0_rgba(30,41,59,0.35)] bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md z-20 -translate-y-2 lg:-translate-y-8 transition-all duration-500 floating-anim">
+              <Slider {...sliderSettings} className="w-full h-full">
+                {sliderImages.map((image, index) => (
+                  <div
+                    key={index}
+                    className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800"
+                    style={{ minHeight: "100%" }}
+                  >
+                    <img
+                      src={image}
+                      alt={`Background ${index + 1}`}
+                      className="h-full w-auto object-cover transition-all duration-700 rounded-xl lg:rounded-2xl shadow-lg lg:shadow-xl hover:scale-105 hover:-translate-y-1 group-hover:scale-105 group-hover:-translate-y-1"
+                      style={{ maxHeight: "100%", maxWidth: "100%" }}
+                      onError={(e) => {
+                        console.error(`Error loading image: ${image}`);
+                        e.currentTarget.style.display = "none";
+                      }}
+                      onLoad={() => {
+                        console.log(`Image loaded successfully: ${image}`);
+                      }}
+                    />
+                  </div>
+                ))}
+              </Slider>
+              <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent pointer-events-none group-hover:from-black/10 transition-all duration-300" />
+
+              {/* Floating elements untuk interaktivitas */}
+              <div className="absolute top-3 left-3 lg:top-4 lg:left-4 w-2 h-2 lg:w-3 lg:h-3 bg-white/30 rounded-full animate-pulse group-hover:bg-white/50 transition-colors duration-300"></div>
+              <div className="absolute bottom-3 right-3 lg:bottom-4 lg:right-4 w-1.5 h-1.5 lg:w-2 lg:h-2 bg-white/40 rounded-full animate-ping group-hover:bg-white/60 transition-colors duration-300"></div>
+            </div>
           </div>
         </div>
+
         {/* Tombol Scroll absolut di tengah bawah hero section */}
         <button
           onClick={scrollToMap}
-          className="absolute left-1/2 -translate-x-1/2 bottom-6 z-30 flex flex-col items-center group focus:outline-none"
+          className="absolute left-1/2 -translate-x-1/2 bottom-4 lg:bottom-6 z-30 flex flex-col items-center group focus:outline-none"
           style={{ background: "none", border: "none" }}
           aria-label="Scroll ke bawah"
         >
-          <span className="text-sm text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark font-medium transition-colors">
+          <span className="text-xs lg:text-sm text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark font-medium transition-colors">
             Scroll
           </span>
           <svg
-            className="w-6 h-6 text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark animate-bounce mt-0.5 transition-colors"
+            className="w-5 h-5 lg:w-6 lg:h-6 text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark animate-bounce mt-0.5 transition-colors"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -486,13 +547,13 @@ export default function Home() {
         </div>
 
         <div
-          className={`w-full h-[350px] md:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
-          style={{ minHeight: 350, height: "100%", maxHeight: 600 }}
+          className={`w-full h-[320px] md:h-[540px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
+          style={{ minHeight: 320, height: "100%", maxHeight: 540 }}
         >
           <LeafletMap
             initialLat={-0.0545}
             initialLng={109.3465}
-            initialZoom={18}
+            initialZoom={17}
             className="w-full h-full"
             isDark={isDark}
           />

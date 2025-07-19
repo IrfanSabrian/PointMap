@@ -26,6 +26,11 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
+        <title>PointMap</title>
+        <meta name="description" content="Polnep Interactive Map" />
+        <link rel="icon" href="/icon.svg" />
+        <link rel="shortcut icon" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
         <link
           rel="preconnect"
           href="https://fonts.googleapis.com"

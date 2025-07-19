@@ -446,9 +446,6 @@ export default function Dashboard() {
       <nav className="flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-surface-dark/90 shadow-lg backdrop-blur-md">
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="Logo" className="h-12 select-none" />
-          <span className="font-bold text-xl text-primary dark:text-primary-dark">
-            PointMap Dashboard
-          </span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -477,7 +474,7 @@ export default function Dashboard() {
         {/* MAIN CONTENT - MAP */}
         <div className="w-full h-full relative">
           <div className="bg-primary text-white text-lg font-bold py-3 px-6 shadow">
-            <span>Polnep Interactive Map - Admin Dashboard</span>
+            <span>PointMap Dashboard</span>
           </div>
           <div className="h-[calc(100%-60px)] bg-white rounded-b-lg overflow-hidden relative">
             <LeafletMap
@@ -491,22 +488,23 @@ export default function Dashboard() {
 
             {/* Toggle Sidebar Button */}
             <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className={`absolute z-[10000] p-3 rounded-lg border-2 shadow-xl transition-all duration-300 ${
-                showSidebar
-                  ? "left-96 top-1/2 -translate-y-1/2"
-                  : "left-4 top-1/2 -translate-y-1/2"
-              } ${
-                isDark
-                  ? "bg-gray-800 text-white hover:bg-gray-700 border-gray-600 shadow-gray-900/50"
-                  : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300 shadow-gray-500/30"
-              }`}
-              title={showSidebar ? "Sembunyikan Panel" : "Tampilkan Panel"}
+              onClick={() => setShowSidebar(true)}
+              className={`absolute z-[9000] p-3 rounded-lg border-2 shadow-xl transition-all duration-300 left-4 top-1/2 -translate-y-1/2
+                ${
+                  isDark
+                    ? "bg-gray-800 text-white hover:bg-gray-700 border-gray-600 shadow-gray-900/50"
+                    : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300 shadow-gray-500/30"
+                }
+                ${
+                  showSidebar
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100 pointer-events-auto"
+                }
+              `}
+              title="Tampilkan Panel"
             >
               <svg
-                className={`w-5 h-5 transition-transform duration-300 ${
-                  showSidebar ? "rotate-180" : ""
-                }`}
+                className="w-5 h-5 transition-transform duration-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -515,19 +513,29 @@ export default function Dashboard() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d={showSidebar ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"}
+                  d="M9 5l7 7-7 7"
                 />
               </svg>
             </button>
 
             {/* SIDEBAR - Inside Canvas */}
             <div
-              className={`absolute top-0 left-0 h-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-xl border-r border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 z-[9999] ${
-                showSidebar ? "w-96 translate-x-0" : "w-96 -translate-x-full"
+              className={`absolute top-0 left-0 h-full w-96 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-xl border-r border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 z-[9999] ${
+                showSidebar ? "translate-x-0" : "-translate-x-full"
               }`}
             >
               {/* Header - Sticky */}
               <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 p-4">
+                {/* Tombol silang close sidebar */}
+                {showSidebar && (
+                  <button
+                    onClick={() => setShowSidebar(false)}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-red-500 dark:hover:text-red-400 text-2xl focus:outline-none"
+                    title="Tutup Panel"
+                  >
+                    <FiX />
+                  </button>
+                )}
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                   Panel Admin
                 </h2>
