@@ -22,6 +22,10 @@ export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
   const [isInHeroSection, setIsInHeroSection] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState<"up" | "down">("up");
+  const navbarTimeout = useRef<NodeJS.Timeout | null>(null);
+  const lastScrollTime = useRef<number>(Date.now());
   const [cuaca, setCuaca] = useState<string | null>(null);
   const [hari, setHari] = useState("");
   const [tanggal, setTanggal] = useState("");
@@ -89,9 +93,6 @@ export default function Home() {
       console.log("Light mode aktif");
     }
   }, [theme]);
-
-  // Timeout global untuk auto-hide navbar
-  const navbarTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Cuaca Pontianak dengan OpenWeatherMap
   const fetchCuaca = async () => {
@@ -178,57 +179,82 @@ export default function Home() {
 
   const sliderImages = getAllSliderImages();
 
+  const handleMouseEnter = () => {
+    if (navbarTimeout.current) {
+      clearTimeout(navbarTimeout.current);
+    }
+    setShowNavbar(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (!isInHeroSection && scrollDirection === "down") {
+      navbarTimeout.current = setTimeout(() => {
+        setShowNavbar(false);
+      }, 5000);
+    }
+  };
+
   useEffect(() => {
     fetchCuaca();
     getTanggal();
 
     const handleScroll = () => {
+      const currentTime = Date.now();
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
       const threshold = windowHeight * 0.75;
 
+      // Menentukan arah scroll
+      const newScrollDirection = scrollY > lastScrollY ? "down" : "up";
+      setScrollDirection(newScrollDirection);
+      setLastScrollY(scrollY);
+
       setIsScrolled(scrollY > 50);
       setIsInHeroSection(scrollY < windowHeight * 0.8);
 
-      // Jika scroll < 3/4 layar, navbar selalu terlihat
+      // Reset timeout setiap kali scroll
+      if (navbarTimeout.current) {
+        clearTimeout(navbarTimeout.current);
+      }
+
+      // Jika di hero section, navbar selalu tampil
       if (scrollY < threshold) {
         setShowNavbar(true);
-        if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
         return;
       }
 
-      // Jika scroll > 3/4 layar, mulai logika auto-hide
-      setShowNavbar(true);
-      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+      // Update tampilan navbar berdasarkan arah scroll
+      if (newScrollDirection === "up") {
+        setShowNavbar(true);
+        lastScrollTime.current = currentTime;
+      } else {
+        // Jika scroll ke bawah, sembunyikan navbar setelah 100ms
+        if (currentTime - lastScrollTime.current > 100) {
+          setShowNavbar(false);
+        }
+      }
+
+      // Set timeout untuk menyembunyikan navbar setelah 5 detik tidak ada aktivitas scroll
       navbarTimeout.current = setTimeout(() => {
-        setShowNavbar(false);
+        if (scrollY > threshold && !isInHeroSection) {
+          setShowNavbar(false);
+        }
       }, 5000);
     };
 
-    const handleMouseEnter = () => {
-      setShowNavbar(true);
-      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-    };
-    const handleMouseLeave = () => {
-      if (window.scrollY > window.innerHeight * 0.75) {
-        if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-        navbarTimeout.current = setTimeout(() => {
-          setShowNavbar(false);
-        }, 5000);
-      }
-    };
-    const handleClick = () => {
-      setShowNavbar(true);
-      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
-      if (window.scrollY > window.innerHeight * 0.75) {
-        navbarTimeout.current = setTimeout(() => {
-          setShowNavbar(false);
-        }, 5000);
+    // Throttle scroll event untuk performa
+    let ticking = false;
+    const scrollHandler = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-    window.addEventListener("click", handleClick);
+    window.addEventListener("scroll", scrollHandler, { passive: true });
     const navbar = document.getElementById("navbar-main");
     if (navbar) {
       navbar.addEventListener("mouseenter", handleMouseEnter);
@@ -236,15 +262,17 @@ export default function Home() {
     }
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("click", handleClick);
+      window.removeEventListener("scroll", scrollHandler);
+      const navbar = document.getElementById("navbar-main");
       if (navbar) {
         navbar.removeEventListener("mouseenter", handleMouseEnter);
         navbar.removeEventListener("mouseleave", handleMouseLeave);
       }
-      if (navbarTimeout.current) clearTimeout(navbarTimeout.current);
+      if (navbarTimeout.current) {
+        clearTimeout(navbarTimeout.current);
+      }
     };
-  }, []);
+  }, [lastScrollY, scrollDirection, isInHeroSection]);
 
   return (
     <div
@@ -259,16 +287,17 @@ export default function Home() {
         <div
           className="fixed top-0 left-0 w-full h-8 z-40"
           style={{ pointerEvents: "auto" }}
-          onMouseEnter={() => setShowNavbar(true)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         />
       )}
 
       {/* NAVBAR */}
       <nav
         id="navbar-main"
-        className={`flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-500 group/navbar ${
+        className={`flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-300 group/navbar ${
           isScrolled
-            ? "bg-white/80 dark:bg-surface-dark/90 shadow-lg backdrop-blur-md"
+            ? "bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md shadow-lg"
             : "bg-transparent"
         } ${
           showNavbar
