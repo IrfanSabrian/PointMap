@@ -492,8 +492,8 @@ export default function Home() {
           </div>
 
           {/* Kanan: Image Slider */}
-          <div className="flex-1 flex items-center justify-center relative h-[140px] sm:h-[180px] lg:h-[350px] w-full max-w-xs sm:max-w-md lg:max-w-2xl animate-fadeInRight order-1 lg:order-2 mb-1 lg:mb-0">
-            <div className="relative h-full w-full max-w-xs sm:max-w-md lg:max-w-2xl overflow-hidden rounded-2xl lg:rounded-3xl shadow-[0_8px_32px_0_rgba(30,41,59,0.25)] lg:shadow-[0_16px_64px_0_rgba(30,41,59,0.35)] bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md z-20 -translate-y-2 lg:-translate-y-8 transition-all duration-500 floating-anim">
+          <div className="flex-1 flex items-center justify-center relative w-full aspect-[16/9] max-w-xs sm:max-w-md lg:max-w-2xl animate-fadeInRight order-1 lg:order-2 mb-1 lg:mb-0">
+            <div className="relative w-full h-full overflow-hidden rounded-2xl lg:rounded-3xl shadow-[0_8px_32px_0_rgba(30,41,59,0.25)] lg:shadow-[0_16px_64px_0_rgba(30,41,59,0.35)] bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md z-20 -translate-y-2 lg:-translate-y-8 transition-all duration-500 floating-anim">
               <Slider {...sliderSettings} className="w-full h-full">
                 {sliderImages.map((image, index) => (
                   <div
@@ -504,7 +504,7 @@ export default function Home() {
                     <img
                       src={image}
                       alt={`Background ${index + 1}`}
-                      className="h-full w-auto object-cover transition-all duration-700 rounded-xl lg:rounded-2xl shadow-lg lg:shadow-xl hover:scale-105 hover:-translate-y-1 group-hover:scale-105 group-hover:-translate-y-1"
+                      className="h-full w-full object-cover transition-all duration-700 rounded-xl lg:rounded-2xl shadow-lg lg:shadow-xl hover:scale-105 hover:-translate-y-1 group-hover:scale-105 group-hover:-translate-y-1"
                       style={{ maxHeight: "100%", maxWidth: "100%" }}
                       onError={(e) => {
                         console.error(`Error loading image: ${image}`);

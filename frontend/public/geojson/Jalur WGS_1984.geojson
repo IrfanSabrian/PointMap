@@ -1,0 +1,4 @@
+{
+  "type" : "FeatureCollection",
+  "features" : [{"type":"Feature","id":90,"geometry":{"type":"LineString","coordinates":[[109.34780074700006,-0.054223855999964599],[109.34774455600007,-0.054155444999935298]]},"properties":{"OBJECTID":90,"FID":0,"FID_ba_Project":0,"Shape_Length":0,"panjang":66.378348199072761,"Mode":"both","waktu_kaki":null,"waktu_kendara":null,"arah":null}}]
+}

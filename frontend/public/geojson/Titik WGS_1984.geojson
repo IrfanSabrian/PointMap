@@ -1,0 +1,4 @@
+{
+  "type" : "FeatureCollection",
+  "features" : [{"type":"Feature","id":1,"geometry":{"type":"MultiPoint","coordinates":[[109.34807821600003,-0.053802431999940836]]},"properties":{"OBJECTID":1,"Nama":"Gerbang Depan"}},{"type":"Feature","id":4,"geometry":{"type":"MultiPoint","coordinates":[[109.34539090900006,-0.054931256999964262]]},"properties":{"OBJECTID":4,"Nama":"Pintu Gedung Lab Teknik Informatika"}}]
+}
