@@ -193,6 +193,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // State untuk polyline rute
     const [routeLine, setRouteLine] = useState<L.Polyline | null>(null);
     const [routeDistance, setRouteDistance] = useState<number | null>(null);
+    const [routeStartType, setRouteStartType] = useState<string>("my-location");
+    const [routeStartId, setRouteStartId] = useState<string>("");
+    const [titikFeatures, setTitikFeatures] = useState<any[]>([]); // Titik geojson
+    const [jalurFeatures, setJalurFeatures] = useState<any[]>([]); // Jalur geojson
 
     // Fungsi untuk membuka modal dengan animasi fade-in
     const openBuildingDetailModal = (selectedRuangan?: FeatureType) => {
@@ -334,6 +338,40 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Hapus data dummy, set kosong saja
           setRuanganFeatures([]);
         });
+    }, []);
+
+    // Load data titik dari geojson
+    useEffect(() => {
+      fetch("/geojson/Titik WGS_1984.geojson")
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (!data || !Array.isArray(data.features)) {
+            setTitikFeatures([]);
+            return;
+          }
+          setTitikFeatures(data.features);
+        })
+        .catch(() => setTitikFeatures([]));
+    }, []);
+
+    // Load data jalur dari geojson
+    useEffect(() => {
+      fetch("/geojson/Jalur WGS_1984.geojson")
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (!data || !Array.isArray(data.features)) {
+            setJalurFeatures([]);
+            return;
+          }
+          setJalurFeatures(data.features);
+        })
+        .catch(() => setJalurFeatures([]));
     }, []);
 
     // Kirim data nama gedung & jumlah lantai ke iframe saat modal building-detail dibuka
@@ -1363,10 +1401,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       let endLatLng: [number, number] | null = null;
       setRouteDistance(null);
       // Titik awal
-      if (routeEndType === "my-location" && userLocation) {
+      if (routeStartType === "my-location" && userLocation) {
         startLatLng = [userLocation.lat, userLocation.lng];
-      } else if (routeEndType) {
-        startLatLng = getCentroidById("bangunan", routeEndType) as [
+      } else if (routeStartType === "titik" && routeStartId) {
+        // Cari titik dari geojson
+        const titik = titikFeatures.find(
+          (t: any) =>
+            String(t.id || t.properties?.OBJECTID) === String(routeStartId)
+        );
+        if (titik && titik.geometry && titik.geometry.coordinates) {
+          // MultiPoint assumed
+          const coords = titik.geometry.coordinates[0];
+          startLatLng = [coords[1], coords[0]];
+        }
+      } else if (routeStartType) {
+        startLatLng = getCentroidById("bangunan", routeStartType) as [
           number,
           number
         ];
@@ -1380,7 +1429,58 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (routeLine) {
           leafletMapRef.current.removeLayer(routeLine);
         }
-        const polyline = L.polyline([startLatLng, endLatLng], {
+        // Cari jalur geojson yang menghubungkan titik awal dan tujuan
+        let polylineCoords: [number, number][] = [];
+        let found = false;
+        const threshold = 0.0003; // ~30 meter (dalam derajat lat/lng, cukup untuk demo)
+        for (const feat of jalurFeatures) {
+          if (
+            feat.geometry.type === "LineString" &&
+            Array.isArray(feat.geometry.coordinates)
+          ) {
+            const coords = feat.geometry.coordinates.map((c: number[]) => [
+              c[1],
+              c[0],
+            ]);
+            // Cek apakah salah satu ujung cukup dekat dengan start, dan ujung lain dengan end
+            const [startJ, endJ] = [coords[0], coords[coords.length - 1]];
+            const dist = (a: [number, number], b: [number, number]) => {
+              const R = 6371000;
+              const toRad = (deg: number) => (deg * Math.PI) / 180;
+              const dLat = toRad(b[0] - a[0]);
+              const dLng = toRad(b[1] - a[1]);
+              const aa =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(a[0])) *
+                  Math.cos(toRad(b[0])) *
+                  Math.sin(dLng / 2) *
+                  Math.sin(dLng / 2);
+              const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+              return R * c;
+            };
+            // Cek dua arah (start-end dan end-start)
+            if (
+              (dist(startLatLng, startJ) < 20 && dist(endLatLng, endJ) < 20) ||
+              (dist(startLatLng, endJ) < 20 && dist(endLatLng, startJ) < 20)
+            ) {
+              polylineCoords = coords;
+              // Jika urutan terbalik, reverse
+              if (
+                dist(startLatLng, endJ) < 20 &&
+                dist(endLatLng, startJ) < 20
+              ) {
+                polylineCoords = [...coords].reverse();
+              }
+              found = true;
+              break;
+            }
+          }
+        }
+        // Jika tidak ada jalur yang cocok, fallback ke garis lurus
+        if (!found) {
+          polylineCoords = [startLatLng, endLatLng];
+        }
+        const polyline = L.polyline(polylineCoords, {
           color: "#ff6600",
           weight: 5,
           opacity: 0.8,
@@ -1389,26 +1489,29 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         polyline.addTo(leafletMapRef.current);
         setRouteLine(polyline);
         // Zoom ke rute
-        leafletMapRef.current.fitBounds(
-          L.latLngBounds([startLatLng, endLatLng]),
-          { padding: [40, 40], maxZoom: 19 }
-        );
-        // Hitung jarak jika titik awal lokasi saya
-        if (routeEndType === "my-location") {
+        leafletMapRef.current.fitBounds(L.latLngBounds(polylineCoords), {
+          padding: [40, 40],
+          maxZoom: 19,
+        });
+        // Hitung jarak berdasarkan polyline
+        let totalDistance = 0;
+        for (let i = 1; i < polylineCoords.length; i++) {
+          const [lat1, lng1] = polylineCoords[i - 1];
+          const [lat2, lng2] = polylineCoords[i];
           const R = 6371000; // meter
           const toRad = (deg: number) => (deg * Math.PI) / 180;
-          const dLat = toRad(endLatLng[0] - startLatLng[0]);
-          const dLng = toRad(endLatLng[1] - startLatLng[1]);
+          const dLat = toRad(lat2 - lat1);
+          const dLng = toRad(lng2 - lng1);
           const a =
             Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(startLatLng[0])) *
-              Math.cos(toRad(endLatLng[0])) *
+            Math.cos(toRad(lat1)) *
+              Math.cos(toRad(lat2)) *
               Math.sin(dLng / 2) *
               Math.sin(dLng / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const d = R * c;
-          setRouteDistance(Math.round(d));
+          totalDistance += R * c;
         }
+        setRouteDistance(Math.round(totalDistance));
       }
       setShowRouteModal(false);
     };
@@ -1865,16 +1968,28 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <select
                     className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     value={
-                      routeEndType === "my-location"
+                      routeStartType === "my-location"
                         ? "my-location"
-                        : routeEndType
+                        : routeStartId
                     }
-                    onChange={(e) => setRouteEndType(e.target.value)}
+                    onChange={(e) => {
+                      if (e.target.value === "my-location") {
+                        setRouteStartType("my-location");
+                        setRouteStartId("");
+                      } else {
+                        setRouteStartType("titik");
+                        setRouteStartId(e.target.value);
+                      }
+                    }}
                   >
                     <option value="my-location">Lokasi Saya</option>
-                    {bangunanFeatures.map((b: FeatureType) => (
-                      <option key={b.properties.id} value={b.properties.id}>
-                        {b.properties.nama}
+                    {titikFeatures.map((t: any) => (
+                      <option
+                        key={t.id || t.properties?.OBJECTID}
+                        value={t.id || t.properties?.OBJECTID}
+                      >
+                        {t.properties?.Nama ||
+                          `Titik ${t.id || t.properties?.OBJECTID}`}
                       </option>
                     ))}
                   </select>
