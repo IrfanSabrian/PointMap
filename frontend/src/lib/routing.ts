@@ -147,6 +147,7 @@ export function findCompleteRoute(
   coordinates: [number, number][];
   distance: number;
   routeIds: string[];
+  geojsonSegments: any[];
 } | null {
   // Cari jalur yang terhubung dengan titik awal
   const startRoutes = findConnectedRoutes(startCoord, routes);
@@ -180,6 +181,7 @@ export function findPathToDestination(
   coordinates: [number, number][];
   distance: number;
   routeIds: string[];
+  geojsonSegments: any[];
 } | null {
   // Cek apakah sudah mencapai maksimal langkah
   if (maxSteps <= 0) return null;
@@ -199,8 +201,8 @@ export function findPathToDestination(
   const routeEnd = routeCoords[routeCoords.length - 1];
   const distanceToDestination = calculateDistance(routeEnd, destination);
 
-  // Jika sudah dekat dengan tujuan, return path ini
-  if (distanceToDestination < 50) {
+  // PATCH: Hanya return path jika routeEnd benar-benar sangat dekat dengan tujuan (misal < 10m)
+  if (distanceToDestination < 10) {
     const allCoordinates = buildCompleteCoordinates(newPath, destination);
     const totalDistance = calculatePathDistance(allCoordinates);
     const routeIds = newPath.map((route) => route.id);
@@ -209,8 +211,10 @@ export function findPathToDestination(
       coordinates: allCoordinates,
       distance: totalDistance,
       routeIds: routeIds,
+      geojsonSegments: newPath,
     };
   }
+  // Jika hanya "cukup dekat" tapi tidak benar-benar sampai, lanjutkan pencarian jalur
 
   // Cari jalur yang terhubung dengan jalur ini
   const connectedRoutes = findConnectedRouteToRoute(currentRoute, allRoutes);
@@ -298,6 +302,7 @@ export function findShortestRoute(
   coordinates: [number, number][];
   distance: number;
   routeIds: string[];
+  geojsonSegments: any[];
 } | null {
   // Coba cari rute lengkap menggunakan multiple jalur
   const completeRoute = findCompleteRoute(startCoord, endCoord, routes);
@@ -336,51 +341,147 @@ export function findShortestRoute(
       coordinates: routeCoords,
       distance: minDistance,
       routeIds: [bestRoute.id],
+      geojsonSegments: [bestRoute],
     };
   }
 
   return null;
 }
 
-// Fungsi utama untuk mencari rute
-export function findRoute(
-  startCoordinates: [number, number],
-  endCoordinates: [number, number],
-  points: Point[],
+// Fungsi utilitas: hitung jarak euclidean antar dua koordinat
+function euclideanDistance(a: [number, number], b: [number, number]) {
+  return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2);
+}
+
+// Fungsi: cari node terdekat di graph dari koordinat
+function findNearestNode(coord: [number, number], nodes: [number, number][]) {
+  let minDist = Infinity;
+  let nearest: [number, number] | null = null;
+  for (const n of nodes) {
+    const d = euclideanDistance(coord, n);
+    if (d < minDist) {
+      minDist = d;
+      nearest = n;
+    }
+  }
+  return nearest;
+}
+
+// Fungsi utama Dijkstra untuk rute geojson
+export function findShortestRouteDijkstra(
+  startCoord: [number, number],
+  endCoord: [number, number],
   routes: any[]
 ): {
   coordinates: [number, number][];
   distance: number;
   routeIds: string[];
+  geojsonSegments: any[];
 } | null {
-  // Cari titik terdekat untuk start dan end
-  const startPoint = findNearestPoint(startCoordinates, points);
-  const endPoint = findNearestPoint(endCoordinates, points);
-
-  let actualStart = startCoordinates;
-  let actualEnd = endCoordinates;
-
-  // Jika ada titik terdekat, gunakan koordinat titik tersebut
-  if (startPoint) {
-    actualStart = startPoint.coordinates;
+  // 1. Bangun graph: node = endpoint LineString, edge = LineString
+  const nodes: [number, number][] = [];
+  const edges: Array<{
+    from: [number, number];
+    to: [number, number];
+    route: any;
+    length: number;
+  }> = [];
+  for (const route of routes) {
+    const coords = route.geometry?.coordinates;
+    if (!coords || coords.length < 2) continue;
+    const start: [number, number] = [coords[0][1], coords[0][0]];
+    const end: [number, number] = [
+      coords[coords.length - 1][1],
+      coords[coords.length - 1][0],
+    ];
+    nodes.push(start, end);
+    edges.push({
+      from: start,
+      to: end,
+      route,
+      length: route.properties?.panjang || euclideanDistance(start, end),
+    });
+    // Bidirectional
+    edges.push({
+      from: end,
+      to: start,
+      route,
+      length: route.properties?.panjang || euclideanDistance(start, end),
+    });
   }
-  if (endPoint) {
-    actualEnd = endPoint.coordinates;
+  // Dedup node
+  const uniqueNodes = Array.from(new Set(nodes.map((n) => n.join(",")))).map(
+    (s) => s.split(",").map(Number) as [number, number]
+  );
+  // 2. Temukan node terdekat dari start & end
+  const startNode = findNearestNode(startCoord, uniqueNodes);
+  const endNode = findNearestNode(endCoord, uniqueNodes);
+  if (!startNode || !endNode) return null;
+  // 3. Dijkstra
+  const dist = new Map<string, number>();
+  const prev = new Map<string, { node: [number, number]; edge: any }>();
+  const queue: Array<{ node: [number, number]; cost: number }> = [
+    { node: startNode, cost: 0 },
+  ];
+  dist.set(startNode.join(","), 0);
+  while (queue.length > 0) {
+    queue.sort((a, b) => a.cost - b.cost);
+    const { node, cost } = queue.shift()!;
+    if (node.join(",") === endNode.join(",")) break;
+    for (const edge of edges.filter(
+      (e) => e.from[0] === node[0] && e.from[1] === node[1]
+    )) {
+      const next = edge.to;
+      const nextKey = next.join(",");
+      const newCost = cost + edge.length;
+      if (!dist.has(nextKey) || newCost < dist.get(nextKey)!) {
+        dist.set(nextKey, newCost);
+        prev.set(nextKey, { node, edge });
+        queue.push({ node: next, cost: newCost });
+      }
+    }
   }
-
-  // Cari rute menggunakan jalur yang tersedia
-  const routeResult = findShortestRoute(actualStart, actualEnd, routes);
-
-  if (routeResult) {
-    return routeResult;
+  // 4. Rekonstruksi path
+  const pathEdges: any[] = [];
+  let currKey = endNode.join(",");
+  while (prev.has(currKey)) {
+    const { node, edge } = prev.get(currKey)!;
+    pathEdges.unshift(edge.route);
+    currKey = node.join(",");
   }
-
-  // Fallback: jika tidak ada jalur yang cocok, gunakan garis lurus
-  const fallbackDistance = calculateDistance(actualStart, actualEnd);
+  if (pathEdges.length === 0) return null;
+  // Gabungkan koordinat
+  let allCoords: [number, number][] = [];
+  for (let i = 0; i < pathEdges.length; i++) {
+    const coords = pathEdges[i].geometry.coordinates.map((c: number[]) => [
+      c[1],
+      c[0],
+    ]);
+    if (i === 0) allCoords = [...coords];
+    else {
+      // Hindari duplikat node
+      if (
+        allCoords[allCoords.length - 1][0] === coords[0][0] &&
+        allCoords[allCoords.length - 1][1] === coords[0][1]
+      )
+        allCoords.push(...coords.slice(1));
+      else allCoords.push(...coords);
+    }
+  }
+  // Tambahkan titik tujuan jika belum sama
+  if (euclideanDistance(allCoords[allCoords.length - 1], endCoord) > 0.00001) {
+    allCoords.push(endCoord);
+  }
+  // Hitung total jarak
+  let totalDist = 0;
+  for (let i = 1; i < allCoords.length; i++) {
+    totalDist += calculateDistance(allCoords[i - 1], allCoords[i]);
+  }
   return {
-    coordinates: [actualStart, actualEnd],
-    distance: fallbackDistance,
-    routeIds: [],
+    coordinates: allCoords,
+    distance: totalDist,
+    routeIds: pathEdges.map((e) => e.id),
+    geojsonSegments: pathEdges,
   };
 }
 
@@ -414,4 +515,48 @@ export function getAllRoutes(
       `Jalur ${route.id || route.properties?.OBJECTID || ""}`,
     coordinates: getRouteCoordinates(route),
   }));
+}
+
+// Fungsi utama untuk mencari rute
+export function findRoute(
+  startCoordinates: [number, number],
+  endCoordinates: [number, number],
+  points: Point[],
+  routes: any[]
+): {
+  coordinates: [number, number][];
+  distance: number;
+  routeIds: string[];
+  geojsonSegments: any[];
+} | null {
+  // Cari titik terdekat untuk start dan end
+  const startPoint = findNearestPoint(startCoordinates, points);
+  const endPoint = findNearestPoint(endCoordinates, points);
+
+  let actualStart = startCoordinates;
+  let actualEnd = endCoordinates;
+
+  if (startPoint) actualStart = startPoint.coordinates;
+  if (endPoint) actualEnd = endPoint.coordinates;
+
+  // Coba Dijkstra dulu
+  const dijkstraResult = findShortestRouteDijkstra(
+    actualStart,
+    actualEnd,
+    routes
+  );
+  if (dijkstraResult) return dijkstraResult;
+
+  // Fallback: findShortestRoute lama
+  const routeResult = findShortestRoute(actualStart, actualEnd, routes);
+  if (routeResult) return routeResult;
+
+  // Fallback: garis lurus
+  const fallbackDistance = calculateDistance(actualStart, actualEnd);
+  return {
+    coordinates: [actualStart, actualEnd],
+    distance: fallbackDistance,
+    routeIds: [],
+    geojsonSegments: [],
+  };
 }

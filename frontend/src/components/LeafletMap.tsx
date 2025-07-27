@@ -192,7 +192,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [routeEndType, setRouteEndType] = useState("bangunan");
     const [routeEndId, setRouteEndId] = useState("");
     // State untuk polyline rute
-    const [routeLine, setRouteLine] = useState<L.Polyline | null>(null);
+    const [routeLine, setRouteLine] = useState<L.Layer | null>(null);
     const [routeDistance, setRouteDistance] = useState<number | null>(null);
     const [routeStartType, setRouteStartType] = useState<string>("my-location");
     const [routeStartId, setRouteStartId] = useState<string>("");
@@ -479,6 +479,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
       tileLayer.addTo(map);
       basemapLayerRef.current = tileLayer;
+
+      // Tambahkan custom pane untuk rute dengan zIndex tinggi
+      map.createPane("routePane");
+      const routePane = map.getPane("routePane");
+      if (routePane && routePane.style) {
+        routePane.style.zIndex = "650";
+      }
 
       // Layer non-bangunan (ditambahkan lebih dulu)
       const nonBangunanLayer = L.geoJSON(undefined, {
@@ -1454,25 +1461,29 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             String(t.id || t.properties?.OBJECTID) === String(routeStartId)
         );
         if (titik && titik.geometry && titik.geometry.coordinates) {
-          // MultiPoint assumed
           const coords = titik.geometry.coordinates;
           startLatLng = [coords[1], coords[0]];
         }
       } else if (routeStartType) {
+        // Jika bangunan, ambil centroid bangunan
         startLatLng = getCentroidById("bangunan", routeStartType) as [
           number,
           number
         ];
       }
 
-      // Titik tujuan (selalu bangunan)
+      // Titik tujuan
       if (routeEndType === "bangunan" && routeEndId) {
         endLatLng = getCentroidById("bangunan", routeEndId) as [number, number];
+      } else if (routeEndType === "titik" && routeEndSearchText) {
+        // Cari titik tujuan dari geojson
+        const tujuan = convertTitikToPoints().find(
+          (p) => p.name === routeEndSearchText
+        );
+        if (tujuan) endLatLng = tujuan.coordinates;
       }
 
-      // PATCH: Validasi dan logging titik awal/tujuan
-      console.log("DEBUG titik awal:", startLatLng);
-      console.log("DEBUG titik tujuan:", endLatLng);
+      // Validasi
       if (
         !startLatLng ||
         !endLatLng ||
@@ -1484,95 +1495,55 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         alert(
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
-        console.error("Titik awal/tujuan tidak valid:", {
-          startLatLng,
-          endLatLng,
-        });
         setShowRouteModal(false);
         return;
       }
 
-      // Gambar polyline jika kedua titik valid
+      // Routing hanya pakai geojson
       if (startLatLng && endLatLng && leafletMapRef.current) {
         if (routeLine) {
           leafletMapRef.current.removeLayer(routeLine);
         }
-
-        // Gunakan sistem routing yang baru
         const points = convertTitikToPoints();
-        console.log("Mencari rute dari", startLatLng, "ke", endLatLng);
-        console.log("Jalur yang tersedia:", jalurFeatures.length);
-
         const routeResult = findRoute(
           startLatLng,
           endLatLng,
           points,
           jalurFeatures
         );
-
-        let polylineCoords: [number, number][] = [];
-        let totalDistance = 0;
-
-        if (routeResult && routeResult.coordinates.length > 2) {
-          // Gunakan rute yang ditemukan oleh algoritma
-          polylineCoords = routeResult.coordinates;
-          totalDistance = routeResult.distance;
-
-          console.log("✅ Rute lengkap ditemukan:", {
-            totalCoordinates: polylineCoords.length,
-            distance: Math.round(totalDistance),
-            routeIds: routeResult.routeIds,
-            routeCount: routeResult.routeIds.length,
-          });
-
-          // Log detail setiap jalur yang digunakan
-          routeResult.routeIds.forEach((routeId: string, index: number) => {
-            const route = jalurFeatures.find((r) => r.id == routeId);
-            if (route) {
-              console.log(
-                `  Jalur ${index + 1}: ID ${routeId}, Panjang: ${
-                  route.properties?.panjang || "N/A"
-                }m`
-              );
+        if (
+          routeResult &&
+          routeResult.geojsonSegments &&
+          routeResult.geojsonSegments.length > 0
+        ) {
+          // Buat LayerGroup dari GeoJSON, warna merah solid
+          const geoJsonLayer = L.geoJSON(
+            {
+              type: "FeatureCollection",
+              features:
+                routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+            } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
+            {
+              style: () => ({
+                color: "#e53935", // merah solid
+                weight: 6,
+                opacity: 1,
+              }),
+              pane: "routePane",
             }
-          });
-        } else {
-          // Fallback ke garis lurus jika tidak ada rute
-          polylineCoords = [startLatLng, endLatLng];
-          totalDistance = calculateDistance(startLatLng, endLatLng);
-          console.log(
-            "⚠️ Menggunakan fallback garis lurus - tidak ada jalur yang cocok"
           );
-        }
-
-        // CEK: Jangan buat polyline jika datanya tidak valid
-        if (!polylineCoords || polylineCoords.length < 2) {
+          geoJsonLayer.addTo(leafletMapRef.current);
+          setRouteLine(geoJsonLayer);
+          leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+            padding: [40, 40],
+            maxZoom: 19,
+          });
+          setRouteDistance(Math.round(routeResult.distance));
+        } else {
           alert(
             "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
           );
-          console.error(
-            "polylineCoords kosong atau kurang dari 2:",
-            polylineCoords
-          );
-          return;
         }
-
-        const polyline = L.polyline(polylineCoords, {
-          color: "#ff6600",
-          weight: 5,
-          opacity: 0.8,
-          dashArray: "8 8",
-        });
-        polyline.addTo(leafletMapRef.current);
-        setRouteLine(polyline);
-
-        // Zoom ke rute
-        leafletMapRef.current.fitBounds(L.latLngBounds(polylineCoords), {
-          padding: [40, 40],
-          maxZoom: 19,
-        });
-
-        setRouteDistance(Math.round(totalDistance));
       }
       setShowRouteModal(false);
     };
