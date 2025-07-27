@@ -20,6 +20,7 @@ import {
   faLayerGroup,
   faGlobe,
 } from "@fortawesome/free-solid-svg-icons";
+import { findRoute, Point, calculateDistance } from "../lib/routing";
 
 interface LeafletMapProps {
   isDark?: boolean;
@@ -197,6 +198,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [routeStartId, setRouteStartId] = useState<string>("");
     const [titikFeatures, setTitikFeatures] = useState<any[]>([]); // Titik geojson
     const [jalurFeatures, setJalurFeatures] = useState<any[]>([]); // Jalur geojson
+    const [routeEndSearchText, setRouteEndSearchText] = useState(""); // Untuk pencarian titik tujuan
+    const [routeEndSearchResults, setRouteEndSearchResults] = useState<Point[]>(
+      []
+    ); // Hasil pencarian titik tujuan
 
     // Fungsi untuk membuka modal dengan animasi fade-in
     const openBuildingDetailModal = (selectedRuangan?: FeatureType) => {
@@ -373,6 +378,44 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         })
         .catch(() => setJalurFeatures([]));
     }, []);
+
+    // Fungsi untuk mengkonversi titik GeoJSON ke format Point
+    const convertTitikToPoints = (): Point[] => {
+      return titikFeatures
+        .map((titik: any) => {
+          const coords = titik.geometry?.coordinates;
+          if (coords && Array.isArray(coords) && coords.length > 0) {
+            // Handle MultiPoint atau Point
+            const pointCoords = Array.isArray(coords[0]) ? coords[0] : coords;
+            return {
+              id: String(titik.id || titik.properties?.OBJECTID || ""),
+              name:
+                titik.properties?.Nama ||
+                `Titik ${titik.id || titik.properties?.OBJECTID || ""}`,
+              coordinates: [pointCoords[1], pointCoords[0]], // [lat, lng]
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as Point[];
+    };
+
+    // Fungsi untuk mencari titik berdasarkan nama
+    const searchTitikByName = (searchText: string): Point[] => {
+      const points = convertTitikToPoints();
+      const lowerSearchText = searchText.toLowerCase();
+      return points.filter((point) =>
+        point.name.toLowerCase().includes(lowerSearchText)
+      );
+    };
+
+    // Debug: log jalur yang tersedia
+    useEffect(() => {
+      if (jalurFeatures.length > 0) {
+        console.log("Jalur yang tersedia:", jalurFeatures.length);
+        console.log("Contoh jalur:", jalurFeatures[0]);
+      }
+    }, [jalurFeatures]);
 
     // Kirim data nama gedung & jumlah lantai ke iframe saat modal building-detail dibuka
     useEffect(() => {
@@ -1400,6 +1443,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       let startLatLng: [number, number] | null = null;
       let endLatLng: [number, number] | null = null;
       setRouteDistance(null);
+
       // Titik awal
       if (routeStartType === "my-location" && userLocation) {
         startLatLng = [userLocation.lat, userLocation.lng];
@@ -1411,7 +1455,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         );
         if (titik && titik.geometry && titik.geometry.coordinates) {
           // MultiPoint assumed
-          const coords = titik.geometry.coordinates[0];
+          const coords = titik.geometry.coordinates;
           startLatLng = [coords[1], coords[0]];
         }
       } else if (routeStartType) {
@@ -1420,66 +1464,99 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           number
         ];
       }
+
       // Titik tujuan (selalu bangunan)
       if (routeEndType === "bangunan" && routeEndId) {
         endLatLng = getCentroidById("bangunan", routeEndId) as [number, number];
       }
+
+      // PATCH: Validasi dan logging titik awal/tujuan
+      console.log("DEBUG titik awal:", startLatLng);
+      console.log("DEBUG titik tujuan:", endLatLng);
+      if (
+        !startLatLng ||
+        !endLatLng ||
+        startLatLng[0] === undefined ||
+        startLatLng[1] === undefined ||
+        endLatLng[0] === undefined ||
+        endLatLng[1] === undefined
+      ) {
+        alert(
+          "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
+        );
+        console.error("Titik awal/tujuan tidak valid:", {
+          startLatLng,
+          endLatLng,
+        });
+        setShowRouteModal(false);
+        return;
+      }
+
       // Gambar polyline jika kedua titik valid
       if (startLatLng && endLatLng && leafletMapRef.current) {
         if (routeLine) {
           leafletMapRef.current.removeLayer(routeLine);
         }
-        // Cari jalur geojson yang menghubungkan titik awal dan tujuan
+
+        // Gunakan sistem routing yang baru
+        const points = convertTitikToPoints();
+        console.log("Mencari rute dari", startLatLng, "ke", endLatLng);
+        console.log("Jalur yang tersedia:", jalurFeatures.length);
+
+        const routeResult = findRoute(
+          startLatLng,
+          endLatLng,
+          points,
+          jalurFeatures
+        );
+
         let polylineCoords: [number, number][] = [];
-        let found = false;
-        const threshold = 0.0003; // ~30 meter (dalam derajat lat/lng, cukup untuk demo)
-        for (const feat of jalurFeatures) {
-          if (
-            feat.geometry.type === "LineString" &&
-            Array.isArray(feat.geometry.coordinates)
-          ) {
-            const coords = feat.geometry.coordinates.map((c: number[]) => [
-              c[1],
-              c[0],
-            ]);
-            // Cek apakah salah satu ujung cukup dekat dengan start, dan ujung lain dengan end
-            const [startJ, endJ] = [coords[0], coords[coords.length - 1]];
-            const dist = (a: [number, number], b: [number, number]) => {
-              const R = 6371000;
-              const toRad = (deg: number) => (deg * Math.PI) / 180;
-              const dLat = toRad(b[0] - a[0]);
-              const dLng = toRad(b[1] - a[1]);
-              const aa =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(toRad(a[0])) *
-                  Math.cos(toRad(b[0])) *
-                  Math.sin(dLng / 2) *
-                  Math.sin(dLng / 2);
-              const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
-              return R * c;
-            };
-            // Cek dua arah (start-end dan end-start)
-            if (
-              (dist(startLatLng, startJ) < 20 && dist(endLatLng, endJ) < 20) ||
-              (dist(startLatLng, endJ) < 20 && dist(endLatLng, startJ) < 20)
-            ) {
-              polylineCoords = coords;
-              // Jika urutan terbalik, reverse
-              if (
-                dist(startLatLng, endJ) < 20 &&
-                dist(endLatLng, startJ) < 20
-              ) {
-                polylineCoords = [...coords].reverse();
-              }
-              found = true;
-              break;
+        let totalDistance = 0;
+
+        if (routeResult && routeResult.coordinates.length > 2) {
+          // Gunakan rute yang ditemukan oleh algoritma
+          polylineCoords = routeResult.coordinates;
+          totalDistance = routeResult.distance;
+
+          console.log("✅ Rute lengkap ditemukan:", {
+            totalCoordinates: polylineCoords.length,
+            distance: Math.round(totalDistance),
+            routeIds: routeResult.routeIds,
+            routeCount: routeResult.routeIds.length,
+          });
+
+          // Log detail setiap jalur yang digunakan
+          routeResult.routeIds.forEach((routeId: string, index: number) => {
+            const route = jalurFeatures.find((r) => r.id == routeId);
+            if (route) {
+              console.log(
+                `  Jalur ${index + 1}: ID ${routeId}, Panjang: ${
+                  route.properties?.panjang || "N/A"
+                }m`
+              );
             }
-          }
-        }
-        // Jika tidak ada jalur yang cocok, fallback ke garis lurus
-        if (!found) {
+          });
+        } else {
+          // Fallback ke garis lurus jika tidak ada rute
           polylineCoords = [startLatLng, endLatLng];
+          totalDistance = calculateDistance(startLatLng, endLatLng);
+          console.log(
+            "⚠️ Menggunakan fallback garis lurus - tidak ada jalur yang cocok"
+          );
         }
+
+        // CEK: Jangan buat polyline jika datanya tidak valid
+        if (!polylineCoords || polylineCoords.length < 2) {
+          alert(
+            "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
+          );
+          console.error(
+            "polylineCoords kosong atau kurang dari 2:",
+            polylineCoords
+          );
+          return;
+        }
+
         const polyline = L.polyline(polylineCoords, {
           color: "#ff6600",
           weight: 5,
@@ -1488,29 +1565,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
         polyline.addTo(leafletMapRef.current);
         setRouteLine(polyline);
+
         // Zoom ke rute
         leafletMapRef.current.fitBounds(L.latLngBounds(polylineCoords), {
           padding: [40, 40],
           maxZoom: 19,
         });
-        // Hitung jarak berdasarkan polyline
-        let totalDistance = 0;
-        for (let i = 1; i < polylineCoords.length; i++) {
-          const [lat1, lng1] = polylineCoords[i - 1];
-          const [lat2, lng2] = polylineCoords[i];
-          const R = 6371000; // meter
-          const toRad = (deg: number) => (deg * Math.PI) / 180;
-          const dLat = toRad(lat2 - lat1);
-          const dLng = toRad(lng2 - lng1);
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) *
-              Math.cos(toRad(lat2)) *
-              Math.sin(dLng / 2) *
-              Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          totalDistance += R * c;
-        }
+
         setRouteDistance(Math.round(totalDistance));
       }
       setShowRouteModal(false);
@@ -1999,26 +2060,54 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <label className="block text-sm font-medium mb-1">
                     Titik Tujuan
                   </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white cursor-not-allowed"
-                    value={(() => {
-                      if (routeEndType === "bangunan") {
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      value={routeEndSearchText}
+                      onChange={(e) => {
+                        const searchText = e.target.value;
+                        setRouteEndSearchText(searchText);
+                        if (searchText.trim()) {
+                          const results = searchTitikByName(searchText);
+                          setRouteEndSearchResults(results);
+                        } else {
+                          setRouteEndSearchResults([]);
+                        }
+                      }}
+                      placeholder="Cari nama titik tujuan..."
+                    />
+                    {/* Dropdown hasil pencarian */}
+                    {routeEndSearchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto z-50">
+                        {routeEndSearchResults.map((point) => (
+                          <button
+                            key={point.id}
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                            onClick={() => {
+                              setRouteEndSearchText(point.name);
+                              setRouteEndType("titik");
+                              setRouteEndSearchResults([]);
+                            }}
+                          >
+                            {point.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Tampilkan bangunan yang dipilih jika ada */}
+                  {routeEndType === "bangunan" && routeEndId && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      {(() => {
                         const b = bangunanFeatures.find(
                           (b: FeatureType) => b.properties.id == routeEndId
                         );
                         return b ? b.properties.nama : "Bangunan";
-                      } else if (routeEndType === "ruangan") {
-                        const r = ruanganFeatures.find(
-                          (r: FeatureType) => r.properties.id == routeEndId
-                        );
-                        return r ? r.properties.nama : "Ruangan";
-                      }
-                      return "";
-                    })()}
-                    readOnly
-                    disabled
-                  />
+                      })()}
+                    </div>
+                  )}
                 </div>
                 {/* Tombol submit */}
                 <button
