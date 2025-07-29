@@ -24,6 +24,11 @@ import { findRoute, Point, calculateDistance } from "../lib/routing";
 // Import fungsi routing dari src/lib/routeSteps
 import { useGps } from "./useGps";
 import { useRouting } from "./useRouting";
+import {
+  parseRouteSteps,
+  getStepInstruction,
+  calculateBearing,
+} from "../lib/routeSteps";
 
 interface LeafletMapProps {
   isDark?: boolean;
@@ -1667,52 +1672,41 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       )
         return;
 
-      // Hapus line sebelumnya
+      // Hapus line sebelumnya (tidak perlu highlight jalur)
       if (activeStepLineRef.current) {
         map.removeLayer(activeStepLineRef.current);
         activeStepLineRef.current = null;
       }
 
-      // Hapus navigation marker sebelumnya
+      // Hapus navigation marker sebelumnya - PENTING untuk menghapus marker lama
       if (navigationMarkerRef.current) {
         map.removeLayer(navigationMarkerRef.current);
         navigationMarkerRef.current = null;
       }
 
-      // Render highlight polyline segmen aktif saja
+      // Hanya tambahkan marker bulatan untuk menandakan posisi user
       const step = routeSteps[activeStepIndex];
-      if (step && step.coordinates && step.coordinates.length > 0) {
-        const line = L.polyline(step.coordinates, {
-          color: "#2563eb", // Ubah dari merah ke biru
-          weight: 8,
-          opacity: 1,
-          pane: "routePane", // Gunakan pane route dengan z-index rendah
-        }).addTo(map);
-        activeStepLineRef.current = line;
-
-        // Tambahkan navigation marker di awal segmen aktif dengan pane khusus
+      if (step && step.start) {
+        // Buat marker bulatan sederhana tanpa segitiga
         const navigationMarker = L.marker(step.start, {
-          icon: L.icon({
-            iconUrl:
-              "data:image/svg+xml," +
-              encodeURIComponent(`
-              <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="16" fill="#3b82f6" stroke="#ffffff" stroke-width="4"/>
-                <circle cx="20" cy="20" r="8" fill="#ffffff"/>
-                <text x="20" y="26" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="bold">${
-                  activeStepIndex + 1
-                }</text>
-              </svg>
-            `),
-            iconSize: [40, 40], // Perbesar sedikit agar lebih terlihat
-            iconAnchor: [20, 20],
-            popupAnchor: [0, -20],
+          icon: L.divIcon({
+            className: "navigation-circle-marker",
+            html: `<div style="
+              width: 28px; 
+              height: 28px; 
+              background: #4285f4; 
+              border-radius: 50%; 
+              border: 3px solid white;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+              position: relative;
+              z-index: 9999;
+              transform: translateZ(0);
+            "></div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
           }),
-          title: `Langkah ${activeStepIndex + 1}: ${getStepInstruction(
-            activeStepIndex,
-            routeSteps
-          )}`,
-          pane: "navigationPane", // Gunakan pane navigation dengan z-index tinggi
+          pane: "navigationPane",
+          zIndexOffset: 2000,
         }).addTo(map);
 
         navigationMarkerRef.current = navigationMarker;
@@ -1721,13 +1715,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         map.setView(step.start, 19, { animate: true, duration: 0.8 });
       }
 
-      // Cleanup
+      // Cleanup function yang lebih robust
       return () => {
-        if (activeStepLineRef.current) {
+        if (
+          activeStepLineRef.current &&
+          map.hasLayer(activeStepLineRef.current)
+        ) {
           map.removeLayer(activeStepLineRef.current);
           activeStepLineRef.current = null;
         }
-        if (navigationMarkerRef.current) {
+        if (
+          navigationMarkerRef.current &&
+          map.hasLayer(navigationMarkerRef.current)
+        ) {
           map.removeLayer(navigationMarkerRef.current);
           navigationMarkerRef.current = null;
         }
@@ -1811,12 +1811,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         }
 
-        // Buat pane khusus untuk navigation marker dengan z-index tinggi
+        // Buat pane khusus untuk navigation marker dengan z-index SANGAT tinggi
         if (!map.getPane("navigationPane")) {
           map.createPane("navigationPane");
           const navPane = map.getPane("navigationPane");
           if (navPane) {
-            navPane.style.zIndex = "650"; // Di atas semua layer termasuk marker biasa (600)
+            navPane.style.zIndex = "1000"; // Di atas SEMUA layer termasuk route
             navPane.style.pointerEvents = "auto";
           }
         }
@@ -2067,7 +2067,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 maxZoom: 17,
               });
               setRouteDistance(Math.round(totalDistance));
-              setRouteSteps(parseRouteSteps(finalRouteSegments));
+              setRouteSteps(
+                parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
+              );
               setActiveStepIndex(0);
             } else {
               alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
@@ -2114,7 +2116,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               duration: 1.5, // Smooth animation duration
             });
             setRouteDistance(Math.round(routeResult.distance));
-            setRouteSteps(parseRouteSteps(routeResult.geojsonSegments));
+            setRouteSteps(
+              parseRouteSteps(
+                routeResult.geojsonSegments,
+                startLatLng,
+                endLatLng
+              )
+            );
             setActiveStepIndex(0);
           } else {
             alert(
@@ -2370,7 +2378,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               });
 
               setRouteDistance(Math.round(totalDistance));
-              setRouteSteps(parseRouteSteps(finalRouteSegments));
+              setRouteSteps(
+                parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
+              );
               setActiveStepIndex(0);
             } else {
               alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
@@ -2418,7 +2428,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             });
 
             setRouteDistance(Math.round(routeResult.distance));
-            setRouteSteps(parseRouteSteps(routeResult.geojsonSegments));
+            setRouteSteps(
+              parseRouteSteps(
+                routeResult.geojsonSegments,
+                startLatLng,
+                endLatLng
+              )
+            );
             setActiveStepIndex(0);
           } else {
             alert(
@@ -2442,12 +2458,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         }
 
-        // Buat pane khusus untuk navigation marker dengan z-index tinggi
+        // Buat pane khusus untuk navigation marker dengan z-index SANGAT tinggi
         if (!map.getPane("navigationPane")) {
           map.createPane("navigationPane");
           const navPane = map.getPane("navigationPane");
           if (navPane) {
-            navPane.style.zIndex = "650"; // Di atas semua layer termasuk marker biasa (600)
+            navPane.style.zIndex = "1000"; // Di atas SEMUA layer termasuk route
             navPane.style.pointerEvents = "auto";
           }
         }
@@ -2629,7 +2645,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       navigationMarkerRef.current = null;
                     }
                   }}
-                  className="text-gray-400 hover:text-red-500 text-lg"
+                  className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none"
                   title="Tutup Navigasi"
                 >
                   ×
@@ -2644,6 +2660,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     dari {routeSteps.length} langkah
+                  </div>
+                  {/* Tambahkan jarak di sini */}
+                  <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                    {Math.round(routeSteps[activeStepIndex]?.distance || 0)}m
                   </div>
                 </div>
                 <div className="text-sm font-medium leading-relaxed">
