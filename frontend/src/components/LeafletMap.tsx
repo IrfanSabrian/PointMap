@@ -1562,34 +1562,111 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return [lat, lng];
     };
 
-    // Fungsi untuk mencari gerbang terdekat dari lokasi GPS
-    const findNearestGate = (userCoords: [number, number]): any | null => {
+    // Fungsi BARU untuk mencari gerbang yang terhubung ke tujuan terlebih dahulu
+    const findConnectedGates = (endCoords: [number, number]): any[] => {
       const gates = titikFeatures.filter(
         (t: any) =>
           t.properties?.Nama &&
           t.properties.Nama.toLowerCase().includes("gerbang")
       );
 
-      if (gates.length === 0) return null;
+      if (gates.length === 0) return [];
 
-      let nearestGate = null;
-      let shortestDistance = Infinity;
+      const connectedGates: any[] = [];
+      const points = convertTitikToPoints();
 
+      // Test setiap gerbang apakah bisa route ke tujuan
       for (const gate of gates) {
         if (gate.geometry && gate.geometry.coordinates) {
           const gateCoords: [number, number] = [
             gate.geometry.coordinates[1],
             gate.geometry.coordinates[0],
           ];
-          const distance = calculateDistance(userCoords, gateCoords);
-          if (distance < shortestDistance) {
-            shortestDistance = distance;
-            nearestGate = gate;
+
+          // Test apakah ada jalur dari gerbang ke tujuan
+          const routeTest = findRoute(
+            gateCoords,
+            endCoords,
+            points,
+            jalurFeatures
+          );
+
+          if (
+            routeTest &&
+            routeTest.geojsonSegments &&
+            routeTest.geojsonSegments.length > 0
+          ) {
+            connectedGates.push({
+              gate: gate,
+              coords: gateCoords,
+              routeToDestination: routeTest,
+              gateName: gate.properties?.Nama || "Gerbang",
+            });
+            console.log(
+              `✅ Gerbang ${
+                gate.properties?.Nama
+              } terhubung ke tujuan (${Math.round(routeTest.distance)}m)`
+            );
+          } else {
+            console.log(
+              `❌ Gerbang ${gate.properties?.Nama} TIDAK terhubung ke tujuan`
+            );
           }
         }
       }
 
-      return nearestGate;
+      return connectedGates;
+    };
+
+    // Fungsi untuk mencari gerbang terbaik: yang terhubung ke tujuan DAN terdekat dari GPS
+    const findBestGateForDestination = (
+      userCoords: [number, number],
+      endCoords: [number, number]
+    ): any | null => {
+      // 1. PERTAMA: Cari semua gerbang yang terhubung ke tujuan
+      const connectedGates = findConnectedGates(endCoords);
+
+      if (connectedGates.length === 0) {
+        console.log("❌ Tidak ada gerbang yang terhubung ke tujuan");
+        return null;
+      }
+
+      console.log(
+        `🎯 Ditemukan ${connectedGates.length} gerbang yang terhubung ke tujuan`
+      );
+
+      // 2. KEDUA: Dari gerbang yang terhubung, pilih yang terdekat dari GPS
+      let bestGate = null;
+      let shortestDistance = Infinity;
+      let bestRouteToDestination = null;
+
+      for (const gateInfo of connectedGates) {
+        const distance = calculateDistance(userCoords, gateInfo.coords);
+        console.log(
+          `📏 Jarak GPS ke ${gateInfo.gateName}: ${Math.round(distance)}m`
+        );
+
+        if (distance < shortestDistance) {
+          shortestDistance = distance;
+          bestGate = gateInfo.gate;
+          bestRouteToDestination = gateInfo.routeToDestination;
+        }
+      }
+
+      if (bestGate) {
+        console.log(
+          `🏆 Gerbang terbaik: ${bestGate.properties?.Nama} (${Math.round(
+            shortestDistance
+          )}m dari GPS)`
+        );
+        return {
+          gate: bestGate,
+          routeToDestination: bestRouteToDestination,
+          distanceFromGps: shortestDistance,
+        };
+      }
+
+      return null;
     };
 
     // Fungsi untuk mendapatkan jalur jalan asli menggunakan OSRM API
@@ -1684,17 +1761,50 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         navigationMarkerRef.current = null;
       }
 
-      // Hanya tambahkan marker bulatan untuk menandakan posisi user
+      // Marker bulatan di AWAL SETIAP GARIS - termasuk step terakhir
       const step = routeSteps[activeStepIndex];
-      if (step && step.start) {
-        // Buat marker bulatan sederhana tanpa segitiga
-        const navigationMarker = L.marker(step.start, {
+      if (step && step.coordinates && step.coordinates.length > 0) {
+        // Tentukan jenis dan posisi marker
+        const isFirstStep = activeStepIndex === 0;
+        const isLastStep = activeStepIndex === routeSteps.length - 1;
+
+        let markerPosition: [number, number];
+        let markerColor: string;
+        let markerSize: number;
+
+        // SEMUA marker di awal garis (coordinates[0])
+        markerPosition = step.coordinates[0];
+
+        if (isFirstStep) {
+          // Step pertama: hijau
+          markerColor = "#10b981"; // Hijau
+          markerSize = 34;
+        } else if (isLastStep) {
+          // Step terakhir: merah (tapi tetap di awal garis terakhir)
+          markerColor = "#ef4444"; // Merah
+          markerSize = 34;
+        } else {
+          // Step tengah: biru
+          markerColor = "#4285f4"; // Biru
+          markerSize = 32;
+        }
+
+        console.log(
+          `🎯 Marker Step ${activeStepIndex + 1}: ${
+            isFirstStep ? "START" : isLastStep ? "LAST_LINE" : "LINE"
+          } at START of line [${markerPosition[0].toFixed(
+            6
+          )}, ${markerPosition[1].toFixed(6)}]`
+        );
+
+        // Buat marker bulat sederhana tanpa icon
+        const navigationMarker = L.marker(markerPosition, {
           icon: L.divIcon({
             className: "navigation-circle-marker",
             html: `<div style="
-              width: 28px; 
-              height: 28px; 
-              background: #4285f4; 
+              width: ${markerSize}px; 
+              height: ${markerSize}px; 
+              background: ${markerColor}; 
               border-radius: 50%; 
               border: 3px solid white;
               box-shadow: 0 4px 12px rgba(0,0,0,0.5);
@@ -1702,8 +1812,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               z-index: 9999;
               transform: translateZ(0);
             "></div>`,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
+            iconSize: [markerSize, markerSize],
+            iconAnchor: [markerSize / 2, markerSize / 2],
           }),
           pane: "navigationPane",
           zIndexOffset: 2000,
@@ -1711,8 +1821,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         navigationMarkerRef.current = navigationMarker;
 
-        // Zoom ke posisi marker dengan level yang tepat agar marker terlihat jelas
-        map.setView(step.start, 19, { animate: true, duration: 0.8 });
+        // Zoom ke posisi marker
+        map.setView(markerPosition, 19, { animate: true, duration: 0.8 });
+
+        // Highlight jalur step saat ini
+        if (step.coordinates.length > 1) {
+          const stepPolyline = L.polyline(step.coordinates, {
+            color: markerColor,
+            weight: 5,
+            opacity: 0.7,
+            dashArray: "8, 4",
+          }).addTo(map);
+
+          // Cleanup previous highlight
+          if (
+            activeStepLineRef.current &&
+            map.hasLayer(activeStepLineRef.current)
+          ) {
+            map.removeLayer(activeStepLineRef.current);
+          }
+          activeStepLineRef.current = stepPolyline;
+        }
       }
 
       // Cleanup function yang lebih robust
@@ -1905,24 +2034,28 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         let finalRouteSegments: any[] = [];
         let totalDistance = 0;
 
-        // Jika titik awal adalah "Lokasi Saya", route via gerbang terdekat
+        // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
         if (routeStartType === "my-location") {
-          const nearestGate = findNearestGate(startLatLng); // Gunakan startLatLng yang sudah diambil dari GPS
+          const bestGateInfo = findBestGateForDestination(
+            startLatLng,
+            endLatLng
+          );
 
           if (
-            nearestGate &&
-            nearestGate.geometry &&
-            nearestGate.geometry.coordinates
+            bestGateInfo &&
+            bestGateInfo.gate &&
+            bestGateInfo.gate.geometry &&
+            bestGateInfo.gate.geometry.coordinates
           ) {
             const gateCoords: [number, number] = [
-              nearestGate.geometry.coordinates[1],
-              nearestGate.geometry.coordinates[0],
+              bestGateInfo.gate.geometry.coordinates[1],
+              bestGateInfo.gate.geometry.coordinates[0],
             ];
 
-            // Segment 1: GPS Location -> Gerbang terdekat (jalur jalan asli)
+            // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
             console.log(
               "🗺️ Getting real-world route: GPS →",
-              nearestGate.properties?.Nama
+              bestGateInfo.gate.properties?.Nama
             );
             const realWorldGpsToGate = await getRealWorldRoute(
               startLatLng,
@@ -1959,7 +2092,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   distance: gpsToGateDistance,
                   name:
                     "GPS ke " +
-                    (nearestGate.properties?.Nama || "Gerbang") +
+                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
                     " (Jalur Jalan)",
                 },
               };
@@ -1967,8 +2100,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
               const gpsLng = Number(startLatLng[1]);
               const gpsLat = Number(startLatLng[0]);
-              const gateLng = Number(nearestGate.geometry.coordinates[0]);
-              const gateLat = Number(nearestGate.geometry.coordinates[1]);
+              const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
+              const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
               if (leafletMapRef.current) {
                 const fallbackPolyline = L.polyline(
                   [
@@ -2002,7 +2135,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   distance: gpsToGateDistance,
                   name:
                     "GPS ke " +
-                    (nearestGate.properties?.Nama || "Gerbang") +
+                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
                     " (Garis Lurus)",
                 },
               };
@@ -2017,13 +2150,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             }
 
-            // Segment 2: Gerbang -> Tujuan akhir (via jalur internal)
-            const gateToEndResult = findRoute(
-              gateCoords,
-              endLatLng,
-              points,
-              jalurFeatures
-            );
+            // Segment 2: Gerbang -> Tujuan akhir (gunakan route yang sudah dihitung)
+            const gateToEndResult = bestGateInfo.routeToDestination;
 
             if (gateToEndResult) {
               totalDistance = gpsToGateDistance + gateToEndResult.distance;
@@ -2058,7 +2186,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
               }
               allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
-              gateToEndResult.coordinates.forEach((coord) => {
+              gateToEndResult.coordinates.forEach((coord: [number, number]) => {
                 allLatLngs.push(L.latLng(coord[0], coord[1]));
               });
               const bounds = L.latLngBounds(allLatLngs);
@@ -2218,24 +2346,28 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         let finalRouteSegments: any[] = [];
         let totalDistance = 0;
 
-        // Jika titik awal adalah "Lokasi Saya", route via gerbang terdekat
+        // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
         if (startType === "my-location") {
-          const nearestGate = findNearestGate(startLatLng);
+          const bestGateInfo = findBestGateForDestination(
+            startLatLng,
+            endLatLng
+          );
 
           if (
-            nearestGate &&
-            nearestGate.geometry &&
-            nearestGate.geometry.coordinates
+            bestGateInfo &&
+            bestGateInfo.gate &&
+            bestGateInfo.gate.geometry &&
+            bestGateInfo.gate.geometry.coordinates
           ) {
             const gateCoords: [number, number] = [
-              nearestGate.geometry.coordinates[1],
-              nearestGate.geometry.coordinates[0],
+              bestGateInfo.gate.geometry.coordinates[1],
+              bestGateInfo.gate.geometry.coordinates[0],
             ];
 
-            // Segment 1: GPS Location -> Gerbang terdekat (jalur jalan asli)
+            // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
             console.log(
               "🗺️ Getting real-world route: GPS →",
-              nearestGate.properties?.Nama
+              bestGateInfo.gate.properties?.Nama
             );
             const realWorldGpsToGate = await getRealWorldRoute(
               startLatLng,
@@ -2272,7 +2404,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   distance: gpsToGateDistance,
                   name:
                     "GPS ke " +
-                    (nearestGate.properties?.Nama || "Gerbang") +
+                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
                     " (Jalur Jalan)",
                 },
               };
@@ -2280,8 +2412,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
               const gpsLng = Number(startLatLng[1]);
               const gpsLat = Number(startLatLng[0]);
-              const gateLng = Number(nearestGate.geometry.coordinates[0]);
-              const gateLat = Number(nearestGate.geometry.coordinates[1]);
+              const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
+              const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
               if (leafletMapRef.current) {
                 const fallbackPolyline = L.polyline(
                   [
@@ -2315,19 +2447,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   distance: gpsToGateDistance,
                   name:
                     "GPS ke " +
-                    (nearestGate.properties?.Nama || "Gerbang") +
+                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
                     " (Garis Lurus)",
                 },
               };
             }
 
-            // Segment 2: Gerbang -> Tujuan akhir (via jalur internal)
-            const gateToEndResult = findRoute(
-              gateCoords,
-              endLatLng,
-              points,
-              jalurFeatures
-            );
+            // Segment 2: Gerbang -> Tujuan akhir (gunakan route yang sudah dihitung)
+            const gateToEndResult = bestGateInfo.routeToDestination;
 
             if (gateToEndResult) {
               totalDistance = gpsToGateDistance + gateToEndResult.distance;
@@ -2363,7 +2490,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
               }
               allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
-              gateToEndResult.coordinates.forEach((coord) => {
+              gateToEndResult.coordinates.forEach((coord: [number, number]) => {
                 allLatLngs.push(L.latLng(coord[0], coord[1]));
               });
 

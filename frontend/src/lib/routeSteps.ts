@@ -40,7 +40,167 @@ function calculateDistance(
   return R * c;
 }
 
-// Fungsi untuk generate instruksi step dengan panjang jalur
+// Fungsi untuk menghitung sudut belok yang lebih presisi
+function calculatePreciseTurnAngle(prevStep: any, currStep: any): number {
+  if (!prevStep.coordinates || !currStep.coordinates) return 0;
+  if (prevStep.coordinates.length < 2 || currStep.coordinates.length < 2)
+    return 0;
+
+  // Ambil beberapa titik untuk perhitungan yang stabil
+  const prevCoords = prevStep.coordinates;
+  const currCoords = currStep.coordinates;
+
+  // Untuk step sebelumnya: ambil arah dari beberapa titik terakhir
+  const prevLen = prevCoords.length;
+  const prevPointCount = Math.min(5, prevLen); // Ambil 5 titik terakhir
+  const prevStartIdx = Math.max(0, prevLen - prevPointCount);
+  const prevStart = prevCoords[prevStartIdx];
+  const prevEnd = prevCoords[prevLen - 1];
+
+  // Untuk step saat ini: ambil arah dari beberapa titik pertama
+  const currLen = currCoords.length;
+  const currPointCount = Math.min(5, currLen); // Ambil 5 titik pertama
+  const currEndIdx = Math.min(currPointCount - 1, currLen - 1);
+  const currStart = currCoords[0];
+  const currEnd = currCoords[currEndIdx];
+
+  // Hitung vektor arah dengan jarak yang lebih panjang
+  const prevVector = [prevEnd[1] - prevStart[1], prevEnd[0] - prevStart[0]]; // [lat, lng]
+  const currVector = [currEnd[1] - currStart[1], currEnd[0] - currStart[0]]; // [lat, lng]
+
+  // Normalisasi
+  const prevLen2 = Math.sqrt(
+    prevVector[0] * prevVector[0] + prevVector[1] * prevVector[1]
+  );
+  const currLen2 = Math.sqrt(
+    currVector[0] * currVector[0] + currVector[1] * currVector[1]
+  );
+
+  if (prevLen2 === 0 || currLen2 === 0) return 0;
+
+  prevVector[0] /= prevLen2;
+  prevVector[1] /= prevLen2;
+  currVector[0] /= currLen2;
+  currVector[1] /= currLen2;
+
+  // Hitung sudut dengan cross product untuk menentukan arah
+  const cross = prevVector[0] * currVector[1] - prevVector[1] * currVector[0];
+  const dot = prevVector[0] * currVector[0] + prevVector[1] * currVector[1];
+
+  const angle = Math.atan2(cross, dot) * (180 / Math.PI);
+
+  return angle;
+}
+
+// Fungsi untuk mendapatkan bearing dari step
+function getStepBearing(step: any): number {
+  if (!step.coordinates || step.coordinates.length < 2) return 0;
+
+  const coords = step.coordinates;
+  const len = coords.length;
+
+  // Ambil beberapa titik untuk bearing yang stabil
+  const pointCount = Math.min(3, len);
+  const startIdx = Math.max(0, len - pointCount - 1);
+  const start = coords[startIdx];
+  const end = coords[len - 1];
+
+  return calculateBearing(start, end);
+}
+
+// Fungsi untuk menormalisasi perbedaan bearing
+function normalizeBearingDifference(diff: number): number {
+  // Normalisasi ke range -180 sampai 180
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
+}
+
+// Fungsi untuk parsing routeSegments SEDERHANA - 1 segmen = 1 step
+export function parseRouteSteps(
+  routeSegments: any[],
+  startPoint?: [number, number],
+  endPoint?: [number, number]
+) {
+  if (!routeSegments || routeSegments.length === 0) return [];
+
+  console.log(
+    `📋 Parsing sederhana: ${routeSegments.length} segmen = ${routeSegments.length} steps`
+  );
+
+  // Buat 1 step untuk setiap segmen
+  const simpleSteps: any[] = [];
+
+  for (let i = 0; i < routeSegments.length; i++) {
+    const segment = routeSegments[i];
+    const step = createStepFromSingleSegment(segment);
+
+    // Tandai jenis step
+    (step as any).stepType =
+      i === 0 ? "start" : i === routeSegments.length - 1 ? "end" : "middle";
+    (step as any).segmentIndex = i;
+
+    console.log(
+      `  📍 Step ${i + 1}: ${(step as any).stepType}, ${step.distance.toFixed(
+        1
+      )}m`
+    );
+
+    simpleSteps.push(step);
+  }
+
+  // Override start point untuk step pertama
+  if (startPoint && simpleSteps.length > 0) {
+    simpleSteps[0].start = startPoint;
+    simpleSteps[0].coordinates = [
+      startPoint,
+      ...simpleSteps[0].coordinates.slice(1),
+    ];
+  }
+
+  // Override end point untuk step terakhir
+  if (endPoint && simpleSteps.length > 0) {
+    const lastStep = simpleSteps[simpleSteps.length - 1];
+    lastStep.coordinates = [...lastStep.coordinates.slice(0, -1), endPoint];
+  }
+
+  console.log(`✅ Total simple steps: ${simpleSteps.length}`);
+  return simpleSteps;
+}
+
+// Fungsi untuk membuat step dari 1 segmen saja
+function createStepFromSingleSegment(segment: any) {
+  let distance = 0;
+
+  // Hitung jarak dari properties atau koordinat
+  if (segment.properties && segment.properties.panjang) {
+    distance = Number(segment.properties.panjang);
+  } else if (segment.geometry && segment.geometry.coordinates) {
+    const coords = segment.geometry.coordinates;
+    for (let i = 1; i < coords.length; i++) {
+      const prev: [number, number] = [coords[i - 1][1], coords[i - 1][0]];
+      const curr: [number, number] = [coords[i][1], coords[i][0]];
+      distance += calculateDistance(prev, curr);
+    }
+  }
+
+  // Konversi koordinat dari [lng, lat] ke [lat, lng]
+  const coordinates = segment.geometry.coordinates.map((c: any) => [
+    c[1],
+    c[0],
+  ]);
+
+  return {
+    coordinates: coordinates,
+    start: coordinates[0],
+    distance: distance,
+    type: segment.properties?.routeType?.includes("osrm") ? "osrm" : "geojson",
+    raw: segment,
+    segmentCount: 1,
+  };
+}
+
+// Fungsi untuk generate instruksi sederhana berdasarkan posisi step
 export function getStepInstruction(idx: number, steps: any[]) {
   const step = steps[idx];
   const distanceText = `${Math.round(step.distance)} meter`;
@@ -49,100 +209,53 @@ export function getStepInstruction(idx: number, steps: any[]) {
     return `Jalan ${distanceText} (jalan luar kampus)`;
   }
 
-  if (idx === 0) return `Mulai, jalan ${distanceText}`;
+  // Ambil metadata step
+  const stepType = (step as any).stepType || "unknown";
+  const segmentIndex = (step as any).segmentIndex || 0;
 
-  // Cek belok/lurus untuk semua jenis step
+  console.log(
+    `📋 Step ${idx + 1}: stepType=${stepType}, segmentIndex=${segmentIndex}`
+  );
+
+  // Step pertama: selalu "Mulai"
+  if (idx === 0 || stepType === "start") {
+    return `Mulai, jalan ${distanceText}`;
+  }
+
+  // Step terakhir: sampai tujuan tanpa jarak
+  if (idx === steps.length - 1 || stepType === "end") {
+    return `Sampai tujuan`;
+  }
+
+  // Step tengah: deteksi arah berdasarkan step sebelumnya
   if (idx > 0 && steps[idx - 1]) {
     const prev = steps[idx - 1];
     const curr = steps[idx];
-    const angle = getAngleBetweenSegments(prev.coordinates, curr.coordinates);
 
-    if (angle > 30) return `Belok kiri, jalan ${distanceText}`;
-    if (angle < -30) return `Belok kanan, jalan ${distanceText}`;
+    // Hitung sudut belok antar step
+    const stepAngle = calculatePreciseTurnAngle(prev, curr);
+
+    console.log(
+      `📍 Step ${idx + 1}: Angle = ${stepAngle.toFixed(
+        1
+      )}°, Distance = ${Math.round(step.distance)}m`
+    );
+
+    // Deteksi arah belok
+    if (stepAngle > 20) {
+      return `Belok kiri, jalan ${distanceText}`;
+    } else if (stepAngle < -20) {
+      return `Belok kanan, jalan ${distanceText}`;
+    } else {
+      return `Lurus, jalan ${distanceText}`;
+    }
   }
 
   return `Lurus, jalan ${distanceText}`;
 }
 
-// Fungsi untuk parsing routeSegments menjadi steps yang disederhanakan
-export function parseRouteSteps(
-  routeSegments: any[],
-  startPoint?: [number, number],
-  endPoint?: [number, number]
-) {
-  if (!routeSegments || routeSegments.length === 0) return [];
-
-  // Jika hanya 1-2 segmen, jadikan 1 langkah saja
-  if (routeSegments.length <= 2) {
-    const combinedStep = createCombinedStep(routeSegments)[0];
-
-    // Override start dan end point jika disediakan
-    if (startPoint) {
-      combinedStep.start = startPoint;
-      combinedStep.coordinates = [
-        startPoint,
-        ...combinedStep.coordinates.slice(1),
-      ];
-    }
-    if (endPoint) {
-      combinedStep.coordinates = [
-        ...combinedStep.coordinates.slice(0, -1),
-        endPoint,
-      ];
-    }
-
-    return [combinedStep];
-  }
-
-  // Untuk jalur yang lebih kompleks, gabungkan segmen lurus
-  const combinedSteps: any[] = [];
-  let currentGroup: any[] = [routeSegments[0]]; // Mulai dengan segmen pertama
-
-  for (let i = 1; i < routeSegments.length; i++) {
-    const prevSeg = routeSegments[i - 1];
-    const currSeg = routeSegments[i];
-
-    // Hitung sudut belok antara dua segmen
-    const angle = calculateTurnAngle(prevSeg, currSeg);
-
-    // Jika sudut belok kecil (< 25 derajat), gabungkan dengan grup sebelumnya
-    if (Math.abs(angle) < 25) {
-      currentGroup.push(currSeg);
-    } else {
-      // Sudut belok besar, buat step dari grup sebelumnya
-      if (currentGroup.length > 0) {
-        combinedSteps.push(createStepFromGroup(currentGroup));
-      }
-      // Mulai grup baru
-      currentGroup = [currSeg];
-    }
-  }
-
-  // Tambahkan grup terakhir
-  if (currentGroup.length > 0) {
-    combinedSteps.push(createStepFromGroup(currentGroup));
-  }
-
-  // Override start point untuk step pertama jika disediakan
-  if (startPoint && combinedSteps.length > 0) {
-    combinedSteps[0].start = startPoint;
-    combinedSteps[0].coordinates = [
-      startPoint,
-      ...combinedSteps[0].coordinates.slice(1),
-    ];
-  }
-
-  // Override end point untuk step terakhir jika disediakan
-  if (endPoint && combinedSteps.length > 0) {
-    const lastStep = combinedSteps[combinedSteps.length - 1];
-    lastStep.coordinates = [...lastStep.coordinates.slice(0, -1), endPoint];
-  }
-
-  return combinedSteps;
-}
-
-// Fungsi untuk menghitung sudut belok antara dua segmen
-function calculateTurnAngle(seg1: any, seg2: any): number {
+// Fungsi untuk menghitung sudut belok yang lebih akurat
+function calculateImprovedTurnAngle(seg1: any, seg2: any): number {
   if (!seg1.geometry?.coordinates || !seg2.geometry?.coordinates) return 0;
 
   const coords1 = seg1.geometry.coordinates;
@@ -150,21 +263,114 @@ function calculateTurnAngle(seg1: any, seg2: any): number {
 
   if (coords1.length < 2 || coords2.length < 2) return 0;
 
-  // Ambil 2 titik terakhir dari segmen 1 dan 2 titik pertama dari segmen 2
-  const p1 = coords1[coords1.length - 2];
-  const p2 = coords1[coords1.length - 1]; // Titik sambungan
-  const p3 = coords2[1] || coords2[0];
+  // Ambil lebih banyak titik untuk perhitungan yang stabil
+  const seg1Length = coords1.length;
+  const seg2Length = coords2.length;
 
-  // Hitung vektor
-  const v1 = [p2[0] - p1[0], p2[1] - p1[1]];
-  const v2 = [p3[0] - p2[0], p3[1] - p2[1]];
+  // Untuk segmen 1: ambil beberapa titik terakhir untuk mendapat arah yang stabil
+  const pointCount = Math.min(3, seg1Length);
+  const startIdx1 = Math.max(0, seg1Length - pointCount - 1);
+  const p1Start = coords1[startIdx1];
+  const p1End = coords1[seg1Length - 1];
 
-  // Hitung sudut
+  // Untuk segmen 2: ambil beberapa titik pertama untuk mendapat arah yang stabil
+  const pointCount2 = Math.min(3, seg2Length);
+  const endIdx2 = Math.min(pointCount2, seg2Length - 1);
+  const p2Start = coords2[0];
+  const p2End = coords2[endIdx2];
+
+  // Hitung vektor arah dengan jarak yang lebih panjang
+  const v1 = [p1End[0] - p1Start[0], p1End[1] - p1Start[1]];
+  const v2 = [p2End[0] - p2Start[0], p2End[1] - p2Start[1]];
+
+  // Normalisasi vektor
+  const len1 = Math.sqrt(v1[0] * v1[0] + v1[1] * v1[1]);
+  const len2 = Math.sqrt(v2[0] * v2[0] + v2[1] * v2[1]);
+
+  if (len1 === 0 || len2 === 0) return 0;
+
+  v1[0] /= len1;
+  v1[1] /= len1;
+  v2[0] /= len2;
+  v2[1] /= len2;
+
+  // Hitung sudut dengan dot product dan cross product
   const dot = v1[0] * v2[0] + v1[1] * v2[1];
-  const det = v1[0] * v2[1] - v1[1] * v2[0];
-  const angle = Math.atan2(det, dot) * (180 / Math.PI);
+  const cross = v1[0] * v2[1] - v1[1] * v2[0];
+
+  const angle = Math.atan2(cross, dot) * (180 / Math.PI);
 
   return angle;
+}
+
+// Fungsi untuk mengecek apakah segmen tersambung langsung
+function isSegmentsContinuous(seg1: any, seg2: any): boolean {
+  if (!seg1.geometry?.coordinates || !seg2.geometry?.coordinates) return false;
+
+  const coords1 = seg1.geometry.coordinates;
+  const coords2 = seg2.geometry.coordinates;
+
+  if (coords1.length === 0 || coords2.length === 0) return false;
+
+  // Cek jarak antara akhir segmen 1 dan awal segmen 2
+  const end1 = coords1[coords1.length - 1];
+  const start2 = coords2[0];
+
+  const distance = calculateDistance(
+    [end1[1], end1[0]],
+    [start2[1], start2[0]]
+  );
+
+  // Jika jarak < 10 meter, dianggap tersambung
+  const isContinuous = distance < 10;
+
+  if (isContinuous) {
+    // Cek juga arah vektor
+    const v1 = getSegmentDirection(seg1);
+    const v2 = getSegmentDirection(seg2);
+
+    if (v1 && v2) {
+      const dotProduct = v1[0] * v2[0] + v1[1] * v2[1];
+      // Jika dot product > 0.7, arah hampir sama
+      return dotProduct > 0.7;
+    }
+  }
+
+  return isContinuous;
+}
+
+// Fungsi untuk mendapat arah vektor segmen
+function getSegmentDirection(seg: any): [number, number] | null {
+  if (!seg.geometry?.coordinates || seg.geometry.coordinates.length < 2)
+    return null;
+
+  const coords = seg.geometry.coordinates;
+  const start = coords[0];
+  const end = coords[coords.length - 1];
+
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const len = Math.sqrt(dx * dx + dy * dy);
+
+  if (len === 0) return null;
+
+  return [dx / len, dy / len];
+}
+
+// Fungsi untuk menghitung jarak antara ujung dua segmen
+function calculateSegmentDistance(seg1: any, seg2: any): number {
+  if (!seg1.geometry?.coordinates || !seg2.geometry?.coordinates)
+    return Infinity;
+
+  const coords1 = seg1.geometry.coordinates;
+  const coords2 = seg2.geometry.coordinates;
+
+  if (coords1.length === 0 || coords2.length === 0) return Infinity;
+
+  const end1 = coords1[coords1.length - 1];
+  const start2 = coords2[0];
+
+  return calculateDistance([end1[1], end1[0]], [start2[1], start2[0]]);
 }
 
 // Fungsi untuk membuat step gabungan dari beberapa segmen
