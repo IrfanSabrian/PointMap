@@ -46,40 +46,40 @@ const geojsonStatisUrl = "/geojson/Polnep WGS_1984.geojson";
 
 const kategoriStyle: Record<string, L.PathOptions> = {
   Bangunan: {
-    color: "#3a86ff",
+    color: "#1e3a8a", // Deep blue
     weight: 1,
-    fillColor: "#3a86ff",
-    fillOpacity: 0.7,
-  },
-  Kanopi: {
-    color: "#ffbe0b",
-    weight: 1,
-    fillColor: "#ffbe0b",
-    fillOpacity: 0.6,
-  },
-  Jalan: {
-    color: "#43aa8b",
-    weight: 1,
-    fillColor: "#43aa8b",
+    fillColor: "#2563eb", // Blue-600
     fillOpacity: 0.8,
   },
-  Parkir: {
-    color: "#808080",
+  Kanopi: {
+    color: "#f59e42", // Orange
     weight: 1,
-    fillColor: "#808080",
+    fillColor: "#fbbf24", // Amber-400
+    fillOpacity: 0.7,
+  },
+  Jalan: {
+    color: "#374151", // Gray-700
+    weight: 2,
+    fillColor: "#6b7280", // Gray-500
+    fillOpacity: 0.7,
+  },
+  Parkir: {
+    color: "#4b5563", // Dark gray
+    weight: 1,
+    fillColor: "#9ca3af", // Gray-400
     fillOpacity: 0.6,
   },
   Lahan: {
-    color: "#22c55e",
+    color: "#15803d", // Green-800
     weight: 1,
-    fillColor: "#22c55e",
+    fillColor: "#22c55e", // Green-500
     fillOpacity: 0.5,
   },
   Kolam: {
-    color: "#3b82f6",
+    color: "#0ea5e9", // Sky-500
     weight: 1,
-    fillColor: "#3b82f6",
-    fillOpacity: 0.4,
+    fillColor: "#38bdf8", // Sky-400
+    fillOpacity: 0.5,
   },
 };
 
@@ -204,6 +204,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setShowGPSTroubleshoot,
       isUserInsideCampus,
       getCurrentLocation,
+      startLiveTracking,
     } = useGps();
 
     const {
@@ -223,6 +224,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Add missing useRef declarations at the top of the component
     const userMarkerRef = useRef<L.Marker | null>(null);
     const routeLineRef = useRef<L.Polyline | null>(null);
+    const navigationMarkerRef = useRef<L.Marker | null>(null);
 
     // Fungsi untuk membuka modal dengan animasi fade-in
     const openBuildingDetailModal = (selectedRuangan?: FeatureType) => {
@@ -805,11 +807,117 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     // Handle select search result
-    const handleSelectSearchResult = (feature: FeatureType) => {
+    const handleSelectSearchResult = async (feature: FeatureType) => {
       const map = leafletMapRef.current;
       if (!map) return;
 
-      // Jika ini adalah ruangan, cari bangunan yang terkait
+      console.log("🔄 Menghitung rute otomatis ke:", feature.properties?.nama);
+
+      // Set endpoint berdasarkan tipe feature
+      let targetBangunanId = "";
+      let targetBangunanName = "";
+
+      if (feature.properties?.displayType === "ruangan") {
+        // Untuk ruangan, set ke bangunan yang berisi ruangan
+        const bangunanId = feature.properties?.bangunan_id;
+        const bangunan = bangunanFeatures.find(
+          (b) => b.properties?.id === bangunanId
+        );
+        if (bangunan) {
+          targetBangunanId = String(bangunan.properties?.id);
+          targetBangunanName = bangunan.properties?.nama || "";
+        } else {
+          console.warn("❌ Bangunan tidak ditemukan untuk ruangan");
+          return;
+        }
+      } else {
+        // Untuk bangunan dan fasilitas lain
+        targetBangunanId = String(feature.properties?.id);
+        targetBangunanName = feature.properties?.nama || "";
+      }
+
+      // Set all route states at once
+      setRouteEndSearchText(targetBangunanName);
+      setRouteEndSearchResults([
+        {
+          id: targetBangunanId,
+          name: targetBangunanName,
+          coordinates: getFeatureCentroid(
+            feature.properties?.displayType === "ruangan"
+              ? bangunanFeatures.find(
+                  (b) => b.properties?.id == feature.properties?.bangunan_id
+                ) || feature
+              : feature
+          ),
+        },
+      ]);
+      setRouteEndType("bangunan");
+      setRouteEndId(targetBangunanId);
+      setRouteStartType("my-location");
+      setRouteStartId("");
+
+      // Ambil GPS dan jalankan routing
+      try {
+        console.log("📍 Mengambil GPS untuk routing otomatis...");
+        const gpsCoords = await getCurrentLocation();
+        console.log("✅ GPS berhasil diambil:", gpsCoords);
+
+        // Set user location untuk live GPS
+        setUserLocation(L.latLng(gpsCoords[0], gpsCoords[1]));
+
+        // Cek apakah user di dalam kampus, jika ya mulai live tracking
+        const isInside = isUserInsideCampus(gpsCoords[0], gpsCoords[1]);
+        if (isInside) {
+          console.log("📍 User di dalam kampus, memulai live GPS tracking...");
+          startLiveTracking();
+        }
+
+        // Force state update dengan callback
+        setTimeout(async () => {
+          console.log("🚀 Menjalankan handleRouteSubmit dengan state:", {
+            routeStartType: "my-location",
+            routeEndType: "bangunan",
+            routeEndId: targetBangunanId,
+            routeEndSearchText: targetBangunanName,
+            gpsCoords,
+          });
+
+          // Call routing function directly dengan parameter yang sudah pasti
+          await performRouting(
+            "my-location",
+            "",
+            "bangunan",
+            targetBangunanId,
+            gpsCoords
+          );
+        }, 500);
+      } catch (gpsError) {
+        console.error("❌ Gagal mengambil GPS:", gpsError);
+        // Jika GPS gagal, gunakan titik default
+        if (titikFeatures.length > 0) {
+          const firstTitik = titikFeatures[0];
+          const fallbackStartType = "titik";
+          const fallbackStartId = String(
+            firstTitik.id || firstTitik.properties?.OBJECTID
+          );
+
+          console.log(
+            "🔄 Fallback ke titik default:",
+            firstTitik.properties?.Nama
+          );
+
+          setTimeout(async () => {
+            await performRouting(
+              fallbackStartType,
+              fallbackStartId,
+              "bangunan",
+              targetBangunanId
+            );
+          }, 500);
+        }
+      }
+
+      // Tampilkan detail bangunan dan zoom ke lokasi
       if (feature.properties?.displayType === "ruangan") {
         const bangunanId = feature.properties?.bangunan_id;
         const bangunan = bangunanFeatures.find(
@@ -834,17 +942,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               [Math.max(...lats), Math.max(...lngs)]
             );
 
-            // Zoom ke bangunan, lalu buka detail bangunan dengan ruangan yang di-highlight
+            // Zoom ke bangunan dengan animasi smooth
             map.fitBounds(bounds, {
               padding: [50, 50],
               animate: true,
-              duration: 0.8,
+              duration: 1.2, // Smooth animation
             });
+
             const onMoveEnd = () => {
               setSelectedFeature(bangunan);
               setCardVisible(true);
-              // Highlight permanen sudah ditangani oleh useEffect berdasarkan selectedFeature
-              // Langsung buka modal detail bangunan dengan ruangan yang dipilih
               openBuildingDetailModal(feature);
 
               // Kirim pesan ke dashboard untuk update sidebar ruangan
@@ -869,15 +976,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // Jika tidak ada geometry, langsung buka modal
             setSelectedFeature(bangunan);
             setCardVisible(true);
-            // Highlight permanen sudah ditangani oleh useEffect berdasarkan selectedFeature
             openBuildingDetailModal(feature);
 
-            // Kirim pesan ke dashboard untuk update sidebar ruangan
-            console.log("Sending room-clicked message (no geometry):", {
-              type: "room-clicked",
-              roomId: feature.properties?.id,
-              roomName: feature.properties?.nama,
-            });
             window.postMessage(
               {
                 type: "room-clicked",
@@ -895,12 +995,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           );
           openBuildingDetailModal(feature);
 
-          // Kirim pesan ke dashboard untuk update sidebar ruangan
-          console.log("Sending room-clicked message (no building found):", {
-            type: "room-clicked",
-            roomId: feature.properties?.id,
-            roomName: feature.properties?.nama,
-          });
           window.postMessage(
             {
               type: "room-clicked",
@@ -932,7 +1026,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           map.fitBounds(bounds, {
             padding: [50, 50],
             animate: true,
-            duration: 0.8,
+            duration: 1.2, // Smooth animation
           });
 
           // Highlight bangunan setelah zoom selesai
@@ -957,7 +1051,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
 
-      // Tambahan: reset input dan tutup dropdown setelah pilih hasil
+      // Reset input dan tutup dropdown setelah pilih hasil
       setSearchText("");
       setShowSearchResults(false);
 
@@ -1503,10 +1597,29 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       geometry: any;
     } | null> => {
       try {
+        // Validasi koordinat
+        if (
+          !startCoords ||
+          !endCoords ||
+          typeof startCoords[0] !== "number" ||
+          typeof startCoords[1] !== "number" ||
+          typeof endCoords[0] !== "number" ||
+          typeof endCoords[1] !== "number"
+        ) {
+          console.error("❌ Koordinat tidak valid:", {
+            startCoords,
+            endCoords,
+          });
+          return null;
+        }
+
         // OSRM API endpoint (public instance)
         const url = `https://router.project-osrm.org/route/v1/driving/${startCoords[1]},${startCoords[0]};${endCoords[1]},${endCoords[0]}?overview=full&geometries=geojson`;
 
-        console.log("Fetching real-world route from OSRM...");
+        console.log("🛣️ Fetching real-world route from OSRM...", {
+          startCoords,
+          endCoords,
+        });
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -1560,17 +1673,52 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         activeStepLineRef.current = null;
       }
 
+      // Hapus navigation marker sebelumnya
+      if (navigationMarkerRef.current) {
+        map.removeLayer(navigationMarkerRef.current);
+        navigationMarkerRef.current = null;
+      }
+
       // Render highlight polyline segmen aktif saja
       const step = routeSteps[activeStepIndex];
       if (step && step.coordinates && step.coordinates.length > 0) {
         const line = L.polyline(step.coordinates, {
-          color: "#e53935",
+          color: "#2563eb", // Ubah dari merah ke biru
           weight: 8,
           opacity: 1,
+          pane: "routePane", // Gunakan pane route dengan z-index rendah
         }).addTo(map);
         activeStepLineRef.current = line;
-        // Pan ke awal segmen aktif
-        map.panTo(step.start, { animate: true });
+
+        // Tambahkan navigation marker di awal segmen aktif dengan pane khusus
+        const navigationMarker = L.marker(step.start, {
+          icon: L.icon({
+            iconUrl:
+              "data:image/svg+xml," +
+              encodeURIComponent(`
+              <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="16" fill="#3b82f6" stroke="#ffffff" stroke-width="4"/>
+                <circle cx="20" cy="20" r="8" fill="#ffffff"/>
+                <text x="20" y="26" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="bold">${
+                  activeStepIndex + 1
+                }</text>
+              </svg>
+            `),
+            iconSize: [40, 40], // Perbesar sedikit agar lebih terlihat
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -20],
+          }),
+          title: `Langkah ${activeStepIndex + 1}: ${getStepInstruction(
+            activeStepIndex,
+            routeSteps
+          )}`,
+          pane: "navigationPane", // Gunakan pane navigation dengan z-index tinggi
+        }).addTo(map);
+
+        navigationMarkerRef.current = navigationMarker;
+
+        // Zoom ke posisi marker dengan level yang tepat agar marker terlihat jelas
+        map.setView(step.start, 19, { animate: true, duration: 0.8 });
       }
 
       // Cleanup
@@ -1578,6 +1726,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (activeStepLineRef.current) {
           map.removeLayer(activeStepLineRef.current);
           activeStepLineRef.current = null;
+        }
+        if (navigationMarkerRef.current) {
+          map.removeLayer(navigationMarkerRef.current);
+          navigationMarkerRef.current = null;
         }
       };
     }, [activeStepIndex]); // Hanya depend pada activeStepIndex, bukan routeSteps
@@ -1620,6 +1772,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           setRouteDistance(null);
         }
 
+        // Hapus navigation marker jika ada
+        if (navigationMarkerRef.current) {
+          leafletMapRef.current.removeLayer(navigationMarkerRef.current);
+          navigationMarkerRef.current = null;
+        }
+
         // Hapus GPS marker jika ada
         if (userMarkerRef.current) {
           leafletMapRef.current.removeLayer(userMarkerRef.current);
@@ -1638,6 +1796,32 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         );
       }
     }, [selectedFeature]);
+
+    // useEffect untuk membuat pane khusus dengan z-index yang benar
+    useEffect(() => {
+      if (leafletMapRef.current) {
+        const map = leafletMapRef.current;
+
+        // Buat pane khusus untuk route dengan z-index rendah
+        if (!map.getPane("routePane")) {
+          map.createPane("routePane");
+          const routePane = map.getPane("routePane");
+          if (routePane) {
+            routePane.style.zIndex = "400"; // Di bawah marker biasa (600)
+          }
+        }
+
+        // Buat pane khusus untuk navigation marker dengan z-index tinggi
+        if (!map.getPane("navigationPane")) {
+          map.createPane("navigationPane");
+          const navPane = map.getPane("navigationPane");
+          if (navPane) {
+            navPane.style.zIndex = "650"; // Di atas semua layer termasuk marker biasa (600)
+            navPane.style.pointerEvents = "auto";
+          }
+        }
+      }
+    }, []);
 
     // Redefine handleRouteSubmit in this component (inside the component function, before return)
     const handleRouteSubmit = async () => {
@@ -1855,7 +2039,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
                 {
                   style: (feature) => ({
-                    color: "#e53935",
+                    color: "#2563eb", // Biru konsisten
                     weight: 6,
                     opacity: 1,
                   }),
@@ -1912,7 +2096,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
               {
                 style: () => ({
-                  color: "#e53935",
+                  color: "#2563eb",
                   weight: 6,
                   opacity: 1,
                 }),
@@ -1921,9 +2105,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
             geoJsonLayer.addTo(leafletMapRef.current);
             setRouteLine(geoJsonLayer);
+
+            // Smooth zoom animation
             leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
               padding: [40, 40],
               maxZoom: 19,
+              animate: true,
+              duration: 1.5, // Smooth animation duration
             });
             setRouteDistance(Math.round(routeResult.distance));
             setRouteSteps(parseRouteSteps(routeResult.geojsonSegments));
@@ -1937,6 +2125,334 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
       setShowRouteModal(false);
     };
+
+    // Listener untuk GPS updates
+    useEffect(() => {
+      const handleGpsUpdate = (event: MessageEvent) => {
+        if (event.data.type === "gps-updated" && routeSteps.length > 0) {
+          console.log("📍 GPS updated, recalculating route...");
+          // Recalculate route dengan GPS baru
+          setTimeout(() => {
+            handleRouteSubmit();
+          }, 1000); // Tunggu 1 detik untuk stabilitas
+        }
+      };
+
+      window.addEventListener("message", handleGpsUpdate);
+      return () => {
+        window.removeEventListener("message", handleGpsUpdate);
+      };
+    }, [routeSteps.length]);
+
+    // Fungsi untuk melakukan routing dengan parameter yang sudah pasti
+    const performRouting = async (
+      startType: string,
+      startId: string,
+      endType: string,
+      endId: string,
+      gpsCoords?: [number, number]
+    ) => {
+      let startLatLng: [number, number] | null = null;
+      let endLatLng: [number, number] | null = null;
+      setRouteDistance(null);
+
+      // Titik awal
+      if (startType === "my-location" && gpsCoords) {
+        startLatLng = gpsCoords;
+      } else if (startType === "titik" && startId) {
+        const titik = titikFeatures.find(
+          (t: any) => String(t.id || t.properties?.OBJECTID) === String(startId)
+        );
+        if (titik && titik.geometry && titik.geometry.coordinates) {
+          const coords = titik.geometry.coordinates;
+          startLatLng = [coords[1], coords[0]];
+        }
+      } else if (startType) {
+        startLatLng = getCentroidById("bangunan", startType) as [
+          number,
+          number
+        ];
+      }
+
+      // Titik tujuan
+      if (endType === "bangunan" && endId) {
+        endLatLng = getCentroidById("bangunan", endId) as [number, number];
+      }
+
+      // Validasi
+      if (
+        !startLatLng ||
+        !endLatLng ||
+        startLatLng[0] === undefined ||
+        startLatLng[1] === undefined ||
+        endLatLng[0] === undefined ||
+        endLatLng[1] === undefined
+      ) {
+        console.error("❌ Koordinat tidak valid:", { startLatLng, endLatLng });
+        alert(
+          "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
+        );
+        return;
+      }
+
+      console.log("✅ Koordinat valid, memulai routing:", {
+        startLatLng,
+        endLatLng,
+      });
+
+      // Routing dengan logika khusus untuk "Lokasi Saya"
+      if (startLatLng && endLatLng && leafletMapRef.current) {
+        if (routeLine) {
+          leafletMapRef.current.removeLayer(routeLine);
+        }
+
+        const points = convertTitikToPoints();
+        let finalRouteSegments: any[] = [];
+        let totalDistance = 0;
+
+        // Jika titik awal adalah "Lokasi Saya", route via gerbang terdekat
+        if (startType === "my-location") {
+          const nearestGate = findNearestGate(startLatLng);
+
+          if (
+            nearestGate &&
+            nearestGate.geometry &&
+            nearestGate.geometry.coordinates
+          ) {
+            const gateCoords: [number, number] = [
+              nearestGate.geometry.coordinates[1],
+              nearestGate.geometry.coordinates[0],
+            ];
+
+            // Segment 1: GPS Location -> Gerbang terdekat (jalur jalan asli)
+            console.log(
+              "🗺️ Getting real-world route: GPS →",
+              nearestGate.properties?.Nama
+            );
+            const realWorldGpsToGate = await getRealWorldRoute(
+              startLatLng,
+              gateCoords
+            );
+
+            let gpsToGateSegment;
+            let gpsToGateDistance;
+
+            if (realWorldGpsToGate) {
+              gpsToGateDistance = realWorldGpsToGate.distance;
+              const latLngs = realWorldGpsToGate.coordinates;
+              if (leafletMapRef.current) {
+                const debugPolyline = L.polyline(latLngs, {
+                  color: "#00FF00",
+                  weight: 8,
+                  opacity: 0.8,
+                  dashArray: "10, 5",
+                }).addTo(leafletMapRef.current);
+                setTimeout(() => {
+                  if (leafletMapRef.current) {
+                    leafletMapRef.current.removeLayer(debugPolyline);
+                  }
+                }, 10000);
+              }
+              gpsToGateSegment = {
+                type: "Feature",
+                geometry: {
+                  type: "LineString",
+                  coordinates: latLngs.map((coord) => [coord[1], coord[0]]),
+                },
+                properties: {
+                  routeType: "gps-to-gate-real",
+                  distance: gpsToGateDistance,
+                  name:
+                    "GPS ke " +
+                    (nearestGate.properties?.Nama || "Gerbang") +
+                    " (Jalur Jalan)",
+                },
+              };
+            } else {
+              gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
+              const gpsLng = Number(startLatLng[1]);
+              const gpsLat = Number(startLatLng[0]);
+              const gateLng = Number(nearestGate.geometry.coordinates[0]);
+              const gateLat = Number(nearestGate.geometry.coordinates[1]);
+              if (leafletMapRef.current) {
+                const fallbackPolyline = L.polyline(
+                  [
+                    [gpsLat, gpsLng],
+                    [gateLat, gateLng],
+                  ],
+                  {
+                    color: "#FF00FF",
+                    weight: 8,
+                    opacity: 0.8,
+                    dashArray: "10, 5",
+                  }
+                ).addTo(leafletMapRef.current);
+                setTimeout(() => {
+                  if (leafletMapRef.current) {
+                    leafletMapRef.current.removeLayer(fallbackPolyline);
+                  }
+                }, 10000);
+              }
+              gpsToGateSegment = {
+                type: "Feature",
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [gpsLng, gpsLat],
+                    [gateLng, gateLat],
+                  ],
+                },
+                properties: {
+                  routeType: "gps-to-gate",
+                  distance: gpsToGateDistance,
+                  name:
+                    "GPS ke " +
+                    (nearestGate.properties?.Nama || "Gerbang") +
+                    " (Garis Lurus)",
+                },
+              };
+            }
+
+            // Segment 2: Gerbang -> Tujuan akhir (via jalur internal)
+            const gateToEndResult = findRoute(
+              gateCoords,
+              endLatLng,
+              points,
+              jalurFeatures
+            );
+
+            if (gateToEndResult) {
+              totalDistance = gpsToGateDistance + gateToEndResult.distance;
+              finalRouteSegments = [
+                gpsToGateSegment,
+                ...gateToEndResult.geojsonSegments,
+              ];
+              const geoJsonLayer = L.geoJSON(
+                {
+                  type: "FeatureCollection",
+                  features:
+                    finalRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+                } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
+                {
+                  style: (feature) => ({
+                    color: "#2563eb", // Biru konsisten
+                    weight: 6,
+                    opacity: 1,
+                  }),
+                  pane: "routePane",
+                }
+              );
+              geoJsonLayer.addTo(leafletMapRef.current);
+              setRouteLine(geoJsonLayer);
+
+              const allLatLngs: L.LatLng[] = [];
+              if (realWorldGpsToGate) {
+                realWorldGpsToGate.coordinates.forEach((coord) => {
+                  allLatLngs.push(L.latLng(coord[0], coord[1]));
+                });
+              } else {
+                allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
+                allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
+              }
+              allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
+              gateToEndResult.coordinates.forEach((coord) => {
+                allLatLngs.push(L.latLng(coord[0], coord[1]));
+              });
+
+              const bounds = L.latLngBounds(allLatLngs);
+
+              // Smooth zoom animation
+              leafletMapRef.current.fitBounds(bounds, {
+                padding: [60, 60],
+                maxZoom: 17,
+                animate: true,
+                duration: 1.5, // Smooth animation duration
+              });
+
+              setRouteDistance(Math.round(totalDistance));
+              setRouteSteps(parseRouteSteps(finalRouteSegments));
+              setActiveStepIndex(0);
+            } else {
+              alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
+            }
+          } else {
+            alert("Tidak ditemukan gerbang terdekat.");
+          }
+        } else {
+          // Routing biasa (bukan dari "Lokasi Saya")
+          const routeResult = findRoute(
+            startLatLng,
+            endLatLng,
+            points,
+            jalurFeatures
+          );
+          if (
+            routeResult &&
+            routeResult.geojsonSegments &&
+            routeResult.geojsonSegments.length > 0
+          ) {
+            const geoJsonLayer = L.geoJSON(
+              {
+                type: "FeatureCollection",
+                features:
+                  routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+              } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
+              {
+                style: () => ({
+                  color: "#2563eb",
+                  weight: 6,
+                  opacity: 1,
+                }),
+                pane: "routePane",
+              }
+            );
+            geoJsonLayer.addTo(leafletMapRef.current);
+            setRouteLine(geoJsonLayer);
+
+            // Smooth zoom animation
+            leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+              padding: [40, 40],
+              maxZoom: 19,
+              animate: true,
+              duration: 1.5, // Smooth animation duration
+            });
+
+            setRouteDistance(Math.round(routeResult.distance));
+            setRouteSteps(parseRouteSteps(routeResult.geojsonSegments));
+            setActiveStepIndex(0);
+          } else {
+            alert(
+              "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
+            );
+          }
+        }
+      }
+    };
+
+    useEffect(() => {
+      if (leafletMapRef.current) {
+        const map = leafletMapRef.current;
+
+        // Buat pane khusus untuk route dengan z-index rendah
+        if (!map.getPane("routePane")) {
+          map.createPane("routePane");
+          const routePane = map.getPane("routePane");
+          if (routePane) {
+            routePane.style.zIndex = "400"; // Di bawah marker biasa (600)
+          }
+        }
+
+        // Buat pane khusus untuk navigation marker dengan z-index tinggi
+        if (!map.getPane("navigationPane")) {
+          map.createPane("navigationPane");
+          const navPane = map.getPane("navigationPane");
+          if (navPane) {
+            navPane.style.zIndex = "650"; // Di atas semua layer termasuk marker biasa (600)
+            navPane.style.pointerEvents = "auto";
+          }
+        }
+      }
+    }, []);
 
     return (
       <div
@@ -2085,86 +2601,182 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           )}
         </form>
 
-        {/* Kontrol kanan bawah: tombol zoom, GPS, reset, dsb */}
-        {!selectedFeature && (
+        {/* Step-by-Step Navigation Panel - Bottom Center */}
+        {routeSteps.length > 0 && (
           <div
-            className="absolute right-4 bottom-4 z-50 flex flex-col gap-2"
-            style={{ zIndex: 1050 }}
+            className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[201] w-96 max-w-[90vw] ${
+              isDark
+                ? "bg-gray-800 border-gray-700 text-white"
+                : "bg-white border-gray-200 text-gray-900"
+            } border rounded-xl shadow-lg`}
           >
-            {/* Zoom Controls */}
-            <div className="flex flex-col gap-1 mb-2">
-              {/* Zoom In Button */}
-              <button
-                onClick={() => {
-                  console.log("Zoom in clicked");
-                  const map = leafletMapRef.current;
-                  if (map) {
-                    const newZoom = Math.min(map.getZoom() + 1, 19);
-                    map.setZoom(newZoom);
-                    console.log("Zoom in successful, new zoom:", newZoom);
-                  } else {
-                    console.log("Map not ready for zoom in");
-                  }
-                }}
-                className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
-              ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-                style={{ width: 48, height: 48 }}
-                title="Zoom In"
-              >
-                <FontAwesomeIcon icon={faPlus} />
-              </button>
-              {/* Zoom Out Button */}
-              <button
-                onClick={() => {
-                  console.log("Zoom out clicked");
-                  const map = leafletMapRef.current;
-                  if (map) {
-                    const newZoom = Math.max(
-                      map.getZoom() - 1,
-                      map.getMinZoom()
-                    );
-                    map.setZoom(newZoom);
-                    console.log("Zoom out successful, new zoom:", newZoom);
-                  } else {
-                    console.log("Map not ready for zoom out");
-                  }
-                }}
-                className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
-              ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-                style={{ width: 48, height: 48 }}
-                title="Zoom Out"
-              >
-                <FontAwesomeIcon icon={faMinus} />
-              </button>
-              {/* Reset Zoom Button */}
-              <button
-                onClick={handleResetZoom}
-                className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
-              ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-                style={{ width: 48, height: 48 }}
-                title="Reset ke Posisi Awal"
-              >
-                {/* Ikon reset posisi: panah melingkar */}
-                <FontAwesomeIcon icon={faSyncAlt} />
-              </button>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm">Instruksi Navigasi</h3>
+                <button
+                  onClick={() => {
+                    setRouteSteps([]);
+                    setActiveStepIndex(0);
+                    if (routeLine && leafletMapRef.current) {
+                      leafletMapRef.current.removeLayer(routeLine);
+                      setRouteLine(null);
+                    }
+                    // Hapus navigation marker
+                    if (navigationMarkerRef.current && leafletMapRef.current) {
+                      leafletMapRef.current.removeLayer(
+                        navigationMarkerRef.current
+                      );
+                      navigationMarkerRef.current = null;
+                    }
+                  }}
+                  className="text-gray-400 hover:text-red-500 text-lg"
+                  title="Tutup Navigasi"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Current Step Display */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    {activeStepIndex + 1}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    dari {routeSteps.length} langkah
+                  </div>
+                </div>
+                <div className="text-sm font-medium leading-relaxed">
+                  {getStepInstruction(activeStepIndex, routeSteps)}
+                </div>
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (activeStepIndex > 0) {
+                      setActiveStepIndex(activeStepIndex - 1);
+                    }
+                  }}
+                  disabled={activeStepIndex === 0}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    activeStepIndex === 0
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                      : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                  }`}
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() => {
+                    if (activeStepIndex < routeSteps.length - 1) {
+                      setActiveStepIndex(activeStepIndex + 1);
+                    }
+                  }}
+                  disabled={activeStepIndex === routeSteps.length - 1}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    activeStepIndex === routeSteps.length - 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                      : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                  }`}
+                >
+                  Next →
+                </button>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mt-3">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${
+                        ((activeStepIndex + 1) / routeSteps.length) * 100
+                      }%`,
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Kontrol kanan bawah: tombol zoom, GPS, reset, dsb */}
+        <div
+          className="absolute right-4 bottom-4 z-50 flex flex-col gap-2"
+          style={{ zIndex: 1050 }}
+        >
+          {/* Zoom Controls */}
+          <div className="flex flex-col gap-1 mb-2">
+            {/* Zoom In Button */}
+            <button
+              onClick={() => {
+                console.log("Zoom in clicked");
+                const map = leafletMapRef.current;
+                if (map) {
+                  const newZoom = Math.min(map.getZoom() + 1, 19);
+                  map.setZoom(newZoom);
+                  console.log("Zoom in successful, new zoom:", newZoom);
+                } else {
+                  console.log("Map not ready for zoom in");
+                }
+              }}
+              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+              ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              }
+            `}
+              style={{ width: 48, height: 48 }}
+              title="Zoom In"
+            >
+              <FontAwesomeIcon icon={faPlus} />
+            </button>
+            {/* Zoom Out Button */}
+            <button
+              onClick={() => {
+                console.log("Zoom out clicked");
+                const map = leafletMapRef.current;
+                if (map) {
+                  const newZoom = Math.max(map.getZoom() - 1, map.getMinZoom());
+                  map.setZoom(newZoom);
+                  console.log("Zoom out successful, new zoom:", newZoom);
+                } else {
+                  console.log("Map not ready for zoom out");
+                }
+              }}
+              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+              ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              }
+            `}
+              style={{ width: 48, height: 48 }}
+              title="Zoom Out"
+            >
+              <FontAwesomeIcon icon={faMinus} />
+            </button>
+            {/* Reset Zoom Button */}
+            <button
+              onClick={handleResetZoom}
+              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+              ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              }
+            `}
+              style={{ width: 48, height: 48 }}
+              title="Reset ke Posisi Awal"
+            >
+              {/* Ikon reset posisi: panah melingkar */}
+              <FontAwesomeIcon icon={faSyncAlt} />
+            </button>
+          </div>
+        </div>
 
         {/* Kontrol kiri bawah: basemap dan toggle layer */}
         <div
@@ -2231,10 +2843,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </button>
         </div>
 
-        {/* Sidebar Gedung (ganti dengan floating card kanan bawah) */}
+        {/* Sidebar Gedung (floating card kanan atas) */}
         {selectedFeature && (
           <div
-            className={`absolute right-4 bottom-4 z-[201] w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
+            className={`absolute right-4 top-4 z-[201] w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
               ${
                 cardVisible && cardAnimation
                   ? "opacity-100 translate-y-0 scale-100"

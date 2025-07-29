@@ -395,18 +395,23 @@ export function findShortestRouteDijkstra(
       coords[coords.length - 1][0],
     ];
     nodes.push(start, end);
+
+    // Gunakan data panjang dari GeoJSON jika tersedia, fallback ke euclidean distance
+    const routeLength =
+      route.properties?.panjang || euclideanDistance(start, end) * 111000; // Convert to meters if no panjang
+
     edges.push({
       from: start,
       to: end,
       route,
-      length: route.properties?.panjang || euclideanDistance(start, end),
+      length: routeLength, // Gunakan panjang dari GeoJSON
     });
     // Bidirectional
     edges.push({
       from: end,
       to: start,
       route,
-      length: route.properties?.panjang || euclideanDistance(start, end),
+      length: routeLength, // Gunakan panjang dari GeoJSON
     });
   }
   // Dedup node
@@ -472,11 +477,22 @@ export function findShortestRouteDijkstra(
   if (euclideanDistance(allCoords[allCoords.length - 1], endCoord) > 0.00001) {
     allCoords.push(endCoord);
   }
-  // Hitung total jarak
+
+  // Hitung total jarak menggunakan data panjang dari GeoJSON
   let totalDist = 0;
-  for (let i = 1; i < allCoords.length; i++) {
-    totalDist += calculateDistance(allCoords[i - 1], allCoords[i]);
+  for (const edge of pathEdges) {
+    // Gunakan panjang dari GeoJSON jika tersedia
+    const segmentLength = edge.properties?.panjang || 0;
+    totalDist += segmentLength;
   }
+
+  // Jika tidak ada panjang dari GeoJSON, fallback ke Haversine
+  if (totalDist === 0) {
+    for (let i = 1; i < allCoords.length; i++) {
+      totalDist += calculateDistance(allCoords[i - 1], allCoords[i]);
+    }
+  }
+
   return {
     coordinates: allCoords,
     distance: totalDist,
