@@ -243,3 +243,49 @@
 .leaflet-interactive {
   transition: fill 0.5s, stroke 0.5s, fill-opacity 0.5s, stroke-opacity 0.5s;
 }
+
+/* Custom dropdown styles untuk modal route */
+.route-modal-select {
+  position: relative;
+}
+
+/* Custom dropdown button styling */
+.route-modal-select button {
+  transition: all 0.2s ease;
+}
+
+.route-modal-select button:hover {
+  border-color: #3b82f6;
+}
+
+.route-modal-select button:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Custom dropdown list styling */
+.route-modal-select .dropdown-list {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.route-modal-select .dropdown-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.route-modal-select .dropdown-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.route-modal-select .dropdown-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.route-modal-select .dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

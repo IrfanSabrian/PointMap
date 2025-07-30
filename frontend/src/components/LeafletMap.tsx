@@ -171,7 +171,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
     const [isHighlightActive, setIsHighlightActive] = useState(false);
     const [isContainerShaking, setIsContainerShaking] = useState(false);
+    const [isNavigationActive, setIsNavigationActive] = useState(false);
+    const [isStartDropdownOpen, setIsStartDropdownOpen] = useState(false);
     const isHighlightActiveRef = useRef(false);
+    const isNavigationActiveRef = useRef(false);
     const [showRouteModal, setShowRouteModal] = useState(false);
     const [routeEndType, setRouteEndType] = useState("bangunan");
     const [routeEndId, setRouteEndId] = useState("");
@@ -566,8 +569,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Hanya kategori Bangunan yang bisa diklik
           if (feature.properties?.id) {
             layer.on("click", function (e: L.LeafletMouseEvent) {
-              // Jika rute sedang tampil atau highlight aktif, blok interaksi klik bangunan lain
-              if (routeLineRef.current || isHighlightActiveRef.current) {
+              // Jika rute sedang tampil atau highlight aktif (dan navigation tidak aktif), blok interaksi klik bangunan lain
+              if (
+                routeLineRef.current ||
+                (isHighlightActiveRef.current && !isNavigationActiveRef.current)
+              ) {
                 if (
                   e &&
                   e.originalEvent &&
@@ -646,15 +652,32 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       };
     }, []); // hanya sekali
 
-    // Control map interactions berdasarkan highlight state
+    // Control map interactions berdasarkan highlight state dan navigation state
     useEffect(() => {
       const map = leafletMapRef.current;
       if (!map) return;
 
-      // Update ref untuk digunakan di event handler Leaflet
+      // Update refs untuk digunakan di event handler Leaflet
       isHighlightActiveRef.current = isHighlightActive;
+      isNavigationActiveRef.current = isNavigationActive;
 
-      if (isHighlightActive) {
+      // Jika navigation aktif, enable map interactions (bisa di-geser)
+      if (isNavigationActive) {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+
+        // Cleanup canvas click handler jika ada
+        if ((map as any)._canvasClickCleanup) {
+          (map as any)._canvasClickCleanup();
+          delete (map as any)._canvasClickCleanup;
+        }
+      }
+      // Jika highlight aktif tapi navigation tidak aktif, disable map interactions
+      else if (isHighlightActive) {
         // Disable map interactions
         map.dragging.disable();
         map.touchZoom.disable();
@@ -663,26 +686,43 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         map.boxZoom.disable();
         map.keyboard.disable();
 
-        // Add click handler untuk canvas area
-        const handleCanvasClick = (e: MouseEvent) => {
-          // Cek apakah klik di luar container
-          const container = document.querySelector(
-            '[data-container="building-detail"]'
-          );
-          if (container && !container.contains(e.target as Node)) {
-            // Trigger shake effect
-            setIsContainerShaking(true);
-            setTimeout(() => setIsContainerShaking(false), 600);
+        // Add click handler untuk canvas area dengan delay (hanya jika navigation tidak aktif)
+        setTimeout(() => {
+          const handleCanvasClick = (e: MouseEvent) => {
+            // Cek apakah klik di luar container
+            const container = document.querySelector(
+              '[data-container="building-detail"]'
+            );
+            // Cek apakah modal route sedang terbuka
+            const routeModal = document.querySelector(
+              '[data-modal="route-modal"]'
+            );
+            if (
+              container &&
+              !container.contains(e.target as Node) &&
+              !routeModal
+            ) {
+              // Trigger shake effect (hanya jika modal route tidak terbuka)
+              setIsContainerShaking(true);
+              setTimeout(() => setIsContainerShaking(false), 600);
+            }
+          };
+
+          document.addEventListener("click", handleCanvasClick);
+
+          // Cleanup function untuk dijalankan saat highlight nonaktif
+          const cleanup = () => {
+            document.removeEventListener("click", handleCanvasClick);
+          };
+
+          // Simpan cleanup function untuk dijalankan nanti
+          if (map) {
+            (map as any)._canvasClickCleanup = cleanup;
           }
-        };
-
-        document.addEventListener("click", handleCanvasClick);
-
-        // Cleanup
-        return () => {
-          document.removeEventListener("click", handleCanvasClick);
-        };
-      } else {
+        }, 100); // Delay 100ms untuk memastikan container sudah terbuka
+      }
+      // Jika keduanya tidak aktif, enable map interactions
+      else {
         // Enable map interactions
         map.dragging.enable();
         map.touchZoom.enable();
@@ -690,13 +730,37 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         map.scrollWheelZoom.enable();
         map.boxZoom.enable();
         map.keyboard.enable();
+
+        // Cleanup canvas click handler jika ada
+        if ((map as any)._canvasClickCleanup) {
+          (map as any)._canvasClickCleanup();
+          delete (map as any)._canvasClickCleanup;
+        }
       }
-    }, [isHighlightActive]);
+    }, [isHighlightActive, isNavigationActive]);
 
     // Sync routeLine state dengan routeLineRef
     useEffect(() => {
       routeLineRef.current = routeLine as L.Polyline | null;
     }, [routeLine]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Element;
+        if (!target.closest(".route-modal-select")) {
+          setIsStartDropdownOpen(false);
+        }
+      };
+
+      if (isStartDropdownOpen) {
+        document.addEventListener("click", handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener("click", handleClickOutside);
+      };
+    }, [isStartDropdownOpen]);
 
     // Update basemap layer
     useEffect(() => {
@@ -2247,6 +2311,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
               );
               setActiveStepIndex(0);
+              setIsNavigationActive(true);
             } else {
               alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
               setIsCalculatingRoute(false);
@@ -2302,6 +2367,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               )
             );
             setActiveStepIndex(0);
+            setIsNavigationActive(true);
           } else {
             alert(
               "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
@@ -2830,6 +2896,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   onClick={() => {
                     setRouteSteps([]);
                     setActiveStepIndex(0);
+                    setIsNavigationActive(false);
                     if (routeLine && leafletMapRef.current) {
                       leafletMapRef.current.removeLayer(routeLine);
                       setRouteLine(null);
@@ -2840,6 +2907,44 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         navigationMarkerRef.current
                       );
                       navigationMarkerRef.current = null;
+                    }
+                    // Kembalikan highlight gedung
+                    if (selectedFeature && selectedFeature.properties?.id) {
+                      setIsHighlightActive(true);
+
+                      // Highlight permanen gedung (tidak hilang setelah 1 detik)
+                      const bangunanLayer = bangunanLayerRef.current;
+                      if (bangunanLayer) {
+                        bangunanLayer.eachLayer((layer: L.Layer) => {
+                          if (
+                            (layer as any).feature &&
+                            (layer as any).feature.geometry &&
+                            (layer as any).feature.geometry.type ===
+                              "Polygon" &&
+                            (layer as any).feature.properties?.id ===
+                              Number(selectedFeature.properties.id)
+                          ) {
+                            const highlightStyle = {
+                              color: "#ff3333",
+                              fillColor: "#ff3333",
+                              fillOpacity: 0.7,
+                              opacity: 1,
+                              weight: 3,
+                            };
+                            (layer as any).setStyle(highlightStyle);
+                          }
+                        });
+                      }
+
+                      // Pindahkan map ke posisi gedung yang di-highlight (tanpa mengubah zoom)
+                      if (leafletMapRef.current && selectedFeature.geometry) {
+                        const centroid = getFeatureCentroid(selectedFeature);
+                        const currentZoom = leafletMapRef.current.getZoom();
+                        leafletMapRef.current.setView(centroid, currentZoom, {
+                          animate: true,
+                          duration: 1,
+                        });
+                      }
                     }
                   }}
                   className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none"
@@ -3085,6 +3190,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 onClick={() => {
                   setCardVisible(false);
                   setIsHighlightActive(false);
+                  // Jika navigation aktif, tutup juga navigation
+                  if (isNavigationActive) {
+                    setRouteSteps([]);
+                    setActiveStepIndex(0);
+                    setIsNavigationActive(false);
+                    if (routeLine && leafletMapRef.current) {
+                      leafletMapRef.current.removeLayer(routeLine);
+                      setRouteLine(null);
+                    }
+                    // Hapus navigation marker
+                    if (navigationMarkerRef.current && leafletMapRef.current) {
+                      leafletMapRef.current.removeLayer(
+                        navigationMarkerRef.current
+                      );
+                      navigationMarkerRef.current = null;
+                    }
+                  }
                   // Clear highlight dari bangunan layer
                   if (bangunanLayerRef.current) {
                     bangunanLayerRef.current.resetStyle();
@@ -3190,7 +3312,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* MODAL RUTE (di dalam canvas) */}
         {showRouteModal && (
-          <div className="absolute inset-0 z-[3000] flex items-center justify-center">
+          <div
+            data-modal="route-modal"
+            className="absolute inset-0 z-[3000] flex items-center justify-center"
+          >
             {/* Overlay */}
             <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -3217,47 +3342,116 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }}
               >
                 {/* Titik Awal */}
-                <div>
+                <div className="route-modal-select">
                   <label className="block text-sm font-medium mb-1">
                     Titik Awal
                   </label>
 
-                  <select
-                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white max-h-32 overflow-y-auto"
-                    style={{
-                      maxHeight: "8rem", // Batasi tinggi dropdown
-                      overflowY: "auto",
-                    }}
-                    value={
-                      routeStartType === "my-location"
-                        ? "my-location"
-                        : routeStartId
-                    }
-                    onChange={(e) => {
-                      if (e.target.value === "my-location") {
-                        setRouteStartType("my-location");
-                        setRouteStartId("");
-                      } else {
-                        setRouteStartType("titik");
-                        setRouteStartId(e.target.value);
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-left flex items-center justify-between"
+                      onClick={() =>
+                        setIsStartDropdownOpen(!isStartDropdownOpen)
                       }
-                    }}
-                  >
-                    <option value="my-location">
-                      {isGettingLocation
-                        ? "📍 Mendapatkan Lokasi..."
-                        : "📍 Lokasi Saya"}
-                    </option>
-                    {titikFeatures.map((t: any) => (
-                      <option
-                        key={t.id || t.properties?.OBJECTID}
-                        value={t.id || t.properties?.OBJECTID}
+                    >
+                      <span>
+                        {routeStartType === "my-location"
+                          ? isGettingLocation
+                            ? "📍 Mendapatkan Lokasi..."
+                            : "📍 Lokasi Saya"
+                          : (() => {
+                              const selectedTitik = titikFeatures.find(
+                                (t: any) =>
+                                  String(t.id || t.properties?.OBJECTID) ===
+                                  String(routeStartId)
+                              );
+                              return selectedTitik
+                                ? selectedTitik.properties?.Nama ||
+                                    `Titik ${
+                                      selectedTitik.id ||
+                                      selectedTitik.properties?.OBJECTID
+                                    }`
+                                : "Pilih titik awal";
+                            })()}
+                      </span>
+                      <svg
+                        className={`w-4 h-4 transition-transform ${
+                          isStartDropdownOpen ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        {t.properties?.Nama ||
-                          `Titik ${t.id || t.properties?.OBJECTID}`}
-                      </option>
-                    ))}
-                  </select>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {isStartDropdownOpen && (
+                      <div
+                        className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 dropdown-list"
+                        onWheel={(e) => {
+                          const target = e.currentTarget;
+                          const scrollTop = target.scrollTop;
+                          const scrollHeight = target.scrollHeight;
+                          const clientHeight = target.clientHeight;
+                          const delta = e.deltaY;
+
+                          // Cek apakah scroll akan melebihi batas
+                          const willScrollPastTop = delta < 0 && scrollTop <= 0;
+                          const willScrollPastBottom =
+                            delta > 0 &&
+                            scrollTop + clientHeight >= scrollHeight;
+
+                          // Jika akan scroll melebihi batas, prevent default dan stop propagation
+                          if (willScrollPastTop || willScrollPastBottom) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                          }
+
+                          // Jika scroll masih dalam batas, prevent default untuk mencegah scroll halaman
+                          e.preventDefault();
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-100 dark:border-gray-700"
+                          onClick={() => {
+                            setRouteStartType("my-location");
+                            setRouteStartId("");
+                            setIsStartDropdownOpen(false);
+                          }}
+                        >
+                          {isGettingLocation
+                            ? "📍 Mendapatkan Lokasi..."
+                            : "📍 Lokasi Saya"}
+                        </button>
+                        {titikFeatures.map((t: any) => (
+                          <button
+                            key={t.id || t.properties?.OBJECTID}
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                            onClick={() => {
+                              setRouteStartType("titik");
+                              setRouteStartId(
+                                String(t.id || t.properties?.OBJECTID)
+                              );
+                              setIsStartDropdownOpen(false);
+                            }}
+                          >
+                            {t.properties?.Nama ||
+                              `Titik ${t.id || t.properties?.OBJECTID}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {/* Titik Tujuan */}
                 <div>
@@ -3266,7 +3460,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </label>
                   {routeEndType === "bangunan" && routeEndId ? (
                     // Tampilkan bangunan yang dipilih (dari klik bangunan)
-                    <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                       <span className="font-medium">
                         {(() => {
                           const b = bangunanFeatures.find(
@@ -3274,9 +3468,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           );
                           return b ? b.properties.nama : "Bangunan";
                         })()}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
-                        (Otomatis dari klik)
                       </span>
                     </div>
                   ) : (
