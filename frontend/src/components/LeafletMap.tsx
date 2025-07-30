@@ -1738,7 +1738,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     };
 
-    // Perbaiki useEffect untuk menghindari infinite loop
+    // Handle semua step navigation dalam satu useEffect - tidak ada yang di-skip
     useEffect(() => {
       const map = leafletMapRef.current;
       if (
@@ -1749,55 +1749,66 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       )
         return;
 
-      // Hapus line sebelumnya (tidak perlu highlight jalur)
+      // Hapus line sebelumnya
       if (activeStepLineRef.current) {
         map.removeLayer(activeStepLineRef.current);
         activeStepLineRef.current = null;
       }
 
-      // Hapus navigation marker sebelumnya - PENTING untuk menghapus marker lama
+      // Hapus navigation marker sebelumnya
       if (navigationMarkerRef.current) {
         map.removeLayer(navigationMarkerRef.current);
         navigationMarkerRef.current = null;
       }
 
-      // Marker bulatan di AWAL SETIAP GARIS - termasuk step terakhir
+      // Handle semua step - pastikan lingkaran selalu di awal garis (titik sambungan)
       const step = routeSteps[activeStepIndex];
       if (step && step.coordinates && step.coordinates.length > 0) {
-        // Tentukan jenis dan posisi marker
         const isFirstStep = activeStepIndex === 0;
         const isLastStep = activeStepIndex === routeSteps.length - 1;
 
-        let markerPosition: [number, number];
+        // Debug: Lihat koordinat step untuk memastikan posisi yang benar
+        console.log(`🔍 Step ${activeStepIndex + 1} coordinates:`, {
+          first: step.coordinates[0],
+          last: step.coordinates[step.coordinates.length - 1],
+          allCoords: step.coordinates,
+        });
+
+        // PASTIKAN lingkaran di titik AWAL line (o- bukan -o)
+        const markerPosition = step.coordinates[0];
+
         let markerColor: string;
         let markerSize: number;
-
-        // SEMUA marker di awal garis (coordinates[0])
-        markerPosition = step.coordinates[0];
 
         if (isFirstStep) {
           // Step pertama: hijau
           markerColor = "#10b981"; // Hijau
           markerSize = 34;
         } else if (isLastStep) {
-          // Step terakhir: merah (tapi tetap di awal garis terakhir)
+          // Step terakhir: merah (destinasi)
           markerColor = "#ef4444"; // Merah
-          markerSize = 34;
+          markerSize = 36;
         } else {
           // Step tengah: biru
           markerColor = "#4285f4"; // Biru
           markerSize = 32;
         }
 
+        const markerType = isFirstStep
+          ? "START"
+          : isLastStep
+          ? "DESTINATION"
+          : "SEGMENT";
+
         console.log(
-          `🎯 Marker Step ${activeStepIndex + 1}: ${
-            isFirstStep ? "START" : isLastStep ? "LAST_LINE" : "LINE"
-          } at START of line [${markerPosition[0].toFixed(
+          `🎯 Marker Step ${
+            activeStepIndex + 1
+          }: ${markerType} - lingkaran di AWAL line [${markerPosition[0].toFixed(
             6
-          )}, ${markerPosition[1].toFixed(6)}]`
+          )}, ${markerPosition[1].toFixed(6)}] (o- format)`
         );
 
-        // Buat marker bulat sederhana tanpa icon
+        // Buat marker bulat di titik sambungan
         const navigationMarker = L.marker(markerPosition, {
           icon: L.divIcon({
             className: "navigation-circle-marker",
@@ -1833,7 +1844,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             dashArray: "8, 4",
           }).addTo(map);
 
-          // Cleanup previous highlight
+          // Cleanup highlight sebelumnya
           if (
             activeStepLineRef.current &&
             map.hasLayer(activeStepLineRef.current)
@@ -1844,7 +1855,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
 
-      // Cleanup function yang lebih robust
+      // Cleanup function
       return () => {
         if (
           activeStepLineRef.current &&
@@ -1861,7 +1872,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           navigationMarkerRef.current = null;
         }
       };
-    }, [activeStepIndex]); // Hanya depend pada activeStepIndex, bukan routeSteps
+    }, [activeStepIndex, routeSteps.length]); // Depend pada activeStepIndex dan routeSteps.length
 
     // Log setiap kali stepper dirender atau step berubah
     useEffect(() => {
@@ -2788,9 +2799,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     dari {routeSteps.length} langkah
                   </div>
-                  {/* Tambahkan jarak di sini */}
+                  {/* Tambahkan jarak di sini - step 1 gunakan jarak sendiri, step 2+ gunakan jarak sebelumnya */}
                   <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                    {Math.round(routeSteps[activeStepIndex]?.distance || 0)}m
+                    {activeStepIndex === 0
+                      ? Math.round(routeSteps[activeStepIndex]?.distance || 0)
+                      : Math.round(
+                          routeSteps[activeStepIndex - 1]?.distance || 0
+                        )}
+                    m
                   </div>
                 </div>
                 <div className="text-sm font-medium leading-relaxed">

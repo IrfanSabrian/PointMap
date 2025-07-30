@@ -125,47 +125,109 @@ export function parseRouteSteps(
   if (!routeSegments || routeSegments.length === 0) return [];
 
   console.log(
-    `📋 Parsing sederhana: ${routeSegments.length} segmen = ${routeSegments.length} steps`
+    `📋 Parsing rute: ${routeSegments.length} segmen untuk dibuat step navigasi`
   );
 
-  // Buat 1 step untuk setiap segmen
-  const simpleSteps: any[] = [];
+  // Debug: tampilkan urutan panjang segmen
+  const segmentDistances = routeSegments.map((segment, i) => {
+    let distance = 0;
+    if (segment.properties && segment.properties.panjang) {
+      distance = Number(segment.properties.panjang);
+    } else if (segment.geometry && segment.geometry.coordinates) {
+      const coords = segment.geometry.coordinates;
+      for (let j = 1; j < coords.length; j++) {
+        const prev: [number, number] = [coords[j - 1][1], coords[j - 1][0]];
+        const curr: [number, number] = [coords[j][1], coords[j][0]];
+        distance += calculateDistance(prev, curr);
+      }
+    }
+    return Math.round(distance);
+  });
+  console.log(`🔍 Urutan panjang segmen asli: ${segmentDistances.join(", ")}m`);
 
+  const steps: any[] = [];
+
+  // Untuk setiap segmen, buat step yang dimulai dari titik awal segmen (skip step 1)
   for (let i = 0; i < routeSegments.length; i++) {
+    // Skip step pertama karena instruksinya sudah digabung dengan step kedua
+    if (i === 0) {
+      console.log(`  ⏭️ Step 1 di-skip (instruksinya digabung dengan step 2)`);
+      continue;
+    }
+
     const segment = routeSegments[i];
     const step = createStepFromSingleSegment(segment);
 
-    // Tandai jenis step
-    (step as any).stepType =
-      i === 0 ? "start" : i === routeSegments.length - 1 ? "end" : "middle";
+    // Tentukan tipe step - step 2 menjadi "start" di UI
+    const stepType =
+      i === 1 ? "start" : i === routeSegments.length - 1 ? "end" : "middle";
+    (step as any).stepType = stepType;
     (step as any).segmentIndex = i;
 
+    // PERBAIKAN: Pastikan sambungan antar step konsisten untuk o- o- o- o-
+    if (i === 1 && startPoint) {
+      // Step kedua (menjadi step 1 di UI): mulai dari startPoint dan gunakan jarak segmen 1
+      step.start = startPoint;
+      step.coordinates = [startPoint, ...step.coordinates.slice(1)];
+
+      // PENTING: Gunakan jarak dari segmen 1 yang di-skip untuk step 1 UI
+      const skippedSegment = routeSegments[0]; // Segmen 1 yang di-skip
+      const originalDistance = step.distance; // Simpan jarak asli dari segmen 2
+      let skippedDistance = 0;
+      if (skippedSegment.properties && skippedSegment.properties.panjang) {
+        skippedDistance = Number(skippedSegment.properties.panjang);
+      } else if (
+        skippedSegment.geometry &&
+        skippedSegment.geometry.coordinates
+      ) {
+        const coords = skippedSegment.geometry.coordinates;
+        for (let j = 1; j < coords.length; j++) {
+          const prev: [number, number] = [coords[j - 1][1], coords[j - 1][0]];
+          const curr: [number, number] = [coords[j][1], coords[j][0]];
+          skippedDistance += calculateDistance(prev, curr);
+        }
+      }
+      step.distance = skippedDistance; // Override dengan jarak segmen 1
+
+      console.log(
+        `  ✅ Step 1 UI: ${Math.round(
+          originalDistance
+        )}m (segmen 2) → ${Math.round(skippedDistance)}m (segmen 1)`
+      );
+    } else if (i > 1) {
+      // Step ke-3 dst: mulai dari titik akhir step sebelumnya (sambungan)
+      const prevStep = steps[steps.length - 1];
+      const connectionPoint =
+        prevStep.coordinates[prevStep.coordinates.length - 1];
+      step.start = connectionPoint;
+      step.coordinates = [connectionPoint, ...step.coordinates.slice(1)];
+    }
+
+    // Override end point untuk step terakhir jika ada endPoint
+    if (i === routeSegments.length - 1 && endPoint) {
+      step.coordinates = [...step.coordinates.slice(0, -1), endPoint];
+    }
+
+    // Hitung step number untuk UI (karena step 1 di-skip)
+    const uiStepNumber = steps.length + 1;
+
     console.log(
-      `  📍 Step ${i + 1}: ${(step as any).stepType}, ${step.distance.toFixed(
-        1
-      )}m`
+      `  📍 Step ${uiStepNumber} (segmen ${
+        i + 1
+      }): ${stepType}, lingkaran di [${step.start[0].toFixed(
+        4
+      )}, ${step.start[1].toFixed(4)}] → ${step.distance.toFixed(1)}m`
     );
 
-    simpleSteps.push(step);
+    steps.push(step);
   }
 
-  // Override start point untuk step pertama
-  if (startPoint && simpleSteps.length > 0) {
-    simpleSteps[0].start = startPoint;
-    simpleSteps[0].coordinates = [
-      startPoint,
-      ...simpleSteps[0].coordinates.slice(1),
-    ];
-  }
+  // Debug: tampilkan urutan jarak step yang sudah dibuat
+  const stepDistances = steps.map((step) => Math.round(step.distance));
+  console.log(`🔍 Urutan jarak step UI: ${stepDistances.join(", ")}m`);
 
-  // Override end point untuk step terakhir
-  if (endPoint && simpleSteps.length > 0) {
-    const lastStep = simpleSteps[simpleSteps.length - 1];
-    lastStep.coordinates = [...lastStep.coordinates.slice(0, -1), endPoint];
-  }
-
-  console.log(`✅ Total simple steps: ${simpleSteps.length}`);
-  return simpleSteps;
+  console.log(`✅ Total steps dibuat: ${steps.length}`);
+  return steps;
 }
 
 // Fungsi untuk membuat step dari 1 segmen saja
@@ -203,55 +265,71 @@ function createStepFromSingleSegment(segment: any) {
 // Fungsi untuk generate instruksi sederhana berdasarkan posisi step
 export function getStepInstruction(idx: number, steps: any[]) {
   const step = steps[idx];
-  const distanceText = `${Math.round(step.distance)} meter`;
 
   if (step.type === "osrm") {
+    const distanceText = `${Math.round(step.distance)} meter`;
     return `Jalan ${distanceText} (jalan luar kampus)`;
   }
 
   // Ambil metadata step
   const stepType = (step as any).stepType || "unknown";
-  const segmentIndex = (step as any).segmentIndex || 0;
 
   console.log(
-    `📋 Step ${idx + 1}: stepType=${stepType}, segmentIndex=${segmentIndex}`
+    `📋 Step ${idx + 1}: stepType=${stepType}, distance=${Math.round(
+      step.distance
+    )}m`
   );
 
-  // Step pertama: selalu "Mulai"
-  if (idx === 0 || stepType === "start") {
-    return `Mulai, jalan ${distanceText}`;
-  }
-
-  // Step terakhir: sampai tujuan tanpa jarak
+  // Step terakhir: sampai tujuan
   if (idx === steps.length - 1 || stepType === "end") {
     return `Sampai tujuan`;
   }
 
-  // Step tengah: deteksi arah berdasarkan step sebelumnya
-  if (idx > 0 && steps[idx - 1]) {
-    const prev = steps[idx - 1];
-    const curr = steps[idx];
+  // Step pertama (sebenarnya step 2): "Mulai perjalanan" dengan informasi gabungan
+  if (idx === 0 || stepType === "start") {
+    const currentDistance = Math.round(step.distance);
+    const distanceText = `${currentDistance} meter`;
 
-    // Hitung sudut belok antar step
-    const stepAngle = calculatePreciseTurnAngle(prev, curr);
+    console.log(`📍 Step ${idx + 1}: START (ex-step 2) - ${currentDistance}m`);
+    return `Mulai perjalanan. Lurus, jalan ${distanceText}`;
+  }
+
+  // Step ke-2 dan seterusnya: gunakan jarak step sebelumnya (konsisten dengan header)
+  if (idx > 0 && steps[idx - 1]) {
+    const prevStep = steps[idx - 1];
+    const currentStep = steps[idx];
+
+    // Gunakan jarak dari step sebelumnya (konsisten dengan header meter)
+    const prevDistance = Math.round(prevStep.distance);
+    const distanceText = `${prevDistance} meter`;
+
+    // Hitung sudut belok dari step sebelumnya ke step ini
+    const turnAngle = calculatePreciseTurnAngle(prevStep, currentStep);
 
     console.log(
-      `📍 Step ${idx + 1}: Angle = ${stepAngle.toFixed(
+      `📍 Step ${
+        idx + 1
+      }: Header dan instruksi konsisten ${prevDistance}m, arah belok ${turnAngle.toFixed(
         1
-      )}°, Distance = ${Math.round(step.distance)}m`
+      )}°`
+    );
+    console.log(
+      `🔍 DEBUG Step ${idx + 1}: prevStep.distance=${
+        prevStep.distance
+      }, currentStep.distance=${currentStep.distance}`
     );
 
-    // Deteksi arah belok
-    if (stepAngle > 20) {
+    // Deteksi arah belok yang sudah dilakukan dari step sebelumnya ke step ini
+    if (turnAngle > 20) {
       return `Belok kiri, jalan ${distanceText}`;
-    } else if (stepAngle < -20) {
+    } else if (turnAngle < -20) {
       return `Belok kanan, jalan ${distanceText}`;
     } else {
       return `Lurus, jalan ${distanceText}`;
     }
   }
 
-  return `Lurus, jalan ${distanceText}`;
+  return `Lurus`;
 }
 
 // Fungsi untuk menghitung sudut belok yang lebih akurat
