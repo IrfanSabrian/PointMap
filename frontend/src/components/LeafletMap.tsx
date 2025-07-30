@@ -1619,10 +1619,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     // Fungsi untuk mencari gerbang terbaik: yang terhubung ke tujuan DAN terdekat dari GPS
-    const findBestGateForDestination = (
+    const findBestGateForDestination = async (
       userCoords: [number, number],
       endCoords: [number, number]
-    ): any | null => {
+    ): Promise<any | null> => {
       // 1. PERTAMA: Cari semua gerbang yang terhubung ke tujuan
       const connectedGates = findConnectedGates(endCoords);
 
@@ -1635,34 +1635,99 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         `🎯 Ditemukan ${connectedGates.length} gerbang yang terhubung ke tujuan`
       );
 
-      // 2. KEDUA: Dari gerbang yang terhubung, pilih yang terdekat dari GPS
+      // 2. KEDUA: Hitung rute OSRM dari GPS ke setiap gerbang
       let bestGate = null;
-      let shortestDistance = Infinity;
+      let shortestTotalDistance = Infinity;
       let bestRouteToDestination = null;
+      let bestOsrmRoute = null;
 
       for (const gateInfo of connectedGates) {
-        const distance = calculateDistance(userCoords, gateInfo.coords);
-        console.log(
-          `📏 Jarak GPS ke ${gateInfo.gateName}: ${Math.round(distance)}m`
-        );
+        console.log(`🔍 Mencari rute OSRM ke ${gateInfo.gateName}...`);
 
-        if (distance < shortestDistance) {
-          shortestDistance = distance;
-          bestGate = gateInfo.gate;
-          bestRouteToDestination = gateInfo.routeToDestination;
+        try {
+          // Dapatkan rute OSRM dari GPS ke gerbang
+          const osrmRoute = await getRealWorldRoute(
+            userCoords,
+            gateInfo.coords
+          );
+
+          if (osrmRoute) {
+            // Total jarak = OSRM (GPS->Gerbang) + GeoJSON (Gerbang->Tujuan)
+            const totalDistance =
+              osrmRoute.distance + gateInfo.routeToDestination.distance;
+
+            console.log(
+              `📏 ${gateInfo.gateName}: OSRM ${Math.round(
+                osrmRoute.distance
+              )}m + GeoJSON ${Math.round(
+                gateInfo.routeToDestination.distance
+              )}m = Total ${Math.round(totalDistance)}m`
+            );
+
+            if (totalDistance < shortestTotalDistance) {
+              shortestTotalDistance = totalDistance;
+              bestGate = gateInfo.gate;
+              bestRouteToDestination = gateInfo.routeToDestination;
+              bestOsrmRoute = osrmRoute;
+            }
+          } else {
+            // Fallback ke garis lurus jika OSRM gagal
+            const straightDistance = calculateDistance(
+              userCoords,
+              gateInfo.coords
+            );
+            const totalDistance =
+              straightDistance + gateInfo.routeToDestination.distance;
+
+            console.log(
+              `📏 ${gateInfo.gateName} (fallback): Garis lurus ${Math.round(
+                straightDistance
+              )}m + GeoJSON ${Math.round(
+                gateInfo.routeToDestination.distance
+              )}m = Total ${Math.round(totalDistance)}m`
+            );
+
+            if (totalDistance < shortestTotalDistance) {
+              shortestTotalDistance = totalDistance;
+              bestGate = gateInfo.gate;
+              bestRouteToDestination = gateInfo.routeToDestination;
+              bestOsrmRoute = null; // Tidak ada OSRM route
+            }
+          }
+        } catch (error) {
+          console.error(
+            `❌ Error getting OSRM route to ${gateInfo.gateName}:`,
+            error
+          );
+
+          // Fallback ke garis lurus
+          const straightDistance = calculateDistance(
+            userCoords,
+            gateInfo.coords
+          );
+          const totalDistance =
+            straightDistance + gateInfo.routeToDestination.distance;
+
+          if (totalDistance < shortestTotalDistance) {
+            shortestTotalDistance = totalDistance;
+            bestGate = gateInfo.gate;
+            bestRouteToDestination = gateInfo.routeToDestination;
+            bestOsrmRoute = null;
+          }
         }
       }
 
       if (bestGate) {
         console.log(
-          `🏆 Gerbang terbaik: ${bestGate.properties?.Nama} (${Math.round(
-            shortestDistance
-          )}m dari GPS)`
+          `🏆 Gerbang terbaik: ${
+            bestGate.properties?.Nama
+          } (Total jarak rute: ${Math.round(shortestTotalDistance)}m)`
         );
         return {
           gate: bestGate,
           routeToDestination: bestRouteToDestination,
-          distanceFromGps: shortestDistance,
+          osrmRoute: bestOsrmRoute,
+          totalDistance: shortestTotalDistance,
         };
       }
 
@@ -2047,7 +2112,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
         if (routeStartType === "my-location") {
-          const bestGateInfo = findBestGateForDestination(
+          const bestGateInfo = await findBestGateForDestination(
             startLatLng,
             endLatLng
           );
@@ -2065,13 +2130,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
             console.log(
-              "🗺️ Getting real-world route: GPS →",
+              "🗺️ Using optimized OSRM route: GPS →",
               bestGateInfo.gate.properties?.Nama
             );
-            const realWorldGpsToGate = await getRealWorldRoute(
-              startLatLng,
-              gateCoords
-            );
+
+            // Gunakan OSRM route yang sudah didapat dari findBestGateForDestination
+            const realWorldGpsToGate = bestGateInfo.osrmRoute;
 
             let gpsToGateSegment;
             let gpsToGateDistance;
@@ -2096,7 +2160,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 type: "Feature",
                 geometry: {
                   type: "LineString",
-                  coordinates: latLngs.map((coord) => [coord[1], coord[0]]),
+                  coordinates: latLngs.map((coord: [number, number]) => [
+                    coord[1],
+                    coord[0],
+                  ]),
                 },
                 properties: {
                   routeType: "gps-to-gate-real",
@@ -2189,9 +2256,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setRouteLine(geoJsonLayer);
               const allLatLngs: L.LatLng[] = [];
               if (realWorldGpsToGate) {
-                realWorldGpsToGate.coordinates.forEach((coord) => {
-                  allLatLngs.push(L.latLng(coord[0], coord[1]));
-                });
+                realWorldGpsToGate.coordinates.forEach(
+                  (coord: [number, number]) => {
+                    allLatLngs.push(L.latLng(coord[0], coord[1]));
+                  }
+                );
               } else {
                 allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
                 allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
@@ -2359,7 +2428,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
         if (startType === "my-location") {
-          const bestGateInfo = findBestGateForDestination(
+          const bestGateInfo = await findBestGateForDestination(
             startLatLng,
             endLatLng
           );
@@ -2377,13 +2446,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
             console.log(
-              "🗺️ Getting real-world route: GPS →",
+              "🗺️ Using optimized OSRM route: GPS →",
               bestGateInfo.gate.properties?.Nama
             );
-            const realWorldGpsToGate = await getRealWorldRoute(
-              startLatLng,
-              gateCoords
-            );
+
+            // Gunakan OSRM route yang sudah didapat dari findBestGateForDestination
+            const realWorldGpsToGate = bestGateInfo.osrmRoute;
 
             let gpsToGateSegment;
             let gpsToGateDistance;
@@ -2408,7 +2476,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 type: "Feature",
                 geometry: {
                   type: "LineString",
-                  coordinates: latLngs.map((coord) => [coord[1], coord[0]]),
+                  coordinates: latLngs.map((coord: [number, number]) => [
+                    coord[1],
+                    coord[0],
+                  ]),
                 },
                 properties: {
                   routeType: "gps-to-gate-real",
@@ -2493,9 +2564,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               const allLatLngs: L.LatLng[] = [];
               if (realWorldGpsToGate) {
-                realWorldGpsToGate.coordinates.forEach((coord) => {
-                  allLatLngs.push(L.latLng(coord[0], coord[1]));
-                });
+                realWorldGpsToGate.coordinates.forEach(
+                  (coord: [number, number]) => {
+                    allLatLngs.push(L.latLng(coord[0], coord[1]));
+                  }
+                );
               } else {
                 allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
                 allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
@@ -2799,14 +2872,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     dari {routeSteps.length} langkah
                   </div>
-                  {/* Tambahkan jarak di sini - step 1 gunakan jarak sendiri, step 2+ gunakan jarak sebelumnya */}
+                  {/* PERBAIKAN: Semua step gunakan jarak dari step saat ini */}
                   <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                    {activeStepIndex === 0
-                      ? Math.round(routeSteps[activeStepIndex]?.distance || 0)
-                      : Math.round(
-                          routeSteps[activeStepIndex - 1]?.distance || 0
-                        )}
-                    m
+                    {Math.round(routeSteps[activeStepIndex]?.distance || 0)}m
                   </div>
                 </div>
                 <div className="text-sm font-medium leading-relaxed">

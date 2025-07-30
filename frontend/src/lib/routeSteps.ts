@@ -164,36 +164,44 @@ export function parseRouteSteps(
     (step as any).stepType = stepType;
     (step as any).segmentIndex = i;
 
-    // PERBAIKAN: Pastikan sambungan antar step konsisten untuk o- o- o- o-
-    if (i === 1 && startPoint) {
-      // Step kedua (menjadi step 1 di UI): mulai dari startPoint dan gunakan jarak segmen 1
-      step.start = startPoint;
-      step.coordinates = [startPoint, ...step.coordinates.slice(1)];
+    // PERBAIKAN: Assign jarak yang benar untuk setiap step UI
+    const uiStepIndex = steps.length; // Index step di UI (0, 1, 2, ...)
+    const correctSegmentIndex = uiStepIndex; // Segmen yang seharusnya digunakan untuk step UI ini
 
-      // PENTING: Gunakan jarak dari segmen 1 yang di-skip untuk step 1 UI
-      const skippedSegment = routeSegments[0]; // Segmen 1 yang di-skip
-      const originalDistance = step.distance; // Simpan jarak asli dari segmen 2
-      let skippedDistance = 0;
-      if (skippedSegment.properties && skippedSegment.properties.panjang) {
-        skippedDistance = Number(skippedSegment.properties.panjang);
+    if (correctSegmentIndex < routeSegments.length) {
+      // Gunakan jarak dari segmen yang benar
+      const correctSegment = routeSegments[correctSegmentIndex];
+      let correctDistance = 0;
+
+      if (correctSegment.properties && correctSegment.properties.panjang) {
+        correctDistance = Number(correctSegment.properties.panjang);
       } else if (
-        skippedSegment.geometry &&
-        skippedSegment.geometry.coordinates
+        correctSegment.geometry &&
+        correctSegment.geometry.coordinates
       ) {
-        const coords = skippedSegment.geometry.coordinates;
+        const coords = correctSegment.geometry.coordinates;
         for (let j = 1; j < coords.length; j++) {
           const prev: [number, number] = [coords[j - 1][1], coords[j - 1][0]];
           const curr: [number, number] = [coords[j][1], coords[j][0]];
-          skippedDistance += calculateDistance(prev, curr);
+          correctDistance += calculateDistance(prev, curr);
         }
       }
-      step.distance = skippedDistance; // Override dengan jarak segmen 1
+
+      // Override jarak step dengan jarak yang benar
+      step.distance = correctDistance;
 
       console.log(
-        `  ✅ Step 1 UI: ${Math.round(
-          originalDistance
-        )}m (segmen 2) → ${Math.round(skippedDistance)}m (segmen 1)`
+        `  ✅ Step ${uiStepIndex + 1} UI: menggunakan jarak segmen ${
+          correctSegmentIndex + 1
+        } = ${Math.round(correctDistance)}m`
       );
+    }
+
+    // Pastikan sambungan antar step konsisten
+    if (i === 1 && startPoint) {
+      // Step kedua (menjadi step 1 di UI): mulai dari startPoint
+      step.start = startPoint;
+      step.coordinates = [startPoint, ...step.coordinates.slice(1)];
     } else if (i > 1) {
       // Step ke-3 dst: mulai dari titik akhir step sebelumnya (sambungan)
       const prevStep = steps[steps.length - 1];
@@ -203,10 +211,11 @@ export function parseRouteSteps(
       step.coordinates = [connectionPoint, ...step.coordinates.slice(1)];
     }
 
-    // Override end point untuk step terakhir jika ada endPoint
-    if (i === routeSegments.length - 1 && endPoint) {
-      step.coordinates = [...step.coordinates.slice(0, -1), endPoint];
-    }
+    // PERBAIKAN: Jangan override end point secara otomatis
+    // Biarkan step terakhir menggunakan koordinat asli dari jalur GeoJSON
+    // if (i === routeSegments.length - 1 && endPoint) {
+    //   step.coordinates = [...step.coordinates.slice(0, -1), endPoint];
+    // }
 
     // Hitung step number untuk UI (karena step 1 di-skip)
     const uiStepNumber = steps.length + 1;
@@ -225,6 +234,11 @@ export function parseRouteSteps(
   // Debug: tampilkan urutan jarak step yang sudah dibuat
   const stepDistances = steps.map((step) => Math.round(step.distance));
   console.log(`🔍 Urutan jarak step UI: ${stepDistances.join(", ")}m`);
+
+  // Debug: tampilkan detail final steps
+  steps.forEach((step, idx) => {
+    console.log(`🔍 Final Step ${idx + 1}: ${Math.round(step.distance)}m`);
+  });
 
   console.log(`✅ Total steps dibuat: ${steps.length}`);
   return steps;
@@ -294,14 +308,14 @@ export function getStepInstruction(idx: number, steps: any[]) {
     return `Mulai perjalanan. Lurus, jalan ${distanceText}`;
   }
 
-  // Step ke-2 dan seterusnya: gunakan jarak step sebelumnya (konsisten dengan header)
+  // Step ke-2 dan seterusnya: gunakan jarak step saat ini
   if (idx > 0 && steps[idx - 1]) {
     const prevStep = steps[idx - 1];
     const currentStep = steps[idx];
 
-    // Gunakan jarak dari step sebelumnya (konsisten dengan header meter)
-    const prevDistance = Math.round(prevStep.distance);
-    const distanceText = `${prevDistance} meter`;
+    // PERBAIKAN: Gunakan jarak dari step saat ini, bukan step sebelumnya
+    const currentDistance = Math.round(currentStep.distance);
+    const distanceText = `${currentDistance} meter`;
 
     // Hitung sudut belok dari step sebelumnya ke step ini
     const turnAngle = calculatePreciseTurnAngle(prevStep, currentStep);
@@ -309,14 +323,14 @@ export function getStepInstruction(idx: number, steps: any[]) {
     console.log(
       `📍 Step ${
         idx + 1
-      }: Header dan instruksi konsisten ${prevDistance}m, arah belok ${turnAngle.toFixed(
+      }: Instruksi step saat ini ${currentDistance}m, arah belok ${turnAngle.toFixed(
         1
       )}°`
     );
     console.log(
       `🔍 DEBUG Step ${idx + 1}: prevStep.distance=${
         prevStep.distance
-      }, currentStep.distance=${currentStep.distance}`
+      }, currentStep.distance=${currentStep.distance} (using current)`
     );
 
     // Deteksi arah belok yang sudah dilakukan dari step sebelumnya ke step ini

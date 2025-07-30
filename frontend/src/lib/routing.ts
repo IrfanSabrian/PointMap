@@ -219,9 +219,28 @@ export function findPathToDestination(
   // Cari jalur yang terhubung dengan jalur ini
   const connectedRoutes = findConnectedRouteToRoute(currentRoute, allRoutes);
 
-  // Coba setiap jalur yang terhubung
-  for (const connectedRoute of connectedRoutes.slice(0, 3)) {
-    // Coba 3 jalur terdekat
+  // PERBAIKAN: Filter jalur yang sudah dikunjungi untuk mencegah loop
+  const unvisitedConnectedRoutes = connectedRoutes.filter(
+    (route) => !newVisited.has(route.id)
+  );
+
+  // PERBAIKAN: Prioritaskan jalur yang mendekat ke tujuan
+  const prioritizedRoutes = unvisitedConnectedRoutes
+    .map((route) => {
+      const routeCoords = getRouteCoordinates(route);
+      if (routeCoords.length === 0)
+        return { route, distanceToDestination: Infinity };
+
+      const routeEnd = routeCoords[routeCoords.length - 1];
+      const distanceToTarget = calculateDistance(routeEnd, destination);
+
+      return { route, distanceToDestination: distanceToTarget };
+    })
+    .sort((a, b) => a.distanceToDestination - b.distanceToDestination)
+    .map((item) => item.route);
+
+  // Coba setiap jalur yang terhubung (maksimal 3 terdekat)
+  for (const connectedRoute of prioritizedRoutes.slice(0, 3)) {
     const result = findPathToDestination(
       connectedRoute,
       destination,
@@ -273,11 +292,12 @@ export function buildCompleteCoordinates(
     }
   }
 
-  // Tambahkan koordinat tujuan jika tidak sama dengan akhir path
-  const pathEnd = allCoordinates[allCoordinates.length - 1];
-  if (calculateDistance(pathEnd, destination) > 10) {
-    allCoordinates.push(destination);
-  }
+  // PERBAIKAN: Jangan tambahkan garis otomatis ke tujuan
+  // Hanya tampilkan jalur yang benar-benar ada di GeoJSON
+  // const pathEnd = allCoordinates[allCoordinates.length - 1];
+  // if (calculateDistance(pathEnd, destination) > 10) {
+  //   allCoordinates.push(destination);
+  // }
 
   return allCoordinates;
 }
