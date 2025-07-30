@@ -164,9 +164,20 @@ export function parseRouteSteps(
     (step as any).stepType = stepType;
     (step as any).segmentIndex = i;
 
-    // PERBAIKAN: Assign jarak yang benar untuk setiap step UI
+    // PERBAIKAN: Mapping jarak yang benar berdasarkan request user
     const uiStepIndex = steps.length; // Index step di UI (0, 1, 2, ...)
-    const correctSegmentIndex = uiStepIndex; // Segmen yang seharusnya digunakan untuk step UI ini
+
+    // Mapping khusus: Step UI 1 pakai segmen 0, Step UI 2 pakai segmen 1, dst
+    // Tapi Step UI terakhir harus pakai segmen terakhir (untuk sampai ke tujuan)
+    let correctSegmentIndex;
+
+    if (i === routeSegments.length - 1) {
+      // Step terakhir: gunakan segmen terakhir (segmen 8 = 4m)
+      correctSegmentIndex = routeSegments.length - 1;
+    } else {
+      // Step lainnya: Step UI 1 pakai segmen 0, UI 2 pakai segmen 1, dst
+      correctSegmentIndex = uiStepIndex;
+    }
 
     if (correctSegmentIndex < routeSegments.length) {
       // Gunakan jarak dari segmen yang benar
@@ -193,7 +204,9 @@ export function parseRouteSteps(
       console.log(
         `  ✅ Step ${uiStepIndex + 1} UI: menggunakan jarak segmen ${
           correctSegmentIndex + 1
-        } = ${Math.round(correctDistance)}m`
+        } = ${Math.round(correctDistance)}m ${
+          i === routeSegments.length - 1 ? "(SEGMEN TERAKHIR)" : ""
+        }`
       );
     }
 

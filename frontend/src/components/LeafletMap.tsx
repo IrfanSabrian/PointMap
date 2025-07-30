@@ -168,6 +168,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       basemap === "esri_satellite"
     );
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+    const [isHighlightActive, setIsHighlightActive] = useState(false);
+    const [isContainerShaking, setIsContainerShaking] = useState(false);
+    const isHighlightActiveRef = useRef(false);
     const [showRouteModal, setShowRouteModal] = useState(false);
     const [routeEndType, setRouteEndType] = useState("bangunan");
     const [routeEndId, setRouteEndId] = useState("");
@@ -562,8 +566,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Hanya kategori Bangunan yang bisa diklik
           if (feature.properties?.id) {
             layer.on("click", function (e: L.LeafletMouseEvent) {
-              // Jika rute sedang tampil, blok interaksi klik bangunan lain
-              if (routeLine) {
+              // Jika rute sedang tampil atau highlight aktif, blok interaksi klik bangunan lain
+              if (routeLineRef.current || isHighlightActiveRef.current) {
                 if (
                   e &&
                   e.originalEvent &&
@@ -575,6 +579,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
               setSelectedFeature(feature as FeatureFixed);
               setCardVisible(true);
+              setIsHighlightActive(true);
               // Kirim pesan ke dashboard untuk update sidebar
               window.postMessage(
                 {
@@ -640,6 +645,58 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         basemapLayerRef.current = null;
       };
     }, []); // hanya sekali
+
+    // Control map interactions berdasarkan highlight state
+    useEffect(() => {
+      const map = leafletMapRef.current;
+      if (!map) return;
+
+      // Update ref untuk digunakan di event handler Leaflet
+      isHighlightActiveRef.current = isHighlightActive;
+
+      if (isHighlightActive) {
+        // Disable map interactions
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+
+        // Add click handler untuk canvas area
+        const handleCanvasClick = (e: MouseEvent) => {
+          // Cek apakah klik di luar container
+          const container = document.querySelector(
+            '[data-container="building-detail"]'
+          );
+          if (container && !container.contains(e.target as Node)) {
+            // Trigger shake effect
+            setIsContainerShaking(true);
+            setTimeout(() => setIsContainerShaking(false), 600);
+          }
+        };
+
+        document.addEventListener("click", handleCanvasClick);
+
+        // Cleanup
+        return () => {
+          document.removeEventListener("click", handleCanvasClick);
+        };
+      } else {
+        // Enable map interactions
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+      }
+    }, [isHighlightActive]);
+
+    // Sync routeLine state dengan routeLineRef
+    useEffect(() => {
+      routeLineRef.current = routeLine as L.Polyline | null;
+    }, [routeLine]);
 
     // Update basemap layer
     useEffect(() => {
@@ -813,114 +870,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Handle select search result
     const handleSelectSearchResult = async (feature: FeatureType) => {
+      // Blokir jika highlight aktif - user harus close container dulu
+      if (isHighlightActive) {
+        console.log(
+          "⚠️ Container detail sedang terbuka, tutup dulu untuk memilih bangunan lain"
+        );
+        return;
+      }
+
       const map = leafletMapRef.current;
       if (!map) return;
 
-      console.log("🔄 Menghitung rute otomatis ke:", feature.properties?.nama);
-
-      // Set endpoint berdasarkan tipe feature
-      let targetBangunanId = "";
-      let targetBangunanName = "";
-
-      if (feature.properties?.displayType === "ruangan") {
-        // Untuk ruangan, set ke bangunan yang berisi ruangan
-        const bangunanId = feature.properties?.bangunan_id;
-        const bangunan = bangunanFeatures.find(
-          (b) => b.properties?.id === bangunanId
-        );
-        if (bangunan) {
-          targetBangunanId = String(bangunan.properties?.id);
-          targetBangunanName = bangunan.properties?.nama || "";
-        } else {
-          console.warn("❌ Bangunan tidak ditemukan untuk ruangan");
-          return;
-        }
-      } else {
-        // Untuk bangunan dan fasilitas lain
-        targetBangunanId = String(feature.properties?.id);
-        targetBangunanName = feature.properties?.nama || "";
-      }
-
-      // Set all route states at once
-      setRouteEndSearchText(targetBangunanName);
-      setRouteEndSearchResults([
-        {
-          id: targetBangunanId,
-          name: targetBangunanName,
-          coordinates: getFeatureCentroid(
-            feature.properties?.displayType === "ruangan"
-              ? bangunanFeatures.find(
-                  (b) => b.properties?.id == feature.properties?.bangunan_id
-                ) || feature
-              : feature
-          ),
-        },
-      ]);
-      setRouteEndType("bangunan");
-      setRouteEndId(targetBangunanId);
-      setRouteStartType("my-location");
-      setRouteStartId("");
-
-      // Ambil GPS dan jalankan routing
-      try {
-        console.log("📍 Mengambil GPS untuk routing otomatis...");
-        const gpsCoords = await getCurrentLocation();
-        console.log("✅ GPS berhasil diambil:", gpsCoords);
-
-        // Set user location untuk live GPS
-        setUserLocation(L.latLng(gpsCoords[0], gpsCoords[1]));
-
-        // Cek apakah user di dalam kampus, jika ya mulai live tracking
-        const isInside = isUserInsideCampus(gpsCoords[0], gpsCoords[1]);
-        if (isInside) {
-          console.log("📍 User di dalam kampus, memulai live GPS tracking...");
-          startLiveTracking();
-        }
-
-        // Force state update dengan callback
-        setTimeout(async () => {
-          console.log("🚀 Menjalankan handleRouteSubmit dengan state:", {
-            routeStartType: "my-location",
-            routeEndType: "bangunan",
-            routeEndId: targetBangunanId,
-            routeEndSearchText: targetBangunanName,
-            gpsCoords,
-          });
-
-          // Call routing function directly dengan parameter yang sudah pasti
-          await performRouting(
-            "my-location",
-            "",
-            "bangunan",
-            targetBangunanId,
-            gpsCoords
-          );
-        }, 500);
-      } catch (gpsError) {
-        console.error("❌ Gagal mengambil GPS:", gpsError);
-        // Jika GPS gagal, gunakan titik default
-        if (titikFeatures.length > 0) {
-          const firstTitik = titikFeatures[0];
-          const fallbackStartType = "titik";
-          const fallbackStartId = String(
-            firstTitik.id || firstTitik.properties?.OBJECTID
-          );
-
-          console.log(
-            "🔄 Fallback ke titik default:",
-            firstTitik.properties?.Nama
-          );
-
-          setTimeout(async () => {
-            await performRouting(
-              fallbackStartType,
-              fallbackStartId,
-              "bangunan",
-              targetBangunanId
-            );
-          }, 500);
-        }
-      }
+      console.log("🔍 Menampilkan detail untuk:", feature.properties?.nama);
 
       // Tampilkan detail bangunan dan zoom ke lokasi
       if (feature.properties?.displayType === "ruangan") {
@@ -1066,6 +1027,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       ) {
         setSelectedFeature(feature);
         setCardVisible(true);
+        setIsHighlightActive(true);
       }
     };
 
@@ -1900,24 +1862,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Zoom ke posisi marker
         map.setView(markerPosition, 19, { animate: true, duration: 0.8 });
 
-        // Highlight jalur step saat ini
-        if (step.coordinates.length > 1) {
-          const stepPolyline = L.polyline(step.coordinates, {
-            color: markerColor,
-            weight: 5,
-            opacity: 0.7,
-            dashArray: "8, 4",
-          }).addTo(map);
+        // HAPUS: Highlight jalur step - menyebabkan garis leaflet-interactive yang mengganggu
+        // if (step.coordinates.length > 1) {
+        //   const stepPolyline = L.polyline(step.coordinates, {
+        //     color: markerColor,
+        //     weight: 5,
+        //     opacity: 0.7,
+        //     dashArray: "8, 4",
+        //   }).addTo(map);
 
-          // Cleanup highlight sebelumnya
-          if (
-            activeStepLineRef.current &&
-            map.hasLayer(activeStepLineRef.current)
-          ) {
-            map.removeLayer(activeStepLineRef.current);
-          }
-          activeStepLineRef.current = stepPolyline;
-        }
+        //   // Cleanup highlight sebelumnya
+        //   if (
+        //     activeStepLineRef.current &&
+        //     map.hasLayer(activeStepLineRef.current)
+        //   ) {
+        //     map.removeLayer(activeStepLineRef.current);
+        //   }
+        //   activeStepLineRef.current = stepPolyline;
+        // }
       }
 
       // Cleanup function
@@ -2030,6 +1992,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Redefine handleRouteSubmit in this component (inside the component function, before return)
     const handleRouteSubmit = async () => {
+      setIsCalculatingRoute(true);
       let startLatLng: [number, number] | null = null;
       let endLatLng: [number, number] | null = null;
       setRouteDistance(null);
@@ -2045,6 +2008,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           console.log("📍 GPS berhasil diambil untuk routing:", coords);
         } catch (error) {
           setIsGettingLocation(false);
+          setIsCalculatingRoute(false);
           console.error("GPS Error in handleRouteSubmit:", error);
           if (titikFeatures.length > 0) {
             const firstTitik = titikFeatures[0];
@@ -2097,6 +2061,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
         setShowRouteModal(false);
+        setIsCalculatingRoute(false);
         return;
       }
 
@@ -2143,19 +2108,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             if (realWorldGpsToGate) {
               gpsToGateDistance = realWorldGpsToGate.distance;
               const latLngs = realWorldGpsToGate.coordinates;
-              if (leafletMapRef.current) {
-                const debugPolyline = L.polyline(latLngs, {
-                  color: "#00FF00",
-                  weight: 8,
-                  opacity: 0.8,
-                  dashArray: "10, 5",
-                }).addTo(leafletMapRef.current);
-                setTimeout(() => {
-                  if (leafletMapRef.current) {
-                    leafletMapRef.current.removeLayer(debugPolyline);
-                  }
-                }, 10000);
-              }
+              // HAPUS: Debug polyline yang mengganggu routing
+              // if (leafletMapRef.current) {
+              //   const debugPolyline = L.polyline(latLngs, {
+              //     color: "#00FF00",
+              //     weight: 8,
+              //     opacity: 0.8,
+              //     dashArray: "10, 5",
+              //   }).addTo(leafletMapRef.current);
+              //   setTimeout(() => {
+              //     if (leafletMapRef.current) {
+              //       leafletMapRef.current.removeLayer(debugPolyline);
+              //     }
+              //   }, 10000);
+              // }
               gpsToGateSegment = {
                 type: "Feature",
                 geometry: {
@@ -2224,6 +2190,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 alert(
                   "Error: GPS dan Gerbang terlalu dekat. Coba lokasi yang berbeda."
                 );
+                setIsCalculatingRoute(false);
                 return;
               }
             }
@@ -2265,7 +2232,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
                 allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
               }
-              allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
+              // PERBAIKAN: Hapus penambahan endLatLng yang menyebabkan garis langsung mengganggu
+              // allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
               gateToEndResult.coordinates.forEach((coord: [number, number]) => {
                 allLatLngs.push(L.latLng(coord[0], coord[1]));
               });
@@ -2281,9 +2249,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setActiveStepIndex(0);
             } else {
               alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
+              setIsCalculatingRoute(false);
             }
           } else {
             alert("Tidak ditemukan gerbang terdekat.");
+            setIsCalculatingRoute(false);
           }
         } else {
           // Routing biasa (bukan dari "Lokasi Saya")
@@ -2340,6 +2310,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
       setShowRouteModal(false);
+      setIsCalculatingRoute(false);
     };
 
     // Listener untuk GPS updates
@@ -2408,6 +2379,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         alert(
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
+        setIsCalculatingRoute(false);
         return;
       }
 
@@ -2459,19 +2431,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             if (realWorldGpsToGate) {
               gpsToGateDistance = realWorldGpsToGate.distance;
               const latLngs = realWorldGpsToGate.coordinates;
-              if (leafletMapRef.current) {
-                const debugPolyline = L.polyline(latLngs, {
-                  color: "#00FF00",
-                  weight: 8,
-                  opacity: 0.8,
-                  dashArray: "10, 5",
-                }).addTo(leafletMapRef.current);
-                setTimeout(() => {
-                  if (leafletMapRef.current) {
-                    leafletMapRef.current.removeLayer(debugPolyline);
-                  }
-                }, 10000);
-              }
+              // HAPUS: Debug polyline yang mengganggu routing
+              // if (leafletMapRef.current) {
+              //   const debugPolyline = L.polyline(latLngs, {
+              //     color: "#00FF00",
+              //     weight: 8,
+              //     opacity: 0.8,
+              //     dashArray: "10, 5",
+              //   }).addTo(leafletMapRef.current);
+              //   setTimeout(() => {
+              //     if (leafletMapRef.current) {
+              //       leafletMapRef.current.removeLayer(debugPolyline);
+              //     }
+              //   }, 10000);
+              // }
               gpsToGateSegment = {
                 type: "Feature",
                 geometry: {
@@ -2573,7 +2546,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
                 allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
               }
-              allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
+              // PERBAIKAN: Hapus penambahan endLatLng yang menyebabkan garis langsung mengganggu
+              // allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
               gateToEndResult.coordinates.forEach((coord: [number, number]) => {
                 allLatLngs.push(L.latLng(coord[0], coord[1]));
               });
@@ -2733,8 +2707,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 isDark
                   ? "text-white placeholder:text-gray-400"
                   : "text-gray-900 placeholder:text-gray-500"
-              }`}
+              } ${isHighlightActive ? "opacity-50 cursor-not-allowed" : ""}`}
               style={{ minWidth: 120 }}
+              disabled={isHighlightActive}
             />
           </div>
           {/* Dropdown hasil pencarian */}
@@ -2774,7 +2749,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     <div
                       key={index}
                       onClick={() => handleSelectSearchResult(feature)}
-                      className={`px-3 py-2 cursor-pointer hover:bg-opacity-80 transition-colors ${
+                      className={`px-3 py-2 transition-colors ${
+                        isHighlightActive
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer hover:bg-opacity-80"
+                      } ${
                         isDark
                           ? "hover:bg-gray-700 text-white border-b border-gray-700"
                           : "hover:bg-gray-100 text-gray-900 border-b border-gray-200"
@@ -2839,7 +2818,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           >
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-sm">Instruksi Navigasi</h3>
+                <div className="flex flex-col">
+                  <h3 className="font-semibold text-sm">Instruksi Navigasi</h3>
+                  {routeDistance !== null && (
+                    <div className="text-xs text-primary dark:text-primary-dark font-bold">
+                      Total Jarak: {Math.round(routeDistance)} meter
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => {
                     setRouteSteps([]);
@@ -3077,12 +3063,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Sidebar Gedung (floating card kanan atas) */}
         {selectedFeature && (
           <div
+            data-container="building-detail"
             className={`absolute right-4 top-4 z-[201] w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
               ${
                 cardVisible && cardAnimation
                   ? "opacity-100 translate-y-0 scale-100"
                   : "opacity-0 translate-y-4 scale-95 pointer-events-none"
               }
+              ${isContainerShaking ? "animate-shake" : ""}
             `}
             style={{
               boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)",
@@ -3096,6 +3084,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <button
                 onClick={() => {
                   setCardVisible(false);
+                  setIsHighlightActive(false);
+                  // Clear highlight dari bangunan layer
+                  if (bangunanLayerRef.current) {
+                    bangunanLayerRef.current.resetStyle();
+                  }
                   setTimeout(() => setSelectedFeature(null), 350);
                 }}
                 className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none"
@@ -3104,12 +3097,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 ×
               </button>
             </div>
-            {/* Tambahkan total panjang rute di sini jika ada */}
-            {routeDistance !== null && (
-              <div className="px-4 py-2 text-primary dark:text-primary-dark text-sm font-bold border-b border-gray-100 dark:border-gray-800">
-                Total Jarak Rute: {Math.round(routeDistance)} meter
-              </div>
-            )}
+
+            {/* Gambar thumbnail bangunan */}
+            <div className="px-4 pt-2">
+              <img
+                src={`/thumbnail/bangunan/${
+                  selectedFeature.properties?.nama || "default"
+                }.jpg`}
+                alt={selectedFeature.properties?.nama || "Bangunan"}
+                className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                onError={(e) => {
+                  // Fallback ke gambar default jika tidak ditemukan
+                  const target = e.target as HTMLImageElement;
+                  target.src = "/thumbnail/bangunan/default.jpg";
+                }}
+              />
+            </div>
+
             <div className="flex-1 flex flex-col gap-3 px-4 py-4">
               {selectedFeature.properties?.interaksi &&
                 selectedFeature.properties.interaksi.toLowerCase() ===
@@ -3319,9 +3323,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 {/* Tombol submit */}
                 <button
                   type="submit"
-                  disabled={isGettingLocation}
+                  disabled={isGettingLocation || isCalculatingRoute}
                   className={`w-full py-2 rounded-lg font-bold mt-2 transition-all ${
-                    isGettingLocation
+                    isGettingLocation || isCalculatingRoute
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-primary text-white hover:bg-primary/90"
                   }`}
@@ -3330,6 +3334,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Mendapatkan Lokasi GPS...
+                    </div>
+                  ) : isCalculatingRoute ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Menghitung Rute...
                     </div>
                   ) : (
                     "Cari Rute"
