@@ -782,18 +782,19 @@ export function findRoute(
     actualEnd,
     routes
   );
-  if (dijkstraResult) return dijkstraResult;
+  if (dijkstraResult && dijkstraResult.geojsonSegments.length > 0) {
+    return dijkstraResult;
+  }
 
   // Fallback: findShortestRoute lama
   const routeResult = findShortestRoute(actualStart, actualEnd, routes);
-  if (routeResult) return routeResult;
+  if (routeResult && routeResult.geojsonSegments.length > 0) {
+    return routeResult;
+  }
 
-  // Fallback: garis lurus
-  const fallbackDistance = calculateDistance(actualStart, actualEnd);
-  return {
-    coordinates: [actualStart, actualEnd],
-    distance: fallbackDistance,
-    routeIds: [],
-    geojsonSegments: [],
-  };
+  // Jika tidak ada rute yang valid, kembalikan null
+  console.log(
+    "❌ Tidak ditemukan rute yang valid antara titik awal dan tujuan"
+  );
+  return null;
 }

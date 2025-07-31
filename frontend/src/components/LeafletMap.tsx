@@ -51,40 +51,58 @@ const geojsonStatisUrl = "/geojson/Polnep WGS_1984.geojson";
 
 const kategoriStyle: Record<string, L.PathOptions> = {
   Bangunan: {
-    color: "#1e3a8a", // Deep blue
-    weight: 1,
-    fillColor: "#2563eb", // Blue-600
+    color: "#1e40af", // Blue-800 - lebih gelap untuk bangunan
+    weight: 2,
+    fillColor: "#3b82f6", // Blue-500
     fillOpacity: 0.8,
   },
-  Kanopi: {
-    color: "#f59e42", // Orange
+  Trotoar: {
+    color: "#78716c", // Stone-600
     weight: 1,
-    fillColor: "#fbbf24", // Amber-400
+    fillColor: "#a8a29e", // Stone-400
     fillOpacity: 0.7,
   },
   Jalan: {
     color: "#374151", // Gray-700
     weight: 2,
     fillColor: "#6b7280", // Gray-500
-    fillOpacity: 0.7,
-  },
-  Parkir: {
-    color: "#4b5563", // Dark gray
-    weight: 1,
-    fillColor: "#9ca3af", // Gray-400
-    fillOpacity: 0.6,
+    fillOpacity: 0.8,
   },
   Lahan: {
-    color: "#15803d", // Green-800
+    color: "#166534", // Green-800 - lebih gelap
     weight: 1,
     fillColor: "#22c55e", // Green-500
-    fillOpacity: 0.5,
+    fillOpacity: 0.6,
+  },
+  Parkir: {
+    color: "#52525b", // Zinc-600
+    weight: 1,
+    fillColor: "#71717a", // Zinc-500
+    fillOpacity: 0.7,
+  },
+  Kanopi: {
+    color: "#ea580c", // Orange-600
+    weight: 1,
+    fillColor: "#fb923c", // Orange-400
+    fillOpacity: 0.6,
   },
   Kolam: {
-    color: "#0ea5e9", // Sky-500
+    color: "#0369a1", // Sky-700
     weight: 1,
-    fillColor: "#38bdf8", // Sky-400
-    fillOpacity: 0.5,
+    fillColor: "#0ea5e9", // Sky-500
+    fillOpacity: 0.6,
+  },
+  Paving: {
+    color: "#57534e", // Stone-700
+    weight: 1,
+    fillColor: "#78716c", // Stone-600
+    fillOpacity: 0.8,
+  },
+  Taman: {
+    color: "#7c3aed", // Violet-600
+    weight: 1,
+    fillColor: "#a78bfa", // Violet-400
+    fillOpacity: 0.6,
   },
 };
 
@@ -1624,6 +1642,30 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const connectedGates: any[] = [];
       const points = convertTitikToPoints();
 
+      // PERBAIKAN: Validasi bahwa tujuan benar-benar ada titiknya
+      let hasValidDestination = false;
+
+      // Cek apakah ada titik dalam radius 50 meter dari tujuan
+      for (const point of points) {
+        const distance = calculateDistance(endCoords, point.coordinates);
+        if (distance <= 50) {
+          hasValidDestination = true;
+          console.log(
+            `🎯 Tujuan terhubung ke titik: ${point.name} (${Math.round(
+              distance
+            )}m)`
+          );
+          break;
+        }
+      }
+
+      if (!hasValidDestination) {
+        console.log(
+          "❌ Tujuan tidak memiliki titik terdekat dalam radius 50 meter"
+        );
+        return [];
+      }
+
       // Test setiap gerbang apakah bisa route ke tujuan
       for (const gate of gates) {
         if (gate.geometry && gate.geometry.coordinates) {
@@ -1881,15 +1923,41 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         const isFirstStep = activeStepIndex === 0;
         const isLastStep = activeStepIndex === routeSteps.length - 1;
 
+        // PASTIKAN lingkaran di titik AWAL line (o- bukan -o)
+        const markerPosition = step.coordinates[0];
+
+        // PERBAIKAN: Cek jarak sebenarnya ke tujuan untuk step terakhir
+        let isActuallyAtDestination = false;
+        if (isLastStep) {
+          // Ambil koordinat tujuan akhir dari routeSteps
+          const finalDestination =
+            routeSteps[routeSteps.length - 1]?.coordinates?.[
+              routeSteps[routeSteps.length - 1].coordinates.length - 1
+            ];
+          if (finalDestination) {
+            // Cek jarak dari posisi marker ke tujuan akhir
+            const distanceToDestination = calculateDistance(
+              markerPosition,
+              finalDestination
+            );
+            isActuallyAtDestination = distanceToDestination <= 20; // Dalam radius 20 meter
+
+            console.log(
+              `🎯 Jarak ke tujuan akhir: ${Math.round(
+                distanceToDestination
+              )}m (${
+                isActuallyAtDestination ? "SUDAH SAMPAI" : "BELUM SAMPAI"
+              })`
+            );
+          }
+        }
+
         // Debug: Lihat koordinat step untuk memastikan posisi yang benar
         console.log(`🔍 Step ${activeStepIndex + 1} coordinates:`, {
           first: step.coordinates[0],
           last: step.coordinates[step.coordinates.length - 1],
           allCoords: step.coordinates,
         });
-
-        // PASTIKAN lingkaran di titik AWAL line (o- bukan -o)
-        const markerPosition = step.coordinates[0];
 
         let markerColor: string;
         let markerSize: number;
@@ -1898,9 +1966,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Step pertama: hijau
           markerColor = "#10b981"; // Hijau
           markerSize = 34;
-        } else if (isLastStep) {
-          // Step terakhir: merah (destinasi)
+        } else if (isLastStep && isActuallyAtDestination) {
+          // Step terakhir dan sudah sampai tujuan: merah (destinasi tercapai)
           markerColor = "#ef4444"; // Merah
+          markerSize = 36;
+        } else if (isLastStep) {
+          // Step terakhir tapi belum sampai tujuan: oranye (destinasi belum tercapai)
+          markerColor = "#f97316"; // Oranye
           markerSize = 36;
         } else {
           // Step tengah: biru
@@ -1910,8 +1982,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         const markerType = isFirstStep
           ? "START"
+          : isLastStep && isActuallyAtDestination
+          ? "DESTINATION_REACHED"
           : isLastStep
-          ? "DESTINATION"
+          ? "DESTINATION_NOT_REACHED"
           : "SEGMENT";
 
         console.log(
@@ -2115,24 +2189,49 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (titik && titik.geometry && titik.geometry.coordinates) {
           const coords = titik.geometry.coordinates;
           startLatLng = [coords[1], coords[0]];
+        } else {
+          alert(`Titik awal dengan ID ${routeStartId} tidak ditemukan.`);
+          setShowRouteModal(false);
+          setIsCalculatingRoute(false);
+          return;
         }
       } else if (routeStartType) {
         // Jika bangunan, ambil centroid bangunan
-        startLatLng = getCentroidById("bangunan", routeStartType) as [
-          number,
-          number
-        ];
+        const bangunanCentroid = getCentroidById("bangunan", routeStartType);
+        if (bangunanCentroid) {
+          startLatLng = bangunanCentroid as [number, number];
+        } else {
+          alert(`Bangunan dengan ID ${routeStartType} tidak ditemukan.`);
+          setShowRouteModal(false);
+          setIsCalculatingRoute(false);
+          return;
+        }
       }
 
       // Titik tujuan
       if (routeEndType === "bangunan" && routeEndId) {
-        endLatLng = getCentroidById("bangunan", routeEndId) as [number, number];
+        const bangunanCentroid = getCentroidById("bangunan", routeEndId);
+        if (bangunanCentroid) {
+          endLatLng = bangunanCentroid as [number, number];
+        } else {
+          alert(`Bangunan dengan ID ${routeEndId} tidak ditemukan.`);
+          setShowRouteModal(false);
+          setIsCalculatingRoute(false);
+          return;
+        }
       } else if (routeEndType === "titik" && routeEndSearchText) {
         // Cari titik tujuan dari geojson
         const tujuan = convertTitikToPoints().find(
           (p) => p.name === routeEndSearchText
         );
-        if (tujuan) endLatLng = tujuan.coordinates;
+        if (tujuan) {
+          endLatLng = tujuan.coordinates;
+        } else {
+          alert(`Titik tujuan "${routeEndSearchText}" tidak ditemukan.`);
+          setShowRouteModal(false);
+          setIsCalculatingRoute(false);
+          return;
+        }
       }
 
       // Validasi
@@ -2442,17 +2541,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (titik && titik.geometry && titik.geometry.coordinates) {
           const coords = titik.geometry.coordinates;
           startLatLng = [coords[1], coords[0]];
+        } else {
+          console.error(`❌ Titik awal dengan ID ${startId} tidak ditemukan.`);
+          alert(`Titik awal dengan ID ${startId} tidak ditemukan.`);
+          setIsCalculatingRoute(false);
+          return;
         }
       } else if (startType) {
-        startLatLng = getCentroidById("bangunan", startType) as [
-          number,
-          number
-        ];
+        const bangunanCentroid = getCentroidById("bangunan", startType);
+        if (bangunanCentroid) {
+          startLatLng = bangunanCentroid as [number, number];
+        } else {
+          console.error(`❌ Bangunan dengan ID ${startType} tidak ditemukan.`);
+          alert(`Bangunan dengan ID ${startType} tidak ditemukan.`);
+          setIsCalculatingRoute(false);
+          return;
+        }
       }
 
       // Titik tujuan
       if (endType === "bangunan" && endId) {
-        endLatLng = getCentroidById("bangunan", endId) as [number, number];
+        const bangunanCentroid = getCentroidById("bangunan", endId);
+        if (bangunanCentroid) {
+          endLatLng = bangunanCentroid as [number, number];
+        } else {
+          console.error(`❌ Bangunan dengan ID ${endId} tidak ditemukan.`);
+          alert(`Bangunan dengan ID ${endId} tidak ditemukan.`);
+          setIsCalculatingRoute(false);
+          return;
+        }
       }
 
       // Validasi
@@ -3559,12 +3676,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   )}
                 </button>
               </form>
-              {/* Jarak rute jika lokasi saya */}
-              {routeDistance !== null && (
-                <div className="mt-2 text-center text-sm text-primary font-semibold">
-                  Jarak: {routeDistance} meter
-                </div>
-              )}
             </div>
           </div>
         )}
