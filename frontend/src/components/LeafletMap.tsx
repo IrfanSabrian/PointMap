@@ -581,6 +581,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 ) {
                   e.originalEvent.stopPropagation();
                 }
+                // Tambahkan efek shake pada container detail bangunan yang sedang aktif
+                setIsContainerShaking(true);
+                setTimeout(() => setIsContainerShaking(false), 600);
                 return;
               }
               setSelectedFeature(feature as FeatureFixed);
@@ -939,6 +942,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         console.log(
           "⚠️ Container detail sedang terbuka, tutup dulu untuk memilih bangunan lain"
         );
+
+        // Tambahkan efek shake pada container detail bangunan yang sedang aktif
+        setIsContainerShaking(true);
+        setTimeout(() => setIsContainerShaking(false), 600);
         return;
       }
 
@@ -1412,6 +1419,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
 
         if (featureType === "bangunan") {
+          // Jika container detail bangunan sedang aktif, berikan efek shake
+          if (isHighlightActiveRef.current) {
+            // Tambahkan efek shake pada container detail bangunan yang sedang aktif
+            setIsContainerShaking(true);
+            setTimeout(() => setIsContainerShaking(false), 600);
+            return;
+          }
+
           // Highlight bangunan menggunakan fungsi helper
           highlightBangunan(featureId);
 
@@ -1453,6 +1468,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
 
             if (bangunan && bangunan.geometry) {
+              // Jika container detail bangunan sedang aktif, berikan efek shake
+              if (isHighlightActiveRef.current) {
+                // Tambahkan efek shake pada container detail bangunan yang sedang aktif
+                setIsContainerShaking(true);
+                setTimeout(() => setIsContainerShaking(false), 600);
+                return;
+              }
+
               // Zoom ke bangunan yang berisi ruangan
               let coordinates: number[][][] = [];
               if (bangunan.geometry.type === "Polygon") {
