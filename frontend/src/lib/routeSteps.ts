@@ -116,25 +116,72 @@ function normalizeBearingDifference(diff: number): number {
   return diff;
 }
 
-// Fungsi untuk parsing routeSegments SEDERHANA - 1 segmen = 1 step
+// Fungsi untuk mencari jalur "both" terdekat dari titik pejalan kaki
+function findNearestBothSegment(
+  point: [number, number],
+  routeSegments: any[]
+): {
+  nearestSegment: any;
+  nearestPoint: [number, number];
+  distance: number;
+} | null {
+  let nearestSegment: any = null;
+  let nearestPoint: [number, number] | null = null;
+  let minDistance = Infinity;
+
+  routeSegments.forEach((segment) => {
+    if (segment.properties?.Mode === "both") {
+      const coords = segment.geometry?.coordinates || [];
+      if (coords.length > 0) {
+        // Cek setiap titik dalam segmen
+        coords.forEach((coord: any) => {
+          const segmentPoint: [number, number] = [coord[1], coord[0]]; // [lat, lng]
+          const distance = calculateDistance(point, segmentPoint);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestSegment = segment;
+            nearestPoint = segmentPoint;
+          }
+        });
+      }
+    }
+  });
+
+  if (nearestSegment && nearestPoint) {
+    return {
+      nearestSegment,
+      nearestPoint,
+      distance: minDistance,
+    };
+  }
+
+  return null;
+}
+
+// Fungsi untuk parsing routeSegments dengan mode transportasi
 export function parseRouteSteps(
   routeSegments: any[],
   startPoint?: [number, number],
-  endPoint?: [number, number]
+  endPoint?: [number, number],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
 ) {
   if (!routeSegments || routeSegments.length === 0) return [];
 
   console.log(
-    `📋 Parsing rute: ${routeSegments.length} segmen untuk dibuat step navigasi`
+    `📋 Parsing rute: ${routeSegments.length} segmen untuk mode ${transportMode}`
   );
 
   // Debug: tampilkan urutan segmen yang diterima
   routeSegments.forEach((segment, idx) => {
     const segmentId = segment.id || "unknown";
     const segmentLength = segment.properties?.panjang || 0;
+    const segmentMode = segment.properties?.Mode || "unknown";
     const coords = segment.geometry?.coordinates || [];
     console.log(
-      `  📍 Segmen ${idx + 1}: ID ${segmentId}, ${Math.round(segmentLength)}m`
+      `  📍 Segmen ${idx + 1}: ID ${segmentId}, ${Math.round(
+        segmentLength
+      )}m, Mode: ${segmentMode}`
     );
     if (coords.length > 0) {
       console.log(
@@ -147,10 +194,40 @@ export function parseRouteSteps(
     }
   });
 
+  let processedSegments = routeSegments;
+
+  // PERBAIKAN: Logika kendaraan yang lebih cerdas - tidak perlu akses khusus
+  // Kendaraan bisa menggunakan jalur pejalan kaki dengan penalty untuk menghemat jarak
+  // Algoritma Dijkstra sudah menangani pemilihan jalur optimal
+  // PRIORITAS: Kendaraan sangat minim turun, hanya jika sudah sangat dekat sekali
+  if (transportMode === "kendaraan") {
+    console.log(
+      `🏍️ Mode kendaraan: kendaraan sangat minim turun, hanya jika sudah sangat dekat sekali`
+    );
+
+    // Hitung statistik jalur
+    const bothSegments = routeSegments.filter(
+      (seg) => seg.properties?.Mode === "both"
+    ).length;
+    const pedestrianSegments = routeSegments.filter(
+      (seg) => seg.properties?.Mode === "pejalan"
+    ).length;
+
+    console.log(
+      `📊 [KENDARAAN] Jalur tersedia: ${bothSegments} "both", ${pedestrianSegments} "pejalan"`
+    );
+  }
+
+  console.log(
+    `📋 Mode ${transportMode}: menggunakan ${processedSegments.length} segmen`
+  );
+
   // PERBAIKAN: Gabungkan jalur-jalur yang lurus
-  const combinedSteps = combineStraightSegments(routeSegments);
+  const combinedSteps = combineStraightSegments(processedSegments);
 
   console.log(`🔍 Setelah digabung: ${combinedSteps.length} step`);
+  console.log(`🔍 [DEBUG] Combined steps structure:`, combinedSteps);
+  console.log(`🔍 [DEBUG] First combined step:`, combinedSteps[0]);
 
   const steps: any[] = [];
 
@@ -158,7 +235,33 @@ export function parseRouteSteps(
   console.log(`  🔄 Mulai memproses ${combinedSteps.length} step...`);
 
   for (let i = 0; i < combinedSteps.length; i++) {
-    const stepData = combinedSteps[i];
+    let stepData = combinedSteps[i];
+
+    // PERBAIKAN: Debug logging untuk melihat struktur stepData
+    console.log(`🔍 [DEBUG] Step ${i + 1} data:`, stepData);
+    console.log(`🔍 [DEBUG] Step ${i + 1} type:`, typeof stepData);
+    console.log(`🔍 [DEBUG] Step ${i + 1} isArray:`, Array.isArray(stepData));
+
+    // PERBAIKAN: Normalisasi stepData jika bukan array
+    if (!Array.isArray(stepData)) {
+      if (
+        stepData &&
+        typeof stepData === "object" &&
+        (stepData as any).geometry
+      ) {
+        console.log(
+          `🔧 [FIX] Converting single segment to array for step ${i + 1}`
+        );
+        stepData = [stepData];
+      } else {
+        console.error(
+          `❌ [ERROR] Invalid stepData for step ${i + 1}:`,
+          stepData
+        );
+        continue; // Skip step ini
+      }
+    }
+
     const step = createStepFromCombinedSegments(
       stepData,
       i,
@@ -172,6 +275,7 @@ export function parseRouteSteps(
       i === 0 ? "start" : i === combinedSteps.length - 1 ? "end" : "middle";
     (step as any).stepType = stepType;
     (step as any).segmentIndex = i;
+    (step as any).transportMode = transportMode;
 
     console.log(
       `  ✅ Step ${i + 1}: ${Math.round(step.distance)}m (${
@@ -209,7 +313,7 @@ export function parseRouteSteps(
     }
 
     // PERBAIKAN: Pastikan step terakhir sampai ke tujuan yang benar
-    if (i === routeSegments.length - 1 && endPoint) {
+    if (i === processedSegments.length - 1 && endPoint) {
       const lastCoord = step.coordinates[step.coordinates.length - 1];
       const isDuplicate =
         Math.abs(lastCoord[0] - endPoint[0]) < 0.000001 &&
@@ -385,6 +489,23 @@ function createStepFromCombinedSegments(
   let totalDistance = 0;
   let allCoordinates: [number, number][] = [];
 
+  // PERBAIKAN: Validasi input segments (sudah dinormalisasi di level atas)
+  if (!Array.isArray(segments)) {
+    console.error(
+      `❌ [ERROR] segments masih bukan array setelah normalisasi:`,
+      segments
+    );
+    // Fallback: buat step kosong
+    return {
+      coordinates: startPoint ? [startPoint] : [],
+      start: startPoint || [0, 0],
+      distance: 0,
+      type: "error",
+      raw: [],
+      segmentCount: 0,
+    };
+  }
+
   // Gabungkan semua koordinat dan hitung total jarak
   segments.forEach((segment, idx) => {
     const segmentCoords = segment.geometry?.coordinates || [];
@@ -460,7 +581,11 @@ function createStepFromSingleSegment(segment: any) {
 }
 
 // Fungsi untuk generate instruksi sederhana berdasarkan posisi step
-export function getStepInstruction(idx: number, steps: any[]) {
+export function getStepInstruction(
+  idx: number,
+  steps: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
+) {
   const step = steps[idx];
 
   if (step.type === "osrm") {
@@ -470,11 +595,12 @@ export function getStepInstruction(idx: number, steps: any[]) {
 
   // Ambil metadata step
   const stepType = (step as any).stepType || "unknown";
+  const stepTransportMode = (step as any).transportMode || transportMode;
 
   console.log(
     `📋 Step ${idx + 1}: stepType=${stepType}, distance=${Math.round(
       step.distance
-    )}m`
+    )}m, mode=${stepTransportMode}`
   );
 
   // Step terakhir: sampai tujuan
@@ -488,6 +614,28 @@ export function getStepInstruction(idx: number, steps: any[]) {
     const distanceText = `${currentDistance} meter`;
 
     console.log(`📍 Step ${idx + 1}: START (ex-step 2) - ${currentDistance}m`);
+
+    // Cek apakah ini segmen akses untuk kendaraan
+    const isAccessSegment = step.raw?.properties?.isAccessSegment;
+    const accessType = step.raw?.properties?.accessType;
+    const isConnectionSegment = step.raw?.properties?.isConnectionSegment;
+    const connectionType = step.raw?.properties?.connectionType;
+
+    if (stepTransportMode === "kendaraan") {
+      // PERBAIKAN: Logika kendaraan yang lebih sederhana
+      const isPedestrianSegment = step.raw?.properties?.Mode === "pejalan";
+      const isBothSegment = step.raw?.properties?.Mode === "both";
+
+      if (isPedestrianSegment) {
+        // Kendaraan menggunakan jalur pejalan kaki (hanya jika sudah sangat dekat sekali)
+        return `Gunakan jalur pejalan kaki (sudah sangat dekat). ${distanceText}`;
+      } else if (isBothSegment) {
+        // Kendaraan menggunakan jalur "both" (prioritas utama)
+        return `Mulai perjalanan dengan kendaraan. Lurus, ${distanceText}`;
+      }
+
+      return `Mulai perjalanan dengan kendaraan. Lurus, ${distanceText}`;
+    }
     return `Mulai perjalanan. Lurus, jalan ${distanceText}`;
   }
 
@@ -517,12 +665,40 @@ export function getStepInstruction(idx: number, steps: any[]) {
     );
 
     // Deteksi arah belok yang sudah dilakukan dari step sebelumnya ke step ini
-    if (turnAngle > 20) {
-      return `Belok kiri, jalan ${distanceText}`;
-    } else if (turnAngle < -20) {
-      return `Belok kanan, jalan ${distanceText}`;
+    // Gunakan logika yang sama dengan isSegmentsStraight (sudut > 30 derajat = ada belokan)
+    let directionInstruction = "";
+    if (turnAngle > 30) {
+      directionInstruction = "Belok kiri";
+    } else if (turnAngle < -30) {
+      directionInstruction = "Belok kanan";
     } else {
-      return `Lurus, jalan ${distanceText}`;
+      directionInstruction = "Lurus";
+    }
+
+    // PERBAIKAN: Cek apakah ini segmen khusus untuk kendaraan
+    const isAccessSegment = currentStep.raw?.properties?.isAccessSegment;
+    const accessType = currentStep.raw?.properties?.accessType;
+    const isConnectionSegment =
+      currentStep.raw?.properties?.isConnectionSegment;
+    const connectionType = currentStep.raw?.properties?.connectionType;
+
+    if (stepTransportMode === "kendaraan") {
+      // PERBAIKAN: Logika kendaraan yang lebih sederhana
+      const isPedestrianSegment =
+        currentStep.raw?.properties?.Mode === "pejalan";
+      const isBothSegment = currentStep.raw?.properties?.Mode === "both";
+
+      if (isPedestrianSegment) {
+        // Kendaraan menggunakan jalur pejalan kaki (hanya jika sudah sangat dekat sekali)
+        return `Gunakan jalur pejalan kaki (sudah sangat dekat). ${directionInstruction}, ${distanceText}`;
+      } else if (isBothSegment) {
+        // Kendaraan menggunakan jalur "both" (prioritas utama)
+        return `${directionInstruction}, ${distanceText}`;
+      }
+
+      return `${directionInstruction}, ${distanceText}`;
+    } else {
+      return `${directionInstruction}, jalan ${distanceText}`;
     }
   }
 

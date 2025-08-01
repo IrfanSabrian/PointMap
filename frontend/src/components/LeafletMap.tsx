@@ -19,6 +19,9 @@ import {
   faSyncAlt,
   faLayerGroup,
   faGlobe,
+  faCar,
+  faWalking,
+  faMotorcycle,
 } from "@fortawesome/free-solid-svg-icons";
 import { findRoute, Point, calculateDistance } from "../lib/routing";
 // Import fungsi routing dari src/lib/routeSteps
@@ -250,10 +253,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setTotalVehicleTime,
       routeLine,
       setRouteLine,
+      alternativeRouteLines,
+      setAlternativeRouteLines,
       destinationMarker,
       setDestinationMarker,
       hasReachedDestination,
       setHasReachedDestination,
+      transportMode,
+      setTransportMode,
       activeStepLineRef,
       parseRouteSteps,
       getStepInstruction,
@@ -1207,6 +1214,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // setIsLocating(false); // Removed as per new_code
           const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
           setUserLocation(latlng);
+
+          // Tambahkan pengecekan apakah user di dalam kampus
+          const isInsideCampus = isUserInsideCampus(
+            pos.coords.latitude,
+            pos.coords.longitude
+          );
+          console.log("📍 [GPS-CHECK] User location check:", {
+            coordinates: [pos.coords.latitude, pos.coords.longitude],
+            isInsideCampus: isInsideCampus,
+          });
+
+          // Tampilkan informasi lokasi user
+          const locationMessage = isInsideCampus
+            ? "📍 Anda berada di dalam area kampus"
+            : "📍 Anda berada di luar area kampus";
+          console.log("📍 [GPS-CHECK] " + locationMessage);
+
+          // Simpan status lokasi untuk digunakan nanti
+          (latlng as any).isInsideCampus = isInsideCampus;
+
           const map = leafletMapRef.current;
           if (map) {
             map.setView(latlng, 18, { animate: true });
@@ -1727,7 +1754,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 gateCoords,
                 targetPoint.coordinates,
                 points,
-                jalurFeatures
+                jalurFeatures,
+                "jalan_kaki", // Default untuk mencari gerbang terhubung
+                false // isGpsInsideCampus = false
               );
 
               if (
@@ -2268,6 +2297,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           setRouteDistance(null);
         }
 
+        // Hapus alternative route lines jika ada
+        if (alternativeRouteLines.length > 0) {
+          alternativeRouteLines.forEach((layer) => {
+            if (leafletMapRef.current) {
+              leafletMapRef.current.removeLayer(layer);
+            }
+          });
+          setAlternativeRouteLines([]);
+        }
+
         // Hapus navigation marker jika ada
         if (navigationMarkerRef.current) {
           leafletMapRef.current.removeLayer(navigationMarkerRef.current);
@@ -2326,15 +2365,201 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       let endLatLng: [number, number] | null = null;
       setRouteDistance(null);
 
+      // PERBAIKAN: Cleanup routes sebelumnya
+      if (routeLine && leafletMapRef.current) {
+        leafletMapRef.current.removeLayer(routeLine);
+        setRouteLine(null);
+      }
+      if (alternativeRouteLines.length > 0) {
+        alternativeRouteLines.forEach((layer) => {
+          if (leafletMapRef.current) {
+            leafletMapRef.current.removeLayer(layer);
+          }
+        });
+        setAlternativeRouteLines([]);
+      }
+
       // Titik awal
       if (routeStartType === "my-location") {
-        // SELALU ambil GPS terbaru jika user memilih "Lokasi Saya"
         setIsGettingLocation(true);
         try {
           const coords = await getCurrentLocation();
           setIsGettingLocation(false);
           startLatLng = coords;
           console.log("📍 GPS berhasil diambil untuk routing:", coords);
+
+          // Tambahkan pengecekan apakah user di dalam kampus
+          const isInsideCampus = isUserInsideCampus(coords[0], coords[1]);
+          console.log("📍 [GPS-ROUTING] Pengecekan lokasi GPS untuk routing:");
+          console.log(
+            `📍 [GPS-ROUTING] Koordinat: [${coords[0].toFixed(
+              6
+            )}, ${coords[1].toFixed(6)}]`
+          );
+          console.log(`📍 [GPS-ROUTING] Di dalam kampus: ${isInsideCampus}`);
+
+          if (isInsideCampus) {
+            console.log(
+              "📍 [GPS-ROUTING] Routing langsung ke tujuan (tanpa gerbang)"
+            );
+            // Routing langsung ke tujuan tanpa gerbang
+            if (!endLatLng) {
+              alert("Titik tujuan tidak valid.");
+              setShowRouteModal(false);
+              setIsCalculatingRoute(false);
+              return;
+            }
+            const points = convertTitikToPoints();
+            let filteredJalurFeatures = jalurFeatures;
+            if (transportMode === "jalan_kaki") {
+              const pejalanSegments = jalurFeatures.filter(
+                (segment: any) => segment.properties?.Mode === "pejalan"
+              );
+              const bothSegments = jalurFeatures.filter(
+                (segment: any) => segment.properties?.Mode === "both"
+              );
+              filteredJalurFeatures = [...pejalanSegments, ...bothSegments];
+            } else if (transportMode === "kendaraan") {
+              // Untuk kendaraan, terapkan logika oneway
+              const bothSegments = jalurFeatures.filter(
+                (segment: any) => segment.properties?.Mode === "both"
+              );
+              const pejalanSegments = jalurFeatures.filter(
+                (segment: any) => segment.properties?.Mode === "pejalan"
+              );
+
+              // Filter jalur oneway untuk kendaraan
+              const filteredBothSegments = bothSegments.filter(
+                (segment: any) => {
+                  // Jika bukan oneway, bisa digunakan
+                  if (segment.properties?.arah !== "oneway") {
+                    return true;
+                  }
+
+                  // Jika oneway, cek arah yang diizinkan untuk kendaraan
+                  // Kendaraan hanya boleh dari hijau (end) ke merah (start)
+                  // TIDAK BOLEH dari merah (start) ke hijau (end)
+                  const routeCoords = segment.geometry?.coordinates;
+                  if (routeCoords && routeCoords.length >= 2) {
+                    const startPoint = [routeCoords[0][1], routeCoords[0][0]]; // [lat, lng] dari titik merah
+                    const endPoint = [
+                      routeCoords[routeCoords.length - 1][1],
+                      routeCoords[routeCoords.length - 1][0],
+                    ]; // [lat, lng] dari titik hijau
+
+                    // Cek apakah jalur ini mengarah dari hijau ke merah (diizinkan)
+                    // Atau bisa digunakan untuk routing dari GPS ke tujuan
+                    return true; // Untuk sementara izinkan semua, logika oneway akan diterapkan di routing algorithm
+                  }
+                  return true;
+                }
+              );
+
+              // Gabungkan jalur both (dengan filter oneway) dan pejalan (untuk akses)
+              filteredJalurFeatures = [
+                ...filteredBothSegments,
+                ...pejalanSegments,
+              ];
+
+              console.log(
+                "🏍️ Mode kendaraan: Filtered routes for oneway restrictions"
+              );
+              console.log(`  - Total jalur both: ${bothSegments.length}`);
+              console.log(
+                `  - Jalur both setelah filter oneway: ${filteredBothSegments.length}`
+              );
+              console.log(
+                `  - Jalur pejalan untuk akses: ${pejalanSegments.length}`
+              );
+            }
+            console.log(`🏍️ [GPS-ROUTING] Mode transportasi: ${transportMode}`);
+            if (transportMode === "kendaraan") {
+              console.log(
+                "🏍️ [GPS-ROUTING] Logika oneway diterapkan untuk kendaraan"
+              );
+              console.log(
+                "🏍️ [GPS-ROUTING] Jalur oneway hanya boleh dari hijau→merah (dilarang merah→hijau)"
+              );
+            }
+
+            // Untuk GPS di dalam kampus, cari jalur GeoJSON terdekat sebagai titik awal
+            console.log(
+              "📍 [GPS-ROUTING] Mencari jalur GeoJSON terdekat sebagai titik awal routing"
+            );
+
+            // Coba routing dari jalur terdekat ke tujuan
+            const routeResult = findRoute(
+              coords,
+              endLatLng,
+              points,
+              filteredJalurFeatures,
+              transportMode,
+              true // isGpsInsideCampus = true
+            );
+            if (
+              routeResult &&
+              routeResult.geojsonSegments &&
+              routeResult.geojsonSegments.length > 0
+            ) {
+              const geoJsonLayer = L.geoJSON(
+                {
+                  type: "FeatureCollection",
+                  features:
+                    routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+                } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
+                {
+                  style: () => ({
+                    color: "#2563eb",
+                    weight: 6,
+                    opacity: 1,
+                  }),
+                  pane: "routePane",
+                }
+              );
+              if (leafletMapRef.current) {
+                geoJsonLayer.addTo(leafletMapRef.current);
+                leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+                  padding: [40, 40],
+                  maxZoom: 19,
+                  animate: true,
+                  duration: 1.5,
+                });
+              }
+              setRouteDistance(Math.round(routeResult.distance));
+              // Hitung total waktu berjalan kaki dan kendaraan
+              let totalWalkingTime = 0;
+              let totalVehicleTime = 0;
+              routeResult.geojsonSegments.forEach((segment: any) => {
+                if (segment.properties?.waktu_kaki)
+                  totalWalkingTime += Number(segment.properties.waktu_kaki);
+                if (segment.properties?.waktu_kendara)
+                  totalVehicleTime += Number(segment.properties.waktu_kendara);
+              });
+              setTotalWalkingTime(totalWalkingTime);
+              setTotalVehicleTime(totalVehicleTime);
+              setRouteSteps(
+                parseRouteSteps(
+                  routeResult.geojsonSegments,
+                  coords,
+                  endLatLng,
+                  transportMode
+                )
+              );
+              setActiveStepIndex(0);
+              setHasReachedDestination(false);
+              setIsNavigationActive(true);
+            } else {
+              alert(
+                "Tidak ditemukan rute yang valid dari lokasi Anda ke tujuan. Pastikan Anda berada di area yang terhubung ke jalur kampus."
+              );
+              setIsCalculatingRoute(false);
+            }
+            return;
+          } else {
+            console.log(
+              "📍 [GPS-ROUTING] Routing via gerbang terdekat (di luar kampus)"
+            );
+          }
         } catch (error) {
           setIsGettingLocation(false);
           setIsCalculatingRoute(false);
@@ -2413,6 +2638,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       ) {
         alert(
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
+        );
+        setShowRouteModal(false);
+        setIsCalculatingRoute(false);
+        return;
+      }
+
+      // Validasi titik awal dan tujuan sama
+      const distance = calculateDistance(startLatLng, endLatLng);
+      if (distance < 10) {
+        // Jika jarak kurang dari 10 meter, dianggap sama
+        alert(
+          "Titik awal dan tujuan tidak boleh sama. Silakan pilih tujuan yang berbeda."
         );
         setShowRouteModal(false);
         setIsCalculatingRoute(false);
@@ -2584,7 +2821,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     pane: "routePane",
                   }
                 );
-                mainRouteLayer.addTo(leafletMapRef.current);
+                if (leafletMapRef.current) {
+                  mainRouteLayer.addTo(leafletMapRef.current);
+                  leafletMapRef.current.fitBounds(mainRouteLayer.getBounds(), {
+                    padding: [60, 60],
+                    maxZoom: 17,
+                    animate: true,
+                    duration: 1.5, // Smooth animation duration
+                  });
+                }
                 setRouteLine(mainRouteLayer);
 
                 // Tampilkan rute alternatif dengan warna abu-abu (jika ada lebih dari 1 rute)
@@ -2685,7 +2930,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         pane: "alternativeRoutePane",
                       }
                     );
-                    alternativeLayer.addTo(leafletMapRef.current);
+                    if (leafletMapRef.current) {
+                      alternativeLayer.addTo(leafletMapRef.current);
+                      leafletMapRef.current.fitBounds(
+                        alternativeLayer.getBounds(),
+                        {
+                          padding: [60, 60],
+                          maxZoom: 17,
+                          animate: true,
+                          duration: 1.5, // Smooth animation duration
+                        }
+                      );
+                    }
                   }
                 }
 
@@ -2708,10 +2964,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
                 const bounds = L.latLngBounds(allLatLngs);
-                leafletMapRef.current.fitBounds(bounds, {
-                  padding: [60, 60],
-                  maxZoom: 17,
-                });
+                if (leafletMapRef.current) {
+                  leafletMapRef.current.fitBounds(bounds, {
+                    padding: [60, 60],
+                    maxZoom: 17,
+                    animate: true,
+                    duration: 1.5, // Smooth animation duration
+                  });
+                }
                 setRouteDistance(Math.round(totalDistance));
 
                 // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
@@ -2748,7 +3008,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 setTotalVehicleTime(totalVehicleTime);
 
                 setRouteSteps(
-                  parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
+                  parseRouteSteps(
+                    finalRouteSegments,
+                    startLatLng,
+                    endLatLng,
+                    transportMode
+                  )
                 );
                 setActiveStepIndex(0);
                 setHasReachedDestination(false);
@@ -2770,12 +3035,141 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         } else {
           // Routing biasa (bukan dari "Lokasi Saya")
           try {
-            const routeResult = findRoute(
-              startLatLng,
-              endLatLng,
-              points,
-              jalurFeatures
-            );
+            // Filter jalur berdasarkan mode transportasi
+            let filteredJalurFeatures = jalurFeatures;
+            if (transportMode === "jalan_kaki") {
+              // Untuk pejalan kaki, prioritaskan jalur "pejalan", jika tidak ada baru pakai "both"
+              const pejalanSegments = jalurFeatures.filter(
+                (segment: any) => segment.properties?.Mode === "pejalan"
+              );
+              const bothSegments = jalurFeatures.filter(
+                (segment: any) => segment.properties?.Mode === "both"
+              );
+
+              // Gabungkan dengan prioritas jalur pejalan
+              filteredJalurFeatures = [...pejalanSegments, ...bothSegments];
+              console.log(
+                `🚶 Mode pejalan kaki: ${pejalanSegments.length} segmen pejalan + ${bothSegments.length} segmen both`
+              );
+            } else if (transportMode === "kendaraan") {
+              // PERBAIKAN: Kendaraan bisa menggunakan semua jalur dengan algoritma cerdas
+              // Algoritma Dijkstra akan memilih jalur optimal dengan penalty untuk jalur pejalan
+              filteredJalurFeatures = jalurFeatures;
+              console.log(
+                `🏍️ Mode kendaraan: ${filteredJalurFeatures.length} segmen (algoritma cerdas untuk meminimalkan penggunaan jalur pejalan)`
+              );
+            }
+
+            // PERBAIKAN: Cek apakah tujuan adalah gedung dengan multiple pintu
+            let nearestPoint: Point | null = null;
+            if (routeEndType === "titik" && routeEndSearchText) {
+              // Cari semua titik dengan nama yang sama
+              const allPoints = convertTitikToPoints();
+              console.log(
+                `🔍 [DEBUG] Total points available: ${allPoints.length}`
+              );
+              console.log(`🔍 [DEBUG] Searching for: "${routeEndSearchText}"`);
+
+              const sameNamePoints = allPoints.filter(
+                (p) => p.name === routeEndSearchText
+              );
+
+              console.log(
+                `🔍 [DEBUG] Points with same name: ${sameNamePoints.length}`
+              );
+              sameNamePoints.forEach((p, idx) => {
+                console.log(
+                  `  ${idx + 1}. ${p.name} (ID: ${
+                    p.id
+                  }) at [${p.coordinates[0].toFixed(
+                    6
+                  )}, ${p.coordinates[1].toFixed(6)}]`
+                );
+              });
+
+              if (sameNamePoints.length > 1) {
+                // Cari titik terdekat dari multiple points
+                let minDistance = Infinity;
+                let closestPoint: Point | null = null;
+
+                for (const point of sameNamePoints) {
+                  const distance = calculateDistance(
+                    startLatLng,
+                    point.coordinates
+                  );
+                  console.log(
+                    `🔍 [DISTANCE] ${point.name} (${point.id}): ${Math.round(
+                      distance
+                    )}m`
+                  );
+
+                  if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPoint = point;
+                  }
+                }
+
+                if (closestPoint) {
+                  nearestPoint = closestPoint;
+                  console.log(
+                    `🏢 [NEAREST] Titik terdekat: ${closestPoint.name} (${
+                      closestPoint.id
+                    }) - ${Math.round(minDistance)}m`
+                  );
+                }
+              } else if (sameNamePoints.length === 1) {
+                nearestPoint = sameNamePoints[0];
+                console.log(
+                  `🔍 [DEBUG] Single point found: ${nearestPoint.name}`
+                );
+              } else {
+                console.log(
+                  `🔍 [DEBUG] No points found for "${routeEndSearchText}"`
+                );
+              }
+            }
+
+            let routeResult: any = null;
+
+            if (nearestPoint) {
+              // Gunakan titik terdekat untuk routing
+              console.log(
+                `🏢 [NEAREST] Routing to nearest point: ${
+                  nearestPoint.name
+                } at [${nearestPoint.coordinates[0].toFixed(
+                  6
+                )}, ${nearestPoint.coordinates[1].toFixed(6)}]`
+              );
+
+              routeResult = findRoute(
+                startLatLng,
+                nearestPoint.coordinates,
+                points,
+                filteredJalurFeatures,
+                transportMode,
+                false // isGpsInsideCampus = false
+              );
+
+              if (routeResult) {
+                console.log(
+                  `🏢 [NEAREST] Route found: ${Math.round(
+                    routeResult.distance
+                  )}m with ${routeResult.geojsonSegments.length} segments`
+                );
+              } else {
+                console.warn(`⚠️ [NEAREST] No route found to nearest point!`);
+              }
+            } else {
+              // Routing biasa untuk tujuan tunggal
+              routeResult = findRoute(
+                startLatLng,
+                endLatLng,
+                points,
+                filteredJalurFeatures,
+                transportMode,
+                false // isGpsInsideCampus = false
+              );
+            }
 
             if (
               routeResult &&
@@ -2797,10 +3191,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   pane: "routePane",
                 }
               );
-              geoJsonLayer.addTo(leafletMapRef.current);
+              if (leafletMapRef.current) {
+                geoJsonLayer.addTo(leafletMapRef.current);
+                leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+                  padding: [40, 40],
+                  maxZoom: 19,
+                  animate: true,
+                  duration: 1.5, // Smooth animation duration
+                });
+              }
               setRouteLine(geoJsonLayer);
 
-              // Smooth zoom animation
+              // PERBAIKAN: Hapus alternative routes (tidak digunakan lagi)
+              setAlternativeRouteLines([]);
+
+              // Smooth zoom animation untuk single route
               leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
                 padding: [40, 40],
                 maxZoom: 19,
@@ -2850,7 +3255,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 parseRouteSteps(
                   routeResult.geojsonSegments,
                   startLatLng,
-                  endLatLng
+                  endLatLng,
+                  transportMode
                 )
               );
               setActiveStepIndex(0);
@@ -3127,7 +3533,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   pane: "routePane",
                 }
               );
-              geoJsonLayer.addTo(leafletMapRef.current);
+              if (leafletMapRef.current) {
+                geoJsonLayer.addTo(leafletMapRef.current);
+                leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+                  padding: [60, 60],
+                  maxZoom: 17,
+                  animate: true,
+                  duration: 1.5, // Smooth animation duration
+                });
+              }
               setRouteLine(geoJsonLayer);
 
               const allLatLngs: L.LatLng[] = [];
@@ -3191,7 +3605,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             startLatLng,
             endLatLng,
             points,
-            jalurFeatures
+            jalurFeatures,
+            transportMode,
+            false // isGpsInsideCampus = false
           );
           if (
             routeResult &&
@@ -3213,7 +3629,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 pane: "routePane",
               }
             );
-            geoJsonLayer.addTo(leafletMapRef.current);
+            if (leafletMapRef.current) {
+              geoJsonLayer.addTo(leafletMapRef.current);
+              leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+                padding: [40, 40],
+                maxZoom: 19,
+                animate: true,
+                duration: 1.5, // Smooth animation duration
+              });
+            }
             setRouteLine(geoJsonLayer);
 
             // Smooth zoom animation
@@ -3265,7 +3689,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               parseRouteSteps(
                 routeResult.geojsonSegments,
                 startLatLng,
-                endLatLng
+                endLatLng,
+                transportMode
               )
             );
             setActiveStepIndex(0);
@@ -3475,16 +3900,25 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   )}
                   {totalWalkingTime !== null && totalVehicleTime !== null && (
                     <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2 mt-1">
-                      <span className="flex items-center gap-1">
-                        <i className="fas fa-walking text-green-600"></i>
-                        {Math.floor(totalWalkingTime / 60)} menit{" "}
-                        {Math.round(totalWalkingTime % 60)} detik
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <i className="fa fa-motorcycle text-blue-600"></i>
-                        {Math.floor(totalVehicleTime / 60)} menit{" "}
-                        {Math.round(totalVehicleTime % 60)} detik
-                      </span>
+                      {transportMode === "jalan_kaki" ? (
+                        <span className="flex items-center gap-1">
+                          <FontAwesomeIcon
+                            icon={faWalking}
+                            className="text-green-600 w-3 h-3"
+                          />
+                          {Math.floor(totalWalkingTime / 60)} menit{" "}
+                          {Math.round(totalWalkingTime % 60)} detik
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <FontAwesomeIcon
+                            icon={faMotorcycle}
+                            className="text-blue-600 w-3 h-3"
+                          />
+                          {Math.floor(totalVehicleTime / 60)} menit{" "}
+                          {Math.round(totalVehicleTime % 60)} detik
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3583,7 +4017,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     ? "Sampai tujuan"
                     : activeStepIndex === routeSteps.length - 1
                     ? "Jalan ke tujuan"
-                    : getStepInstruction(activeStepIndex, routeSteps)}
+                    : getStepInstruction(
+                        activeStepIndex,
+                        routeSteps,
+                        transportMode
+                      )}
                 </div>
               </div>
 
@@ -3996,6 +4434,46 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   handleRouteSubmit();
                 }}
               >
+                {/* Mode Transportasi */}
+                <div className="route-modal-select">
+                  <label className="block text-sm font-medium mb-1">
+                    Mode Transportasi
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTransportMode("jalan_kaki")}
+                      className={`flex-1 px-3 py-2 rounded-lg border transition-all ${
+                        transportMode === "jalan_kaki"
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <FontAwesomeIcon icon={faWalking} className="w-4 h-4" />
+                        <span className="text-sm font-medium">Jalan Kaki</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTransportMode("kendaraan")}
+                      className={`flex-1 px-3 py-2 rounded-lg border transition-all ${
+                        transportMode === "kendaraan"
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <FontAwesomeIcon
+                          icon={faMotorcycle}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm font-medium">Kendaraan</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Titik Awal */}
                 <div className="route-modal-select">
                   <label className="block text-sm font-medium mb-1">
@@ -4096,6 +4574,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               !lowerNama.includes("toilet") &&
                               !lowerNama.includes("pos satpam")
                             );
+                          })
+                          .sort((a: any, b: any) => {
+                            const namaA = a.properties?.Nama || "";
+                            const namaB = b.properties?.Nama || "";
+                            const lowerNamaA = namaA.toLowerCase();
+                            const lowerNamaB = namaB.toLowerCase();
+
+                            // Gerbang selalu di atas
+                            const isGerbangA = lowerNamaA.includes("gerbang");
+                            const isGerbangB = lowerNamaB.includes("gerbang");
+
+                            if (isGerbangA && !isGerbangB) return -1;
+                            if (!isGerbangA && isGerbangB) return 1;
+                            if (isGerbangA && isGerbangB) {
+                              // Jika keduanya gerbang, urutkan alfabetis
+                              return namaA.localeCompare(namaB);
+                            }
+
+                            // Sisanya urutkan alfabetis
+                            return namaA.localeCompare(namaB);
                           })
                           .map((t: any) => (
                             <button

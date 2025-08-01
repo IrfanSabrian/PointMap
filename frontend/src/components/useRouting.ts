@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import L from "leaflet";
 import { parseRouteSteps, getStepInstruction } from "../lib/routeSteps";
 
+export type TransportMode = "jalan_kaki" | "kendaraan";
+
 export function useRouting() {
   const [routeSteps, setRouteSteps] = useState<any[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
@@ -9,11 +11,16 @@ export function useRouting() {
   const [totalWalkingTime, setTotalWalkingTime] = useState<number | null>(null);
   const [totalVehicleTime, setTotalVehicleTime] = useState<number | null>(null);
   const [routeLine, setRouteLine] = useState<L.Layer | null>(null);
+  const [alternativeRouteLines, setAlternativeRouteLines] = useState<L.Layer[]>(
+    []
+  );
   const [destinationMarker, setDestinationMarker] = useState<L.Marker | null>(
     null
   );
   const [hasReachedDestination, setHasReachedDestination] =
     useState<boolean>(false);
+  const [transportMode, setTransportMode] =
+    useState<TransportMode>("jalan_kaki");
   const activeStepLineRef = useRef<L.Polyline | null>(null);
 
   return {
@@ -29,10 +36,14 @@ export function useRouting() {
     setTotalVehicleTime,
     routeLine,
     setRouteLine,
+    alternativeRouteLines,
+    setAlternativeRouteLines,
     destinationMarker,
     setDestinationMarker,
     hasReachedDestination,
     setHasReachedDestination,
+    transportMode,
+    setTransportMode,
     activeStepLineRef,
     parseRouteSteps,
     getStepInstruction,

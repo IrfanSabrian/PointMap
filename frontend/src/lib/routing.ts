@@ -98,29 +98,45 @@ export function findConnectedRoutes(
     const routeCoords = getRouteCoordinates(route);
     if (routeCoords.length === 0) continue;
 
-    // Cek apakah titik terhubung dengan awal atau akhir jalur
-    const startPoint = routeCoords[0];
-    const endPoint = routeCoords[routeCoords.length - 1];
+    // PERBAIKAN: Cek konektivitas yang lebih akurat
+    let isConnected = false;
+    let minDistance = Infinity;
 
-    const distanceToStart = calculateDistance(point, startPoint);
-    const distanceToEnd = calculateDistance(point, endPoint);
+    // Cek jarak ke setiap titik dalam jalur
+    for (const coord of routeCoords) {
+      const distance = calculateDistance(point, coord);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+      if (distance <= maxDistance) {
+        isConnected = true;
+      }
+    }
 
-    if (distanceToStart < maxDistance || distanceToEnd < maxDistance) {
+    // Jika terhubung, tambahkan ke daftar dengan informasi jarak
+    if (isConnected) {
       connectedRoutes.push({
         ...route,
-        distanceToPoint: Math.min(distanceToStart, distanceToEnd),
-        isStartConnected: distanceToStart < distanceToEnd,
-        routeCoords: routeCoords,
+        _connectionDistance: minDistance, // Tambahkan informasi jarak untuk sorting
       });
     }
   }
 
-  const sortedRoutes = connectedRoutes.sort(
-    (a, b) => a.distanceToPoint - b.distanceToPoint
+  // PERBAIKAN: Urutkan berdasarkan jarak terdekat
+  connectedRoutes.sort(
+    (a, b) => (a._connectionDistance || 0) - (b._connectionDistance || 0)
+  );
+
+  console.log(
+    `🔗 [CONNECTED] Ditemukan ${
+      connectedRoutes.length
+    } jalur terhubung dengan jarak terdekat ${Math.round(
+      connectedRoutes[0]?._connectionDistance || 0
+    )}m`
   );
 
   // Log hanya jika tidak ada jalur yang terhubung
-  if (sortedRoutes.length === 0) {
+  if (connectedRoutes.length === 0) {
     console.warn(
       `⚠️ [CONNECTED] Tidak ada jalur yang terhubung dengan titik [${point[0].toFixed(
         6
@@ -128,7 +144,7 @@ export function findConnectedRoutes(
     );
   }
 
-  return sortedRoutes;
+  return connectedRoutes;
 }
 
 // Fungsi untuk mencari jalur yang terhubung dengan jalur lain
@@ -499,7 +515,8 @@ export function calculatePathDistance(coordinates: [number, number][]): number {
 export function findShortestRoute(
   startCoord: [number, number],
   endCoord: [number, number],
-  routes: any[]
+  routes: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
 ): {
   coordinates: [number, number][];
   distance: number;
@@ -534,6 +551,17 @@ export function findShortestRoute(
 
     const startPoint = routeCoords[0];
     const endPoint = routeCoords[routeCoords.length - 1];
+
+    // Cek apakah ini jalur oneway untuk kendaraan
+    const isOneWay = route.properties?.arah === "oneway";
+    if (transportMode === "kendaraan" && isOneWay) {
+      // Untuk kendaraan, jalur oneway hanya boleh dari hijau (end) ke merah (start)
+      // TIDAK BOLEH dari merah (start) ke hijau (end)
+      console.log(
+        `🚫 [FALLBACK] Jalur oneway ${route.id}: hanya arah hijau→merah untuk kendaraan (dilarang merah→hijau)`
+      );
+      continue; // Skip jalur oneway yang arahnya salah
+    }
 
     // Hitung jarak dari start ke jalur dan dari jalur ke end
     const startToRoute = calculateDistance(startCoord, startPoint);
@@ -600,7 +628,8 @@ function findNearestNode(coord: [number, number], nodes: [number, number][]) {
 export function findShortestRouteDijkstra(
   startCoord: [number, number],
   endCoord: [number, number],
-  routes: any[]
+  routes: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
 ): {
   coordinates: [number, number][];
   distance: number;
@@ -632,19 +661,79 @@ export function findShortestRouteDijkstra(
     const routeLength =
       route.properties?.panjang || euclideanDistance(start, end) * 111000; // Convert to meters if no panjang
 
-    edges.push({
-      from: start,
-      to: end,
-      route,
-      length: routeLength, // Gunakan panjang dari GeoJSON
-    });
-    // Bidirectional
-    edges.push({
-      from: end,
-      to: start,
-      route,
-      length: routeLength, // Gunakan panjang dari GeoJSON
-    });
+    // Cek apakah ini jalur oneway
+    const isOneWay = route.properties?.arah === "oneway";
+
+    if (transportMode === "kendaraan" && isOneWay) {
+      // Untuk kendaraan, jalur oneway hanya boleh dari hijau (end) ke merah (start)
+      // TIDAK BOLEH dari merah (start) ke hijau (end) - harus mutar
+      edges.push({
+        from: end,
+        to: start,
+        route,
+        length: routeLength,
+      });
+      console.log(
+        `🚫 [DIJKSTRA] Jalur oneway ${route.id}: hanya arah hijau→merah untuk kendaraan (dilarang merah→hijau)`
+      );
+    } else if (transportMode === "kendaraan") {
+      // PERBAIKAN: Logika kendaraan yang lebih cerdas
+      // Kendaraan bisa menggunakan jalur pejalan kaki untuk menghemat jarak
+      // Tapi tidak boleh bolak-balik antara "both" dan "pejalan"
+
+      const isBothRoute = route.properties?.Mode === "both";
+      const isPedestrianRoute = route.properties?.Mode === "pejalan";
+
+      if (isBothRoute) {
+        // Jalur "both" selalu bisa digunakan kendaraan
+        edges.push({
+          from: start,
+          to: end,
+          route,
+          length: routeLength,
+        });
+        edges.push({
+          from: end,
+          to: start,
+          route,
+          length: routeLength,
+        });
+      } else if (isPedestrianRoute) {
+        // PERBAIKAN: Jalur pejalan kaki bisa digunakan kendaraan
+        // Tapi dengan penalty yang sangat besar untuk mendorong kendaraan menggunakan jalur "both"
+        // Kendaraan sangat minim turun, hanya jika sudah sangat dekat sekali
+        const pedestrianPenalty = 20.0; // 1900% penalty untuk jalur pejalan kaki
+        edges.push({
+          from: start,
+          to: end,
+          route,
+          length: routeLength * pedestrianPenalty,
+        });
+        edges.push({
+          from: end,
+          to: start,
+          route,
+          length: routeLength * pedestrianPenalty,
+        });
+        console.log(
+          `🏍️ [DIJKSTRA] Jalur pejalan ${route.id}: bisa digunakan kendaraan dengan penalty ${pedestrianPenalty}x (kendaraan sangat minim turun)`
+        );
+      }
+    } else {
+      // Untuk pejalan kaki: semua jalur bisa digunakan
+      edges.push({
+        from: start,
+        to: end,
+        route,
+        length: routeLength,
+      });
+      edges.push({
+        from: end,
+        to: start,
+        route,
+        length: routeLength,
+      });
+    }
   }
 
   // Dedup node
@@ -730,6 +819,27 @@ export function findShortestRouteDijkstra(
 
   if (pathEdges.length === 0) {
     console.warn(`⚠️ [DIJKSTRA] Tidak ada path yang ditemukan`);
+
+    // PERBAIKAN: Coba cari rute alternatif dengan algoritma yang lebih fleksibel
+    console.log(
+      `🔄 [DIJKSTRA] Mencoba algoritma fallback untuk memastikan konektivitas...`
+    );
+
+    // Coba dengan jarak toleransi yang lebih besar
+    const fallbackResult = findConnectedRouteWithFallback(
+      startCoord,
+      endCoord,
+      routes,
+      transportMode
+    );
+
+    if (fallbackResult) {
+      console.log(
+        `✅ [DIJKSTRA] Fallback berhasil dengan ${fallbackResult.geojsonSegments.length} segmen`
+      );
+      return fallbackResult;
+    }
+
     return null;
   }
 
@@ -788,6 +898,181 @@ export function findShortestRouteDijkstra(
   };
 }
 
+// PERBAIKAN: Fungsi fallback untuk memastikan konektivitas rute
+function findConnectedRouteWithFallback(
+  startCoord: [number, number],
+  endCoord: [number, number],
+  routes: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
+): {
+  coordinates: [number, number][];
+  distance: number;
+  routeIds: string[];
+  geojsonSegments: any[];
+} | null {
+  console.log(
+    `🔍 [FALLBACK] Mencari rute terhubung dengan algoritma fallback...`
+  );
+
+  // 1. Cari jalur yang terhubung dengan titik awal
+  const startRoutes = findConnectedRoutes(startCoord, routes, 200); // Tingkatkan jarak toleransi
+  const endRoutes = findConnectedRoutes(endCoord, routes, 200);
+
+  console.log(
+    `📊 [FALLBACK] Ditemukan ${startRoutes.length} jalur dari start, ${endRoutes.length} jalur dari end`
+  );
+
+  if (startRoutes.length === 0 || endRoutes.length === 0) {
+    console.warn(
+      `⚠️ [FALLBACK] Tidak ada jalur terhubung dengan titik start/end`
+    );
+    return null;
+  }
+
+  // 2. Coba cari rute terpendek antara jalur start dan end
+  let bestRoute: any[] = [];
+  let bestDistance = Infinity;
+
+  for (const startRoute of startRoutes) {
+    for (const endRoute of endRoutes) {
+      // Coba cari path dari startRoute ke endRoute
+      const pathResult = findPathBetweenRoutes(
+        startRoute,
+        endRoute,
+        routes,
+        transportMode
+      );
+
+      if (pathResult && pathResult.length > 0) {
+        // Hitung total jarak
+        let totalDistance = 0;
+        for (const route of pathResult) {
+          totalDistance += route.properties?.panjang || 0;
+        }
+
+        if (totalDistance < bestDistance) {
+          bestDistance = totalDistance;
+          bestRoute = pathResult;
+        }
+      }
+    }
+  }
+
+  if (bestRoute.length === 0) {
+    console.warn(`⚠️ [FALLBACK] Tidak dapat menemukan path yang terhubung`);
+    return null;
+  }
+
+  // 3. Bangun koordinat lengkap
+  const allCoords: [number, number][] = [startCoord];
+
+  for (let i = 0; i < bestRoute.length; i++) {
+    const route = bestRoute[i];
+    const coords = route.geometry.coordinates.map((c: number[]) => [
+      c[1],
+      c[0],
+    ]);
+
+    if (i === 0) {
+      // Untuk jalur pertama, mulai dari titik terdekat dengan start
+      const startDist = calculateDistance(startCoord, coords[0]);
+      const endDist = calculateDistance(startCoord, coords[coords.length - 1]);
+
+      if (startDist <= endDist) {
+        allCoords.push(...coords);
+      } else {
+        allCoords.push(...coords.reverse());
+      }
+    } else {
+      // Untuk jalur berikutnya, hindari duplikasi
+      const lastCoord = allCoords[allCoords.length - 1];
+      const firstCoord = coords[0];
+      const lastCoordRev = coords[coords.length - 1];
+
+      const distToFirst = calculateDistance(lastCoord, firstCoord);
+      const distToLast = calculateDistance(lastCoord, lastCoordRev);
+
+      if (distToFirst <= distToLast) {
+        allCoords.push(...coords);
+      } else {
+        allCoords.push(...coords.reverse());
+      }
+    }
+  }
+
+  // Tambahkan titik tujuan jika belum sama
+  const lastCoord = allCoords[allCoords.length - 1];
+  if (calculateDistance(lastCoord, endCoord) > 1) {
+    // 1 meter toleransi
+    allCoords.push(endCoord);
+  }
+
+  console.log(
+    `✅ [FALLBACK] Berhasil membuat rute terhubung dengan ${bestRoute.length} segmen`
+  );
+
+  return {
+    coordinates: allCoords,
+    distance: bestDistance,
+    routeIds: bestRoute.map((r) => r.id),
+    geojsonSegments: bestRoute,
+  };
+}
+
+// Fungsi untuk mencari path antara dua jalur
+function findPathBetweenRoutes(
+  startRoute: any,
+  endRoute: any,
+  allRoutes: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
+): any[] | null {
+  console.log(
+    `🔍 [PATH] Mencari path dari jalur ${startRoute.id} ke ${endRoute.id}`
+  );
+
+  // Gunakan BFS untuk mencari path terpendek
+  const queue: Array<{ route: any; path: any[] }> = [
+    { route: startRoute, path: [startRoute] },
+  ];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const { route, path } = queue.shift()!;
+    const routeId = route.id || route.properties?.OBJECTID;
+
+    if (visited.has(routeId)) continue;
+    visited.add(routeId);
+
+    // Cek apakah ini jalur tujuan
+    if (route.id === endRoute.id) {
+      console.log(`✅ [PATH] Path ditemukan dengan ${path.length} segmen`);
+      return path;
+    }
+
+    // Cari jalur yang terhubung
+    const connectedRoutes = findConnectedRouteToRoute(route, allRoutes, 100); // Tingkatkan toleransi
+
+    for (const connectedRoute of connectedRoutes) {
+      // Filter berdasarkan mode transportasi
+      if (
+        transportMode === "kendaraan" &&
+        connectedRoute.properties?.Mode === "pejalan"
+      ) {
+        continue; // Skip jalur pejalan untuk kendaraan
+      }
+
+      if (
+        !visited.has(connectedRoute.id || connectedRoute.properties?.OBJECTID)
+      ) {
+        queue.push({ route: connectedRoute, path: [...path, connectedRoute] });
+      }
+    }
+  }
+
+  console.warn(`⚠️ [PATH] Tidak ada path yang ditemukan`);
+  return null;
+}
+
 // Fungsi untuk mencari jalur berdasarkan nama atau ID
 export function findRouteByName(name: string, routes: any[]): any | null {
   const lowerName = name.toLowerCase();
@@ -825,7 +1110,9 @@ export function findRoute(
   startCoordinates: [number, number],
   endCoordinates: [number, number],
   points: Point[],
-  routes: any[]
+  routes: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki",
+  isGpsInsideCampus: boolean = false
 ): {
   coordinates: [number, number][];
   distance: number;
@@ -844,40 +1131,105 @@ export function findRoute(
   );
 
   // Cari titik terdekat untuk start dan end
-  const startPoint = findNearestPoint(startCoordinates, points);
-  const endPoint = findNearestPoint(endCoordinates, points);
-
   let actualStart = startCoordinates;
   let actualEnd = endCoordinates;
 
-  if (startPoint) {
-    actualStart = startPoint.coordinates;
+  if (isGpsInsideCampus) {
+    // Untuk GPS di dalam kampus, cari jalur GeoJSON terdekat
     console.log(
-      `📍 [ROUTING] Titik start terdekat: ${startPoint.name} (${Math.round(
-        calculateDistance(startCoordinates, actualStart)
-      )}m)`
+      "📍 [ROUTING] GPS di dalam kampus - mencari jalur GeoJSON terdekat"
     );
-  } else {
-    console.warn(`⚠️ [ROUTING] Tidak ada titik terdekat untuk start point`);
-  }
 
-  if (endPoint) {
-    actualEnd = endPoint.coordinates;
-    console.log(
-      `🎯 [ROUTING] Titik end terdekat: ${endPoint.name} (${Math.round(
-        calculateDistance(endCoordinates, actualEnd)
-      )}m)`
-    );
+    // Cari jalur yang terhubung dengan GPS
+    const connectedRoutes = findConnectedRoutes(startCoordinates, routes, 200); // Tingkatkan radius pencarian
+
+    if (connectedRoutes.length > 0) {
+      // Ambil jalur terdekat
+      const nearestRoute = connectedRoutes[0];
+      const routeCoords = getRouteCoordinates(nearestRoute);
+
+      if (routeCoords.length > 0) {
+        // Cari titik terdekat pada jalur tersebut
+        let nearestPointOnRoute = routeCoords[0];
+        let minDistance = calculateDistance(
+          startCoordinates,
+          nearestPointOnRoute
+        );
+
+        for (const coord of routeCoords) {
+          const distance = calculateDistance(startCoordinates, coord);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestPointOnRoute = coord;
+          }
+        }
+
+        // Gunakan titik terdekat pada jalur sebagai titik awal
+        actualStart = nearestPointOnRoute;
+        console.log(
+          `📍 [ROUTING] Titik awal: titik terdekat pada jalur ${
+            nearestRoute.id
+          } (${Math.round(minDistance)}m dari GPS)`
+        );
+        console.log(
+          `📍 [ROUTING] Koordinat titik awal: [${actualStart[0].toFixed(
+            6
+          )}, ${actualStart[1].toFixed(6)}]`
+        );
+      }
+    } else {
+      console.warn(`⚠️ [ROUTING] Tidak ada jalur GeoJSON terdekat dari GPS`);
+    }
+
+    // Cari titik terdekat untuk tujuan (end point)
+    const endPoint = findNearestPoint(endCoordinates, points);
+    if (endPoint) {
+      actualEnd = endPoint.coordinates;
+      console.log(
+        `🎯 [ROUTING] Titik end terdekat: ${endPoint.name} (${Math.round(
+          calculateDistance(endCoordinates, actualEnd)
+        )}m)`
+      );
+    } else {
+      console.warn(`⚠️ [ROUTING] Tidak ada titik terdekat untuk end point`);
+    }
   } else {
-    console.warn(`⚠️ [ROUTING] Tidak ada titik terdekat untuk end point`);
+    // Untuk routing biasa, cari titik terdekat untuk start dan end
+    const startPoint = findNearestPoint(startCoordinates, points);
+    const endPoint = findNearestPoint(endCoordinates, points);
+
+    if (startPoint) {
+      actualStart = startPoint.coordinates;
+      console.log(
+        `📍 [ROUTING] Titik start terdekat: ${startPoint.name} (${Math.round(
+          calculateDistance(startCoordinates, actualStart)
+        )}m)`
+      );
+    } else {
+      console.warn(`⚠️ [ROUTING] Tidak ada titik terdekat untuk start point`);
+    }
+
+    if (endPoint) {
+      actualEnd = endPoint.coordinates;
+      console.log(
+        `🎯 [ROUTING] Titik end terdekat: ${endPoint.name} (${Math.round(
+          calculateDistance(endCoordinates, actualEnd)
+        )}m)`
+      );
+    } else {
+      console.warn(`⚠️ [ROUTING] Tidak ada titik terdekat untuk end point`);
+    }
   }
 
   // Coba Dijkstra dulu
-  console.log(`🔄 [ROUTING] Mencoba algoritma Dijkstra...`);
+  console.log(
+    `🔄 [ROUTING] Mencoba algoritma Dijkstra dengan mode ${transportMode}...`
+  );
   const dijkstraResult = findShortestRouteDijkstra(
     actualStart,
     actualEnd,
-    routes
+    routes,
+    transportMode
   );
   if (dijkstraResult && dijkstraResult.geojsonSegments.length > 0) {
     console.log(
@@ -890,7 +1242,12 @@ export function findRoute(
 
   // Fallback: findShortestRoute lama
   console.log(`🔄 [ROUTING] Dijkstra gagal, mencoba algoritma fallback...`);
-  const routeResult = findShortestRoute(actualStart, actualEnd, routes);
+  const routeResult = findShortestRoute(
+    actualStart,
+    actualEnd,
+    routes,
+    transportMode
+  );
   if (routeResult && routeResult.geojsonSegments.length > 0) {
     console.log(
       `✅ [ROUTING] Fallback berhasil! ${
@@ -900,9 +1257,30 @@ export function findRoute(
     return routeResult;
   }
 
-  // Jika tidak ada rute yang valid, kembalikan fallback route (garis lurus)
+  // PERBAIKAN: Coba algoritma fallback yang lebih robust untuk memastikan konektivitas
   console.warn(
-    "⚠️ [ROUTING] Tidak ditemukan rute yang valid, menggunakan fallback garis lurus"
+    "⚠️ [ROUTING] Algoritma utama gagal, mencoba algoritma fallback untuk memastikan konektivitas..."
+  );
+
+  const fallbackResult = findConnectedRouteWithFallback(
+    actualStart,
+    actualEnd,
+    routes,
+    transportMode
+  );
+
+  if (fallbackResult && fallbackResult.geojsonSegments.length > 0) {
+    console.log(
+      `✅ [ROUTING] Fallback berhasil! ${
+        fallbackResult.geojsonSegments.length
+      } segmen, ${Math.round(fallbackResult.distance)}m`
+    );
+    return fallbackResult;
+  }
+
+  // Jika semua algoritma gagal, kembalikan fallback route (garis lurus)
+  console.warn(
+    "⚠️ [ROUTING] Semua algoritma gagal, menggunakan fallback garis lurus"
   );
 
   const fallbackDistance = calculateDistance(actualStart, actualEnd);
@@ -929,5 +1307,160 @@ export function findRoute(
         },
       },
     ],
+  };
+}
+
+// Fungsi untuk mencari semua rute ke gedung dengan multiple pintu
+export function findMultipleRoutesToBuilding(
+  startCoordinates: [number, number],
+  buildingName: string,
+  points: Point[],
+  routes: any[],
+  transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
+): {
+  primaryRoute: {
+    coordinates: [number, number][];
+    distance: number;
+    routeIds: string[];
+    geojsonSegments: any[];
+    destinationPoint: Point;
+  } | null;
+  alternativeRoutes: Array<{
+    coordinates: [number, number][];
+    distance: number;
+    routeIds: string[];
+    geojsonSegments: any[];
+    destinationPoint: Point;
+  }>;
+} {
+  console.log(`🏢 [MULTI-ROUTE] Mencari semua rute ke gedung: ${buildingName}`);
+  console.log(`🏢 [MULTI-ROUTE] Input data:`);
+  console.log(
+    `  - startCoordinates: [${startCoordinates[0].toFixed(
+      6
+    )}, ${startCoordinates[1].toFixed(6)}]`
+  );
+  console.log(`  - buildingName: "${buildingName}"`);
+  console.log(`  - points count: ${points.length}`);
+  console.log(`  - routes count: ${routes.length}`);
+  console.log(`  - transportMode: ${transportMode}`);
+
+  // Debug: tampilkan beberapa points pertama
+  console.log(`🏢 [MULTI-ROUTE] Sample points:`);
+  points.slice(0, 5).forEach((p, idx) => {
+    console.log(
+      `  ${idx + 1}. "${p.name}" (ID: ${p.id}) at [${p.coordinates[0].toFixed(
+        6
+      )}, ${p.coordinates[1].toFixed(6)}]`
+    );
+  });
+
+  // Cari semua titik dengan nama yang sama (multiple pintu)
+  const buildingEntrances = points.filter(
+    (point) => point.name.toLowerCase() === buildingName.toLowerCase()
+  );
+
+  console.log(
+    `🏢 [MULTI-ROUTE] Ditemukan ${buildingEntrances.length} pintu masuk untuk ${buildingName}`
+  );
+
+  if (buildingEntrances.length === 0) {
+    console.warn(
+      `⚠️ [MULTI-ROUTE] Tidak ada pintu masuk ditemukan untuk ${buildingName}`
+    );
+    return {
+      primaryRoute: null,
+      alternativeRoutes: [],
+    };
+  }
+
+  // Cari rute ke setiap pintu masuk
+  const allRoutes: Array<{
+    route: any;
+    destinationPoint: Point;
+    distance: number;
+  }> = [];
+
+  for (const entrance of buildingEntrances) {
+    console.log(
+      `🔍 [MULTI-ROUTE] Mencari rute ke pintu: ${entrance.name} (${entrance.id})`
+    );
+    console.log(
+      `🔍 [MULTI-ROUTE] Entrance coordinates: [${entrance.coordinates[0].toFixed(
+        6
+      )}, ${entrance.coordinates[1].toFixed(6)}]`
+    );
+
+    const routeResult = findRoute(
+      startCoordinates,
+      entrance.coordinates,
+      points,
+      routes,
+      transportMode
+    );
+
+    console.log(
+      `🔍 [MULTI-ROUTE] findRoute result for ${entrance.name}:`,
+      routeResult
+    );
+
+    if (routeResult) {
+      allRoutes.push({
+        route: routeResult,
+        destinationPoint: entrance,
+        distance: routeResult.distance,
+      });
+
+      console.log(
+        `✅ [MULTI-ROUTE] Rute ke ${entrance.name}: ${Math.round(
+          routeResult.distance
+        )}m (${routeResult.geojsonSegments.length} segments)`
+      );
+    } else {
+      console.warn(`⚠️ [MULTI-ROUTE] Tidak ada rute ke pintu ${entrance.name}`);
+    }
+  }
+
+  if (allRoutes.length === 0) {
+    console.warn(
+      `⚠️ [MULTI-ROUTE] Tidak ada rute yang ditemukan ke ${buildingName}`
+    );
+    return {
+      primaryRoute: null,
+      alternativeRoutes: [],
+    };
+  }
+
+  // Urutkan berdasarkan jarak (terpendek dulu)
+  allRoutes.sort((a, b) => a.distance - b.distance);
+
+  // Rute terpendek menjadi primary route (dengan instruksi navigasi)
+  const primaryRoute = allRoutes[0];
+  const alternativeRoutes = allRoutes.slice(1);
+
+  console.log(
+    `🏢 [MULTI-ROUTE] Primary route: ${
+      primaryRoute.destinationPoint.name
+    } (${Math.round(primaryRoute.distance)}m)`
+  );
+  console.log(
+    `🏢 [MULTI-ROUTE] Alternative routes: ${alternativeRoutes.length} rute`
+  );
+
+  return {
+    primaryRoute: {
+      coordinates: primaryRoute.route.coordinates,
+      distance: primaryRoute.route.distance,
+      routeIds: primaryRoute.route.routeIds,
+      geojsonSegments: primaryRoute.route.geojsonSegments,
+      destinationPoint: primaryRoute.destinationPoint,
+    },
+    alternativeRoutes: alternativeRoutes.map((alt) => ({
+      coordinates: alt.route.coordinates,
+      distance: alt.route.distance,
+      routeIds: alt.route.routeIds,
+      geojsonSegments: alt.route.geojsonSegments,
+      destinationPoint: alt.destinationPoint,
+    })),
   };
 }
