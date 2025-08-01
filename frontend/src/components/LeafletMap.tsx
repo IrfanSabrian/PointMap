@@ -244,8 +244,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setActiveStepIndex,
       routeDistance,
       setRouteDistance,
+      totalWalkingTime,
+      setTotalWalkingTime,
+      totalVehicleTime,
+      setTotalVehicleTime,
       routeLine,
       setRouteLine,
+      destinationMarker,
+      setDestinationMarker,
+      hasReachedDestination,
+      setHasReachedDestination,
       activeStepLineRef,
       parseRouteSteps,
       getStepInstruction,
@@ -440,6 +448,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           if (coords && Array.isArray(coords) && coords.length > 0) {
             // Handle MultiPoint atau Point
             const pointCoords = Array.isArray(coords[0]) ? coords[0] : coords;
+            const nama = titik.properties?.Nama || "";
+            const lowerNama = nama.toLowerCase();
+
+            // Filter out titik yang memiliki nama "Toilet" atau "Pos Satpam"
+            if (
+              lowerNama.includes("toilet") ||
+              lowerNama.includes("pos satpam")
+            ) {
+              return null;
+            }
+
             return {
               id: String(titik.id || titik.properties?.OBJECTID || ""),
               name:
@@ -1629,8 +1648,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return [lat, lng];
     };
 
-    // Fungsi BARU untuk mencari gerbang yang terhubung ke tujuan terlebih dahulu
-    const findConnectedGates = (endCoords: [number, number]): any[] => {
+    // Fungsi untuk mencari gerbang yang terhubung ke tujuan
+    const findConnectedGates = (
+      endCoords: [number, number],
+      buildingName?: string
+    ): any[] => {
       const gates = titikFeatures.filter(
         (t: any) =>
           t.properties?.Nama &&
@@ -1642,31 +1664,55 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const connectedGates: any[] = [];
       const points = convertTitikToPoints();
 
-      // PERBAIKAN: Validasi bahwa tujuan benar-benar ada titiknya
-      let hasValidDestination = false;
+      // PERBAIKAN: Cari titik tujuan yang memiliki nama sama dengan gedung
+      let targetPoints: Point[] = [];
+      if (buildingName) {
+        // Cari titik yang namanya sama dengan gedung
+        targetPoints = points.filter((point) =>
+          point.name.toLowerCase().includes(buildingName.toLowerCase())
+        );
+        console.log(
+          `🎯 Mencari titik tujuan dengan nama "${buildingName}": ${targetPoints.length} titik ditemukan`
+        );
+      }
 
-      // Cek apakah ada titik dalam radius 50 meter dari tujuan
-      for (const point of points) {
-        const distance = calculateDistance(endCoords, point.coordinates);
-        if (distance <= 50) {
-          hasValidDestination = true;
+      // Jika tidak ada titik dengan nama gedung, gunakan titik terdekat
+      if (targetPoints.length === 0) {
+        let nearestPoint: Point | null = null;
+        let minDistance = Infinity;
+
+        for (const point of points) {
+          const distance = calculateDistance(endCoords, point.coordinates);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestPoint = point;
+          }
+        }
+
+        if (nearestPoint) {
+          targetPoints = [nearestPoint];
           console.log(
-            `🎯 Tujuan terhubung ke titik: ${point.name} (${Math.round(
-              distance
+            `🎯 Menggunakan titik terdekat: ${nearestPoint.name} (${Math.round(
+              minDistance
             )}m)`
           );
-          break;
         }
       }
 
-      if (!hasValidDestination) {
-        console.log(
-          "❌ Tujuan tidak memiliki titik terdekat dalam radius 50 meter"
-        );
+      if (targetPoints.length === 0) {
+        console.log("❌ Tidak ada titik tujuan yang ditemukan");
         return [];
       }
 
-      // Test setiap gerbang apakah bisa route ke tujuan
+      // PERBAIKAN: Jika ada multiple titik dengan nama sama, GUNAKAN SEMUA titik
+      if (targetPoints.length > 1) {
+        console.log(
+          `🎯 Multiple titik ditemukan untuk "${buildingName}". Akan mencari rute ke SEMUA ${targetPoints.length} titik:`,
+          targetPoints.map((p) => p.name)
+        );
+      }
+
+      // Test setiap gerbang apakah bisa route ke titik tujuan
       for (const gate of gates) {
         if (gate.geometry && gate.geometry.coordinates) {
           const gateCoords: [number, number] = [
@@ -1674,48 +1720,73 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             gate.geometry.coordinates[0],
           ];
 
-          // Test apakah ada jalur dari gerbang ke tujuan
-          const routeTest = findRoute(
-            gateCoords,
-            endCoords,
-            points,
-            jalurFeatures
-          );
+          // Test route ke SEMUA titik tujuan
+          for (const targetPoint of targetPoints) {
+            try {
+              const routeTest = findRoute(
+                gateCoords,
+                targetPoint.coordinates,
+                points,
+                jalurFeatures
+              );
 
-          if (
-            routeTest &&
-            routeTest.geojsonSegments &&
-            routeTest.geojsonSegments.length > 0
-          ) {
-            connectedGates.push({
-              gate: gate,
-              coords: gateCoords,
-              routeToDestination: routeTest,
-              gateName: gate.properties?.Nama || "Gerbang",
-            });
-            console.log(
-              `✅ Gerbang ${
-                gate.properties?.Nama
-              } terhubung ke tujuan (${Math.round(routeTest.distance)}m)`
-            );
-          } else {
-            console.log(
-              `❌ Gerbang ${gate.properties?.Nama} TIDAK terhubung ke tujuan`
-            );
+              if (
+                routeTest &&
+                routeTest.geojsonSegments &&
+                routeTest.geojsonSegments.length > 0
+              ) {
+                connectedGates.push({
+                  gate: gate,
+                  coords: gateCoords,
+                  routeToDestination: routeTest,
+                  gateName: gate.properties?.Nama || "Gerbang",
+                  targetPoint: targetPoint,
+                  totalDistance: routeTest.distance,
+                });
+                console.log(
+                  `✅ Gerbang ${gate.properties?.Nama} → ${
+                    targetPoint.name
+                  }: ${Math.round(routeTest.distance)}m`
+                );
+              } else {
+                console.log(
+                  `❌ Gerbang ${gate.properties?.Nama} TIDAK terhubung ke ${targetPoint.name}`
+                );
+              }
+            } catch (error) {
+              console.warn(
+                `⚠️ Error testing route from ${gate.properties?.Nama} to ${targetPoint.name}:`,
+                error
+              );
+              continue;
+            }
           }
         }
       }
 
+      // Urutkan berdasarkan jarak terpendek
+      connectedGates.sort((a, b) => a.totalDistance - b.totalDistance);
+
+      console.log(
+        `📊 Total ${connectedGates.length} gerbang terhubung, diurutkan berdasarkan jarak terpendek`
+      );
+
       return connectedGates;
     };
 
-    // Fungsi untuk mencari gerbang terbaik: yang terhubung ke tujuan DAN terdekat dari GPS
-    const findBestGateForDestination = async (
+    // Fungsi untuk mencari SEMUA rute ke SEMUA titik masuk gedung
+    const findAllRoutesToBuilding = async (
       userCoords: [number, number],
-      endCoords: [number, number]
-    ): Promise<any | null> => {
-      // 1. PERTAMA: Cari semua gerbang yang terhubung ke tujuan
-      const connectedGates = findConnectedGates(endCoords);
+      endCoords: [number, number],
+      buildingName?: string
+    ): Promise<{
+      bestRoute: any;
+      allRoutes: any[];
+      gate: any;
+      routeToDestination: any;
+    } | null> => {
+      // 1. PERTAMA: Cari gerbang yang terhubung ke tujuan dengan nama gedung
+      const connectedGates = findConnectedGates(endCoords, buildingName);
 
       if (connectedGates.length === 0) {
         console.log("❌ Tidak ada gerbang yang terhubung ke tujuan");
@@ -1726,68 +1797,76 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         `🎯 Ditemukan ${connectedGates.length} gerbang yang terhubung ke tujuan`
       );
 
-      // 2. KEDUA: Hitung rute OSRM dari GPS ke setiap gerbang
-      let bestGate = null;
-      let shortestTotalDistance = Infinity;
-      let bestRouteToDestination = null;
-      let bestOsrmRoute = null;
+      // 2. KEDUA: Hitung rute OSRM dari GPS ke setiap gerbang untuk setiap kombinasi
+      const allCompleteRoutes: any[] = [];
 
-      for (const gateInfo of connectedGates) {
-        console.log(`🔍 Mencari rute OSRM ke ${gateInfo.gateName}...`);
+      // Batasi maksimal 5 kombinasi untuk performa
+      const limitedGates = connectedGates.slice(0, 5);
+      console.log(
+        `🔍 Mencoba ${limitedGates.length} kombinasi gerbang-titik untuk performa`
+      );
+
+      for (const gateInfo of limitedGates) {
+        console.log(
+          `🔍 Mencari rute OSRM ke ${gateInfo.gateName} → ${gateInfo.targetPoint.name}...`
+        );
 
         try {
-          // Dapatkan rute OSRM dari GPS ke gerbang
-          const osrmRoute = await getRealWorldRoute(
-            userCoords,
-            gateInfo.coords
-          );
+          // Dapatkan rute OSRM dari GPS ke gerbang dengan timeout
+          const osrmRoute = (await Promise.race([
+            getRealWorldRoute(userCoords, gateInfo.coords),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("OSRM timeout")), 5000)
+            ),
+          ])) as any;
+
+          let totalDistance: number;
+          let osrmRouteToUse: any = null;
 
           if (osrmRoute) {
             // Total jarak = OSRM (GPS->Gerbang) + GeoJSON (Gerbang->Tujuan)
-            const totalDistance =
-              osrmRoute.distance + gateInfo.routeToDestination.distance;
+            totalDistance = osrmRoute.distance + gateInfo.totalDistance;
+            osrmRouteToUse = osrmRoute;
 
             console.log(
-              `📏 ${gateInfo.gateName}: OSRM ${Math.round(
-                osrmRoute.distance
-              )}m + GeoJSON ${Math.round(
-                gateInfo.routeToDestination.distance
+              `📏 ${gateInfo.gateName} → ${
+                gateInfo.targetPoint.name
+              }: OSRM ${Math.round(osrmRoute.distance)}m + GeoJSON ${Math.round(
+                gateInfo.totalDistance
               )}m = Total ${Math.round(totalDistance)}m`
             );
-
-            if (totalDistance < shortestTotalDistance) {
-              shortestTotalDistance = totalDistance;
-              bestGate = gateInfo.gate;
-              bestRouteToDestination = gateInfo.routeToDestination;
-              bestOsrmRoute = osrmRoute;
-            }
           } else {
             // Fallback ke garis lurus jika OSRM gagal
             const straightDistance = calculateDistance(
               userCoords,
               gateInfo.coords
             );
-            const totalDistance =
-              straightDistance + gateInfo.routeToDestination.distance;
+            totalDistance = straightDistance + gateInfo.totalDistance;
 
             console.log(
-              `📏 ${gateInfo.gateName} (fallback): Garis lurus ${Math.round(
+              `📏 ${gateInfo.gateName} → ${
+                gateInfo.targetPoint.name
+              } (fallback): Garis lurus ${Math.round(
                 straightDistance
               )}m + GeoJSON ${Math.round(
-                gateInfo.routeToDestination.distance
+                gateInfo.totalDistance
               )}m = Total ${Math.round(totalDistance)}m`
             );
-
-            if (totalDistance < shortestTotalDistance) {
-              shortestTotalDistance = totalDistance;
-              bestGate = gateInfo.gate;
-              bestRouteToDestination = gateInfo.routeToDestination;
-              bestOsrmRoute = null; // Tidak ada OSRM route
-            }
           }
+
+          // Simpan rute lengkap
+          allCompleteRoutes.push({
+            gate: gateInfo.gate,
+            routeToDestination: gateInfo.routeToDestination,
+            osrmRoute: osrmRouteToUse,
+            totalDistance: totalDistance,
+            gateName: gateInfo.gateName,
+            coords: gateInfo.coords,
+            targetPoint: gateInfo.targetPoint,
+          });
         } catch (error) {
-          console.error(
-            `❌ Error getting OSRM route to ${gateInfo.gateName}:`,
+          console.warn(
+            `⚠️ Error getting OSRM route to ${gateInfo.gateName} → ${gateInfo.targetPoint.name}:`,
             error
           );
 
@@ -1796,33 +1875,45 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             userCoords,
             gateInfo.coords
           );
-          const totalDistance =
-            straightDistance + gateInfo.routeToDestination.distance;
+          const totalDistance = straightDistance + gateInfo.totalDistance;
 
-          if (totalDistance < shortestTotalDistance) {
-            shortestTotalDistance = totalDistance;
-            bestGate = gateInfo.gate;
-            bestRouteToDestination = gateInfo.routeToDestination;
-            bestOsrmRoute = null;
-          }
+          // Simpan rute fallback
+          allCompleteRoutes.push({
+            gate: gateInfo.gate,
+            routeToDestination: gateInfo.routeToDestination,
+            osrmRoute: null,
+            totalDistance: totalDistance,
+            gateName: gateInfo.gateName,
+            coords: gateInfo.coords,
+            targetPoint: gateInfo.targetPoint,
+          });
         }
       }
 
-      if (bestGate) {
-        console.log(
-          `🏆 Gerbang terbaik: ${
-            bestGate.properties?.Nama
-          } (Total jarak rute: ${Math.round(shortestTotalDistance)}m)`
-        );
-        return {
-          gate: bestGate,
-          routeToDestination: bestRouteToDestination,
-          osrmRoute: bestOsrmRoute,
-          totalDistance: shortestTotalDistance,
-        };
+      if (allCompleteRoutes.length === 0) {
+        console.log("❌ Tidak ada rute lengkap yang berhasil dibuat");
+        return null;
       }
 
-      return null;
+      // Urutkan semua rute berdasarkan jarak (terdekat di atas)
+      allCompleteRoutes.sort((a, b) => a.totalDistance - b.totalDistance);
+
+      const bestRoute = allCompleteRoutes[0];
+      console.log(
+        `🏆 Rute terbaik: ${bestRoute.gateName} → ${
+          bestRoute.targetPoint.name
+        } (Total: ${Math.round(bestRoute.totalDistance)}m)`
+      );
+      console.log(
+        `📊 Total ${allCompleteRoutes.length} rute alternatif tersedia`
+      );
+
+      return {
+        bestRoute: bestRoute,
+        allRoutes: allCompleteRoutes,
+        gate: bestRoute.gate,
+        routeToDestination: bestRoute.routeToDestination,
+      };
     };
 
     // Fungsi untuk mendapatkan jalur jalan asli menggunakan OSRM API
@@ -1913,90 +2004,155 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Hapus navigation marker sebelumnya
       if (navigationMarkerRef.current) {
+        console.log(`🔍 [DEBUG] Removing previous marker`);
         map.removeLayer(navigationMarkerRef.current);
         navigationMarkerRef.current = null;
       }
 
-      // Handle semua step - pastikan lingkaran selalu di awal garis (titik sambungan)
-      const step = routeSteps[activeStepIndex];
+      // Debug: tampilkan semua step yang ada
+      console.log(
+        `🔍 [NAVIGATION] Total steps: ${routeSteps.length}, Active step: ${
+          activeStepIndex + 1
+        }`
+      );
+      routeSteps.forEach((s, idx) => {
+        const sId = s.raw?.id || "unknown";
+        console.log(
+          `  Step ${idx + 1}: ID ${sId}, ${Math.round(s.distance || 0)}m`
+        );
+      });
+
+      // Handle semua step - pastikan lingkaran bergerak sesuai dengan step yang aktif
+      console.log(
+        `🔍 [DEBUG] useEffect triggered - activeStepIndex: ${activeStepIndex}, hasReachedDestination: ${hasReachedDestination}`
+      );
+
+      const step = hasReachedDestination
+        ? routeSteps[routeSteps.length - 1] // Gunakan step terakhir untuk marker merah
+        : routeSteps[activeStepIndex];
+
+      console.log(
+        `🔍 [DEBUG] Step selected - hasReachedDestination: ${hasReachedDestination}, stepIndex: ${
+          hasReachedDestination ? routeSteps.length - 1 : activeStepIndex
+        }`
+      );
       if (step && step.coordinates && step.coordinates.length > 0) {
         const isFirstStep = activeStepIndex === 0;
         const isLastStep = activeStepIndex === routeSteps.length - 1;
 
-        // PASTIKAN lingkaran di titik AWAL line (o- bukan -o)
-        const markerPosition = step.coordinates[0];
+        // PERBAIKAN: Posisi marker sesuai dengan kondisi
+        let markerPosition: [number, number];
+        if (hasReachedDestination) {
+          // Setelah step terakhir ditekan next: marker merah di titik tujuan (akhir garis)
+          markerPosition = step.coordinates[step.coordinates.length - 1];
+          console.log(
+            `🔴 [DEBUG] Marker merah di posisi tujuan (akhir garis): [${markerPosition[0].toFixed(
+              6
+            )}, ${markerPosition[1].toFixed(6)}]`
+          );
+        } else if (isLastStep) {
+          // Step terakhir (oranye): di awal garis terakhir
+          markerPosition = step.coordinates[0];
+          console.log(
+            `🟠 [DEBUG] Marker oranye di posisi awal garis terakhir: [${markerPosition[0].toFixed(
+              6
+            )}, ${markerPosition[1].toFixed(6)}]`
+          );
+        } else {
+          // Step lainnya: marker di awal step (node awal garis)
+          markerPosition = step.coordinates[0];
+          console.log(
+            `🔵 [DEBUG] Marker di posisi awal step: [${markerPosition[0].toFixed(
+              6
+            )}, ${markerPosition[1].toFixed(6)}]`
+          );
+        }
 
-        // PERBAIKAN: Cek jarak sebenarnya ke tujuan untuk step terakhir
+        // PERBAIKAN: Cek apakah ini step terakhir dan sudah ditekan next
         let isActuallyAtDestination = false;
         if (isLastStep) {
-          // Ambil koordinat tujuan akhir dari routeSteps
-          const finalDestination =
-            routeSteps[routeSteps.length - 1]?.coordinates?.[
-              routeSteps[routeSteps.length - 1].coordinates.length - 1
-            ];
-          if (finalDestination) {
-            // Cek jarak dari posisi marker ke tujuan akhir
-            const distanceToDestination = calculateDistance(
-              markerPosition,
-              finalDestination
-            );
-            isActuallyAtDestination = distanceToDestination <= 20; // Dalam radius 20 meter
-
-            console.log(
-              `🎯 Jarak ke tujuan akhir: ${Math.round(
-                distanceToDestination
-              )}m (${
-                isActuallyAtDestination ? "SUDAH SAMPAI" : "BELUM SAMPAI"
-              })`
-            );
-          }
+          // Untuk step terakhir, cek apakah sudah ditekan next (activeStepIndex > routeSteps.length - 1)
+          // Jika masih di step terakhir, belum sampai tujuan
+          isActuallyAtDestination = false; // Belum sampai tujuan, masih di awal garis terakhir
+          console.log(`🎯 Step terakhir: BERADA DI AWAL GARIS TERAKHIR`);
         }
 
         // Debug: Lihat koordinat step untuk memastikan posisi yang benar
-        console.log(`🔍 Step ${activeStepIndex + 1} coordinates:`, {
-          first: step.coordinates[0],
-          last: step.coordinates[step.coordinates.length - 1],
-          allCoords: step.coordinates,
-        });
+        const segmentId = step.raw?.id || "unknown";
+        console.log(
+          `🔍 Step ${activeStepIndex + 1} (ID: ${segmentId}) coordinates:`,
+          {
+            start: step.coordinates[0],
+            end: step.coordinates[step.coordinates.length - 1],
+            totalPoints: step.coordinates.length,
+            markerPosition: markerPosition,
+            stepType: isFirstStep ? "FIRST" : isLastStep ? "LAST" : "MIDDLE",
+            distance: Math.round(step.distance || 0),
+            isFirstStep,
+            isLastStep,
+            totalSteps: routeSteps.length,
+          }
+        );
 
         let markerColor: string;
         let markerSize: number;
 
-        if (isFirstStep) {
+        // PERBAIKAN: Hanya 1 lingkaran yang ditampilkan pada satu waktu
+        console.log(
+          `🔍 [DEBUG] hasReachedDestination: ${hasReachedDestination}, isFirstStep: ${isFirstStep}, isLastStep: ${isLastStep}`
+        );
+
+        if (hasReachedDestination) {
+          // Setelah step terakhir ditekan next: merah (tujuan tercapai)
+          markerColor = "#ef4444"; // Merah
+          markerSize = 40;
+          console.log(`🔴 [DEBUG] Marker MERAH dipilih`);
+        } else if (isFirstStep) {
           // Step pertama: hijau
           markerColor = "#10b981"; // Hijau
           markerSize = 34;
-        } else if (isLastStep && isActuallyAtDestination) {
-          // Step terakhir dan sudah sampai tujuan: merah (destinasi tercapai)
-          markerColor = "#ef4444"; // Merah
-          markerSize = 36;
+          console.log(`🟢 [DEBUG] Marker HIJAU dipilih`);
         } else if (isLastStep) {
-          // Step terakhir tapi belum sampai tujuan: oranye (destinasi belum tercapai)
+          // Step terakhir: oranye
           markerColor = "#f97316"; // Oranye
           markerSize = 36;
+          console.log(`🟠 [DEBUG] Marker ORANYE dipilih`);
         } else {
           // Step tengah: biru
           markerColor = "#4285f4"; // Biru
           markerSize = 32;
+          console.log(`🔵 [DEBUG] Marker BIRU dipilih`);
         }
 
-        const markerType = isFirstStep
-          ? "START"
-          : isLastStep && isActuallyAtDestination
+        const markerType = hasReachedDestination
           ? "DESTINATION_REACHED"
+          : isFirstStep
+          ? "START"
           : isLastStep
           ? "DESTINATION_NOT_REACHED"
           : "SEGMENT";
 
+        const positionType = hasReachedDestination
+          ? "TITIK TUJUAN (setelah next)"
+          : "AWAL step (titik sambungan)";
+
         console.log(
           `🎯 Marker Step ${
             activeStepIndex + 1
-          }: ${markerType} - lingkaran di AWAL line [${markerPosition[0].toFixed(
+          }: ${markerType} - lingkaran di ${positionType} [${markerPosition[0].toFixed(
             6
-          )}, ${markerPosition[1].toFixed(6)}] (o- format)`
+          )}, ${markerPosition[1].toFixed(
+            6
+          )}] - Warna: ${markerColor}, Ukuran: ${markerSize}px, hasReachedDestination: ${hasReachedDestination}`
         );
 
         // Buat marker bulat di titik sambungan
+        console.log(
+          `🔍 [DEBUG] Creating marker with color: ${markerColor}, size: ${markerSize}px, position: [${markerPosition[0].toFixed(
+            6
+          )}, ${markerPosition[1].toFixed(6)}]`
+        );
+
         const navigationMarker = L.marker(markerPosition, {
           icon: L.divIcon({
             className: "navigation-circle-marker",
@@ -2018,7 +2174,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           zIndexOffset: 2000,
         }).addTo(map);
 
+        console.log(`🔍 [DEBUG] Marker created and added to map`);
+
         navigationMarkerRef.current = navigationMarker;
+
+        // PERBAIKAN: Hapus destination marker terpisah karena sekarang hanya ada 1 marker
+        if (destinationMarker && map.hasLayer(destinationMarker)) {
+          map.removeLayer(destinationMarker);
+          setDestinationMarker(null);
+        }
 
         // Zoom ke posisi marker
         map.setView(markerPosition, 19, { animate: true, duration: 0.8 });
@@ -2059,8 +2223,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           map.removeLayer(navigationMarkerRef.current);
           navigationMarkerRef.current = null;
         }
+        if (destinationMarker && map.hasLayer(destinationMarker)) {
+          map.removeLayer(destinationMarker);
+          setDestinationMarker(null);
+        }
       };
-    }, [activeStepIndex, routeSteps.length]); // Depend pada activeStepIndex dan routeSteps.length
+    }, [activeStepIndex, routeSteps.length, hasReachedDestination]); // Depend pada activeStepIndex, routeSteps.length, dan hasReachedDestination
 
     // Log setiap kali stepper dirender atau step berubah
     useEffect(() => {
@@ -2263,142 +2431,366 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
         if (routeStartType === "my-location") {
-          const bestGateInfo = await findBestGateForDestination(
-            startLatLng,
-            endLatLng
-          );
-
-          if (
-            bestGateInfo &&
-            bestGateInfo.gate &&
-            bestGateInfo.gate.geometry &&
-            bestGateInfo.gate.geometry.coordinates
-          ) {
-            const gateCoords: [number, number] = [
-              bestGateInfo.gate.geometry.coordinates[1],
-              bestGateInfo.gate.geometry.coordinates[0],
-            ];
-
-            // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
-            console.log(
-              "🗺️ Using optimized OSRM route: GPS →",
-              bestGateInfo.gate.properties?.Nama
+          try {
+            const bestGateInfo = await findAllRoutesToBuilding(
+              startLatLng,
+              endLatLng
             );
 
-            // Gunakan OSRM route yang sudah didapat dari findBestGateForDestination
-            const realWorldGpsToGate = bestGateInfo.osrmRoute;
+            if (
+              bestGateInfo &&
+              bestGateInfo.bestRoute &&
+              bestGateInfo.bestRoute.gate &&
+              bestGateInfo.bestRoute.gate.geometry &&
+              bestGateInfo.bestRoute.gate.geometry.coordinates
+            ) {
+              const bestRoute = bestGateInfo.bestRoute;
+              const allRoutes = bestGateInfo.allRoutes;
 
-            let gpsToGateSegment;
-            let gpsToGateDistance;
-
-            if (realWorldGpsToGate) {
-              gpsToGateDistance = realWorldGpsToGate.distance;
-              const latLngs = realWorldGpsToGate.coordinates;
-              // HAPUS: Debug polyline yang mengganggu routing
-              // if (leafletMapRef.current) {
-              //   const debugPolyline = L.polyline(latLngs, {
-              //     color: "#00FF00",
-              //     weight: 8,
-              //     opacity: 0.8,
-              //     dashArray: "10, 5",
-              //   }).addTo(leafletMapRef.current);
-              //   setTimeout(() => {
-              //     if (leafletMapRef.current) {
-              //       leafletMapRef.current.removeLayer(debugPolyline);
-              //     }
-              //   }, 10000);
-              // }
-              gpsToGateSegment = {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: latLngs.map((coord: [number, number]) => [
-                    coord[1],
-                    coord[0],
-                  ]),
-                },
-                properties: {
-                  routeType: "gps-to-gate-real",
-                  distance: gpsToGateDistance,
-                  name:
-                    "GPS ke " +
-                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
-                    " (Jalur Jalan)",
-                },
-              };
-            } else {
-              gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
-              const gpsLng = Number(startLatLng[1]);
-              const gpsLat = Number(startLatLng[0]);
-              const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
-              const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
-              if (leafletMapRef.current) {
-                const fallbackPolyline = L.polyline(
-                  [
-                    [gpsLat, gpsLng],
-                    [gateLat, gateLng],
-                  ],
-                  {
-                    color: "#FF00FF",
-                    weight: 8,
-                    opacity: 0.8,
-                    dashArray: "10, 5",
-                  }
-                ).addTo(leafletMapRef.current);
-                setTimeout(() => {
-                  if (leafletMapRef.current) {
-                    leafletMapRef.current.removeLayer(fallbackPolyline);
-                  }
-                }, 10000);
-              }
-              gpsToGateSegment = {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [gpsLng, gpsLat],
-                    [gateLng, gateLat],
-                  ],
-                },
-                properties: {
-                  routeType: "gps-to-gate",
-                  distance: gpsToGateDistance,
-                  name:
-                    "GPS ke " +
-                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
-                    " (Garis Lurus)",
-                },
-              };
-              const coordDistance = Math.sqrt(
-                Math.pow(gpsLng - gateLng, 2) + Math.pow(gpsLat - gateLat, 2)
-              );
-              if (coordDistance < 0.000001) {
-                alert(
-                  "Error: GPS dan Gerbang terlalu dekat. Coba lokasi yang berbeda."
-                );
-                setIsCalculatingRoute(false);
-                return;
-              }
-            }
-
-            // Segment 2: Gerbang -> Tujuan akhir (gunakan route yang sudah dihitung)
-            const gateToEndResult = bestGateInfo.routeToDestination;
-
-            if (gateToEndResult) {
-              totalDistance = gpsToGateDistance + gateToEndResult.distance;
-              finalRouteSegments = [
-                gpsToGateSegment,
-                ...gateToEndResult.geojsonSegments,
+              const gateCoords: [number, number] = [
+                bestRoute.gate.geometry.coordinates[1],
+                bestRoute.gate.geometry.coordinates[0],
               ];
+
+              // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
+              console.log(
+                "🗺️ Using optimized OSRM route: GPS →",
+                bestRoute.gate.properties?.Nama
+              );
+
+              // Gunakan OSRM route yang sudah didapat dari findAllRoutesToBuilding
+              const realWorldGpsToGate = bestRoute.osrmRoute;
+
+              let gpsToGateSegment;
+              let gpsToGateDistance;
+
+              if (realWorldGpsToGate) {
+                gpsToGateDistance = realWorldGpsToGate.distance;
+                const latLngs = realWorldGpsToGate.coordinates;
+                // HAPUS: Debug polyline yang mengganggu routing
+                // if (leafletMapRef.current) {
+                //   const debugPolyline = L.polyline(latLngs, {
+                //     color: "#00FF00",
+                //     weight: 8,
+                //     opacity: 0.8,
+                //     dashArray: "10, 5",
+                //   }).addTo(leafletMapRef.current);
+                //   setTimeout(() => {
+                //     if (leafletMapRef.current) {
+                //       leafletMapRef.current.removeLayer(debugPolyline);
+                //     }
+                //   }, 10000);
+                // }
+                gpsToGateSegment = {
+                  type: "Feature",
+                  geometry: {
+                    type: "LineString",
+                    coordinates: latLngs.map((coord: [number, number]) => [
+                      coord[1],
+                      coord[0],
+                    ]),
+                  },
+                  properties: {
+                    routeType: "gps-to-gate-real",
+                    distance: gpsToGateDistance,
+                    name:
+                      "GPS ke " +
+                      (bestGateInfo.gate.properties?.Nama || "Gerbang") +
+                      " (Jalur Jalan)",
+                  },
+                };
+              } else {
+                gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
+                const gpsLng = Number(startLatLng[1]);
+                const gpsLat = Number(startLatLng[0]);
+                const gateLng = Number(
+                  bestGateInfo.gate.geometry.coordinates[0]
+                );
+                const gateLat = Number(
+                  bestGateInfo.gate.geometry.coordinates[1]
+                );
+                if (leafletMapRef.current) {
+                  const fallbackPolyline = L.polyline(
+                    [
+                      [gpsLat, gpsLng],
+                      [gateLat, gateLng],
+                    ],
+                    {
+                      color: "#FF00FF",
+                      weight: 8,
+                      opacity: 0.8,
+                      dashArray: "10, 5",
+                    }
+                  ).addTo(leafletMapRef.current);
+                  setTimeout(() => {
+                    if (leafletMapRef.current) {
+                      leafletMapRef.current.removeLayer(fallbackPolyline);
+                    }
+                  }, 10000);
+                }
+                gpsToGateSegment = {
+                  type: "Feature",
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [
+                      [gpsLng, gpsLat],
+                      [gateLng, gateLat],
+                    ],
+                  },
+                  properties: {
+                    routeType: "gps-to-gate",
+                    distance: gpsToGateDistance,
+                    name:
+                      "GPS ke " +
+                      (bestGateInfo.gate.properties?.Nama || "Gerbang") +
+                      " (Garis Lurus)",
+                  },
+                };
+                const coordDistance = Math.sqrt(
+                  Math.pow(gpsLng - gateLng, 2) + Math.pow(gpsLat - gateLat, 2)
+                );
+                if (coordDistance < 0.000001) {
+                  alert(
+                    "Error: GPS dan Gerbang terlalu dekat. Coba lokasi yang berbeda."
+                  );
+                  setIsCalculatingRoute(false);
+                  return;
+                }
+              }
+
+              // Segment 2: Gerbang -> Tujuan akhir (gunakan route yang sudah dihitung)
+              const gateToEndResult = bestGateInfo.routeToDestination;
+
+              if (gateToEndResult) {
+                totalDistance = gpsToGateDistance + gateToEndResult.distance;
+                finalRouteSegments = [
+                  gpsToGateSegment,
+                  ...gateToEndResult.geojsonSegments,
+                ];
+
+                // Tampilkan rute utama (terdekat) dengan warna biru
+                const mainRouteLayer = L.geoJSON(
+                  {
+                    type: "FeatureCollection",
+                    features:
+                      finalRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+                  } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
+                  {
+                    style: (feature) => ({
+                      color: "#2563eb", // Biru untuk rute utama
+                      weight: 6,
+                      opacity: 1,
+                    }),
+                    pane: "routePane",
+                  }
+                );
+                mainRouteLayer.addTo(leafletMapRef.current);
+                setRouteLine(mainRouteLayer);
+
+                // Tampilkan rute alternatif dengan warna abu-abu (jika ada lebih dari 1 rute)
+                if (allRoutes.length > 1) {
+                  console.log(
+                    `🔄 Menampilkan ${
+                      allRoutes.length - 1
+                    } rute alternatif dengan warna abu-abu`
+                  );
+
+                  // Buat pane khusus untuk rute alternatif dengan z-index lebih rendah
+                  if (leafletMapRef.current) {
+                    leafletMapRef.current.createPane("alternativeRoutePane");
+                    const alternativePane = leafletMapRef.current.getPane(
+                      "alternativeRoutePane"
+                    );
+                    if (alternativePane && alternativePane.style) {
+                      alternativePane.style.zIndex = "600"; // Di bawah routePane (650)
+                    }
+                  }
+
+                  // Tampilkan semua rute alternatif (kecuali yang terbaik)
+                  for (let i = 1; i < allRoutes.length; i++) {
+                    const alternativeRoute = allRoutes[i];
+
+                    // Buat segment GPS ke gerbang alternatif
+                    let alternativeGpsToGateSegment;
+                    let alternativeGpsToGateDistance;
+
+                    if (alternativeRoute.osrmRoute) {
+                      alternativeGpsToGateDistance =
+                        alternativeRoute.osrmRoute.distance;
+                      const latLngs = alternativeRoute.osrmRoute.coordinates;
+                      alternativeGpsToGateSegment = {
+                        type: "Feature",
+                        geometry: {
+                          type: "LineString",
+                          coordinates: latLngs.map(
+                            (coord: [number, number]) => [coord[1], coord[0]]
+                          ),
+                        },
+                        properties: {
+                          routeType: "gps-to-gate-alternative",
+                          distance: alternativeGpsToGateDistance,
+                          name: `GPS ke ${alternativeRoute.gateName} (Alternatif)`,
+                        },
+                      };
+                    } else {
+                      alternativeGpsToGateDistance = calculateDistance(
+                        startLatLng,
+                        alternativeRoute.coords
+                      );
+                      const gpsLng = Number(startLatLng[1]);
+                      const gpsLat = Number(startLatLng[0]);
+                      const gateLng = Number(
+                        alternativeRoute.gate.geometry.coordinates[0]
+                      );
+                      const gateLat = Number(
+                        alternativeRoute.gate.geometry.coordinates[1]
+                      );
+
+                      alternativeGpsToGateSegment = {
+                        type: "Feature",
+                        geometry: {
+                          type: "LineString",
+                          coordinates: [
+                            [gpsLng, gpsLat],
+                            [gateLng, gateLat],
+                          ],
+                        },
+                        properties: {
+                          routeType: "gps-to-gate-alternative",
+                          distance: alternativeGpsToGateDistance,
+                          name: `GPS ke ${alternativeRoute.gateName} (Alternatif)`,
+                        },
+                      };
+                    }
+
+                    // Gabungkan dengan rute dari gerbang ke tujuan
+                    const alternativeRouteSegments = [
+                      alternativeGpsToGateSegment,
+                      ...alternativeRoute.routeToDestination.geojsonSegments,
+                    ];
+
+                    // Tampilkan rute alternatif dengan warna abu-abu
+                    const alternativeLayer = L.geoJSON(
+                      {
+                        type: "FeatureCollection",
+                        features:
+                          alternativeRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+                      } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
+                      {
+                        style: (feature) => ({
+                          color: "#6b7280", // Abu-abu untuk rute alternatif
+                          weight: 4,
+                          opacity: 0.6,
+                        }),
+                        pane: "alternativeRoutePane",
+                      }
+                    );
+                    alternativeLayer.addTo(leafletMapRef.current);
+                  }
+                }
+
+                const allLatLngs: L.LatLng[] = [];
+                if (realWorldGpsToGate) {
+                  realWorldGpsToGate.coordinates.forEach(
+                    (coord: [number, number]) => {
+                      allLatLngs.push(L.latLng(coord[0], coord[1]));
+                    }
+                  );
+                } else {
+                  allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
+                  allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
+                }
+                // PERBAIKAN: Hapus penambahan endLatLng yang menyebabkan garis langsung mengganggu
+                // allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
+                gateToEndResult.coordinates.forEach(
+                  (coord: [number, number]) => {
+                    allLatLngs.push(L.latLng(coord[0], coord[1]));
+                  }
+                );
+                const bounds = L.latLngBounds(allLatLngs);
+                leafletMapRef.current.fitBounds(bounds, {
+                  padding: [60, 60],
+                  maxZoom: 17,
+                });
+                setRouteDistance(Math.round(totalDistance));
+
+                // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
+                let totalWalkingTime = 0;
+                let totalVehicleTime = 0;
+
+                console.log("🔍 [TIME] Menghitung total waktu dari segmen:");
+                finalRouteSegments.forEach((segment: any, idx: number) => {
+                  const segmentId = segment.id || "unknown";
+                  const waktuKaki = segment.properties?.waktu_kaki || 0;
+                  const waktuKendara = segment.properties?.waktu_kendara || 0;
+
+                  totalWalkingTime += Number(waktuKaki);
+                  totalVehicleTime += Number(waktuKendara);
+
+                  console.log(
+                    `  ${
+                      idx + 1
+                    }. ID ${segmentId}: kaki=${waktuKaki}s, kendara=${waktuKendara}s`
+                  );
+                });
+
+                console.log(
+                  `📊 [TIME] Total: kaki=${totalWalkingTime}s (${Math.floor(
+                    totalWalkingTime / 60
+                  )} menit ${Math.round(
+                    totalWalkingTime % 60
+                  )} detik), kendara=${totalVehicleTime}s (${Math.floor(
+                    totalVehicleTime / 60
+                  )} menit ${Math.round(totalVehicleTime % 60)} detik)`
+                );
+
+                setTotalWalkingTime(totalWalkingTime);
+                setTotalVehicleTime(totalVehicleTime);
+
+                setRouteSteps(
+                  parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
+                );
+                setActiveStepIndex(0);
+                setHasReachedDestination(false);
+                setIsNavigationActive(true);
+              } else {
+                alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
+                setIsCalculatingRoute(false);
+              }
+            } else {
+              alert("Tidak ditemukan gerbang terdekat.");
+              setIsCalculatingRoute(false);
+            }
+          } catch (error) {
+            console.error("🚨 Error dalam routing my-location:", error);
+            alert(
+              "Terjadi error dalam routing dari lokasi Anda. Silakan coba lagi atau pilih titik yang berbeda."
+            );
+          }
+        } else {
+          // Routing biasa (bukan dari "Lokasi Saya")
+          try {
+            const routeResult = findRoute(
+              startLatLng,
+              endLatLng,
+              points,
+              jalurFeatures
+            );
+
+            if (
+              routeResult &&
+              routeResult.geojsonSegments &&
+              routeResult.geojsonSegments.length > 0
+            ) {
               const geoJsonLayer = L.geoJSON(
                 {
                   type: "FeatureCollection",
                   features:
-                    finalRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
+                    routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
                 } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
                 {
-                  style: (feature) => ({
-                    color: "#2563eb", // Biru konsisten
+                  style: () => ({
+                    color: "#2563eb",
                     weight: 6,
                     opacity: 1,
                   }),
@@ -2407,92 +2799,72 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               );
               geoJsonLayer.addTo(leafletMapRef.current);
               setRouteLine(geoJsonLayer);
-              const allLatLngs: L.LatLng[] = [];
-              if (realWorldGpsToGate) {
-                realWorldGpsToGate.coordinates.forEach(
-                  (coord: [number, number]) => {
-                    allLatLngs.push(L.latLng(coord[0], coord[1]));
-                  }
-                );
-              } else {
-                allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
-                allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
-              }
-              // PERBAIKAN: Hapus penambahan endLatLng yang menyebabkan garis langsung mengganggu
-              // allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
-              gateToEndResult.coordinates.forEach((coord: [number, number]) => {
-                allLatLngs.push(L.latLng(coord[0], coord[1]));
+
+              // Smooth zoom animation
+              leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+                padding: [40, 40],
+                maxZoom: 19,
+                animate: true,
+                duration: 1.5, // Smooth animation duration
               });
-              const bounds = L.latLngBounds(allLatLngs);
-              leafletMapRef.current.fitBounds(bounds, {
-                padding: [60, 60],
-                maxZoom: 17,
-              });
-              setRouteDistance(Math.round(totalDistance));
+              setRouteDistance(Math.round(routeResult.distance));
+
+              // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
+              let totalWalkingTime = 0;
+              let totalVehicleTime = 0;
+
+              console.log(
+                "🔍 [TIME] Menghitung total waktu dari segmen (routing biasa):"
+              );
+              routeResult.geojsonSegments.forEach(
+                (segment: any, idx: number) => {
+                  const segmentId = segment.id || "unknown";
+                  const waktuKaki = segment.properties?.waktu_kaki || 0;
+                  const waktuKendara = segment.properties?.waktu_kendara || 0;
+
+                  totalWalkingTime += Number(waktuKaki);
+                  totalVehicleTime += Number(waktuKendara);
+
+                  console.log(
+                    `  ${
+                      idx + 1
+                    }. ID ${segmentId}: kaki=${waktuKaki}s, kendara=${waktuKendara}s`
+                  );
+                }
+              );
+
+              console.log(
+                `📊 [TIME] Total: kaki=${totalWalkingTime}s (${Math.floor(
+                  totalWalkingTime / 60
+                )} menit ${Math.round(
+                  totalWalkingTime % 60
+                )} detik), kendara=${totalVehicleTime}s (${Math.floor(
+                  totalVehicleTime / 60
+                )} menit ${Math.round(totalVehicleTime % 60)} detik)`
+              );
+
+              setTotalWalkingTime(totalWalkingTime);
+              setTotalVehicleTime(totalVehicleTime);
+
               setRouteSteps(
-                parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
+                parseRouteSteps(
+                  routeResult.geojsonSegments,
+                  startLatLng,
+                  endLatLng
+                )
               );
               setActiveStepIndex(0);
+              setHasReachedDestination(false);
               setIsNavigationActive(true);
             } else {
-              alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
-              setIsCalculatingRoute(false);
+              alert(
+                "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
+              );
             }
-          } else {
-            alert("Tidak ditemukan gerbang terdekat.");
-            setIsCalculatingRoute(false);
-          }
-        } else {
-          // Routing biasa (bukan dari "Lokasi Saya")
-          const routeResult = findRoute(
-            startLatLng,
-            endLatLng,
-            points,
-            jalurFeatures
-          );
-          if (
-            routeResult &&
-            routeResult.geojsonSegments &&
-            routeResult.geojsonSegments.length > 0
-          ) {
-            const geoJsonLayer = L.geoJSON(
-              {
-                type: "FeatureCollection",
-                features:
-                  routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-              } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-              {
-                style: () => ({
-                  color: "#2563eb",
-                  weight: 6,
-                  opacity: 1,
-                }),
-                pane: "routePane",
-              }
-            );
-            geoJsonLayer.addTo(leafletMapRef.current);
-            setRouteLine(geoJsonLayer);
-
-            // Smooth zoom animation
-            leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-              padding: [40, 40],
-              maxZoom: 19,
-              animate: true,
-              duration: 1.5, // Smooth animation duration
-            });
-            setRouteDistance(Math.round(routeResult.distance));
-            setRouteSteps(
-              parseRouteSteps(
-                routeResult.geojsonSegments,
-                startLatLng,
-                endLatLng
-              )
-            );
-            setActiveStepIndex(0);
-            setIsNavigationActive(true);
-          } else {
+          } catch (error) {
+            console.error("🚨 Error dalam routing:", error);
             alert(
-              "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
+              "Terjadi error dalam routing. Silakan coba lagi atau pilih titik yang berbeda."
             );
           }
         }
@@ -2606,17 +2978,34 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
         if (startType === "my-location") {
-          const bestGateInfo = await findBestGateForDestination(
+          // Dapatkan nama gedung dari endType jika ada
+          let buildingName: string | undefined;
+          if (endType === "bangunan" && endId) {
+            const bangunan = bangunanFeatures.find(
+              (b: any) =>
+                String(b.id || b.properties?.OBJECTID) === String(endId)
+            );
+            if (bangunan && bangunan.properties?.Nama) {
+              buildingName = bangunan.properties.Nama;
+              console.log(`🏢 Menggunakan nama gedung: ${buildingName}`);
+            }
+          }
+
+          const gateInfo = await findAllRoutesToBuilding(
             startLatLng,
-            endLatLng
+            endLatLng,
+            buildingName
           );
 
           if (
-            bestGateInfo &&
-            bestGateInfo.gate &&
-            bestGateInfo.gate.geometry &&
-            bestGateInfo.gate.geometry.coordinates
+            gateInfo &&
+            gateInfo.bestRoute.gate &&
+            gateInfo.bestRoute.gate.geometry &&
+            gateInfo.bestRoute.gate.geometry.coordinates
           ) {
+            const bestGateInfo = gateInfo.bestRoute;
+            const allRoutes = gateInfo.allRoutes;
+
             const gateCoords: [number, number] = [
               bestGateInfo.gate.geometry.coordinates[1],
               bestGateInfo.gate.geometry.coordinates[0],
@@ -2769,6 +3158,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               });
 
               setRouteDistance(Math.round(totalDistance));
+
+              // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
+              let totalWalkingTime = 0;
+              let totalVehicleTime = 0;
+
+              finalRouteSegments.forEach((segment: any) => {
+                if (segment.properties?.waktu_kaki) {
+                  totalWalkingTime += Number(segment.properties.waktu_kaki);
+                }
+                if (segment.properties?.waktu_kendara) {
+                  totalVehicleTime += Number(segment.properties.waktu_kendara);
+                }
+              });
+
+              setTotalWalkingTime(totalWalkingTime);
+              setTotalVehicleTime(totalVehicleTime);
+
               setRouteSteps(
                 parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
               );
@@ -2819,6 +3225,42 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             });
 
             setRouteDistance(Math.round(routeResult.distance));
+
+            // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
+            let totalWalkingTime = 0;
+            let totalVehicleTime = 0;
+
+            console.log(
+              "🔍 [TIME] Menghitung total waktu dari segmen (performRouting):"
+            );
+            routeResult.geojsonSegments.forEach((segment: any, idx: number) => {
+              const segmentId = segment.id || "unknown";
+              const waktuKaki = segment.properties?.waktu_kaki || 0;
+              const waktuKendara = segment.properties?.waktu_kendara || 0;
+
+              totalWalkingTime += Number(waktuKaki);
+              totalVehicleTime += Number(waktuKendara);
+
+              console.log(
+                `  ${
+                  idx + 1
+                }. ID ${segmentId}: kaki=${waktuKaki}s, kendara=${waktuKendara}s`
+              );
+            });
+
+            console.log(
+              `📊 [TIME] Total: kaki=${totalWalkingTime}s (${Math.floor(
+                totalWalkingTime / 60
+              )} menit ${Math.round(
+                totalWalkingTime % 60
+              )} detik), kendara=${totalVehicleTime}s (${Math.floor(
+                totalVehicleTime / 60
+              )} menit ${Math.round(totalVehicleTime % 60)} detik)`
+            );
+
+            setTotalWalkingTime(totalWalkingTime);
+            setTotalVehicleTime(totalVehicleTime);
+
             setRouteSteps(
               parseRouteSteps(
                 routeResult.geojsonSegments,
@@ -3031,12 +3473,33 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       Total Jarak: {Math.round(routeDistance)} meter
                     </div>
                   )}
+                  {totalWalkingTime !== null && totalVehicleTime !== null && (
+                    <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2 mt-1">
+                      <span className="flex items-center gap-1">
+                        <i className="fas fa-walking text-green-600"></i>
+                        {Math.floor(totalWalkingTime / 60)} menit{" "}
+                        {Math.round(totalWalkingTime % 60)} detik
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <i className="fa fa-motorcycle text-blue-600"></i>
+                        {Math.floor(totalVehicleTime / 60)} menit{" "}
+                        {Math.round(totalVehicleTime % 60)} detik
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => {
                     setRouteSteps([]);
                     setActiveStepIndex(0);
+                    setHasReachedDestination(false);
                     setIsNavigationActive(false);
+                    setTotalWalkingTime(null);
+                    setTotalVehicleTime(null);
+                    if (destinationMarker && leafletMapRef.current) {
+                      leafletMapRef.current.removeLayer(destinationMarker);
+                      setDestinationMarker(null);
+                    }
                     if (routeLine && leafletMapRef.current) {
                       leafletMapRef.current.removeLayer(routeLine);
                       setRouteLine(null);
@@ -3098,18 +3561,29 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                    {activeStepIndex + 1}
+                    {hasReachedDestination
+                      ? routeSteps.length + 1
+                      : activeStepIndex + 1}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    dari {routeSteps.length} langkah
+                    dari {routeSteps.length + 1} langkah
                   </div>
-                  {/* PERBAIKAN: Semua step gunakan jarak dari step saat ini */}
-                  <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                    {Math.round(routeSteps[activeStepIndex]?.distance || 0)}m
-                  </div>
+                  {/* PERBAIKAN: Jangan tampilkan jarak untuk step terakhir (oranye) dan step merah */}
+                  {activeStepIndex < routeSteps.length - 1 &&
+                    !hasReachedDestination &&
+                    activeStepIndex !== routeSteps.length - 1 && (
+                      <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                        {Math.round(routeSteps[activeStepIndex]?.distance || 0)}
+                        m
+                      </div>
+                    )}
                 </div>
                 <div className="text-sm font-medium leading-relaxed">
-                  {getStepInstruction(activeStepIndex, routeSteps)}
+                  {hasReachedDestination
+                    ? "Sampai tujuan"
+                    : activeStepIndex === routeSteps.length - 1
+                    ? "Jalan ke tujuan"
+                    : getStepInstruction(activeStepIndex, routeSteps)}
                 </div>
               </div>
 
@@ -3117,13 +3591,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    if (activeStepIndex > 0) {
+                    console.log(
+                      `🔍 [DEBUG] Prev clicked - activeStepIndex: ${activeStepIndex}, hasReachedDestination: ${hasReachedDestination}`
+                    );
+                    if (hasReachedDestination) {
+                      // Jika sedang di marker merah, kembali ke step oranye
+                      console.log(
+                        `🔍 [DEBUG] Resetting hasReachedDestination to false`
+                      );
+                      setHasReachedDestination(false);
+                    } else if (activeStepIndex > 0) {
+                      console.log(
+                        `🔍 [DEBUG] Moving to previous step: ${
+                          activeStepIndex - 1
+                        }`
+                      );
                       setActiveStepIndex(activeStepIndex - 1);
                     }
                   }}
-                  disabled={activeStepIndex === 0}
+                  disabled={activeStepIndex === 0 && !hasReachedDestination}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    activeStepIndex === 0
+                    activeStepIndex === 0 && !hasReachedDestination
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
                       : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
                   }`}
@@ -3132,13 +3620,36 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 </button>
                 <button
                   onClick={() => {
+                    console.log(
+                      `🔍 [DEBUG] Next clicked - activeStepIndex: ${activeStepIndex}, routeSteps.length: ${routeSteps.length}, hasReachedDestination: ${hasReachedDestination}`
+                    );
                     if (activeStepIndex < routeSteps.length - 1) {
+                      console.log(
+                        `🔍 [DEBUG] Moving to next step: ${activeStepIndex + 1}`
+                      );
                       setActiveStepIndex(activeStepIndex + 1);
+                    } else if (
+                      activeStepIndex === routeSteps.length - 1 &&
+                      !hasReachedDestination
+                    ) {
+                      // Jika sudah di step terakhir dan belum mencapai tujuan, set hasReachedDestination
+                      console.log(
+                        `🔴 [DEBUG] Setting hasReachedDestination to true - activeStepIndex: ${activeStepIndex}, routeSteps.length: ${routeSteps.length}`
+                      );
+                      setHasReachedDestination(true);
+                    } else {
+                      console.log(
+                        `⚠️ [DEBUG] No action taken - activeStepIndex: ${activeStepIndex}, routeSteps.length: ${routeSteps.length}, hasReachedDestination: ${hasReachedDestination}`
+                      );
                     }
                   }}
-                  disabled={activeStepIndex === routeSteps.length - 1}
+                  disabled={
+                    activeStepIndex === routeSteps.length - 1 &&
+                    hasReachedDestination
+                  }
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    activeStepIndex === routeSteps.length - 1
+                    activeStepIndex === routeSteps.length - 1 &&
+                    hasReachedDestination
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
                       : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
                   }`}
@@ -3154,7 +3665,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                     style={{
                       width: `${
-                        ((activeStepIndex + 1) / routeSteps.length) * 100
+                        hasReachedDestination
+                          ? 100
+                          : ((activeStepIndex + 1) / (routeSteps.length + 1)) *
+                            100
                       }%`,
                     }}
                   />
@@ -3334,6 +3848,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   if (isNavigationActive) {
                     setRouteSteps([]);
                     setActiveStepIndex(0);
+                    setHasReachedDestination(false);
                     setIsNavigationActive(false);
                     if (routeLine && leafletMapRef.current) {
                       leafletMapRef.current.removeLayer(routeLine);
@@ -3572,23 +4087,33 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             ? "📍 Mendapatkan Lokasi..."
                             : "📍 Lokasi Saya"}
                         </button>
-                        {titikFeatures.map((t: any) => (
-                          <button
-                            key={t.id || t.properties?.OBJECTID}
-                            type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
-                            onClick={() => {
-                              setRouteStartType("titik");
-                              setRouteStartId(
-                                String(t.id || t.properties?.OBJECTID)
-                              );
-                              setIsStartDropdownOpen(false);
-                            }}
-                          >
-                            {t.properties?.Nama ||
-                              `Titik ${t.id || t.properties?.OBJECTID}`}
-                          </button>
-                        ))}
+                        {titikFeatures
+                          .filter((t: any) => {
+                            const nama = t.properties?.Nama || "";
+                            const lowerNama = nama.toLowerCase();
+                            // Filter out titik yang memiliki nama "Toilet" atau "Pos Satpam"
+                            return (
+                              !lowerNama.includes("toilet") &&
+                              !lowerNama.includes("pos satpam")
+                            );
+                          })
+                          .map((t: any) => (
+                            <button
+                              key={t.id || t.properties?.OBJECTID}
+                              type="button"
+                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                              onClick={() => {
+                                setRouteStartType("titik");
+                                setRouteStartId(
+                                  String(t.id || t.properties?.OBJECTID)
+                                );
+                                setIsStartDropdownOpen(false);
+                              }}
+                            >
+                              {t.properties?.Nama ||
+                                `Titik ${t.id || t.properties?.OBJECTID}`}
+                            </button>
+                          ))}
                       </div>
                     )}
                   </div>

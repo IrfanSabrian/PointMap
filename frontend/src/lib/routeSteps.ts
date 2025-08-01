@@ -128,117 +128,109 @@ export function parseRouteSteps(
     `📋 Parsing rute: ${routeSegments.length} segmen untuk dibuat step navigasi`
   );
 
-  // Debug: tampilkan urutan panjang segmen
-  const segmentDistances = routeSegments.map((segment, i) => {
-    let distance = 0;
-    if (segment.properties && segment.properties.panjang) {
-      distance = Number(segment.properties.panjang);
-    } else if (segment.geometry && segment.geometry.coordinates) {
-      const coords = segment.geometry.coordinates;
-      for (let j = 1; j < coords.length; j++) {
-        const prev: [number, number] = [coords[j - 1][1], coords[j - 1][0]];
-        const curr: [number, number] = [coords[j][1], coords[j][0]];
-        distance += calculateDistance(prev, curr);
-      }
+  // Debug: tampilkan urutan segmen yang diterima
+  routeSegments.forEach((segment, idx) => {
+    const segmentId = segment.id || "unknown";
+    const segmentLength = segment.properties?.panjang || 0;
+    const coords = segment.geometry?.coordinates || [];
+    console.log(
+      `  📍 Segmen ${idx + 1}: ID ${segmentId}, ${Math.round(segmentLength)}m`
+    );
+    if (coords.length > 0) {
+      console.log(
+        `    Koordinat: start=[${coords[0][0].toFixed(
+          6
+        )}, ${coords[0][1].toFixed(6)}], end=[${coords[
+          coords.length - 1
+        ][0].toFixed(6)}, ${coords[coords.length - 1][1].toFixed(6)}]`
+      );
     }
-    return Math.round(distance);
   });
-  console.log(`🔍 Urutan panjang segmen asli: ${segmentDistances.join(", ")}m`);
+
+  // PERBAIKAN: Gabungkan jalur-jalur yang lurus
+  const combinedSteps = combineStraightSegments(routeSegments);
+
+  console.log(`🔍 Setelah digabung: ${combinedSteps.length} step`);
 
   const steps: any[] = [];
 
-  // Untuk setiap segmen, buat step yang dimulai dari titik awal segmen (skip step 1)
-  for (let i = 0; i < routeSegments.length; i++) {
-    // Skip step pertama karena instruksinya sudah digabung dengan step kedua
-    if (i === 0) {
-      console.log(`  ⏭️ Step 1 di-skip (instruksinya digabung dengan step 2)`);
-      continue;
-    }
+  // PERBAIKAN: Proses step yang sudah digabung
+  console.log(`  🔄 Mulai memproses ${combinedSteps.length} step...`);
 
-    const segment = routeSegments[i];
-    const step = createStepFromSingleSegment(segment);
+  for (let i = 0; i < combinedSteps.length; i++) {
+    const stepData = combinedSteps[i];
+    const step = createStepFromCombinedSegments(
+      stepData,
+      i,
+      combinedSteps.length,
+      startPoint,
+      endPoint
+    );
 
-    // Tentukan tipe step - step 2 menjadi "start" di UI
+    // PERBAIKAN: Tentukan tipe step berdasarkan posisi dalam rute
     const stepType =
-      i === 1 ? "start" : i === routeSegments.length - 1 ? "end" : "middle";
+      i === 0 ? "start" : i === combinedSteps.length - 1 ? "end" : "middle";
     (step as any).stepType = stepType;
     (step as any).segmentIndex = i;
 
-    // PERBAIKAN: Mapping jarak yang benar berdasarkan request user
-    const uiStepIndex = steps.length; // Index step di UI (0, 1, 2, ...)
+    console.log(
+      `  ✅ Step ${i + 1}: ${Math.round(step.distance)}m (${
+        step.segmentCount
+      } segmen) ${i === combinedSteps.length - 1 ? "(STEP TERAKHIR)" : ""}`
+    );
 
-    // Mapping khusus: Step UI 1 pakai segmen 0, Step UI 2 pakai segmen 1, dst
-    // Tapi Step UI terakhir harus pakai segmen terakhir (untuk sampai ke tujuan)
-    let correctSegmentIndex;
-
-    if (i === routeSegments.length - 1) {
-      // Step terakhir: gunakan segmen terakhir (segmen 8 = 4m)
-      correctSegmentIndex = routeSegments.length - 1;
-    } else {
-      // Step lainnya: Step UI 1 pakai segmen 0, UI 2 pakai segmen 1, dst
-      correctSegmentIndex = uiStepIndex;
-    }
-
-    if (correctSegmentIndex < routeSegments.length) {
-      // Gunakan jarak dari segmen yang benar
-      const correctSegment = routeSegments[correctSegmentIndex];
-      let correctDistance = 0;
-
-      if (correctSegment.properties && correctSegment.properties.panjang) {
-        correctDistance = Number(correctSegment.properties.panjang);
-      } else if (
-        correctSegment.geometry &&
-        correctSegment.geometry.coordinates
-      ) {
-        const coords = correctSegment.geometry.coordinates;
-        for (let j = 1; j < coords.length; j++) {
-          const prev: [number, number] = [coords[j - 1][1], coords[j - 1][0]];
-          const curr: [number, number] = [coords[j][1], coords[j][0]];
-          correctDistance += calculateDistance(prev, curr);
-        }
-      }
-
-      // Override jarak step dengan jarak yang benar
-      step.distance = correctDistance;
-
-      console.log(
-        `  ✅ Step ${uiStepIndex + 1} UI: menggunakan jarak segmen ${
-          correctSegmentIndex + 1
-        } = ${Math.round(correctDistance)}m ${
-          i === routeSegments.length - 1 ? "(SEGMEN TERAKHIR)" : ""
-        }`
-      );
-    }
-
-    // Pastikan sambungan antar step konsisten
-    if (i === 1 && startPoint) {
-      // Step kedua (menjadi step 1 di UI): mulai dari startPoint
+    // PERBAIKAN: Pastikan sambungan antar step konsisten tanpa duplikasi
+    if (i === 0 && startPoint) {
+      // Step pertama: mulai dari startPoint
       step.start = startPoint;
       step.coordinates = [startPoint, ...step.coordinates.slice(1)];
-    } else if (i > 1) {
-      // Step ke-3 dst: mulai dari titik akhir step sebelumnya (sambungan)
+    } else if (i > 0) {
+      // Step ke-2 dst: mulai dari titik akhir step sebelumnya (sambungan)
       const prevStep = steps[steps.length - 1];
       const connectionPoint =
         prevStep.coordinates[prevStep.coordinates.length - 1];
       step.start = connectionPoint;
-      step.coordinates = [connectionPoint, ...step.coordinates.slice(1)];
+
+      // PERBAIKAN: Hindari duplikasi koordinat dengan memeriksa apakah titik pertama sama dengan connection point
+      if (step.coordinates.length > 0) {
+        const firstCoord = step.coordinates[0];
+        const isDuplicate =
+          Math.abs(firstCoord[0] - connectionPoint[0]) < 0.000001 &&
+          Math.abs(firstCoord[1] - connectionPoint[1]) < 0.000001;
+
+        if (isDuplicate) {
+          // Jika duplikat, gunakan koordinat asli tanpa menambahkan connection point
+          step.coordinates = step.coordinates;
+        } else {
+          // Jika tidak duplikat, tambahkan connection point
+          step.coordinates = [connectionPoint, ...step.coordinates.slice(1)];
+        }
+      }
     }
 
-    // PERBAIKAN: Jangan override end point secara otomatis
-    // Biarkan step terakhir menggunakan koordinat asli dari jalur GeoJSON
-    // if (i === routeSegments.length - 1 && endPoint) {
-    //   step.coordinates = [...step.coordinates.slice(0, -1), endPoint];
-    // }
+    // PERBAIKAN: Pastikan step terakhir sampai ke tujuan yang benar
+    if (i === routeSegments.length - 1 && endPoint) {
+      const lastCoord = step.coordinates[step.coordinates.length - 1];
+      const isDuplicate =
+        Math.abs(lastCoord[0] - endPoint[0]) < 0.000001 &&
+        Math.abs(lastCoord[1] - endPoint[1]) < 0.000001;
 
-    // Hitung step number untuk UI (karena step 1 di-skip)
-    const uiStepNumber = steps.length + 1;
+      if (!isDuplicate) {
+        step.coordinates = [...step.coordinates.slice(0, -1), endPoint];
+      }
+    }
+
+    // Hitung step number untuk UI
+    const uiStepNumber = i + 1;
 
     console.log(
       `  📍 Step ${uiStepNumber} (segmen ${
         i + 1
       }): ${stepType}, lingkaran di [${step.start[0].toFixed(
         4
-      )}, ${step.start[1].toFixed(4)}] → ${step.distance.toFixed(1)}m`
+      )}, ${step.start[1].toFixed(4)}] → ${step.distance.toFixed(
+        1
+      )}m, koordinat: ${step.coordinates.length} titik`
     );
 
     steps.push(step);
@@ -248,13 +240,191 @@ export function parseRouteSteps(
   const stepDistances = steps.map((step) => Math.round(step.distance));
   console.log(`🔍 Urutan jarak step UI: ${stepDistances.join(", ")}m`);
 
-  // Debug: tampilkan detail final steps
+  // Debug: tampilkan detail final steps dengan ID segmen
   steps.forEach((step, idx) => {
-    console.log(`🔍 Final Step ${idx + 1}: ${Math.round(step.distance)}m`);
+    const segmentId = step.raw?.id || "unknown";
+    console.log(
+      `🔍 Final Step ${idx + 1}: ${Math.round(
+        step.distance
+      )}m (ID: ${segmentId})`
+    );
   });
 
   console.log(`✅ Total steps dibuat: ${steps.length}`);
   return steps;
+}
+
+// Fungsi untuk menggabungkan jalur-jalur yang lurus
+function combineStraightSegments(segments: any[]) {
+  if (segments.length <= 1) return segments;
+
+  console.log(`🔍 [COMBINE] Mulai menggabungkan ${segments.length} segmen...`);
+
+  const combined: any[] = [];
+  let currentGroup: any[] = [segments[0]];
+
+  for (let i = 1; i < segments.length; i++) {
+    const currentSegment = segments[i];
+    const prevSegment = segments[i - 1];
+    const isLastSegment = i === segments.length - 1;
+
+    // PERBAIKAN: Cek apakah jalur ini lurus dengan logika yang lebih sederhana
+    const isStraight = isSegmentsStraight(prevSegment, currentSegment);
+
+    // PERBAIKAN: Jangan gabungkan segmen terakhir dengan yang lain
+    // Ini memastikan line horizontal terakhir menjadi step terpisah
+    const shouldCombine = isStraight && !isLastSegment;
+
+    console.log(
+      `🔍 [COMBINE] Segmen ${i}: ID ${currentSegment.id}, lurus: ${isStraight}, isLast: ${isLastSegment}, shouldCombine: ${shouldCombine}`
+    );
+
+    if (shouldCombine) {
+      // Gabungkan dengan grup saat ini
+      currentGroup.push(currentSegment);
+      console.log(
+        `  ✅ Digabung dengan grup saat ini (total: ${currentGroup.length} segmen)`
+      );
+    } else {
+      // Simpan grup saat ini dan mulai grup baru
+      console.log(
+        `  🔄 Grup baru dimulai (grup sebelumnya: ${currentGroup.length} segmen)`
+      );
+      combined.push(currentGroup);
+      currentGroup = [currentSegment];
+    }
+  }
+
+  // Tambahkan grup terakhir
+  combined.push(currentGroup);
+
+  console.log(`🔍 [COMBINE] Hasil: ${combined.length} grup`);
+  combined.forEach((group, idx) => {
+    const totalDistance = group.reduce(
+      (sum: number, seg: any) => sum + (seg.properties?.panjang || 0),
+      0
+    );
+    console.log(
+      `  Grup ${idx + 1}: ${group.length} segmen, total ${Math.round(
+        totalDistance
+      )}m`
+    );
+  });
+
+  return combined;
+}
+
+// Fungsi untuk mengecek apakah dua segmen membentuk jalur lurus
+function isSegmentsStraight(seg1: any, seg2: any): boolean {
+  const seg1Coords = seg1.geometry?.coordinates || [];
+  const seg2Coords = seg2.geometry?.coordinates || [];
+
+  if (seg1Coords.length === 0 || seg2Coords.length === 0) return false;
+
+  const seg1End = seg1Coords[seg1Coords.length - 1];
+  const seg2Start = seg2Coords[0];
+
+  // PERBAIKAN: Logika yang lebih sederhana - jika koordinat sama atau sangat dekat, maka lurus
+  const latDiff = Math.abs(seg1End[1] - seg2Start[1]);
+  const lngDiff = Math.abs(seg1End[0] - seg2Start[0]);
+
+  // PERBAIKAN: Toleransi yang lebih besar untuk mendeteksi jalur lurus
+  const isConnected = latDiff < 0.001 && lngDiff < 0.001; // 0.001 derajat ≈ 110 meter
+
+  // PERBAIKAN: Cek apakah ada belokan dengan menghitung sudut
+  const seg1Start = seg1Coords[0];
+  const seg2End = seg2Coords[seg2Coords.length - 1];
+
+  // Hitung vektor arah segmen 1 dan segmen 2
+  const vector1 = [seg1End[0] - seg1Start[0], seg1End[1] - seg1Start[1]];
+  const vector2 = [seg2End[0] - seg2Start[0], seg2End[1] - seg2Start[1]];
+
+  // Hitung sudut antara dua vektor
+  const dotProduct = vector1[0] * vector2[0] + vector1[1] * vector2[1];
+  const magnitude1 = Math.sqrt(
+    vector1[0] * vector1[0] + vector1[1] * vector1[1]
+  );
+  const magnitude2 = Math.sqrt(
+    vector2[0] * vector2[0] + vector2[1] * vector2[1]
+  );
+
+  let angle = 0;
+  if (magnitude1 > 0 && magnitude2 > 0) {
+    const cosAngle = dotProduct / (magnitude1 * magnitude2);
+    angle = Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI);
+  }
+
+  // Jika sudut > 30 derajat, berarti ada belokan
+  const hasTurn = angle > 30;
+
+  // Debug info
+  console.log(
+    `    📏 Koordinat: seg1_end=[${seg1End[0].toFixed(6)}, ${seg1End[1].toFixed(
+      6
+    )}], seg2_start=[${seg2Start[0].toFixed(6)}, ${seg2Start[1].toFixed(6)}]`
+  );
+  console.log(
+    `    📏 Selisih: lat=${latDiff.toFixed(6)}, lng=${lngDiff.toFixed(
+      6
+    )}, terhubung: ${isConnected}`
+  );
+  console.log(`    📐 Sudut: ${angle.toFixed(2)}°, ada belokan: ${hasTurn}`);
+
+  // Jalur lurus jika terhubung DAN tidak ada belokan
+  return isConnected && !hasTurn;
+}
+
+// Fungsi untuk membuat step dari segmen yang sudah digabung
+function createStepFromCombinedSegments(
+  segments: any[],
+  stepIndex: number,
+  totalSteps: number,
+  startPoint?: [number, number],
+  endPoint?: [number, number]
+) {
+  let totalDistance = 0;
+  let allCoordinates: [number, number][] = [];
+
+  // Gabungkan semua koordinat dan hitung total jarak
+  segments.forEach((segment, idx) => {
+    const segmentCoords = segment.geometry?.coordinates || [];
+    if (segmentCoords.length > 0) {
+      if (idx === 0) {
+        allCoordinates = [...segmentCoords];
+      } else {
+        // Skip koordinat pertama jika sama dengan akhir segmen sebelumnya
+        const prevEnd = allCoordinates[allCoordinates.length - 1];
+        const currentStart = segmentCoords[0];
+        if (
+          calculateDistance(
+            [prevEnd[1], prevEnd[0]], // [lat, lng]
+            [currentStart[1], currentStart[0]] // [lat, lng]
+          ) < 5
+        ) {
+          allCoordinates.push(...segmentCoords.slice(1));
+        } else {
+          allCoordinates.push(...segmentCoords);
+        }
+      }
+    }
+
+    // Tambahkan jarak segmen
+    if (segment.properties && segment.properties.panjang) {
+      totalDistance += Number(segment.properties.panjang);
+    }
+  });
+
+  // Konversi koordinat dari [lng, lat] ke [lat, lng]
+  const coordinates = allCoordinates.map((c) => [c[1], c[0]]);
+
+  return {
+    coordinates: coordinates,
+    start: coordinates[0],
+    distance: totalDistance,
+    type: "combined",
+    raw: segments,
+    segmentCount: segments.length,
+  };
 }
 
 // Fungsi untuk membuat step dari 1 segmen saja
