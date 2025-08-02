@@ -9,14 +9,14 @@ import {
   sequelize,
   Bangunan,
   Ruangan,
-  Jurusan,
-  Prodi,
+  LantaiGambar,
+  RuanganGallery,
 } from "./models/index.js";
 import bangunanRoutes from "./routes/bangunan.js";
 import ruanganRoutes from "./routes/ruangan.js";
-import jurusanRoutes from "./routes/jurusan.js";
-import prodiRoutes from "./routes/prodi.js";
 import authRoutes from "./routes/auth.js";
+import lantaiGambarRoutes from "./routes/lantaiGambar.js";
+import ruanganGalleryRoutes from "./routes/ruanganGallery.js";
 
 await sequelize.sync(); // pastikan tabel otomatis dibuat (jika belum ada)
 
@@ -26,29 +26,29 @@ app.use(express.json());
 
 app.use("/api/bangunan", bangunanRoutes);
 app.use("/api/ruangan", ruanganRoutes);
-app.use("/api/jurusan", jurusanRoutes);
-app.use("/api/prodi", prodiRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/lantai-gambar", lantaiGambarRoutes);
+app.use("/api/ruangan-gallery", ruanganGalleryRoutes);
 
 // ROUTE "/" MENAMPILKAN DATA DATABASE
 app.get("/", async (req, res) => {
   try {
     const daftarBangunan = await Bangunan.findAll();
     const daftarRuangan = await Ruangan.findAll();
-    const daftarJurusan = await Jurusan.findAll();
-    const daftarProdi = await Prodi.findAll();
+    const daftarLantaiGambar = await LantaiGambar.findAll();
+    const daftarRuanganGallery = await RuanganGallery.findAll();
 
     res.json({
       status: "API aktif & koneksi DB OK",
       jumlah_bangunan: daftarBangunan.length,
       jumlah_ruangan: daftarRuangan.length,
-      jumlah_jurusan: daftarJurusan.length,
-      jumlah_prodi: daftarProdi.length,
+      jumlah_lantai_gambar: daftarLantaiGambar.length,
+      jumlah_ruangan_gallery: daftarRuanganGallery.length,
       data: {
         bangunan: daftarBangunan,
         ruangan: daftarRuangan,
-        jurusan: daftarJurusan,
-        prodi: daftarProdi,
+        lantai_gambar: daftarLantaiGambar,
+        ruangan_gallery: daftarRuanganGallery,
       },
     });
   } catch (err) {

@@ -35,6 +35,8 @@ export default function Login() {
       if (response.ok) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        // Dispatch event untuk memberitahu komponen lain bahwa user login
+        window.dispatchEvent(new Event("login-status-changed"));
         router.push("/dashboard");
       } else {
         // setErrorMsg(data.error || "Login gagal"); // Original line commented out

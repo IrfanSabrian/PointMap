@@ -39,6 +39,7 @@ interface LeafletMapProps {
   initialLng?: number;
   initialZoom?: number;
   className?: string;
+  isDashboard?: boolean;
 }
 
 export interface LeafletMapRef {
@@ -147,6 +148,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       initialLng = 109.3465,
       initialZoom = 18,
       className = "",
+      isDashboard = false,
     },
     ref
   ) => {
@@ -167,6 +169,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       isRuangan?: boolean;
       bangunan_id?: number | string;
       nomor_lantai?: number;
+      thumbnail?: string;
       [key: string]: any;
     }
 
@@ -225,6 +228,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [routeEndSearchResults, setRouteEndSearchResults] = useState<Point[]>(
       []
     );
+
+    // State untuk edit mode
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
+    const [editName, setEditName] = useState("");
+    const [editThumbnail, setEditThumbnail] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     // Gunakan custom hook
     const {
@@ -744,12 +756,34 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const routeModal = document.querySelector(
               '[data-modal="route-modal"]'
             );
+
+            // Cek apakah klik terjadi di dalam area peta (canvas peta)
+            const mapContainer = document.querySelector(".leaflet-container");
+            const isClickInsideMap =
+              mapContainer && mapContainer.contains(e.target as Node);
+
+            // Cek apakah klik pada kontrol peta (zoom in/out, reset, layer toggle, basemap toggle, GPS)
+            const target = e.target as Element;
+            const isMapControl =
+              target.closest(".leaflet-control-zoom") || // Zoom in/out buttons
+              target.closest(".leaflet-control-layers") || // Layer control
+              target.closest('[data-control="reset-zoom"]') || // Reset zoom button
+              target.closest('[data-control="toggle-layer"]') || // Toggle layer button
+              target.closest('[data-control="toggle-basemap"]') || // Toggle basemap button
+              target.closest('[data-control="zoom-in"]') || // Zoom in button
+              target.closest('[data-control="zoom-out"]') || // Zoom out button
+              target.closest('[data-control="locate-me"]') || // GPS button
+              target.closest(".leaflet-control-attribution") || // Attribution
+              target.closest(".leaflet-control-scale"); // Scale control
+
             if (
               container &&
               !container.contains(e.target as Node) &&
-              !routeModal
+              !routeModal &&
+              !isMapControl &&
+              isClickInsideMap // Hanya trigger shake jika klik di dalam area peta
             ) {
-              // Trigger shake effect (hanya jika modal route tidak terbuka)
+              // Trigger shake effect (hanya jika modal route tidak terbuka, bukan kontrol peta, dan klik di dalam peta)
               setIsContainerShaking(true);
               setTimeout(() => setIsContainerShaking(false), 600);
             }
@@ -915,6 +949,94 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       document.addEventListener("mousedown", handleClickOutside);
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
+
+    // Event listener untuk menutup modal edit saat klik di luar
+    useEffect(() => {
+      const handleClickOutsideEdit = (event: MouseEvent) => {
+        const editModal = document.querySelector('[data-modal="edit-modal"]');
+        if (editModal && !editModal.contains(event.target as Node)) {
+          handleCancelEdit();
+        }
+      };
+
+      if (isEditingName || isEditingThumbnail) {
+        document.addEventListener("mousedown", handleClickOutsideEdit);
+      }
+
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutsideEdit);
+      };
+    }, [isEditingName, isEditingThumbnail]);
+
+    // Event listener untuk keyboard shortcuts pada modal edit
+    useEffect(() => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (isEditingName || isEditingThumbnail) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            if (
+              !isSaving &&
+              ((isEditingName && editName.trim()) ||
+                (isEditingThumbnail && editThumbnail.trim()))
+            ) {
+              handleSaveEdit();
+            }
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            handleCancelEdit();
+          }
+        }
+      };
+
+      if (isEditingName || isEditingThumbnail) {
+        document.addEventListener("keydown", handleKeyDown);
+      }
+
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [isEditingName, isEditingThumbnail, editName, editThumbnail, isSaving]);
+
+    // Cek status login dan admin
+    useEffect(() => {
+      const checkLoginStatus = () => {
+        const token = localStorage.getItem("token");
+        const isUserLoggedIn = !!token;
+        setIsLoggedIn(isUserLoggedIn);
+
+        // Cek apakah user adalah admin
+        if (isUserLoggedIn) {
+          const userStr = localStorage.getItem("user");
+          if (userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              setIsAdmin(user.role === "admin");
+            } catch (error) {
+              console.error("Error parsing user data:", error);
+              setIsAdmin(false);
+            }
+          } else {
+            setIsAdmin(false);
+          }
+        } else {
+          setIsAdmin(false);
+        }
+      };
+
+      // Cek status awal
+      checkLoginStatus();
+
+      // Listen untuk perubahan storage (login/logout)
+      window.addEventListener("storage", checkLoginStatus);
+
+      // Listen untuk custom event login/logout
+      window.addEventListener("login-status-changed", checkLoginStatus);
+
+      return () => {
+        window.removeEventListener("storage", checkLoginStatus);
+        window.removeEventListener("login-status-changed", checkLoginStatus);
       };
     }, []);
 
@@ -1348,6 +1470,158 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         setShowBuildingDetailCanvas(false);
         setIsBuildingDetailFadingOut(false);
       }, 300); // durasi animasi fade
+    };
+
+    // Fungsi untuk handle edit nama bangunan
+    const handleEditName = () => {
+      if (!selectedFeature?.properties?.nama) return;
+
+      // Cek apakah user sudah login
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Anda harus login terlebih dahulu untuk mengedit bangunan.");
+        return;
+      }
+
+      // Cek apakah user adalah admin
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.role !== "admin") {
+            alert("Anda tidak memiliki akses untuk mengedit bangunan.");
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+          alert("Terjadi kesalahan saat memverifikasi akses.");
+          return;
+        }
+      }
+
+      setEditName(selectedFeature.properties.nama);
+      setIsEditingName(true);
+    };
+
+    // Fungsi untuk handle edit thumbnail
+    const handleEditThumbnail = () => {
+      if (!selectedFeature?.properties?.nama) return;
+
+      // Cek apakah user sudah login
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Anda harus login terlebih dahulu untuk mengedit bangunan.");
+        return;
+      }
+
+      // Cek apakah user adalah admin
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.role !== "admin") {
+            alert("Anda tidak memiliki akses untuk mengedit bangunan.");
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+          alert("Terjadi kesalahan saat memverifikasi akses.");
+          return;
+        }
+      }
+
+      setEditThumbnail(
+        selectedFeature.properties.thumbnail || selectedFeature.properties.nama
+      );
+      setIsEditingThumbnail(true);
+    };
+
+    // Fungsi untuk save edit
+    const handleSaveEdit = async () => {
+      if (!selectedFeature?.properties?.id) return;
+
+      setIsSaving(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          alert("Token tidak ditemukan. Silakan login ulang.");
+          return;
+        }
+
+        const updateData: any = {};
+        if (isEditingName && editName.trim()) {
+          updateData.nama = editName.trim();
+        }
+        if (isEditingThumbnail && editThumbnail.trim()) {
+          updateData.thumbnail = editThumbnail.trim();
+        }
+
+        if (Object.keys(updateData).length === 0) {
+          alert("Tidak ada perubahan untuk disimpan.");
+          return;
+        }
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+            },
+            body: JSON.stringify(updateData),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Update local state
+        if (selectedFeature) {
+          selectedFeature.properties = {
+            ...selectedFeature.properties,
+            ...updateData,
+          };
+        }
+
+        // Reset edit mode
+        setIsEditingName(false);
+        setIsEditingThumbnail(false);
+        setEditName("");
+        setEditThumbnail("");
+
+        alert("Berhasil menyimpan perubahan!");
+
+        // Refresh data bangunan
+        if (bangunanLayerRef.current) {
+          // Trigger re-render dengan data baru
+          const currentFeatures = [...bangunanFeatures];
+          const updatedIndex = currentFeatures.findIndex(
+            (f) => f.properties?.id === selectedFeature.properties?.id
+          );
+          if (updatedIndex !== -1) {
+            currentFeatures[updatedIndex] = selectedFeature;
+            setBangunanFeatures(currentFeatures);
+          }
+        }
+      } catch (error) {
+        console.error("Error saving edit:", error);
+        alert("Gagal menyimpan perubahan. Silakan coba lagi.");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    // Fungsi untuk cancel edit
+    const handleCancelEdit = () => {
+      setIsEditingName(false);
+      setIsEditingThumbnail(false);
+      setEditName("");
+      setEditThumbnail("");
     };
 
     // Event listener pesan close-buildingdetail dari iframe
@@ -2290,6 +2564,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Hapus rute dan GPS marker saat card bangunan di-close
     useEffect(() => {
       if (!cardVisible && leafletMapRef.current) {
+        // Reset edit mode
+        setIsEditingName(false);
+        setIsEditingThumbnail(false);
+        setEditName("");
+        setEditThumbnail("");
+
         // Hapus route line jika ada
         if (routeLine) {
           leafletMapRef.current.removeLayer(routeLine);
@@ -4125,6 +4405,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           <div className="flex flex-col gap-1 mb-2">
             {/* Zoom In Button */}
             <button
+              data-control="zoom-in"
               onClick={() => {
                 console.log("Zoom in clicked");
                 const map = leafletMapRef.current;
@@ -4150,6 +4431,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             </button>
             {/* Zoom Out Button */}
             <button
+              data-control="zoom-out"
               onClick={() => {
                 console.log("Zoom out clicked");
                 const map = leafletMapRef.current;
@@ -4175,6 +4457,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             </button>
             {/* Reset Zoom Button */}
             <button
+              data-control="reset-zoom"
               onClick={handleResetZoom}
               className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
               ${
@@ -4199,6 +4482,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         >
           {/* Toggle Layer Button (ikon mata) */}
           <button
+            data-control="toggle-layer"
             onClick={handleToggleLayer}
             className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
           ${
@@ -4219,6 +4503,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </button>
           {/* Basemap Toggle Button identik EsriMap */}
           <button
+            data-control="toggle-basemap"
             onClick={handleToggleBasemap}
             className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
           ${
@@ -4276,9 +4561,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           >
             {/* Header dengan nama gedung */}
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-8">
-                {selectedFeature.properties?.nama || "Tanpa Nama"}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-8">
+                  {selectedFeature.properties?.nama || "Tanpa Nama"}
+                </span>
+                {isDashboard && isAdmin && (
+                  <button
+                    onClick={handleEditName}
+                    className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
+                    title="Edit nama bangunan"
+                  >
+                    <i className="fas fa-edit text-sm"></i>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Tombol close di pojok kanan atas */}
@@ -4286,6 +4582,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               onClick={() => {
                 setCardVisible(false);
                 setIsHighlightActive(false);
+                // Reset edit mode
+                setIsEditingName(false);
+                setIsEditingThumbnail(false);
+                setEditName("");
+                setEditThumbnail("");
                 // Jika navigation aktif, tutup juga navigation
                 if (isNavigationActive) {
                   setRouteSteps([]);
@@ -4317,11 +4618,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             </button>
 
             {/* Gambar thumbnail bangunan */}
-            <div className="px-4 pt-2">
+            <div className="px-4 pt-2 relative">
               <img
-                src={`/img/${
-                  selectedFeature.properties?.nama || "default"
-                }/thumbnail.jpg`}
+                src={
+                  selectedFeature.properties?.thumbnail
+                    ? `/${selectedFeature.properties.thumbnail}`
+                    : selectedFeature.properties?.nama
+                    ? `/img/${selectedFeature.properties.nama}/thumbnail.jpg`
+                    : "/img/default/thumbnail.jpg"
+                }
                 alt={selectedFeature.properties?.nama || "Bangunan"}
                 className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                 onError={(e) => {
@@ -4330,6 +4635,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   target.src = "/img/default/thumbnail.jpg";
                 }}
               />
+              {isDashboard && isAdmin && (
+                <button
+                  onClick={handleEditThumbnail}
+                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-colors"
+                  title="Edit thumbnail"
+                >
+                  <i className="fas fa-edit text-xs"></i>
+                </button>
+              )}
             </div>
 
             <div className="flex-1 flex flex-col gap-3 px-4 py-4">
@@ -4366,6 +4680,124 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   [DEBUG] Ini bukan bangunan dari API (tidak ada properti id)
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal Edit Bangunan */}
+        {(isEditingName || isEditingThumbnail) && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+            <div
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
+              data-modal="edit-modal"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Edit {isEditingName ? "Nama" : "Thumbnail"} Bangunan
+                </h3>
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <i className="fas fa-times text-lg"></i>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {isEditingName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nama Bangunan <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent ${
+                        isEditingName && !editName.trim()
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
+                      placeholder="Masukkan nama bangunan"
+                      autoFocus
+                    />
+                    {isEditingName && !editName.trim() && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Nama bangunan tidak boleh kosong
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {isEditingThumbnail && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nama Folder Thumbnail{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editThumbnail}
+                      onChange={(e) => setEditThumbnail(e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent ${
+                        isEditingThumbnail && !editThumbnail.trim()
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
+                      placeholder="Masukkan nama folder thumbnail"
+                      autoFocus
+                    />
+                    {isEditingThumbnail && !editThumbnail.trim() && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Nama folder thumbnail tidak boleh kosong
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Nama folder untuk gambar thumbnail di /public/img/
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={
+                      isSaving ||
+                      (isEditingName && !editName.trim()) ||
+                      (isEditingThumbnail && !editThumbnail.trim())
+                    }
+                    className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-save text-sm"></i>
+                        Simpan
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Batal
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                  <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded mr-1">
+                    Enter
+                  </span>
+                  untuk simpan,
+                  <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded ml-1 mr-1">
+                    Esc
+                  </span>
+                  untuk batal
+                </div>
+              </div>
             </div>
           </div>
         )}

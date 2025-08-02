@@ -13,6 +13,7 @@ const Bangunan = sequelize.define(
     interaksi: DataTypes.STRING,
     lantai: DataTypes.INTEGER,
     geometri: DataTypes.TEXT,
+    thumbnail: DataTypes.STRING,
   },
   {
     tableName: "bangunan",

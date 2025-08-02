@@ -24,27 +24,21 @@ export const getBangunanById = async (req, res) => {
   }
 };
 
-// CREATE bangunan baru
+// CREATE bangunan baru (DISABLED - hanya untuk edit)
 export const addBangunan = async (req, res) => {
-  try {
-    const { nama, interaksi, lantai, geometri } = req.body;
-    const baru = await Bangunan.create({ nama, interaksi, lantai, geometri });
-    res.status(201).json({
-      message: "Bangunan berhasil ditambahkan",
-      data: baru,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(403).json({
+    error: "Akses ditolak",
+    message: "Tidak dapat menambah bangunan baru. Gunakan fitur edit saja.",
+  });
 };
 
 // UPDATE bangunan
 export const updateBangunan = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nama, interaksi, lantai, geometri } = req.body;
+    const { nama, interaksi, lantai, thumbnail } = req.body;
     const [updated] = await Bangunan.update(
-      { nama, interaksi, lantai, geometri },
+      { nama, interaksi, lantai, thumbnail },
       { where: { id_bangunan: id } }
     );
     if (updated) {
@@ -61,22 +55,12 @@ export const updateBangunan = async (req, res) => {
   }
 };
 
-// DELETE bangunan
+// DELETE bangunan (DISABLED - hanya untuk edit)
 export const deleteBangunan = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const deletedBangunan = await Bangunan.findByPk(id);
-    if (!deletedBangunan) {
-      return res.status(404).json({ error: "Bangunan tidak ditemukan" });
-    }
-    await deletedBangunan.destroy();
-    res.json({
-      message: "Bangunan berhasil dihapus",
-      data: deletedBangunan,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(403).json({
+    error: "Akses ditolak",
+    message: "Tidak dapat menghapus bangunan. Gunakan fitur edit saja.",
+  });
 };
 
 export const getBangunanGeoJSON = async (req, res) => {
@@ -90,6 +74,7 @@ export const getBangunanGeoJSON = async (req, res) => {
         nama: b.nama,
         interaksi: b.interaksi,
         lantai: b.lantai,
+        thumbnail: b.thumbnail,
       },
     }));
     res.json({

@@ -574,6 +574,7 @@ export default function Home() {
             initialZoom={17}
             className="w-full h-full"
             isDark={isDark}
+            isDashboard={false}
           />
         </div>
       </section>
