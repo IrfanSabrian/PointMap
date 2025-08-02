@@ -10,6 +10,7 @@ Sistem building-details yang dinamis mengambil data ruangan dari database dan me
 - **Multi-bangunan**: Mendukung berbagai bangunan dengan ID berbeda
 - **Peta lantai dinamis**: Gambar SVG yang berbeda untuk setiap bangunan
 - **Informasi ruangan real-time**: Data ruangan langsung dari database
+- **Modal Info User-Friendly**: Menampilkan informasi yang ramah pengguna jika data ruangan kosong
 
 ## Struktur Data
 
@@ -56,11 +57,20 @@ const ruanganResponse = await fetch(
 - **Content**: Informasi ruangan dari database (nama, deskripsi, lantai)
 - **Spaces List**: Daftar ruangan dikelompokkan per lantai
 
-### 3. Peta Lantai
+### 3. Modal Info (Data Ruangan Kosong)
 
-- **Gedung Lab TI (ID: 45)**: `img/1.svg`, `img/2.svg`, `img/3.svg`
-- **Jurusan Teknik Mesin (ID: 3)**: `img/tm-1.svg`, `img/tm-2.svg`, `img/tm-3.svg`
-- **Default**: `img/default.svg` jika file tidak ditemukan
+- **Kondisi**: Jika data ruangan kosong atau tidak ditemukan
+- **Tampilan**: Modal informasi yang ramah pengguna
+- **Pesan**: Memberitahu bahwa bangunan sudah terdaftar tapi belum ada data ruangan
+- **Aksi**: Tombol tutup yang kembali ke peta utama
+
+### 4. Peta Lantai
+
+- **Gedung Lab TI (ID: 45)**: `../img/Gedung Lab Teknik Informatika/lantai/Lt1.svg`, `../img/Gedung Lab Teknik Informatika/lantai/Lt2.svg`, `../img/Gedung Lab Teknik Informatika/lantai/Lt3.svg`
+- **Jurusan Teknik Mesin (ID: 3)**: `../img/Jurusan Teknik Mesin/lantai/Lt1.svg`, `../img/Jurusan Teknik Mesin/lantai/Lt2.svg`, `../img/Jurusan Teknik Mesin/lantai/Lt3.svg`
+- **Fallback System**:
+  - Jika SVG lantai tidak ditemukan di folder bangunan, gunakan `../img/default/lantai/Lt{lantai}.svg`
+  - Jika file default lantai tidak ada, gunakan `../img/default/lantai/default.svg`
 
 ## Penggunaan
 
@@ -87,17 +97,41 @@ building-details/
 ├── index.html          # File utama dengan JavaScript dinamis
 ├── css/
 │   └── style.css       # Styling untuk loading dan error states
-├── img/
-│   ├── 1.svg          # Lantai 1 Gedung Lab TI
-│   ├── 2.svg          # Lantai 2 Gedung Lab TI
-│   ├── 3.svg          # Lantai 3 Gedung Lab TI
-│   ├── 4.svg          # Lantai 4 Gedung Lab TI
-│   ├── tm-1.svg       # Lantai 1 Jurusan Teknik Mesin
-│   ├── tm-2.svg       # Lantai 2 Jurusan Teknik Mesin
-│   ├── tm-3.svg       # Lantai 3 Jurusan Teknik Mesin
-│   ├── default.svg    # Peta default jika file tidak ada
-│   └── surroundings.svg
 ├── js/
+│   ├── main.js         # JavaScript utama
+│   ├── classie.js      # Utility functions
+│   ├── list.min.js     # Search functionality
+│   └── modernizr-custom.js # Browser compatibility
+```
+
+## Struktur Folder Gambar (Baru)
+
+```
+public/
+├── img/
+│   ├── Gedung Lab Teknik Informatika/
+│   │   ├── thumbnail.jpg           # Thumbnail bangunan
+│   │   ├── lantai/
+│   │   │   ├── Lt1.svg            # Lantai 1
+│   │   │   ├── Lt2.svg            # Lantai 2
+│   │   │   └── Lt3.svg            # Lantai 3
+│   │   └── ruangan/
+│   │       └── thumbnail.jpg      # Thumbnail ruangan
+│   ├── Jurusan Teknik Mesin/
+│   │   ├── thumbnail.jpg           # Thumbnail bangunan
+│   │   ├── lantai/
+│   │   │   ├── Lt1.svg            # Lantai 1
+│   │   │   ├── Lt2.svg            # Lantai 2
+│   │   │   └── Lt3.svg            # Lantai 3
+│   │   └── ruangan/
+│   │       └── thumbnail.jpg      # Thumbnail ruangan
+│   └── default/
+│       ├── thumbnail.jpg           # Thumbnail default
+│       └── lantai/
+│           ├── Lt1.svg            # Peta default lantai 1
+│           ├── Lt2.svg            # Peta default lantai 2
+│           ├── Lt3.svg            # Peta default lantai 3
+│           └── default.svg        # Peta default fallback
 │   ├── main.js        # Logika interaksi
 │   ├── classie.js     # Utility functions
 │   ├── list.min.js    # Search functionality
@@ -122,8 +156,12 @@ building-details/
 ## Error Handling
 
 - **Loading State**: Menampilkan spinner saat memuat data
-- **Error State**: Menampilkan pesan error jika gagal memuat data
-- **Fallback Image**: Menggunakan `default.svg` jika peta lantai tidak ada
+- **Info Modal**: Menampilkan modal informasi jika data ruangan kosong (tidak redirect ke error page)
+- **Error State**: Menampilkan pesan error jika gagal memuat data (hanya untuk error API/server)
+- **Fallback Image System**:
+  - Level 1: Coba SVG lantai dari folder bangunan (`../img/{nama}/lantai/Lt{lantai}.svg`)
+  - Level 2: Jika tidak ada, gunakan SVG lantai default (`../img/default/lantai/Lt{lantai}.svg`)
+  - Level 3: Jika tidak ada, gunakan SVG default (`../img/default/lantai/default.svg`)
 - **API Error**: Menampilkan pesan error jika API tidak tersedia
 
 ## Responsive Design

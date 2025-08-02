@@ -597,33 +597,118 @@
     var contentItem = contentEl.querySelector(
       '.content__item[data-space="' + spaceref + '"]'
     );
-    // show content
-    classie.add(contentItem, "content__item--current");
-    if (sliding) {
-      onEndTransition(contentItem, function () {
-        classie.add(contentEl, "content--open");
-        // Add class to pins container after content is fully open
+
+    // Cek apakah ada konten yang sedang aktif dan berbeda dengan konten baru
+    var currentContentItem = contentEl.querySelector(".content__item--current");
+    var isNewContent = currentContentItem && currentContentItem !== contentItem;
+
+    if (isNewContent) {
+      // Jika ada konten yang berbeda, lakukan transisi
+      var title = currentContentItem.querySelector(".content__item-title");
+      var image = currentContentItem.querySelector(".content__image");
+      var meta = currentContentItem.querySelector(".content__meta");
+
+      // Reset class untuk memastikan animasi berjalan
+      if (title) {
+        title.classList.remove("fade-in");
+        title.classList.add("fade-out");
+      }
+      if (image) {
+        image.classList.remove("fade-in");
+        image.classList.add("fade-out");
+      }
+      if (meta) {
+        meta.classList.remove("fade-in");
+        meta.classList.add("fade-out");
+      }
+
+      // Tunggu animasi fade-out selesai
+      setTimeout(function () {
+        // Remove current class dari item sebelumnya
+        classie.remove(currentContentItem, "content__item--current");
+
+        // Reset class fade-out dari item sebelumnya
+        if (title) title.classList.remove("fade-out");
+        if (image) image.classList.remove("fade-out");
+        if (meta) meta.classList.remove("fade-out");
+
+        // show content baru
+        classie.add(contentItem, "content__item--current");
+
+        // Reset class untuk konten baru dan langsung terlihat
+        var newTitle = contentItem.querySelector(".content__item-title");
+        var newImage = contentItem.querySelector(".content__image");
+        var newMeta = contentItem.querySelector(".content__meta");
+
+        if (newTitle) {
+          newTitle.classList.remove("fade-out", "fade-in");
+        }
+        if (newImage) {
+          newImage.classList.remove("fade-out", "fade-in");
+        }
+        if (newMeta) {
+          newMeta.classList.remove("fade-out", "fade-in");
+        }
+
+        // Konten baru langsung terlihat tanpa animasi fade-in
+
+        // Lanjutkan dengan logika normal
+        if (sliding) {
+          onEndTransition(contentItem, function () {
+            classie.add(contentEl, "content--open");
+            // Add class to pins container after content is fully open
+            var pinsContainer = buildingLevelsEl.querySelector(
+              ".level__pins--active"
+            );
+            if (pinsContainer) {
+              classie.add(pinsContainer, "level__pins--has-active");
+            }
+          });
+        } else {
+          // If not sliding, add class immediately
+          var pinsContainer = buildingLevelsEl.querySelector(
+            ".level__pins--active"
+          );
+          if (pinsContainer) {
+            classie.add(pinsContainer, "level__pins--has-active");
+          }
+        }
+        // map pin gets selected
+        classie.add(
+          buildingLevelsEl.querySelector('.pin[data-space="' + spaceref + '"]'),
+          "pin--active"
+        );
+      }, 300); // Tambah waktu untuk animasi fade-out
+    } else {
+      // Jika tidak ada konten yang aktif atau konten yang sama, langsung tampilkan tanpa transisi
+      classie.add(contentItem, "content__item--current");
+
+      if (sliding) {
+        onEndTransition(contentItem, function () {
+          classie.add(contentEl, "content--open");
+          // Add class to pins container after content is fully open
+          var pinsContainer = buildingLevelsEl.querySelector(
+            ".level__pins--active"
+          );
+          if (pinsContainer) {
+            classie.add(pinsContainer, "level__pins--has-active");
+          }
+        });
+      } else {
+        // If not sliding, add class immediately
         var pinsContainer = buildingLevelsEl.querySelector(
           ".level__pins--active"
         );
         if (pinsContainer) {
           classie.add(pinsContainer, "level__pins--has-active");
         }
-      });
-    } else {
-      // If not sliding, add class immediately
-      var pinsContainer = buildingLevelsEl.querySelector(
-        ".level__pins--active"
-      );
-      if (pinsContainer) {
-        classie.add(pinsContainer, "level__pins--has-active");
       }
+      // map pin gets selected
+      classie.add(
+        buildingLevelsEl.querySelector('.pin[data-space="' + spaceref + '"]'),
+        "pin--active"
+      );
     }
-    // map pin gets selected
-    classie.add(
-      buildingLevelsEl.querySelector('.pin[data-space="' + spaceref + '"]'),
-      "pin--active"
-    );
   }
 
   /**

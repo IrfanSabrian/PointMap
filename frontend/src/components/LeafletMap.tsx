@@ -4274,57 +4274,60 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               minHeight: 120,
             }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line">
+            {/* Header dengan nama gedung */}
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-8">
                 {selectedFeature.properties?.nama || "Tanpa Nama"}
               </span>
-              <button
-                onClick={() => {
-                  setCardVisible(false);
-                  setIsHighlightActive(false);
-                  // Jika navigation aktif, tutup juga navigation
-                  if (isNavigationActive) {
-                    setRouteSteps([]);
-                    setActiveStepIndex(0);
-                    setHasReachedDestination(false);
-                    setIsNavigationActive(false);
-                    if (routeLine && leafletMapRef.current) {
-                      leafletMapRef.current.removeLayer(routeLine);
-                      setRouteLine(null);
-                    }
-                    // Hapus navigation marker
-                    if (navigationMarkerRef.current && leafletMapRef.current) {
-                      leafletMapRef.current.removeLayer(
-                        navigationMarkerRef.current
-                      );
-                      navigationMarkerRef.current = null;
-                    }
-                  }
-                  // Clear highlight dari bangunan layer
-                  if (bangunanLayerRef.current) {
-                    bangunanLayerRef.current.resetStyle();
-                  }
-                  setTimeout(() => setSelectedFeature(null), 350);
-                }}
-                className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none"
-                title="Tutup"
-              >
-                ×
-              </button>
             </div>
+
+            {/* Tombol close di pojok kanan atas */}
+            <button
+              onClick={() => {
+                setCardVisible(false);
+                setIsHighlightActive(false);
+                // Jika navigation aktif, tutup juga navigation
+                if (isNavigationActive) {
+                  setRouteSteps([]);
+                  setActiveStepIndex(0);
+                  setHasReachedDestination(false);
+                  setIsNavigationActive(false);
+                  if (routeLine && leafletMapRef.current) {
+                    leafletMapRef.current.removeLayer(routeLine);
+                    setRouteLine(null);
+                  }
+                  // Hapus navigation marker
+                  if (navigationMarkerRef.current && leafletMapRef.current) {
+                    leafletMapRef.current.removeLayer(
+                      navigationMarkerRef.current
+                    );
+                    navigationMarkerRef.current = null;
+                  }
+                }
+                // Clear highlight dari bangunan layer
+                if (bangunanLayerRef.current) {
+                  bangunanLayerRef.current.resetStyle();
+                }
+                setTimeout(() => setSelectedFeature(null), 350);
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none transition-all duration-200 z-10"
+              title="Tutup"
+            >
+              ×
+            </button>
 
             {/* Gambar thumbnail bangunan */}
             <div className="px-4 pt-2">
               <img
-                src={`/thumbnail/bangunan/${
+                src={`/img/${
                   selectedFeature.properties?.nama || "default"
-                }.jpg`}
+                }/thumbnail.jpg`}
                 alt={selectedFeature.properties?.nama || "Bangunan"}
                 className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                 onError={(e) => {
                   // Fallback ke gambar default jika tidak ditemukan
                   const target = e.target as HTMLImageElement;
-                  target.src = "/thumbnail/bangunan/default.jpg";
+                  target.src = "/img/default/thumbnail.jpg";
                 }}
               />
             </div>

@@ -20,7 +20,440 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
     />
+    <!-- Fancybox CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css"
+    />
+    <style>
+      /* Modal Info Styles */
+      .info-modal {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 99999 !important;
+        padding: 2rem !important;
+        transform: none !important;
+        perspective: none !important;
+        transform-style: flat !important;
+      }
+
+      .info-content {
+        background: #fff !important;
+        border-radius: 18px !important;
+        box-shadow: 0 8px 32px 0 rgba(30, 41, 59, 0.18) !important;
+        padding: 2.5rem !important;
+        text-align: center !important;
+        max-width: 500px !important;
+        width: 100% !important;
+        animation: fadeInModal 0.3s ease-out !important;
+        position: relative !important;
+        transform: none !important;
+        perspective: none !important;
+        transform-style: flat !important;
+      }
+
+      @keyframes fadeInModal {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .info-icon {
+        font-size: 4rem;
+        color: #3498db;
+        margin-bottom: 1.5rem;
+      }
+
+      .info-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        opacity: 1;
+        transform: translateY(0);
+        transition: all 0.4s ease-in-out;
+      }
+
+      .info-title.fade-out {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      .info-title.fade-in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .info-subtitle {
+        font-size: 1.1rem;
+        color: #34495e;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+        opacity: 1;
+        transform: translateY(0);
+        transition: all 0.4s ease-in-out;
+      }
+
+      .info-subtitle.fade-out {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      .info-subtitle.fade-in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .info-description {
+        background: #f8f9fa;
+        border-left: 4px solid #3498db;
+        padding: 1.2rem;
+        margin: 1.5rem 0;
+        text-align: left;
+        border-radius: 6px;
+        opacity: 1;
+        transform: translateY(0);
+        transition: all 0.4s ease-in-out;
+      }
+
+      .info-description.fade-out {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      .info-description.fade-in {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .info-description p {
+        margin: 0.5rem 0;
+        color: #555;
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .info-actions {
+        margin-top: 2rem;
+      }
+
+      .btn-close {
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-close:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+      }
+
+      .btn-close:active {
+        transform: translateY(0);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .info-modal {
+          padding: 1rem;
+        }
+
+        .info-content {
+          padding: 2rem;
+          max-width: 90%;
+        }
+
+        .info-title {
+          font-size: 1.5rem;
+        }
+
+        .info-subtitle {
+          font-size: 1rem;
+        }
+      }
+
+      /* Room Detail Layout Styles */
+      .content__layout {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        padding: 0 0.5rem;
+        justify-content: center;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .content__info {
+        flex: 1;
+        min-width: 0;
+        padding-left: 0.5rem;
+      }
+
+      .content__image {
+        flex-shrink: 0;
+        width: 250px;
+        height: 150px;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        opacity: 0;
+        transform: scale(0.95);
+        transition: all 0.4s ease-in-out;
+      }
+
+      .content__image.fade-out {
+        opacity: 0 !important;
+        transform: scale(0.95) !important;
+      }
+
+      .content__image.fade-in {
+        opacity: 1 !important;
+        transform: scale(1) !important;
+      }
+
+      .room-thumbnail {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+        pointer-events: none;
+      }
+
+      .gallery-link:hover .room-thumbnail {
+        transform: scale(1.05);
+      }
+
+      /* Gallery Styles */
+      .room-gallery {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+      }
+
+      .room-gallery a {
+        display: block;
+        width: 100%;
+        height: 100%;
+        text-decoration: none;
+        position: relative;
+        cursor: pointer;
+      }
+
+      .gallery-link {
+        z-index: 10;
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .gallery-link:active {
+        transform: scale(0.98);
+      }
+
+      .gallery-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        border-radius: 12px;
+        pointer-events: none;
+      }
+
+      .gallery-link:hover .gallery-overlay {
+        opacity: 1;
+      }
+
+      .gallery-indicator {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .gallery-indicator i {
+        font-size: 1.2rem;
+        color: #3498db;
+      }
+
+      .gallery-count {
+        font-size: 0.9rem;
+      }
+
+      .content__item-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        margin-top: 0;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.4s ease-in-out;
+      }
+
+      .content__item-title.fade-out {
+        opacity: 0 !important;
+        transform: translateY(-20px) !important;
+      }
+
+      .content__item-title.fade-in {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+      }
+
+      /* Pastikan elemen yang aktif terlihat */
+      .content__item--current .content__item-title {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+      }
+
+      .content__item--current .content__image {
+        opacity: 1 !important;
+        transform: scale(1) !important;
+      }
+
+      .content__item--current .content__meta {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+      }
+
+      /* Elemen yang tidak aktif tersembunyi */
+      .content__item:not(.content__item--current) .content__item-title {
+        opacity: 0 !important;
+        transform: translateY(20px) !important;
+      }
+
+      .content__item:not(.content__item--current) .content__image {
+        opacity: 0 !important;
+        transform: scale(0.95) !important;
+      }
+
+      .content__item:not(.content__item--current) .content__meta {
+        opacity: 0 !important;
+        transform: translateY(20px) !important;
+      }
+
+      .content__meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.4s ease-in-out;
+      }
+
+      .content__meta.fade-out {
+        opacity: 0 !important;
+        transform: translateY(-20px) !important;
+      }
+
+      .content__meta.fade-in {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+      }
+
+      .content__meta-item {
+        padding: 0.25rem 0;
+        border-bottom: 1px solid #ecf0f1;
+      }
+
+      .content__meta-item:last-child {
+        border-bottom: none;
+      }
+
+      .content__meta-item strong {
+        color: #34495e;
+        font-weight: 600;
+        min-width: 120px;
+        display: inline-block;
+      }
+
+      /* Override untuk mengurangi padding content__item-details */
+      .content__item-details {
+        padding: 0.25em 0 !important;
+        text-align: center !important;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      /* Responsive untuk room detail */
+      @media (max-width: 768px) {
+        .content__layout {
+          flex-direction: column;
+          gap: 1.5rem;
+          padding: 0 0.25rem;
+          justify-content: center;
+          max-width: 100%;
+          margin: 0 auto;
+        }
+
+        .content__info {
+          padding-left: 0.25rem;
+        }
+
+        .content__image {
+          width: 100%;
+          height: 150px;
+          order: -1;
+          max-width: 250px;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .content__item-title {
+          font-size: 1.3rem;
+        }
+
+        .content__item-details {
+          max-width: 100%;
+          padding: 0.25em 0.5rem !important;
+        }
+      }
+    </style>
     <script src="js/modernizr-custom.js"></script>
+    <!-- Fancybox JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
   </head>
   <body class="buildingdetail">
     <div class="container">
@@ -122,7 +555,9 @@
 
           // Cek apakah data ruangan kosong atau tidak ada
           if (!ruanganData || Object.keys(ruanganData).length === 0) {
-            throw new Error("Data ruangan tidak ditemukan untuk bangunan ini");
+            // Tampilkan modal info alih-alih error
+            showInfoModal(buildingData.nama || "Bangunan");
+            return;
           }
 
           // Render bangunan
@@ -146,17 +581,11 @@
               })
               .then((buildingData) => {
                 buildingName = buildingData.nama || buildingName;
-                const errorUrl = `error.html?id=${buildingId}&name=${encodeURIComponent(
-                  buildingName
-                )}&error=${encodeURIComponent(error.message)}`;
-                window.location.href = errorUrl;
+                showInfoModal(buildingName);
               })
               .catch((fetchError) => {
                 console.error("Error fetching building name:", fetchError);
-                const errorUrl = `error.html?id=${buildingId}&name=${encodeURIComponent(
-                  buildingName
-                )}&error=${encodeURIComponent(error.message)}`;
-                window.location.href = errorUrl;
+                showInfoModal(buildingName);
               });
             return; // Keluar dari catch block
           }
@@ -194,13 +623,16 @@
 
           // Tentukan path SVG berdasarkan nama bangunan
           let svgPath = "";
+          let fallbackPath = `../img/default/lantai/Lt${lantai}.svg`;
+
           if (buildingData.nama === "Gedung Lab Teknik Informatika") {
-            svgPath = `../svg/Gedung Lab Teknik Informatika/Lt${lantai}.svg`;
+            svgPath = `../img/Gedung Lab Teknik Informatika/lantai/Lt${lantai}.svg`;
           } else if (buildingData.nama === "Jurusan Teknik Mesin") {
-            svgPath = `../svg/Jurusan Teknik Mesin/Lt${lantai}.svg`;
+            svgPath = `../img/Jurusan Teknik Mesin/lantai/Lt${lantai}.svg`;
           } else {
             // Fallback untuk bangunan lain
-            svgPath = `img/default.svg`;
+            svgPath = `../img/default/lantai/Lt${lantai}.svg`;
+            fallbackPath = `../img/default/lantai/default.svg`;
           }
 
           // Tambahkan level HTML
@@ -213,7 +645,7 @@
                 width="100%"
                 height="100%"
                 style="display: block"
-                onerror="this.src='img/default.svg'"
+                onerror="this.src='${fallbackPath}'"
               />
               <div class="level__pins" id="level${lantai}-pins"></div>
             </div>
@@ -290,6 +722,27 @@
           if (typeof window.buildingDetailsInit === "function") {
             window.buildingDetailsInit();
           }
+
+          // Initialize Fancybox for gallery
+          console.log("Initializing Fancybox...");
+          Fancybox.bind("[data-fancybox]", {
+            loop: true,
+            buttons: ["zoom", "slideShow", "fullScreen", "thumbs", "close"],
+            animationEffect: "fade",
+            transitionEffect: "slide",
+            thumbs: {
+              autoStart: false,
+            },
+            on: {
+              initLayout: (fancybox) => {
+                console.log("Fancybox initialized for:", fancybox);
+              },
+            },
+          });
+          console.log("Fancybox initialization complete");
+
+          // Update gallery count dynamically
+          updateGalleryCounts();
         }, 100);
       }
 
@@ -302,21 +755,47 @@
             return `
               <div class="content__item" data-space="${item.space}">
                 <div class="content__item-details">
-                  <h3 class="content__item-title">${item.title}</h3>
-                <div class="content__meta">
-                  <div class="content__meta-item">
-                    <strong>Bangunan:</strong> ${buildingName}
+                  <div class="content__layout">
+                    <div class="content__info">
+                      <h3 class="content__item-title">${item.title}</h3>
+                      <div class="content__meta">
+                        <div class="content__meta-item">
+                          <strong>Bangunan:</strong> ${buildingName}
+                        </div>
+                        <div class="content__meta-item">
+                          <strong>Lantai:</strong> ${item.ruangan.nomor_lantai}
+                        </div>
+                        <div class="content__meta-item">
+                          <strong>Jurusan:</strong> ${item.jurusan}
+                        </div>
+                        <div class="content__meta-item">
+                          <strong>Program Studi:</strong> ${item.prodi}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="content__image">
+                      <div class="room-gallery">
+                        <a href="../img/${buildingName}/ruangan/${item.title}/gallery1.jpg" 
+                           data-fancybox="gallery-${item.space}"
+                           data-caption="${item.title} - Foto 1"
+                           class="gallery-link">
+                          <img 
+                            src="../img/${buildingName}/ruangan/${item.title}/gallery1.jpg" 
+                            alt="${item.title}"
+                            class="room-thumbnail"
+                            onError="this.src='../img/default/ruangan/thumbnail.jpg'"
+                          />
+                          <div class="gallery-overlay">
+                            <div class="gallery-indicator">
+                              <i class="fas fa-images"></i>
+                              <span class="gallery-count" data-room="${item.title}" data-building="${buildingName}">3</span>
+                            </div>
+                          </div>
+                        </a>
+                        <!-- Hidden gallery images akan ditambahkan secara dinamis -->
+                      </div>
+                    </div>
                   </div>
-                  <div class="content__meta-item">
-                    <strong>Lantai:</strong> ${item.ruangan.nomor_lantai}
-                  </div>
-                  <div class="content__meta-item">
-                    <strong>Jurusan:</strong> ${item.jurusan}
-                  </div>
-                  <div class="content__meta-item">
-                    <strong>Program Studi:</strong> ${item.prodi}
-                  </div>
-                </div>
                 </div>
               </div>
             `;
@@ -368,6 +847,165 @@
 
         html += "</ul>";
         spacesList.innerHTML = html;
+      }
+
+      // Fungsi untuk menampilkan modal info
+      function showInfoModal(buildingName) {
+        // Update judul bangunan
+        document.getElementById("building-title").textContent =
+          buildingName || "Detail Bangunan";
+
+        // Sembunyikan seluruh container buildingdetails-main
+        const buildingDetailsMain = document.querySelector(
+          ".buildingdetails-main"
+        );
+        if (buildingDetailsMain) {
+          buildingDetailsMain.style.display = "none";
+        }
+
+        // Buat modal info di luar struktur buildingdetails-main
+        const modalHTML = `
+          <div class="info-modal" onclick="closeInfoModal()">
+            <div class="info-content" onclick="event.stopPropagation()">
+              <div class="info-icon">
+                <i class="fas fa-info-circle"></i>
+              </div>
+              <h2 class="info-title">Data Belum Tersedia</h2>
+              <p class="info-subtitle">
+                Detail ruangan <strong>${buildingName}</strong> sedang dalam pengembangan.
+              </p>
+              <div class="info-description">
+                <p>Informasi lantai dan ruangan bangunan ini akan segera ditambahkan.</p>
+                <p>Terima kasih atas pengertiannya.</p>
+              </div>
+              <div class="info-actions">
+                <button class="btn-close" onclick="closeInfoModal()">
+                  <i class="fas fa-times"></i>
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Tambahkan modal ke body
+        document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+        // Tambahkan event listener untuk Escape key
+        document.addEventListener("keydown", handleEscapeKey);
+      }
+
+      // Fungsi untuk handle Escape key
+      function handleEscapeKey(event) {
+        if (event.key === "Escape") {
+          closeInfoModal();
+        }
+      }
+
+      // Fungsi untuk menghitung jumlah gambar gallery secara dinamis
+      function updateGalleryCounts() {
+        const galleryCounts = document.querySelectorAll(".gallery-count");
+
+        galleryCounts.forEach((countElement) => {
+          const roomName = countElement.getAttribute("data-room");
+          const buildingName = countElement.getAttribute("data-building");
+
+          // Hitung jumlah file gallery yang ada
+          let imageCount = 0;
+          const checkImage = (index) => {
+            if (index > 10) {
+              countElement.textContent = imageCount || "1";
+              // Setelah menghitung, buat gallery links
+              createDynamicGalleryLinks();
+              return;
+            }
+
+            const img = new Image();
+            img.onload = function () {
+              imageCount++;
+              checkImage(index + 1);
+            };
+            img.onerror = function () {
+              countElement.textContent = imageCount || "1";
+              // Setelah menghitung, buat gallery links
+              createDynamicGalleryLinks();
+            };
+            img.src = `../img/${buildingName}/ruangan/${roomName}/gallery${index}.jpg`;
+          };
+
+          checkImage(1);
+        });
+      }
+
+      // Fungsi untuk membuat gallery links secara dinamis
+      function createDynamicGalleryLinks() {
+        const galleryContainers = document.querySelectorAll(".room-gallery");
+
+        galleryContainers.forEach((container) => {
+          const mainLink = container.querySelector(".gallery-link");
+          if (!mainLink) return;
+
+          const roomName = mainLink
+            .querySelector(".gallery-count")
+            .getAttribute("data-room");
+          const buildingName = mainLink
+            .querySelector(".gallery-count")
+            .getAttribute("data-building");
+          const spaceId = mainLink
+            .getAttribute("data-fancybox")
+            .replace("gallery-", "");
+
+          // Hapus semua hidden gallery links yang ada
+          const hiddenLinks = container.querySelectorAll(
+            'a[style*="display: none"]'
+          );
+          hiddenLinks.forEach((link) => link.remove());
+
+          // Cek dan tambahkan hanya gambar yang ada (mulai dari gallery2.jpg)
+          for (let i = 2; i <= 10; i++) {
+            const img = new Image();
+            img.onload = function () {
+              // Jika gambar ada, tambahkan link
+              const link = document.createElement("a");
+              link.href = `../img/${buildingName}/ruangan/${roomName}/gallery${i}.jpg`;
+              link.setAttribute("data-fancybox", `gallery-${spaceId}`);
+              link.setAttribute("data-caption", `${roomName} - Foto ${i}`);
+              link.style.display = "none";
+              container.appendChild(link);
+            };
+            img.onerror = function () {
+              // Jika gambar tidak ada, berhenti
+              return;
+            };
+            img.src = `../img/${buildingName}/ruangan/${roomName}/gallery${i}.jpg`;
+          }
+        });
+      }
+
+      // Fungsi untuk menutup modal info
+      function closeInfoModal() {
+        // Hapus event listener
+        document.removeEventListener("keydown", handleEscapeKey);
+
+        // Hapus modal dari body
+        const modal = document.querySelector(".info-modal");
+        if (modal) {
+          modal.remove();
+        }
+
+        // Tampilkan kembali container buildingdetails-main
+        const buildingDetailsMain = document.querySelector(
+          ".buildingdetails-main"
+        );
+        if (buildingDetailsMain) {
+          buildingDetailsMain.style.display = "block";
+        }
+
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage("close-buildingdetail", "*");
+        } else {
+          window.history.back();
+        }
       }
 
       // Load data saat halaman dimuat
