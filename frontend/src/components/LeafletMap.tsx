@@ -234,6 +234,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
     const [editName, setEditName] = useState("");
     const [editThumbnail, setEditThumbnail] = useState("");
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -642,7 +643,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 setTimeout(() => setIsContainerShaking(false), 600);
                 return;
               }
-              setSelectedFeature(feature as FeatureFixed);
+              // Pastikan kategori diset dengan benar
+              const featureWithKategori = {
+                ...feature,
+                properties: {
+                  ...feature.properties,
+                  kategori: "Bangunan",
+                },
+              } as FeatureFixed;
+              setSelectedFeature(featureWithKategori);
               setCardVisible(true);
               setIsHighlightActive(true);
               // Kirim pesan ke dashboard untuk update sidebar
@@ -997,32 +1006,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return () => {
         document.removeEventListener("keydown", handleKeyDown);
       };
-    }, [isEditingName, isEditingThumbnail, editName, editThumbnail, isSaving]);
+    }, [isEditingName, isEditingThumbnail, editName, selectedFile, isSaving]);
 
-    // Cek status login dan admin
+    // Cek status login (yang login sudah pasti admin)
     useEffect(() => {
       const checkLoginStatus = () => {
         const token = localStorage.getItem("token");
         const isUserLoggedIn = !!token;
         setIsLoggedIn(isUserLoggedIn);
-
-        // Cek apakah user adalah admin
-        if (isUserLoggedIn) {
-          const userStr = localStorage.getItem("user");
-          if (userStr) {
-            try {
-              const user = JSON.parse(userStr);
-              setIsAdmin(user.role === "admin");
-            } catch (error) {
-              console.error("Error parsing user data:", error);
-              setIsAdmin(false);
-            }
-          } else {
-            setIsAdmin(false);
-          }
-        } else {
-          setIsAdmin(false);
-        }
+        setIsAdmin(isUserLoggedIn); // Yang login sudah pasti admin
       };
 
       // Cek status awal
@@ -1483,22 +1475,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
-      // Cek apakah user adalah admin
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          if (user.role !== "admin") {
-            alert("Anda tidak memiliki akses untuk mengedit bangunan.");
-            return;
-          }
-        } catch (error) {
-          console.error("Error parsing user data:", error);
-          alert("Terjadi kesalahan saat memverifikasi akses.");
-          return;
-        }
-      }
-
       setEditName(selectedFeature.properties.nama);
       setIsEditingName(true);
     };
@@ -1514,25 +1490,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
-      // Cek apakah user adalah admin
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          if (user.role !== "admin") {
-            alert("Anda tidak memiliki akses untuk mengedit bangunan.");
-            return;
-          }
-        } catch (error) {
-          console.error("Error parsing user data:", error);
-          alert("Terjadi kesalahan saat memverifikasi akses.");
-          return;
-        }
-      }
-
-      setEditThumbnail(
-        selectedFeature.properties.thumbnail || selectedFeature.properties.nama
-      );
+      setSelectedFile(null);
       setIsEditingThumbnail(true);
     };
 
@@ -1548,51 +1506,75 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
-        const updateData: any = {};
+        // Handle edit nama
         if (isEditingName && editName.trim()) {
-          updateData.nama = editName.trim();
-        }
-        if (isEditingThumbnail && editThumbnail.trim()) {
-          updateData.thumbnail = editThumbnail.trim();
-        }
+          const updateData = { nama: editName.trim() };
 
-        if (Object.keys(updateData).length === 0) {
-          alert("Tidak ada perubahan untuk disimpan.");
-          return;
-        }
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
+              body: JSON.stringify(updateData),
+            }
+          );
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-              "ngrok-skip-browser-warning": "true",
-            },
-            body: JSON.stringify(updateData),
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
-        );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const result = await response.json();
+
+          // Update local state
+          if (selectedFeature) {
+            selectedFeature.properties = {
+              ...selectedFeature.properties,
+              ...updateData,
+            };
+          }
         }
 
-        const result = await response.json();
+        // Handle upload thumbnail
+        if (isEditingThumbnail && selectedFile) {
+          const formData = new FormData();
+          formData.append("thumbnail", selectedFile);
 
-        // Update local state
-        if (selectedFeature) {
-          selectedFeature.properties = {
-            ...selectedFeature.properties,
-            ...updateData,
-          };
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}/upload-thumbnail`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
+              body: formData,
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          // Update local state
+          if (selectedFeature) {
+            selectedFeature.properties = {
+              ...selectedFeature.properties,
+              thumbnail: result.thumbnailPath,
+            };
+          }
         }
 
         // Reset edit mode
         setIsEditingName(false);
         setIsEditingThumbnail(false);
         setEditName("");
-        setEditThumbnail("");
+        setSelectedFile(null);
 
         alert("Berhasil menyimpan perubahan!");
 
@@ -1621,7 +1603,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setIsEditingName(false);
       setIsEditingThumbnail(false);
       setEditName("");
-      setEditThumbnail("");
+      setSelectedFile(null);
     };
 
     // Event listener pesan close-buildingdetail dari iframe
@@ -4559,13 +4541,59 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               minHeight: 120,
             }}
           >
-            {/* Header dengan nama gedung */}
+            {/* Header dengan nama gedung - 2 baris */}
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              {/* Baris 1: Tombol close */}
+              <div className="flex justify-end mb-1">
+                <button
+                  onClick={() => {
+                    setCardVisible(false);
+                    setIsHighlightActive(false);
+                    // Reset edit mode
+                    setIsEditingName(false);
+                    setIsEditingThumbnail(false);
+                    setEditName("");
+                    setEditThumbnail("");
+                    // Jika navigation aktif, tutup juga navigation
+                    if (isNavigationActive) {
+                      setRouteSteps([]);
+                      setActiveStepIndex(0);
+                      setHasReachedDestination(false);
+                      setIsNavigationActive(false);
+                      if (routeLine && leafletMapRef.current) {
+                        leafletMapRef.current.removeLayer(routeLine);
+                        setRouteLine(null);
+                      }
+                      // Hapus navigation marker
+                      if (
+                        navigationMarkerRef.current &&
+                        leafletMapRef.current
+                      ) {
+                        leafletMapRef.current.removeLayer(
+                          navigationMarkerRef.current
+                        );
+                        navigationMarkerRef.current = null;
+                      }
+                    }
+                    // Clear highlight dari bangunan layer
+                    if (bangunanLayerRef.current) {
+                      bangunanLayerRef.current.resetStyle();
+                    }
+                    setTimeout(() => setSelectedFeature(null), 350);
+                  }}
+                  className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none transition-all duration-200"
+                  title="Tutup"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Baris 2: Nama gedung dan tombol edit */}
               <div className="flex items-center justify-between">
                 <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-8">
                   {selectedFeature.properties?.nama || "Tanpa Nama"}
                 </span>
-                {isDashboard && isAdmin && (
+                {isDashboard && (
                   <button
                     onClick={handleEditName}
                     className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
@@ -4577,73 +4605,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               </div>
             </div>
 
-            {/* Tombol close di pojok kanan atas */}
-            <button
-              onClick={() => {
-                setCardVisible(false);
-                setIsHighlightActive(false);
-                // Reset edit mode
-                setIsEditingName(false);
-                setIsEditingThumbnail(false);
-                setEditName("");
-                setEditThumbnail("");
-                // Jika navigation aktif, tutup juga navigation
-                if (isNavigationActive) {
-                  setRouteSteps([]);
-                  setActiveStepIndex(0);
-                  setHasReachedDestination(false);
-                  setIsNavigationActive(false);
-                  if (routeLine && leafletMapRef.current) {
-                    leafletMapRef.current.removeLayer(routeLine);
-                    setRouteLine(null);
-                  }
-                  // Hapus navigation marker
-                  if (navigationMarkerRef.current && leafletMapRef.current) {
-                    leafletMapRef.current.removeLayer(
-                      navigationMarkerRef.current
-                    );
-                    navigationMarkerRef.current = null;
-                  }
-                }
-                // Clear highlight dari bangunan layer
-                if (bangunanLayerRef.current) {
-                  bangunanLayerRef.current.resetStyle();
-                }
-                setTimeout(() => setSelectedFeature(null), 350);
-              }}
-              className="absolute top-3 right-3 text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none transition-all duration-200 z-10"
-              title="Tutup"
-            >
-              ×
-            </button>
-
             {/* Gambar thumbnail bangunan */}
-            <div className="px-4 pt-2 relative">
-              <img
-                src={
-                  selectedFeature.properties?.thumbnail
-                    ? `/${selectedFeature.properties.thumbnail}`
-                    : selectedFeature.properties?.nama
-                    ? `/img/${selectedFeature.properties.nama}/thumbnail.jpg`
-                    : "/img/default/thumbnail.jpg"
-                }
-                alt={selectedFeature.properties?.nama || "Bangunan"}
-                className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                onError={(e) => {
-                  // Fallback ke gambar default jika tidak ditemukan
-                  const target = e.target as HTMLImageElement;
-                  target.src = "/img/default/thumbnail.jpg";
-                }}
-              />
-              {isDashboard && isAdmin && (
-                <button
-                  onClick={handleEditThumbnail}
-                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-colors"
-                  title="Edit thumbnail"
-                >
-                  <i className="fas fa-edit text-xs"></i>
-                </button>
-              )}
+            <div className="px-4 pt-2">
+              <div className="relative">
+                <img
+                  src={
+                    selectedFeature.properties?.thumbnail
+                      ? `/${selectedFeature.properties.thumbnail}`
+                      : selectedFeature.properties?.id
+                      ? `/img/${selectedFeature.properties.id}/thumbnail.jpg`
+                      : "/img/default/thumbnail.jpg"
+                  }
+                  alt={selectedFeature.properties?.nama || "Bangunan"}
+                  className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                  onError={(e) => {
+                    // Fallback ke gambar default jika tidak ditemukan
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/img/default/thumbnail.jpg";
+                  }}
+                />
+                {isDashboard && (
+                  <button
+                    onClick={handleEditThumbnail}
+                    className="absolute top-2 right-2 text-white hover:text-primary dark:hover:text-primary-dark transition-colors z-20 p-1"
+                    title="Edit thumbnail"
+                  >
+                    <i className="fas fa-edit text-sm"></i>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex-1 flex flex-col gap-3 px-4 py-4">
@@ -4732,28 +4722,69 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 {isEditingThumbnail && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Nama Folder Thumbnail{" "}
+                      Upload Thumbnail Baru{" "}
                       <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={editThumbnail}
-                      onChange={(e) => setEditThumbnail(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent ${
-                        isEditingThumbnail && !editThumbnail.trim()
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-gray-300 dark:border-gray-600"
-                      }`}
-                      placeholder="Masukkan nama folder thumbnail"
-                      autoFocus
-                    />
-                    {isEditingThumbnail && !editThumbnail.trim() && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Nama folder thumbnail tidak boleh kosong
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Nama folder untuk gambar thumbnail di /public/img/
+                    <div className="space-y-3">
+                      {/* File input */}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelectedFile(file);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
+                      />
+
+                      {/* Preview file yang dipilih */}
+                      {selectedFile && (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                              <i className="fas fa-image text-primary text-lg"></i>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {selectedFile.name}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                                MB
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setSelectedFile(null)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <i className="fas fa-times"></i>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Thumbnail saat ini */}
+                      {selectedFeature?.properties?.thumbnail && (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            Thumbnail saat ini:
+                          </p>
+                          <img
+                            src={`/${selectedFeature?.properties?.thumbnail}`}
+                            alt="Current thumbnail"
+                            className="w-20 h-20 object-cover rounded-lg border"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "/img/default/thumbnail.jpg";
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      Format yang didukung: JPG, PNG, GIF, WebP (Maks. 5MB)
                     </p>
                   </div>
                 )}
@@ -4764,7 +4795,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     disabled={
                       isSaving ||
                       (isEditingName && !editName.trim()) ||
-                      (isEditingThumbnail && !editThumbnail.trim())
+                      (isEditingThumbnail && !selectedFile)
                     }
                     className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >

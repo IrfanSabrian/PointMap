@@ -1,6 +1,13 @@
-import { RuanganGallery, Ruangan } from "../models/index.js";
+import RuanganGallery from "../models/RuanganGallery.js";
+import Ruangan from "../models/Ruangan.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// GET semua ruangan gallery
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// GET semua gallery
 export const getAllRuanganGallery = async (req, res) => {
   try {
     const data = await RuanganGallery.findAll({
@@ -11,10 +18,6 @@ export const getAllRuanganGallery = async (req, res) => {
           attributes: ["id_ruangan", "nama_ruangan"],
         },
       ],
-      order: [
-        ["id_ruangan", "ASC"],
-        ["nama_file", "ASC"],
-      ],
     });
     res.json(data);
   } catch (err) {
@@ -22,11 +25,11 @@ export const getAllRuanganGallery = async (req, res) => {
   }
 };
 
-// GET ruangan gallery berdasarkan ID
+// GET gallery berdasarkan ID
 export const getRuanganGalleryById = async (req, res) => {
   try {
     const id = req.params.id;
-    const ruanganGallery = await RuanganGallery.findByPk(id, {
+    const gallery = await RuanganGallery.findByPk(id, {
       include: [
         {
           model: Ruangan,
@@ -35,21 +38,21 @@ export const getRuanganGalleryById = async (req, res) => {
         },
       ],
     });
-    if (!ruanganGallery) {
-      return res.status(404).json({ error: "Ruangan gallery tidak ditemukan" });
+    if (!gallery) {
+      return res.status(404).json({ error: "Gallery tidak ditemukan" });
     }
-    res.json(ruanganGallery);
+    res.json(gallery);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// GET ruangan gallery berdasarkan ID ruangan
+// GET gallery berdasarkan ruangan
 export const getRuanganGalleryByRuangan = async (req, res) => {
   try {
-    const { id_ruangan } = req.params;
-    const ruanganGallery = await RuanganGallery.findAll({
-      where: { id_ruangan: id_ruangan },
+    const ruanganId = req.params.ruanganId;
+    const gallery = await RuanganGallery.findAll({
+      where: { id_ruangan: ruanganId },
       include: [
         {
           model: Ruangan,
@@ -57,69 +60,184 @@ export const getRuanganGalleryByRuangan = async (req, res) => {
           attributes: ["id_ruangan", "nama_ruangan"],
         },
       ],
-      order: [["nama_file", "ASC"]],
+      order: [["created_at", "ASC"]],
     });
-    res.json(ruanganGallery);
+    res.json(gallery);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// CREATE ruangan gallery baru
-export const addRuanganGallery = async (req, res) => {
+// UPLOAD GALLERY RUANGAN
+export const uploadGallery = async (req, res) => {
   try {
-    const { id_ruangan, nama_file, path_file } = req.body;
-    const baru = await RuanganGallery.create({
-      id_ruangan,
-      nama_file,
-      path_file,
-    });
-    res.status(201).json({
-      message: "Ruangan gallery berhasil ditambahkan",
-      data: baru,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+    const { ruanganId } = req.body;
 
-// UPDATE ruangan gallery
-export const updateRuanganGallery = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const { id_ruangan, nama_file, path_file } = req.body;
-    const [updated] = await RuanganGallery.update(
-      { id_ruangan, nama_file, path_file },
-      { where: { id_gallery: id } }
-    );
-    if (updated) {
-      const updatedRuanganGallery = await RuanganGallery.findByPk(id);
-      res.json({
-        message: "Ruangan gallery berhasil diperbarui",
-        data: updatedRuanganGallery,
+    // Cek apakah ruangan ada
+    const ruangan = await Ruangan.findByPk(ruanganId);
+    if (!ruangan) {
+      return res.status(404).json({ error: "Ruangan tidak ditemukan" });
+    }
+
+    // Cek apakah ada file yang diupload
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "Tidak ada file yang diupload" });
+    }
+
+    const uploadedFiles = [];
+
+    for (const file of req.files) {
+      // Validasi tipe file
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.mimetype)) {
+        // Hapus file yang tidak valid
+        fs.unlinkSync(file.path);
+        continue;
+      }
+
+      // Buat direktori jika belum ada
+      const uploadDir = path.join(
+        __dirname,
+        "../../frontend/public/img",
+        ruangan.id_bangunan.toString(),
+        "ruangan",
+        ruanganId.toString()
+      );
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      // Cek file yang sudah ada untuk menentukan nomor berikutnya
+      const existingFiles = fs
+        .readdirSync(uploadDir)
+        .filter((file) => file.startsWith("gallery") && file.endsWith(".jpg"));
+
+      // Extract nomor dari file yang ada
+      const existingNumbers = existingFiles
+        .map((file) => {
+          const match = file.match(/gallery(\d+)\.jpg/);
+          return match ? parseInt(match[1]) : 0;
+        })
+        .sort((a, b) => a - b); // Sort ascending
+
+      // Tentukan nomor berikutnya dengan mengisi gap
+      let nextNumber = 1;
+      if (existingNumbers.length > 0) {
+        // Cari gap pertama yang tersedia
+        for (let i = 1; i <= Math.max(...existingNumbers) + 1; i++) {
+          if (!existingNumbers.includes(i)) {
+            nextNumber = i;
+            break;
+          }
+        }
+        console.log(
+          `Existing numbers: [${existingNumbers.join(
+            ", "
+          )}], Next number: ${nextNumber}`
+        );
+      }
+
+      // Generate nama file berurutan
+      const fileName = `gallery${nextNumber}.jpg`;
+      const filePath = path.join(uploadDir, fileName);
+
+      // Pindahkan file yang diupload
+      fs.renameSync(file.path, filePath);
+
+      // Simpan ke database
+      const galleryPath = `img/${ruangan.id_bangunan}/ruangan/${ruanganId}/${fileName}`;
+      const galleryData = await RuanganGallery.create({
+        id_ruangan: ruanganId,
+        nama_file: fileName,
+        path_file: galleryPath,
       });
-    } else {
-      res.status(404).json({ error: "Ruangan gallery tidak ditemukan" });
+
+      uploadedFiles.push(galleryData);
     }
+
+    res.json({
+      message: `${uploadedFiles.length} gambar berhasil diupload`,
+      data: uploadedFiles,
+    });
   } catch (err) {
+    console.error("Error uploading gallery:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// DELETE ruangan gallery
-export const deleteRuanganGallery = async (req, res) => {
+// REORDER GALLERY
+export const reorderGallery = async (req, res) => {
   try {
-    const id = req.params.id;
-    const deletedRuanganGallery = await RuanganGallery.findByPk(id);
-    if (!deletedRuanganGallery) {
-      return res.status(404).json({ error: "Ruangan gallery tidak ditemukan" });
+    const { ruanganId, galleryOrder } = req.body;
+
+    if (!galleryOrder || !Array.isArray(galleryOrder)) {
+      return res.status(400).json({ error: "Urutan gallery tidak valid" });
     }
-    await deletedRuanganGallery.destroy();
+
+    // Untuk saat ini, kita hanya mengembalikan data yang sudah diurutkan
+    // karena tidak ada field urutan di database
+    const galleryData = await RuanganGallery.findAll({
+      where: { id_ruangan: ruanganId },
+      include: [
+        {
+          model: Ruangan,
+          as: "ruangan",
+          attributes: ["id_ruangan", "nama_ruangan"],
+        },
+      ],
+      order: [["id_gallery", "ASC"]], // Urutkan berdasarkan ID
+    });
+
+    // Filter dan urutkan berdasarkan galleryOrder yang diberikan
+    const orderedGallery = galleryOrder
+      .map((id) => galleryData.find((item) => item.id_gallery == id))
+      .filter(Boolean);
+
     res.json({
-      message: "Ruangan gallery berhasil dihapus",
-      data: deletedRuanganGallery,
+      message: "Urutan gallery berhasil diupdate",
+      data: orderedGallery,
     });
   } catch (err) {
+    console.error("Error reordering gallery:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE GALLERY
+export const deleteGallery = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    // Cek apakah gallery ada
+    const gallery = await RuanganGallery.findByPk(id);
+    if (!gallery) {
+      return res.status(404).json({ error: "Gallery tidak ditemukan" });
+    }
+
+    // Hapus file dari filesystem
+    const filePath = path.join(
+      __dirname,
+      "../../frontend/public",
+      gallery.path_file
+    );
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Hapus dari database
+    await RuanganGallery.destroy({
+      where: { id_gallery: id },
+    });
+
+    res.json({ message: "Gallery berhasil dihapus" });
+  } catch (err) {
+    console.error("Error deleting gallery:", err);
     res.status(500).json({ error: err.message });
   }
 };

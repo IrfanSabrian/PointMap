@@ -1,25 +1,40 @@
-import { Ruangan } from "../models/index.js";
+import Ruangan from "../models/Ruangan.js";
+import Bangunan from "../models/Bangunan.js";
 
 // GET semua ruangan
 export const getAllRuangan = async (req, res) => {
   try {
-    const ruangan = await Ruangan.findAll({
-      order: [["nama_ruangan", "ASC"]],
+    const data = await Ruangan.findAll({
+      include: [
+        {
+          model: Bangunan,
+          as: "bangunan",
+          attributes: ["id_bangunan", "nama"],
+        },
+      ],
     });
-    res.json(ruangan);
+    res.json(data);
   } catch (err) {
-    console.error("Error in getAllRuangan:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// GET semua ruangan berdasarkan nomor lantai (query: ?lantai=nomor)
-export const getRuanganByLantai = async (req, res) => {
-  const { lantai } = req.query;
+// GET ruangan berdasarkan ID
+export const getRuanganById = async (req, res) => {
   try {
-    const ruangan = await Ruangan.findAll({
-      where: { nomor_lantai: lantai },
+    const id = req.params.id;
+    const ruangan = await Ruangan.findByPk(id, {
+      include: [
+        {
+          model: Bangunan,
+          as: "bangunan",
+          attributes: ["id_bangunan", "nama"],
+        },
+      ],
     });
+    if (!ruangan) {
+      return res.status(404).json({ error: "Ruangan tidak ditemukan" });
+    }
     res.json(ruangan);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -54,37 +69,32 @@ export const getRuanganByBangunan = async (req, res) => {
   }
 };
 
-// CREATE ruangan baru (DISABLED - hanya untuk edit)
-export const addRuangan = async (req, res) => {
-  res.status(403).json({
-    error: "Akses ditolak",
-    message: "Tidak dapat menambah ruangan baru. Gunakan fitur edit saja.",
-  });
-};
-
 // UPDATE ruangan
 export const updateRuangan = async (req, res) => {
   try {
     const id = req.params.id;
-    const {
-      nama_ruangan,
-      nomor_lantai,
-      id_bangunan,
-      nama_jurusan,
-      nama_prodi,
-    } = req.body;
+    const { nama_ruangan, nomor_lantai, jurusan, prodi } = req.body;
+
     const [updated] = await Ruangan.update(
       {
         nama_ruangan,
         nomor_lantai,
-        id_bangunan,
-        nama_jurusan,
-        nama_prodi,
+        nama_jurusan: jurusan,
+        nama_prodi: prodi,
       },
       { where: { id_ruangan: id } }
     );
+
     if (updated) {
-      const updatedRuangan = await Ruangan.findByPk(id);
+      const updatedRuangan = await Ruangan.findByPk(id, {
+        include: [
+          {
+            model: Bangunan,
+            as: "bangunan",
+            attributes: ["id_bangunan", "nama"],
+          },
+        ],
+      });
       res.json({
         message: "Ruangan berhasil diperbarui",
         data: updatedRuangan,
@@ -97,10 +107,20 @@ export const updateRuangan = async (req, res) => {
   }
 };
 
-// DELETE ruangan (DISABLED - hanya untuk edit)
+// DELETE ruangan
 export const deleteRuangan = async (req, res) => {
-  res.status(403).json({
-    error: "Akses ditolak",
-    message: "Tidak dapat menghapus ruangan. Gunakan fitur edit saja.",
-  });
+  try {
+    const id = req.params.id;
+    const deleted = await Ruangan.destroy({
+      where: { id_ruangan: id },
+    });
+
+    if (deleted) {
+      res.json({ message: "Ruangan berhasil dihapus" });
+    } else {
+      res.status(404).json({ error: "Ruangan tidak ditemukan" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

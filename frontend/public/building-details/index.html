@@ -319,6 +319,378 @@
         font-size: 0.9rem;
       }
 
+      /* Edit buttons styling */
+      .content__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .edit-room-btn {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        font-size: 14px;
+      }
+
+      .edit-room-btn:hover {
+        color: #3498db;
+        background: rgba(52, 152, 219, 0.1);
+      }
+
+      .gallery-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .gallery-container .gallery-link {
+        display: block;
+        width: 100%;
+        height: 100%;
+        text-decoration: none;
+        position: relative;
+      }
+
+      .edit-gallery-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        z-index: 20;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .edit-gallery-btn:hover {
+        color: #3498db;
+        background: rgba(52, 152, 219, 0.8);
+        transform: scale(1.1);
+      }
+
+      /* Modal Edit Styles */
+      .edit-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        padding: 20px;
+      }
+
+      .edit-modal-content {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        max-width: 500px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .edit-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .edit-modal-header h3 {
+        margin: 0;
+        color: #333;
+        font-size: 18px;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: #666;
+        padding: 5px;
+      }
+
+      .close-btn:hover {
+        color: #333;
+      }
+
+      .edit-modal-body {
+        padding: 20px;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+
+      .btn-cancel {
+        padding: 10px 20px;
+        border: 1px solid #ddd;
+        background: white;
+        color: #666;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .btn-cancel:hover {
+        background: #f5f5f5;
+      }
+
+      .btn-save {
+        padding: 10px 20px;
+        border: none;
+        background: #3498db;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .btn-save:hover {
+        background: #2980b9;
+      }
+
+      .btn-add {
+        padding: 8px 16px;
+        border: none;
+        background: #27ae60;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+      }
+
+      .btn-add:hover {
+        background: #229954;
+      }
+
+      .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .gallery-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .gallery-item img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+      }
+
+      .btn-delete {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(231, 76, 60, 0.9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s ease;
+        z-index: 10;
+      }
+
+      .btn-delete:hover {
+        background: #e74c3c;
+        transform: scale(1.1);
+      }
+
+      /* Gallery item styling */
+      .gallery-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        width: 100%;
+        height: 120px;
+      }
+
+      .gallery-item:hover {
+        border-color: #3498db;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .gallery-item img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        display: block;
+      }
+
+      /* Gallery grid styling */
+      .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+        padding: 15px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        background: #f9f9f9;
+      }
+
+      .gallery-grid:hover {
+        border-color: #3498db;
+        background: #f0f8ff;
+      }
+
+      /* File input styling like thumbnail */
+      input[type="file"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        background: #f9f9f9;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+      }
+
+      input[type="file"]:hover {
+        border-color: #3498db;
+        background: #f0f8ff;
+      }
+
+      input[type="file"]:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+      }
+
+      /* Modal styling consistency */
+      .edit-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .edit-modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .edit-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .edit-modal-header h3 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.5rem;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: #666;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+
+      .close-btn:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .current-gallery h4 {
+        margin: 20px 0 15px 0;
+        color: #2c3e50;
+        font-size: 1.1rem;
+      }
+
       .content__item-title {
         font-size: 1.5rem;
         font-weight: bold;
@@ -560,8 +932,51 @@
             return;
           }
 
-          // Render bangunan
-          renderBuilding(buildingData, ruanganData);
+          // Ambil data lantai gambar untuk bangunan ini
+          let lantaiGambarData = [];
+          try {
+            const lantaiResponse = await fetch(
+              `${API_BASE_URL}/lantai-gambar/bangunan/${buildingId}`
+            );
+            if (lantaiResponse.ok) {
+              lantaiGambarData = await lantaiResponse.json();
+            } else {
+              console.error(
+                "Failed to load lantai gambar data:",
+                lantaiResponse.status
+              );
+            }
+          } catch (error) {
+            console.warn("Error loading lantai gambar data:", error);
+          }
+
+          // Ambil data gallery untuk semua ruangan
+          let ruanganGalleryData = [];
+          try {
+            const galleryResponse = await fetch(
+              `${API_BASE_URL}/ruangan-gallery`
+            );
+            if (galleryResponse.ok) {
+              ruanganGalleryData = await galleryResponse.json();
+              // Buat data tersedia secara global
+              window.ruanganGalleryData = ruanganGalleryData;
+            } else {
+              console.error(
+                "Failed to load gallery data:",
+                galleryResponse.status
+              );
+            }
+          } catch (error) {
+            console.warn("Error loading gallery data:", error);
+          }
+
+          // Render bangunan dengan data tambahan
+          renderBuilding(
+            buildingData,
+            ruanganData,
+            lantaiGambarData,
+            ruanganGalleryData
+          );
         } catch (error) {
           console.error("Error loading building data:", error);
 
@@ -599,7 +1014,12 @@
       }
 
       // Fungsi untuk render bangunan
-      function renderBuilding(buildingData, ruanganData) {
+      function renderBuilding(
+        buildingData,
+        ruanganData,
+        lantaiGambarData,
+        ruanganGalleryData
+      ) {
         const levelsContainer = document.getElementById("levels-container");
         const contentArea = document.getElementById("content-area");
         const spacesList = document.getElementById("spaces-list");
@@ -621,14 +1041,19 @@
         allLevels.forEach((lantai) => {
           const ruanganLantai = ruanganData[lantai] || [];
 
-          // Tentukan path SVG berdasarkan nama bangunan
+          // Cari data lantai dari API
+          const lantaiData = lantaiGambarData.find(
+            (item) => item.nama_file === `Lt${lantai}.svg`
+          );
+
+          // Tentukan path SVG berdasarkan data dari API atau fallback
           let svgPath = "";
           let fallbackPath = `../img/default/lantai/Lt${lantai}.svg`;
 
-          if (buildingData.nama === "Gedung Lab Teknik Informatika") {
-            svgPath = `../img/Gedung Lab Teknik Informatika/lantai/Lt${lantai}.svg`;
-          } else if (buildingData.nama === "Jurusan Teknik Mesin") {
-            svgPath = `../img/Jurusan Teknik Mesin/lantai/Lt${lantai}.svg`;
+          if (lantaiData && lantaiData.path_file) {
+            svgPath = `../${lantaiData.path_file}`;
+          } else if (buildingData.id_bangunan) {
+            svgPath = `../img/${buildingData.id_bangunan}/lantai/Lt${lantai}.svg`;
           } else {
             // Fallback untuk bangunan lain
             svgPath = `../img/default/lantai/Lt${lantai}.svg`;
@@ -712,7 +1137,12 @@
         });
 
         // Render konten
-        renderContent(contentItems, buildingData.nama);
+        renderContent(
+          contentItems,
+          buildingData.nama,
+          ruanganGalleryData,
+          buildingData
+        );
 
         // Render spaces list
         renderSpacesList(spacesListData, allLevels);
@@ -747,7 +1177,12 @@
       }
 
       // Fungsi untuk membuat HTML konten
-      function renderContent(items, buildingName) {
+      function renderContent(
+        items,
+        buildingName,
+        ruanganGalleryData,
+        buildingData
+      ) {
         const contentArea = document.getElementById("content-area");
 
         const contentHTML = items
@@ -757,7 +1192,20 @@
                 <div class="content__item-details">
                   <div class="content__layout">
                     <div class="content__info">
-                      <h3 class="content__item-title">${item.title}</h3>
+                      <div class="content__header">
+                        <h3 class="content__item-title">${item.title}</h3>
+                        <button 
+                          onclick="openEditRoomModal('${
+                            item.ruangan.id_ruangan
+                          }', '${item.title}', ${item.ruangan.nomor_lantai}, '${
+              item.jurusan || ""
+            }', '${item.prodi || ""}')"
+                          class="edit-room-btn"
+                          title="Edit ruangan"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </button>
+                      </div>
                       <div class="content__meta">
                         <div class="content__meta-item">
                           <strong>Bangunan:</strong> ${buildingName}
@@ -775,24 +1223,130 @@
                     </div>
                     <div class="content__image">
                       <div class="room-gallery">
-                        <a href="../img/${buildingName}/ruangan/${item.title}/gallery1.jpg" 
-                           data-fancybox="gallery-${item.space}"
-                           data-caption="${item.title} - Foto 1"
-                           class="gallery-link">
-                          <img 
-                            src="../img/${buildingName}/ruangan/${item.title}/gallery1.jpg" 
-                            alt="${item.title}"
-                            class="room-thumbnail"
-                            onError="this.src='../img/default/ruangan/thumbnail.jpg'"
-                          />
-                          <div class="gallery-overlay">
-                            <div class="gallery-indicator">
-                              <i class="fas fa-images"></i>
-                              <span class="gallery-count" data-room="${item.title}" data-building="${buildingName}">3</span>
-                            </div>
-                          </div>
-                        </a>
-                        <!-- Hidden gallery images akan ditambahkan secara dinamis -->
+                        ${
+                          localStorage.getItem("token")
+                            ? `
+                          <button 
+                            onclick="openEditGalleryModal('${item.ruangan.id_ruangan}', '${item.title}')"
+                            class="edit-gallery-btn"
+                            title="Edit gallery"
+                          >
+                            <i class="fas fa-edit"></i>
+                          </button>
+                        `
+                            : ""
+                        }
+                        ${(() => {
+                          // Cari data gallery untuk ruangan ini
+                          const ruanganGallery = ruanganGalleryData.filter(
+                            (gallery) =>
+                              gallery.ruangan &&
+                              gallery.ruangan.nama_ruangan === item.title
+                          );
+
+                          if (ruanganGallery.length > 0) {
+                            // Gunakan data dari API
+                            const firstImage = ruanganGallery[0];
+                            const imageCount = ruanganGallery.length;
+
+                            return `
+                              <div class="gallery-container">
+                                ${
+                                  localStorage.getItem("token")
+                                    ? `
+                                  <button 
+                                    onclick="openEditGalleryModal('${item.ruangan.id_ruangan}', '${item.title}')"
+                                    class="edit-gallery-btn"
+                                    title="Edit gallery"
+                                  >
+                                    <i class="fas fa-edit"></i>
+                                  </button>
+                                `
+                                    : ""
+                                }
+                                <a href="../${firstImage.path_file}" 
+                                   data-fancybox="gallery-${item.space}"
+                                   data-caption="${item.title} - Foto 1"
+                                   class="gallery-link">
+                                  <img 
+                                    src="../${firstImage.path_file}" 
+                                    alt="${item.title}"
+                                    class="room-thumbnail"
+                                    onError="this.src='../img/default/ruangan/thumbnail.jpg'"
+                                  />
+                                  <div class="gallery-overlay">
+                                    <div class="gallery-indicator">
+                                      <i class="fas fa-images"></i>
+                                      <span class="gallery-count" data-room="${
+                                        item.title
+                                      }" data-building="${buildingName}">${imageCount}</span>
+                                    </div>
+                                  </div>
+                                </a>
+                              </div>
+                              ${ruanganGallery
+                                .slice(1)
+                                .map(
+                                  (gallery, index) => `
+                                <a href="../${gallery.path_file}" 
+                                   data-fancybox="gallery-${item.space}"
+                                   data-caption="${item.title} - Foto ${
+                                    index + 2
+                                  }"
+                                   style="display: none;">
+                                </a>
+                              `
+                                )
+                                .join("")}
+                            `;
+                          } else {
+                            // Fallback ke path berdasarkan ID ruangan
+                            return `
+                              <div class="gallery-container">
+                                ${
+                                  localStorage.getItem("token")
+                                    ? `
+                                  <button 
+                                    onclick="openEditGalleryModal('${item.ruangan.id_ruangan}', '${item.title}')"
+                                    class="edit-gallery-btn"
+                                    title="Edit gallery"
+                                  >
+                                    <i class="fas fa-edit"></i>
+                                  </button>
+                                `
+                                    : ""
+                                }
+                                <a href="../img/${
+                                  buildingData.id_bangunan
+                                }/ruangan/${
+                              item.ruangan.id_ruangan
+                            }/gallery1.jpg" 
+                                   data-fancybox="gallery-${item.space}"
+                                   data-caption="${item.title} - Foto 1"
+                                   class="gallery-link">
+                                  <img 
+                                    src="../img/${
+                                      buildingData.id_bangunan
+                                    }/ruangan/${
+                              item.ruangan.id_ruangan
+                            }/gallery1.jpg" 
+                                    alt="${item.title}"
+                                    class="room-thumbnail"
+                                    onError="this.src='../img/default/ruangan/thumbnail.jpg'"
+                                  />
+                                  <div class="gallery-overlay">
+                                    <div class="gallery-indicator">
+                                      <i class="fas fa-images"></i>
+                                      <span class="gallery-count" data-room="${
+                                        item.title
+                                      }" data-building="${buildingName}">3</span>
+                                    </div>
+                                  </div>
+                                </a>
+                              </div>
+                            `;
+                          }
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -910,13 +1464,27 @@
           const roomName = countElement.getAttribute("data-room");
           const buildingName = countElement.getAttribute("data-building");
 
-          // Hitung jumlah file gallery yang ada
+          // Gunakan data dari API jika tersedia, jika tidak gunakan fallback
+          if (
+            window.ruanganGalleryData &&
+            window.ruanganGalleryData.length > 0
+          ) {
+            const roomGallery = window.ruanganGalleryData.filter(
+              (gallery) =>
+                gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+            );
+
+            if (roomGallery.length > 0) {
+              countElement.textContent = roomGallery.length.toString();
+              return;
+            }
+          }
+
+          // Fallback: Hitung jumlah file gallery yang ada berdasarkan ID
           let imageCount = 0;
           const checkImage = (index) => {
             if (index > 10) {
               countElement.textContent = imageCount || "1";
-              // Setelah menghitung, buat gallery links
-              createDynamicGalleryLinks();
               return;
             }
 
@@ -927,14 +1495,34 @@
             };
             img.onerror = function () {
               countElement.textContent = imageCount || "1";
-              // Setelah menghitung, buat gallery links
-              createDynamicGalleryLinks();
             };
-            img.src = `../img/${buildingName}/ruangan/${roomName}/gallery${index}.jpg`;
+            // Gunakan path berdasarkan ID ruangan
+            const roomId = getRoomIdByName(roomName);
+            const buildingId = getBuildingIdByName(buildingName);
+            img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${index}.jpg`;
           };
 
           checkImage(1);
         });
+      }
+
+      // Helper function untuk mendapatkan ID ruangan berdasarkan nama
+      function getRoomIdByName(roomName) {
+        const roomMapping = {
+          "Ruang TI-11": 1,
+          "Ruang TI-12": 2,
+          "Ruang TI-13": 3,
+          "Ruang TI-14": 4,
+        };
+        return roomMapping[roomName] || 2; // Default ke 2 karena yang ada di folder
+      }
+
+      // Helper function untuk mendapatkan ID bangunan berdasarkan nama
+      function getBuildingIdByName(buildingName) {
+        const buildingMapping = {
+          "Gedung Lab Teknik Informatika": 27,
+        };
+        return buildingMapping[buildingName] || 27;
       }
 
       // Fungsi untuk membuat gallery links secara dinamis
@@ -961,13 +1549,42 @@
           );
           hiddenLinks.forEach((link) => link.remove());
 
-          // Cek dan tambahkan hanya gambar yang ada (mulai dari gallery2.jpg)
+          // Gunakan data dari API jika tersedia
+          if (
+            window.ruanganGalleryData &&
+            window.ruanganGalleryData.length > 0
+          ) {
+            const roomGallery = window.ruanganGalleryData.filter(
+              (gallery) =>
+                gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+            );
+
+            if (roomGallery.length > 1) {
+              // Tambahkan gallery links untuk gambar 2 dan seterusnya
+              roomGallery.slice(1).forEach((gallery, index) => {
+                const link = document.createElement("a");
+                link.href = `../${gallery.path_file}`;
+                link.setAttribute("data-fancybox", `gallery-${spaceId}`);
+                link.setAttribute(
+                  "data-caption",
+                  `${roomName} - Foto ${index + 2}`
+                );
+                link.style.display = "none";
+                container.appendChild(link);
+              });
+              return;
+            }
+          }
+
+          // Fallback: Cek dan tambahkan hanya gambar yang ada (mulai dari gallery2.jpg)
           for (let i = 2; i <= 10; i++) {
             const img = new Image();
             img.onload = function () {
               // Jika gambar ada, tambahkan link
               const link = document.createElement("a");
-              link.href = `../img/${buildingName}/ruangan/${roomName}/gallery${i}.jpg`;
+              const roomId = getRoomIdByName(roomName);
+              const buildingId = getBuildingIdByName(buildingName);
+              link.href = `../img/${buildingId}/ruangan/${roomId}/gallery${i}.jpg`;
               link.setAttribute("data-fancybox", `gallery-${spaceId}`);
               link.setAttribute("data-caption", `${roomName} - Foto ${i}`);
               link.style.display = "none";
@@ -977,7 +1594,9 @@
               // Jika gambar tidak ada, berhenti
               return;
             };
-            img.src = `../img/${buildingName}/ruangan/${roomName}/gallery${i}.jpg`;
+            const roomId = getRoomIdByName(roomName);
+            const buildingId = getBuildingIdByName(buildingName);
+            img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${i}.jpg`;
           }
         });
       }
@@ -1013,6 +1632,260 @@
         // Load building data first
         loadBuildingData();
       });
+
+      // Fungsi untuk membuka modal edit ruangan
+      function openEditRoomModal(roomId, roomName, floor, jurusan, prodi) {
+        const modalHTML = `
+          <div class="edit-modal" id="editRoomModal">
+            <div class="edit-modal-content">
+              <div class="edit-modal-header">
+                <h3>Edit Ruangan</h3>
+                <button onclick="closeEditRoomModal()" class="close-btn">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="edit-modal-body">
+                <form id="editRoomForm">
+                  <div class="form-group">
+                    <label>Nama Ruangan *</label>
+                    <input type="text" id="editRoomName" value="${roomName}" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Lantai *</label>
+                    <input type="number" id="editRoomFloor" value="${floor}" min="1" max="10" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Jurusan</label>
+                    <input type="text" id="editRoomJurusan" value="${jurusan}">
+                  </div>
+                  <div class="form-group">
+                    <label>Program Studi</label>
+                    <input type="text" id="editRoomProdi" value="${prodi}">
+                  </div>
+                  <div class="form-actions">
+                    <button type="button" onclick="closeEditRoomModal()" class="btn-cancel">Batal</button>
+                    <button type="submit" class="btn-save">Simpan</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+        // Handle form submission
+        document
+          .getElementById("editRoomForm")
+          .addEventListener("submit", function (e) {
+            e.preventDefault();
+            saveRoomEdit(roomId);
+          });
+      }
+
+      // Fungsi untuk membuka modal edit gallery
+      function openEditGalleryModal(roomId, roomName) {
+        const modalHTML = `
+          <div class="edit-modal" id="editGalleryModal">
+            <div class="edit-modal-content">
+              <div class="edit-modal-header">
+                <h3>Edit Gallery - ${roomName}</h3>
+                <button onclick="closeEditGalleryModal()" class="close-btn">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="edit-modal-body">
+                <div class="form-group">
+                  <label>Tambah Gambar Baru</label>
+                  <input type="file" id="addGalleryImage" accept="image/*" multiple>
+                </div>
+                <div class="current-gallery">
+                  <h4>Gambar Saat Ini:</h4>
+                  <div id="currentGalleryImages" class="gallery-grid">
+                    <!-- Current images will be loaded here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.body.insertAdjacentHTML("beforeend", modalHTML);
+        loadCurrentGalleryImages(roomId);
+
+        // Upload langsung setelah pilih file
+        document
+          .getElementById("addGalleryImage")
+          .addEventListener("change", function (e) {
+            if (e.target.files.length > 0) {
+              addGalleryImages(roomId);
+            }
+          });
+      }
+
+      // Fungsi untuk menutup modal edit ruangan
+      function closeEditRoomModal() {
+        const modal = document.getElementById("editRoomModal");
+        if (modal) {
+          modal.remove();
+        }
+      }
+
+      // Fungsi untuk menutup modal edit gallery
+      function closeEditGalleryModal() {
+        const modal = document.getElementById("editGalleryModal");
+        if (modal) {
+          modal.remove();
+        }
+      }
+
+      // Fungsi untuk menyimpan edit ruangan
+      async function saveRoomEdit(roomId) {
+        const roomName = document.getElementById("editRoomName").value;
+        const floor = document.getElementById("editRoomFloor").value;
+        const jurusan = document.getElementById("editRoomJurusan").value;
+        const prodi = document.getElementById("editRoomProdi").value;
+
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/ruangan/${roomId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              body: JSON.stringify({
+                nama_ruangan: roomName,
+                nomor_lantai: parseInt(floor),
+                jurusan: jurusan,
+                prodi: prodi,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            alert("Ruangan berhasil diupdate!");
+            closeEditRoomModal();
+            // Reload data
+            loadBuildingData();
+          } else {
+            throw new Error("Gagal mengupdate ruangan");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Gagal mengupdate ruangan: " + error.message);
+        }
+      }
+
+      // Fungsi untuk memuat gambar gallery saat ini
+      async function loadCurrentGalleryImages(roomId) {
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/ruangan-gallery/ruangan/${roomId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const galleryData = await response.json();
+            const container = document.getElementById("currentGalleryImages");
+
+            if (galleryData.length > 0) {
+              container.innerHTML = galleryData
+                .map(
+                  (item) => `
+                <div class="gallery-item" data-gallery-id="${item.id_gallery}">
+                  <button onclick="deleteGalleryImage(${item.id_gallery}, '${roomId}')" class="btn-delete" title="Hapus gambar">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                  <img src="../${item.path_file}" alt="Gallery">
+                </div>
+              `
+                )
+                .join("");
+            } else {
+              container.innerHTML = "<p>Tidak ada gambar gallery</p>";
+            }
+          }
+        } catch (error) {
+          console.error("Error loading gallery:", error);
+        }
+      }
+
+      // Fungsi untuk menambah gambar gallery
+      async function addGalleryImages(roomId) {
+        const fileInput = document.getElementById("addGalleryImage");
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("ruanganId", roomId);
+        for (let i = 0; i < files.length; i++) {
+          formData.append("gallery", files[i]);
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/ruangan-gallery/upload`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              body: formData,
+            }
+          );
+
+          if (response.ok) {
+            // Reload gallery images
+            loadCurrentGalleryImages(roomId);
+            // Reset file input
+            fileInput.value = "";
+          } else {
+            throw new Error("Gagal menambah gambar");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Gagal menambah gambar: " + error.message);
+        }
+      }
+
+      // Fungsi untuk menghapus gambar gallery
+      async function deleteGalleryImage(galleryId, roomId) {
+        if (!confirm("Yakin ingin menghapus gambar ini?")) {
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/ruangan-gallery/${galleryId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            alert("Gambar berhasil dihapus!");
+            // Reload gallery images
+            loadCurrentGalleryImages(roomId);
+          } else {
+            throw new Error("Gagal menghapus gambar");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Gagal menghapus gambar: " + error.message);
+        }
+      }
     </script>
 
     <script src="js/list.min.js"></script>

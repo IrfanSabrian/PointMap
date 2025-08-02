@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [bangunan, setBangunan] = useState<Bangunan[]>([]);
   const [ruangan, setRuangan] = useState<Ruangan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState<any>(null);
 
   const { theme, setTheme } = useTheme();
   const [weatherDesc, setWeatherDesc] = useState("");
@@ -92,6 +93,17 @@ export default function Dashboard() {
     if (!token) {
       router.push("/login");
       return;
+    }
+
+    // Get user info
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setUserInfo(user);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
     }
   }, [theme, router]);
 
@@ -423,15 +435,56 @@ export default function Dashboard() {
             )}
           </button>
 
-          {/* Tombol Logout */}
-          <button
-            onClick={handleLogout}
-            className="rounded-lg bg-red-500 text-white font-semibold text-sm shadow-lg hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl px-2 py-2 lg:px-4 lg:py-2"
-            title="Logout"
-          >
-            <FiLogOut className="w-4 h-4" />
-            <span className="hidden lg:inline">Logout</span>
-          </button>
+          {/* User Menu */}
+          <div className="relative group">
+            <button
+              className="rounded-lg bg-primary text-white font-semibold text-sm shadow-lg hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl px-3 py-2"
+              title="User Menu"
+            >
+              <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                <span className="text-xs font-bold">
+                  {userInfo?.username?.charAt(0).toUpperCase() || "A"}
+                </span>
+              </div>
+              <span className="hidden lg:inline">
+                {userInfo?.username || "Admin"}
+              </span>
+              <svg
+                className="w-4 h-4 transition-transform group-hover:rotate-180"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="py-2">
+                <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                  <div className="font-semibold">
+                    {userInfo?.username || "Admin"}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Administrator
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                >
+                  <FiLogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </nav>
 
@@ -466,6 +519,7 @@ export default function Dashboard() {
               initialZoom={17}
               className="w-full h-full"
               isDark={isDark}
+              isDashboard={true}
             />
           </div>
         </div>

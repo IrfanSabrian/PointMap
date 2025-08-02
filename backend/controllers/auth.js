@@ -31,6 +31,7 @@ export const loginAdmin = async (req, res) => {
       user: {
         id: admin.id_admin,
         username: admin.username,
+        role: "admin", // Tambahkan role admin
       },
     });
   } catch (err) {
@@ -42,7 +43,10 @@ export const verifyToken = async (req, res) => {
   try {
     res.json({
       message: "Token valid",
-      user: req.user,
+      user: {
+        ...req.user,
+        role: "admin", // Pastikan role admin dikembalikan
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
