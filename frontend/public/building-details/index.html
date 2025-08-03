@@ -1253,9 +1253,9 @@
           // Simpan data bangunan secara global untuk digunakan di modal edit
           window.buildingData = buildingData;
 
-          // Ambil data ruangan untuk bangunan ini
+          // Ambil data ruangan untuk bangunan ini (gunakan endpoint 3D untuk posisi pin dinamis)
           const ruanganResponse = await fetch(
-            `${API_BASE_URL}/ruangan/bangunan/${buildingId}`
+            `${API_BASE_URL}/ruangan/bangunan/${buildingId}/3d`
           );
           if (!ruanganResponse.ok) {
             throw new Error(`HTTP error! status: ${ruanganResponse.status}`);
@@ -1307,6 +1307,13 @@
             console.warn("Error loading gallery data:", error);
           }
 
+          // Generate CSS dinamis untuk posisi pin
+          console.log(
+            "Ruangan data for 3D view:",
+            JSON.stringify(ruanganData, null, 2)
+          );
+          generateDynamicPinCSS(ruanganData);
+
           // Render bangunan dengan data tambahan
           renderBuilding(
             buildingData,
@@ -1347,6 +1354,109 @@
           )}&error=${encodeURIComponent(error.message)}`;
 
           window.location.href = errorUrl;
+        }
+      }
+
+      // New Dynamic Pin CSS Generator
+      function generateDynamicPinCSS(ruanganData) {
+        let cssRules = "";
+
+        // Iterate melalui semua lantai
+        Object.keys(ruanganData).forEach((lantai) => {
+          const ruanganLantai = ruanganData[lantai];
+
+          ruanganLantai.forEach((ruangan, index) => {
+            const pinClass = ruangan.pin_class;
+            let top, left;
+
+            // Calculate pin size in percentage (4vmin width, 6vmin height)
+            const pinWidthPercent = 4; // 4vmin = 4% of viewport
+            const pinHeightPercent = 6; // 6vmin = 6% of viewport
+
+            // Gunakan posisi dinamis jika tersedia, jika tidak gunakan fallback
+            if (ruangan.pin_position.top && ruangan.pin_position.left) {
+              top = ruangan.pin_position.top;
+              left = ruangan.pin_position.left;
+            } else {
+              // Gunakan fallback position dengan pin size consideration
+              const fallbackTop = Math.max(
+                pinHeightPercent / 2,
+                Math.min(
+                  ruangan.fallback_position.top,
+                  100 - pinHeightPercent / 2
+                )
+              );
+              const fallbackLeft = Math.max(
+                pinWidthPercent / 2,
+                Math.min(
+                  ruangan.fallback_position.left,
+                  100 - pinWidthPercent / 2
+                )
+              );
+              top = `${fallbackTop}vmin`;
+              left = `${fallbackLeft}vmin`;
+            }
+
+            // Parse coordinates
+            const topValue = parseFloat(top);
+            const leftValue = parseFloat(left);
+
+            // Validate coordinates
+            if (isNaN(topValue) || isNaN(leftValue)) {
+              console.error(
+                `Invalid coordinates for ${pinClass}: top="${top}", left="${left}"`
+              );
+              return;
+            }
+
+            // Convert vmin to percentage for more stable positioning
+            // Assuming image is 100% width and height of container
+            const topPercent = (topValue / 100) * 100;
+            const leftPercent = (leftValue / 100) * 100;
+
+            // Constrain to stay within image bounds considering pin size
+            // Use more conservative bounds to ensure pins stay within SVG
+            const constrainedTop = Math.max(
+              pinHeightPercent,
+              Math.min(topPercent, 100 - pinHeightPercent)
+            );
+            const constrainedLeft = Math.max(
+              pinWidthPercent,
+              Math.min(leftPercent, 100 - pinWidthPercent)
+            );
+
+            console.log(
+              `Pin ${pinClass}: (${topValue}vmin, ${leftValue}vmin) -> (${constrainedTop}%, ${constrainedLeft}%)`
+            );
+
+            // Generate CSS with percentage positioning for stability
+            cssRules += `
+              .${pinClass} {
+                top: ${constrainedTop}% !important;
+                left: ${constrainedLeft}% !important;
+                position: absolute !important;
+                z-index: 10 !important;
+                transform-origin: 50% 100% !important;
+                -webkit-transform-origin: 50% 100% !important;
+              }
+            `;
+          });
+        });
+
+        // Apply CSS
+        if (cssRules) {
+          const styleElement = document.createElement("style");
+          styleElement.id = "dynamic-pin-css";
+          styleElement.textContent = cssRules;
+
+          // Remove existing style if any
+          const existingStyle = document.getElementById("dynamic-pin-css");
+          if (existingStyle) {
+            existingStyle.remove();
+          }
+
+          document.head.appendChild(styleElement);
+          console.log("New dynamic pin CSS applied");
         }
       }
 
@@ -1460,6 +1570,9 @@
               "aria-label",
               `Pin untuk ${ruangan.nama_ruangan}`
             );
+            pinElement.style.cursor = "pointer"; // Ensure cursor shows it's clickable
+
+            // Pin click event will be handled by initializePinMarkers() function
 
             const span = document.createElement("span");
             span.className = "pin__icon";
@@ -1470,6 +1583,8 @@
 
             pinElement.appendChild(span);
             pinsContainer.appendChild(pinElement);
+
+            console.log(`Created pin: ${spaceId} for ${ruangan.nama_ruangan}`);
           });
         });
 
@@ -1489,6 +1604,8 @@
           if (typeof window.buildingDetailsInit === "function") {
             window.buildingDetailsInit();
           }
+
+          // Pin markers will be initialized by initializePinMarkers() function
 
           // Initialize Fancybox for gallery
           console.log("Initializing Fancybox...");
@@ -1510,6 +1627,14 @@
 
           // Update gallery count dynamically
           updateGalleryCounts();
+
+          // Initialize pin markers with original main.js approach
+          console.log("Initializing pin markers...");
+          // Add longer delay to ensure all elements are created
+          setTimeout(() => {
+            initializePinMarkers();
+            console.log("Pin markers initialized");
+          }, 200);
         }, 100);
       }
 
@@ -1970,6 +2095,89 @@
         } else {
           window.history.back();
         }
+      }
+
+      // Initialize pin markers with original main.js approach
+      function initializePinMarkers() {
+        const pins = document.querySelectorAll(".pin");
+        const contentEl = document.getElementById("content-area");
+
+        console.log(`Found ${pins.length} pins to initialize`);
+
+        pins.forEach(function (pin, index) {
+          const spaceRef = pin.getAttribute("data-space");
+          const contentItem = contentEl.querySelector(
+            '.content__item[data-space="' + spaceRef + '"]'
+          );
+
+          console.log(
+            `Initializing pin ${index + 1}: ${spaceRef}, contentItem: ${
+              contentItem ? "found" : "not found"
+            }`
+          );
+
+          if (contentItem) {
+            // Add hover effects (same as original main.js)
+            pin.addEventListener("mouseenter", function () {
+              if (!document.querySelector(".building--content-open")) {
+                contentItem.classList.add("content__item--hover");
+              }
+            });
+
+            pin.addEventListener("mouseleave", function () {
+              if (!document.querySelector(".building--content-open")) {
+                contentItem.classList.remove("content__item--hover");
+              }
+            });
+
+            // Add click event (same as original main.js)
+            pin.addEventListener("click", function (ev) {
+              ev.preventDefault();
+              ev.stopPropagation();
+
+              console.log(`Pin clicked: ${spaceRef}`);
+
+              // Find and click the corresponding list item (same as original main.js)
+              const listItem = document.querySelector(
+                'li[data-space="' + spaceRef + '"]'
+              );
+
+              console.log(`List item found: ${listItem ? "yes" : "no"}`);
+
+              if (listItem) {
+                const spaceLink = listItem.querySelector(".list__link");
+                console.log(`Space link found: ${spaceLink ? "yes" : "no"}`);
+
+                if (spaceLink) {
+                  console.log("Clicking space link from initializePinMarkers");
+                  spaceLink.click();
+                } else {
+                  console.log(
+                    "Space link not found, trying to click list item directly"
+                  );
+                  listItem.click();
+                }
+              } else {
+                console.log("List item not found, trying alternative approach");
+                // Alternative: try to find any element with this data-space
+                const anyElement = document.querySelector(
+                  '[data-space="' + spaceRef + '"]'
+                );
+                if (anyElement) {
+                  console.log("Found element with data-space, clicking...");
+                  anyElement.click();
+                }
+              }
+
+              // Remove hover class
+              contentItem.classList.remove("content__item--hover");
+            });
+
+            console.log(`Pin ${spaceRef} initialized successfully`);
+          } else {
+            console.warn(`Content item not found for pin ${spaceRef}`);
+          }
+        });
       }
 
       // Load data saat halaman dimuat

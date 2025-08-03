@@ -252,15 +252,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [lantaiGambarData, setLantaiGambarData] = useState<any[]>([]);
     const [selectedLantaiFilter, setSelectedLantaiFilter] = useState<number>(1);
     const [showRuanganModal, setShowRuanganModal] = useState(false);
+    const [showEditRuanganModal, setShowEditRuanganModal] = useState(false);
+    const [showPinPositionModal, setShowPinPositionModal] = useState(false);
     const [selectedLantaiForRuangan, setSelectedLantaiForRuangan] = useState<
       number | null
     >(null);
+    const [selectedRuanganForEdit, setSelectedRuanganForEdit] =
+      useState<any>(null);
+    const [ruanganList, setRuanganList] = useState<any[]>([]);
     const [ruanganForm, setRuanganForm] = useState({
       nama_ruangan: "",
       nomor_lantai: 1,
       nama_jurusan: "",
       nama_prodi: "",
       pin_style: "default",
+      posisi_x: null as number | null,
+      posisi_y: null as number | null,
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1105,6 +1112,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         const isUserLoggedIn = !!token;
         setIsLoggedIn(isUserLoggedIn);
         setIsAdmin(isUserLoggedIn); // Yang login sudah pasti admin
+
+        // Setup auto-logout jika user logged in
+        if (token) {
+          setupAutoLogout(token);
+        }
       };
 
       // Cek status awal
@@ -1715,6 +1727,64 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     };
 
+    // Helper function untuk validasi token
+    const validateToken = (token: string): boolean => {
+      try {
+        const tokenPayload = JSON.parse(atob(token.split(".")[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        if (currentTime > tokenPayload.exp) {
+          showNotification(
+            "error",
+            "Sesi Berakhir",
+            "Sesi Anda telah berakhir. Silakan login ulang."
+          );
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          // Redirect ke login page
+          window.location.href = "/login";
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.error("Error parsing token:", error);
+        return false;
+      }
+    };
+
+    // Helper function untuk setup auto-logout timer
+    const setupAutoLogout = (token: string) => {
+      try {
+        const tokenPayload = JSON.parse(atob(token.split(".")[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeUntilExpiry = (tokenPayload.exp - currentTime) * 1000; // Convert to milliseconds
+
+        // Set timer untuk auto-logout 5 menit sebelum expired
+        const autoLogoutTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 0);
+
+        setTimeout(() => {
+          showNotification(
+            "error",
+            "Sesi Akan Berakhir",
+            "Sesi Anda akan berakhir dalam 5 menit. Silakan simpan pekerjaan Anda."
+          );
+        }, autoLogoutTime - 5 * 60 * 1000); // Warning 10 menit sebelum expired
+
+        setTimeout(() => {
+          showNotification(
+            "error",
+            "Sesi Berakhir",
+            "Sesi Anda telah berakhir. Silakan login ulang."
+          );
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+        }, autoLogoutTime);
+      } catch (error) {
+        console.error("Error setting up auto-logout:", error);
+      }
+    };
+
     // Fungsi untuk save ruangan
     const handleSaveRuangan = async () => {
       if (!selectedFeature?.properties?.id || !ruanganForm.nama_ruangan.trim())
@@ -1732,6 +1802,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
+        // Check if token is expired
+        if (!validateToken(token)) {
+          return;
+        }
+
         const ruanganData = {
           nama_ruangan: ruanganForm.nama_ruangan.trim(),
           nomor_lantai: ruanganForm.nomor_lantai,
@@ -1739,6 +1814,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           nama_jurusan: ruanganForm.nama_jurusan,
           nama_prodi: ruanganForm.nama_prodi,
           pin_style: ruanganForm.pin_style,
+          posisi_x: ruanganForm.posisi_x,
+          posisi_y: ruanganForm.posisi_y,
         };
 
         const response = await fetch(
@@ -1755,7 +1832,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         );
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorText = await response.text();
+          console.error("Error creating ruangan:", errorText);
+          throw new Error(
+            `HTTP error! status: ${response.status} - ${errorText}`
+          );
         }
 
         const result = await response.json();
@@ -1767,6 +1848,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           nama_jurusan: "",
           nama_prodi: "",
           pin_style: "default",
+          posisi_x: null,
+          posisi_y: null,
         });
         setShowRuanganModal(false);
 
@@ -1781,6 +1864,162 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "error",
           "Gagal dibuat",
           "Gagal membuat ruangan: " + (error as Error).message
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    // Fungsi untuk fetch ruangan berdasarkan bangunan
+    const fetchRuanganByBangunan = async (idBangunan: number) => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan/bangunan/${idBangunan}`,
+          {
+            headers: {
+              "ngrok-skip-browser-warning": "true",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Convert object to array
+        const ruanganArray: any[] = [];
+        Object.keys(data).forEach((lantai) => {
+          data[lantai].forEach((ruangan: any) => {
+            ruanganArray.push(ruangan);
+          });
+        });
+
+        setRuanganList(ruanganArray);
+        return ruanganArray;
+      } catch (error) {
+        console.error("Error fetching ruangan:", error);
+        showNotification(
+          "error",
+          "Gagal mengambil data",
+          "Gagal mengambil data ruangan: " + (error as Error).message
+        );
+        return [];
+      }
+    };
+
+    // Fungsi untuk membuka modal edit ruangan
+    const handleEditRuangan = async () => {
+      if (!selectedFeature?.properties?.id) return;
+
+      try {
+        await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
+        setShowEditRuanganModal(true);
+      } catch (error) {
+        console.error("Error opening edit ruangan modal:", error);
+      }
+    };
+
+    // Fungsi untuk memilih ruangan untuk diedit
+    const handleSelectRuanganForEdit = (ruangan: any) => {
+      setSelectedRuanganForEdit(ruangan);
+      setRuanganForm({
+        nama_ruangan: ruangan.nama_ruangan,
+        nomor_lantai: ruangan.nomor_lantai,
+        nama_jurusan: ruangan.nama_jurusan || "",
+        nama_prodi: ruangan.nama_prodi || "",
+        pin_style: ruangan.pin_style || "default",
+        posisi_x: ruangan.posisi_x,
+        posisi_y: ruangan.posisi_y,
+      });
+      setSelectedLantaiForRuangan(ruangan.nomor_lantai);
+      setShowEditRuanganModal(false);
+      setShowRuanganModal(true);
+    };
+
+    // Fungsi untuk update ruangan
+    const handleUpdateRuangan = async () => {
+      if (
+        !selectedRuanganForEdit?.id_ruangan ||
+        !ruanganForm.nama_ruangan.trim()
+      )
+        return;
+
+      setIsSaving(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
+          return;
+        }
+
+        // Check if token is expired
+        if (!validateToken(token)) {
+          return;
+        }
+
+        const ruanganData = {
+          nama_ruangan: ruanganForm.nama_ruangan.trim(),
+          nomor_lantai: ruanganForm.nomor_lantai,
+          nama_jurusan: ruanganForm.nama_jurusan,
+          nama_prodi: ruanganForm.nama_prodi,
+          pin_style: ruanganForm.pin_style,
+          posisi_x: ruanganForm.posisi_x,
+          posisi_y: ruanganForm.posisi_y,
+        };
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan/${selectedRuanganForEdit.id_ruangan}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+            },
+            body: JSON.stringify(ruanganData),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error updating ruangan:", errorText);
+          throw new Error(
+            `HTTP error! status: ${response.status} - ${errorText}`
+          );
+        }
+
+        const result = await response.json();
+
+        // Reset form dan modal
+        setRuanganForm({
+          nama_ruangan: "",
+          nomor_lantai: 1,
+          nama_jurusan: "",
+          nama_prodi: "",
+          pin_style: "default",
+          posisi_x: null,
+          posisi_y: null,
+        });
+        setSelectedRuanganForEdit(null);
+        setShowRuanganModal(false);
+
+        showNotification(
+          "success",
+          "Berhasil diperbarui",
+          "Ruangan berhasil diperbarui!"
+        );
+      } catch (error) {
+        console.error("Error updating ruangan:", error);
+        showNotification(
+          "error",
+          "Gagal diperbarui",
+          "Gagal memperbarui ruangan: " + (error as Error).message
         );
       } finally {
         setIsSaving(false);
@@ -5573,22 +5812,34 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                     </div>
 
                                     {(hasFile || existingLantai) && (
-                                      <button
-                                        onClick={() => {
-                                          setSelectedLantaiForRuangan(
-                                            lantaiNumber
-                                          );
-                                          setRuanganForm((prev) => ({
-                                            ...prev,
-                                            nomor_lantai: lantaiNumber,
-                                          }));
-                                          setShowRuanganModal(true);
-                                        }}
-                                        className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                                      >
-                                        <i className="fas fa-plus text-xs"></i>
-                                        Buat Ruangan
-                                      </button>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setSelectedLantaiForRuangan(
+                                              lantaiNumber
+                                            );
+                                            setRuanganForm((prev) => ({
+                                              ...prev,
+                                              nomor_lantai: lantaiNumber,
+                                              posisi_x: null,
+                                              posisi_y: null,
+                                            }));
+                                            setShowRuanganModal(true);
+                                          }}
+                                          className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                        >
+                                          <i className="fas fa-plus text-xs"></i>
+                                          Buat Ruangan
+                                        </button>
+                                        <button
+                                          onClick={handleEditRuangan}
+                                          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                          title="Edit Ruangan"
+                                        >
+                                          <i className="fas fa-edit text-xs"></i>
+                                          Edit Ruangan
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
@@ -5732,7 +5983,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Buat Ruangan - Lantai {selectedLantaiForRuangan}
+                  {selectedRuanganForEdit ? "Edit Ruangan" : "Buat Ruangan"} -
+                  Lantai {selectedLantaiForRuangan}
                 </h3>
                 <button
                   onClick={() => setShowRuanganModal(false)}
@@ -5835,20 +6087,50 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="default">Default</option>
-                    <option value="classroom">Classroom</option>
-                    <option value="lab">Laboratory</option>
-                    <option value="office">Office</option>
-                    <option value="meeting">Meeting Room</option>
-                    <option value="library">Library</option>
-                    <option value="cafeteria">Cafeteria</option>
-                    <option value="bathroom">Bathroom</option>
+                    <option value="ruang_kelas">Ruang Kelas</option>
+                    <option value="laboratorium">Laboratorium</option>
+                    <option value="kantor">Kantor</option>
+                    <option value="ruang_rapat">Ruang Rapat</option>
+                    <option value="perpustakaan">Perpustakaan</option>
+                    <option value="kantin">Kantin</option>
+                    <option value="toilet">Toilet</option>
+                    <option value="gudang">Gudang</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Posisi Pin
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPinPositionModal(true)}
+                    className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    <i className="fas fa-map-marker-alt text-xs"></i>
+                    {ruanganForm.posisi_x && ruanganForm.posisi_y
+                      ? "Ubah Posisi Pin"
+                      : "Tentukan Posisi Pin"}
+                  </button>
+                  {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      ✓ Posisi pin sudah ditentukan (X: {ruanganForm.posisi_x},
+                      Y: {ruanganForm.posisi_y})
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Klik untuk memilih posisi pin pada gambar lantai
+                  </p>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-4 mt-4">
                 <button
-                  onClick={handleSaveRuangan}
+                  onClick={
+                    selectedRuanganForEdit
+                      ? handleUpdateRuangan
+                      : handleSaveRuangan
+                  }
                   disabled={!ruanganForm.nama_ruangan.trim() || isSaving}
                   className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
@@ -5860,7 +6142,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   ) : (
                     <>
                       <i className="fas fa-save text-sm"></i>
-                      Simpan Ruangan
+                      {selectedRuanganForEdit
+                        ? "Update Ruangan"
+                        : "Simpan Ruangan"}
                     </>
                   )}
                 </button>
@@ -5870,6 +6154,174 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 >
                   Batal
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Pilih Posisi Pin */}
+        {showPinPositionModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Pilih Posisi Pin - Lantai {selectedLantaiForRuangan}
+                </h3>
+                <button
+                  onClick={() => setShowPinPositionModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <i className="fas fa-times text-lg"></i>
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-start">
+                    <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
+                    <div>
+                      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                        Cara Menentukan Posisi Pin
+                      </h4>
+                      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                        <li>
+                          • Klik pada gambar lantai di bawah untuk menentukan
+                          posisi pin
+                        </li>
+                        <li>
+                          • Pin akan muncul sebagai titik merah dengan koordinat
+                        </li>
+                        <li>
+                          • Posisi ini akan digunakan untuk menampilkan pin di
+                          tampilan 3D
+                        </li>
+                        <li>
+                          • Anda dapat mengklik ulang untuk mengubah posisi
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SVG Container dengan click handler */}
+                <div className="relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-700">
+                  {(() => {
+                    const existingLantai = lantaiGambarData.find((l) => {
+                      const match = l.nama_file.match(/Lt(\d+)\.svg/i);
+                      const extractedNumber = match ? parseInt(match[1]) : null;
+                      return extractedNumber === selectedLantaiForRuangan;
+                    });
+
+                    if (!existingLantai) {
+                      return (
+                        <div className="w-full h-64 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                          <div className="text-center">
+                            <i className="fas fa-exclamation-triangle text-gray-400 text-3xl mb-2"></i>
+                            <p className="text-gray-500 dark:text-gray-400">
+                              Gambar SVG untuk lantai {selectedLantaiForRuangan}{" "}
+                              tidak ditemukan
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="relative">
+                        <img
+                          src={`/${existingLantai.path_file}?v=${Date.now()}`}
+                          alt={`Lantai ${selectedLantaiForRuangan}`}
+                          className="w-full h-auto cursor-crosshair"
+                          onClick={(e) => {
+                            const rect =
+                              e.currentTarget.getBoundingClientRect();
+                            const x = (
+                              ((e.clientX - rect.left) / rect.width) *
+                              100
+                            ).toFixed(2);
+                            const y = (
+                              ((e.clientY - rect.top) / rect.height) *
+                              100
+                            ).toFixed(2);
+
+                            setRuanganForm((prev) => ({
+                              ...prev,
+                              posisi_x: parseFloat(x),
+                              posisi_y: parseFloat(y),
+                            }));
+                          }}
+                        />
+                        {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                          <div
+                            className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                            style={{
+                              left: `${ruanganForm.posisi_x}%`,
+                              top: `${ruanganForm.posisi_y}%`,
+                            }}
+                          >
+                            {/* Pin marker dengan animasi */}
+                            <div className="relative">
+                              <div className="w-6 h-6 bg-red-500 border-3 border-white rounded-full shadow-lg animate-pulse"></div>
+                              <div className="w-6 h-6 bg-red-500 border-3 border-white rounded-full absolute top-0 left-0 animate-ping"></div>
+
+                              {/* Tooltip dengan koordinat */}
+                              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap z-10">
+                                <div className="font-semibold mb-1">
+                                  📍 Pin Posisi
+                                </div>
+                                <div>X: {ruanganForm.posisi_x}%</div>
+                                <div>Y: {ruanganForm.posisi_y}%</div>
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-red-500"></div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                  <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-start">
+                      <i className="fas fa-check-circle text-green-600 dark:text-green-400 mr-3 text-lg mt-0.5"></i>
+                      <div>
+                        <h4 className="font-semibold text-green-800 dark:text-green-200 mb-1">
+                          ✅ Posisi Pin Berhasil Ditentukan!
+                        </h4>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          Koordinat pin telah disimpan:{" "}
+                          <strong>
+                            X = {ruanganForm.posisi_x}%, Y ={" "}
+                            {ruanganForm.posisi_y}%
+                          </strong>
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          Klik "Konfirmasi Posisi" untuk melanjutkan atau klik
+                          ulang pada gambar untuk mengubah posisi.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={() => setShowPinPositionModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Tutup
+                </button>
+                {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                  <button
+                    onClick={() => setShowPinPositionModal(false)}
+                    className="flex-1 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    <i className="fas fa-check mr-2"></i>
+                    Konfirmasi Posisi
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -6295,6 +6747,117 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               >
                 ×
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Pilih Ruangan untuk Edit */}
+        {showEditRuanganModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    📝 Pilih Ruangan untuk Diedit
+                  </h3>
+                  <button
+                    onClick={() => setShowEditRuanganModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {ruanganList.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">🏢</div>
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      Belum Ada Ruangan
+                    </h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Belum ada ruangan yang dibuat untuk bangunan ini.
+                    </p>
+                    <button
+                      onClick={() => setShowEditRuanganModal(false)}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-4">
+                      {ruanganList.map((ruangan, index) => (
+                        <div
+                          key={ruangan.id_ruangan}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                          onClick={() => handleSelectRuanganForEdit(ruangan)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                                  <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                                    {index + 1}
+                                  </span>
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 dark:text-white">
+                                    {ruangan.nama_ruangan}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    Lantai {ruangan.nomor_lantai}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    Jurusan:
+                                  </span>
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    {ruangan.nama_jurusan || "-"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    Program Studi:
+                                  </span>
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    {ruangan.nama_prodi || "-"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    Tipe Pin:
+                                  </span>
+                                  <p className="font-medium text-gray-900 dark:text-white capitalize">
+                                    {ruangan.pin_style?.replace(/_/g, " ") ||
+                                      "default"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    Posisi Pin:
+                                  </span>
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    {ruangan.posisi_x && ruangan.posisi_y
+                                      ? `${ruangan.posisi_x}%, ${ruangan.posisi_y}%`
+                                      : "Belum diatur"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <i className="fas fa-chevron-right text-gray-400"></i>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

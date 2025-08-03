@@ -29,18 +29,17 @@ const auth = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     req.user = {
       ...decoded,
       role: "admin", // Tambahkan role admin
     };
     next();
   } catch (err) {
-    console.error("JWT verification error:", err.message);
-
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({
-        error: "Token expired",
-        message: "Token sudah kadaluarsa, silakan login ulang",
+        error: "Sesi Berakhir",
+        message: "Sesi Anda telah berakhir, silakan login ulang",
       });
     }
 

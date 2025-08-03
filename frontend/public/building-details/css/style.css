@@ -159,6 +159,8 @@
   transition-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
+  /* Ensure level doesn't clip pins */
+  overflow: visible;
 }
 
 .level::after {
@@ -628,33 +630,71 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+  /* Keep 3D transforms for proper pin appearance */
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
+  /* Ensure pins container doesn't interfere with positioning */
+  z-index: 10;
+  /* Ensure pins are positioned correctly within the 3D space */
+  transform-origin: 0 0 0;
+  -webkit-transform-origin: 0 0 0;
+  /* Ensure container doesn't clip pins */
+  overflow: visible;
 }
 
 .level__pins--active {
   pointer-events: auto;
 }
 
+/* Ensure pins can receive clicks even when container has pointer-events: none */
+.level__pins .pin {
+  pointer-events: auto !important;
+}
+
+.level__pins--has-active {
+  /* Ensure active state doesn't affect positioning */
+  z-index: 15;
+}
+
+/* Pin positions are now generated dynamically from database */
+
+/* New Pin Marker System */
 .pin {
   position: absolute;
-  width: 5.5vmin;
-  height: 8.25vmin;
-  margin: -8.25vmin 0 0 -2.25vmin; /* let the bottom tip be the reference point for individual coordinates */
+  width: 4vmin;
+  height: 6vmin;
+  cursor: pointer;
+  /* 3D Transform for pin appearance */
   -webkit-transform: rotateZ(-20deg) rotateZ(45deg) rotateX(-70deg);
   transform: rotateZ(-20deg) rotateZ(45deg) rotateX(-70deg);
   -webkit-transform-origin: 50% 100%;
   transform-origin: 50% 100%;
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
+  /* Ensure pin stays within bounds */
+  margin: 0;
+  padding: 0;
+  /* Z-index for proper layering */
+  z-index: 100;
+  /* Smooth transitions */
+  -webkit-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+  /* Ensure pin positioning is relative to image */
+  box-sizing: border-box;
+  /* Ensure clicks are captured */
+  pointer-events: auto;
 }
 
+/* Pin icon styling */
 .pin__icon {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
   opacity: 0;
+  /* Initial transform for animation */
   -webkit-transform: translate3d(0, -100px, 0);
   transform: translate3d(0, -100px, 0);
   -webkit-transition: opacity 0.3s, -webkit-transform 0.3s;
@@ -663,17 +703,97 @@
   transition-timing-function: cubic-bezier(0.2, 1, 0.3, 1);
 }
 
+/* Pin icon content */
 .pin__icon i {
-  font-size: 2rem;
-  color: #d32f2f; /* opsional, bisa diubah sesuai tema */
+  font-size: 1.5rem;
+  color: #d32f2f;
+  display: block;
+  text-align: center;
+  line-height: 1;
 }
 
+/* Active state for pins - show icon when container is active */
 .level__pins--active .pin__icon {
   opacity: 1;
   -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
 }
 
+/* Active pin styling */
+.pin--active {
+  opacity: 1;
+  z-index: 20;
+}
+
+/* Saat tidak ada pin yang aktif (hanya level yang diklik), semua pin tetap 100% opacity */
+.level__pins--active .pin:not(.pin--active) {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Ketika deskripsi/content muncul (pin aktif), pin lainnya menjadi 25% opacity */
+.level__pins--has-active .pin:not(.pin--active) {
+  opacity: 0.25 !important;
+  transition: opacity 0.3s ease;
+}
+
+/* Pin hover effects */
+.pin:hover {
+  cursor: pointer;
+}
+
+.pin:hover .pin__icon {
+  opacity: 1;
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+}
+
+/* Pin click effects */
+.pin:active {
+  -webkit-transform: rotateZ(-20deg) rotateZ(45deg) rotateX(-70deg) scale(0.95);
+  transform: rotateZ(-20deg) rotateZ(45deg) rotateX(-70deg) scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+/* Pin focus effects for accessibility */
+.pin:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.pin:focus .pin__icon {
+  opacity: 1;
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+}
+
+/* Pin container */
+.level__pins {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  transform-origin: 0 0 0;
+  -webkit-transform-origin: 0 0 0;
+  overflow: visible;
+  /* Ensure container positioning is stable */
+  box-sizing: border-box;
+}
+
+/* Ensure level doesn't interfere with pin positioning */
+.level {
+  position: relative;
+  overflow: visible;
+  /* Ensure level positioning is stable */
+  box-sizing: border-box;
+}
+
+/* Pin animation delays for staggered effect */
 .pin:nth-child(2) .pin__icon {
   -webkit-transition-delay: 0.05s;
   transition-delay: 0.05s;
@@ -707,180 +827,26 @@
   transition-delay: 0.4s;
 }
 
-.pin--active .icon--pin {
-  stroke: #515158;
-  stroke-width: 15px;
+/* Smooth transitions for all pin states */
+.pin {
+  -webkit-transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.icon--pin {
-  width: 100%;
-  height: 100%;
+.pin__icon {
+  -webkit-transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.icon--logo {
-  position: absolute;
-  top: 11%;
-  left: 25%;
-  width: 50%;
-  height: 50%;
-  fill: white;
-  fill-opacity: 0.6;
-  -webkit-transition: fill-opacity 0.3s;
-  transition: fill-opacity 0.3s;
-}
-
-.pin--active .icon--logo,
-.pin:hover .icon--logo {
-  fill-opacity: 1;
-}
-
-/* Pin yang aktif tetap 100% opacity */
-.pin--active {
-  opacity: 1;
-}
-
-/* Saat tidak ada pin yang aktif (hanya level yang diklik), semua pin tetap 100% opacity */
-.level__pins--active .pin:not(.pin--active) {
-  opacity: 1;
-  transition: opacity 0.3s ease;
-}
-
-/* Ketika deskripsi/content muncul (pin aktif), pin lainnya menjadi 25% opacity */
-.level__pins--has-active .pin:not(.pin--active) {
-  opacity: 0.25 !important;
-  transition: opacity 0.3s ease;
-}
-
-/* Pins for floor 1 */
-.pin--1-1 {
-  top: 60vmin;
-  left: 8vmin;
-}
-.pin--1-2 {
-  top: 15vmin;
-  left: 15vmin;
-}
-.pin--1-3 {
-  top: 15vmin;
-  left: 88vmin;
-}
-.pin--1-4 {
-  top: 40vmin;
-  left: 77vmin;
-}
-.pin--1-5 {
-  top: 33vmin;
-  left: 38vmin;
-}
-.pin--1-6 {
-  top: 6vmin;
-  left: 27vmin;
-}
-.pin--1-7 {
-  top: 36vmin;
-  left: 61vmin;
-}
-.pin--1-8 {
-  top: 9vmin;
-  left: 59vmin;
-}
-.pin--1-9 {
-  top: 8vmin;
-  left: 51vmin;
-}
-
-/* Pins for floor 2 */
-.pin--2-1 {
-  top: 7vmin;
-  left: 22vmin;
-}
-.pin--2-2 {
-  top: 39vmin;
-  left: 5vmin;
-}
-.pin--2-3 {
-  top: 21vmin;
-  left: 84vmin;
-}
-.pin--2-4 {
-  top: 39vmin;
-  left: 53vmin;
-}
-.pin--2-5 {
-  top: 14vmin;
-  left: 50vmin;
-}
-.pin--2-6 {
-  top: 60vmin;
-  left: 15vmin;
-}
-.pin--2-7 {
-  top: 34vmin;
-  left: 37vmin;
-}
-.pin--2-8 {
-  top: 52vmin;
-  left: 74vmin;
-}
-
-/* Pins for floor 3 */
-.pin--3-1 {
-  top: 17vmin;
-  left: 15vmin;
-}
-.pin--3-2 {
-  top: 42vmin;
-  left: 5vmin;
-}
-.pin--3-3 {
-  top: 19vmin;
-  left: 85vmin;
-}
-.pin--3-4 {
-  top: 61vmin;
-  left: 57vmin;
-}
-.pin--3-5 {
-  top: 58vmin;
-  left: 25vmin;
-}
-.pin--3-6 {
-  top: 30vmin;
-  left: 57vmin;
-}
-.pin--3-7 {
-  top: 32vmin;
-  left: 37vmin;
-}
-
-/* Pins for floor 4 */
-.pin--4-1 {
-  top: 55vmin;
-  left: 21vmin;
-}
-.pin--4-2 {
-  top: 18vmin;
-  left: 20vmin;
-}
-.pin--4-3 {
-  top: 21vmin;
-  left: 88vmin;
-}
-.pin--4-4 {
-  top: 52vmin;
-  left: 74vmin;
-}
-.pin--4-5 {
-  top: 33vmin;
-  left: 38vmin;
-}
-.pin--4-6 {
-  top: 39vmin;
-  left: 56vmin;
-}
-.pin--4-7 {
-  top: 58vmin;
-  left: 10vmin;
+/* Ensure pins stay within image bounds */
+.pin[style*="top"],
+.pin[style*="left"] {
+  /* Force pins to stay within image bounds considering pin size */
+  max-width: calc(100% - 4vmin) !important;
+  max-height: calc(100% - 6vmin) !important;
+  /* Ensure pin doesn't go outside image bounds with more conservative bounds */
+  top: clamp(6%, var(--pin-top, 6%), 94%) !important;
+  left: clamp(4%, var(--pin-left, 4%), 96%) !important;
 }
 
 /* Mobile compatability */

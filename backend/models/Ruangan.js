@@ -29,6 +29,19 @@ const Ruangan = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    pin_style: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      defaultValue: "default",
+    },
+    posisi_x: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
+    posisi_y: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+    },
   },
   {
     tableName: "ruangan",
