@@ -7,6 +7,7 @@ import React, {
   useState,
   forwardRef,
   useImperativeHandle,
+  useCallback,
 } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -22,6 +23,9 @@ import {
   faCar,
   faWalking,
   faMotorcycle,
+  faCheckCircle,
+  faTimesCircle,
+  faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 import { findRoute, Point, calculateDistance } from "../lib/routing";
 // Import fungsi routing dari src/lib/routeSteps
@@ -232,12 +236,51 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // State untuk edit mode
     const [isEditingName, setIsEditingName] = useState(false);
     const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
+    const [isEditingLantai, setIsEditingLantai] = useState(false);
+    const [isEditingLantaiCount, setIsEditingLantaiCount] = useState(false);
     const [editName, setEditName] = useState("");
     const [editThumbnail, setEditThumbnail] = useState("");
+    const [editLantaiCount, setEditLantaiCount] = useState(1);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+    const [lantaiFiles, setLantaiFiles] = useState<{
+      [key: number]: File | null;
+    }>({});
+    const [lantaiPreviewUrls, setLantaiPreviewUrls] = useState<{
+      [key: number]: string | null;
+    }>({});
+    const [lantaiGambarData, setLantaiGambarData] = useState<any[]>([]);
+    const [selectedLantaiFilter, setSelectedLantaiFilter] = useState<number>(1);
+    const [showRuanganModal, setShowRuanganModal] = useState(false);
+    const [selectedLantaiForRuangan, setSelectedLantaiForRuangan] = useState<
+      number | null
+    >(null);
+    const [ruanganForm, setRuanganForm] = useState({
+      nama_ruangan: "",
+      nomor_lantai: 1,
+      nama_jurusan: "",
+      nama_prodi: "",
+      pin_style: "default",
+    });
     const [isSaving, setIsSaving] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+
+    // Notification system state
+    const [notification, setNotification] = useState<{
+      type: "success" | "error";
+      title: string;
+      message: string;
+      visible: boolean;
+    } | null>(null);
+
+    // Confirmation dialog state
+    const [confirmationDialog, setConfirmationDialog] = useState<{
+      visible: boolean;
+      title: string;
+      message: string;
+      onConfirm: () => void;
+    } | null>(null);
 
     // Gunakan custom hook
     const {
@@ -278,6 +321,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       parseRouteSteps,
       getStepInstruction,
     } = useRouting();
+
+    // Notification system functions
+    const showNotification = useCallback(
+      (type: "success" | "error", title: string, message: string) => {
+        setNotification({
+          type,
+          title,
+          message,
+          visible: true,
+        });
+
+        // Auto hide after 4 seconds
+        setTimeout(() => {
+          setNotification((prev) =>
+            prev ? { ...prev, visible: false } : null
+          );
+        }, 4000);
+      },
+      []
+    );
+
+    const hideNotification = useCallback(() => {
+      setNotification((prev) => (prev ? { ...prev, visible: false } : null));
+    }, []);
+
+    const showConfirmation = useCallback(
+      (title: string, message: string, onConfirm: () => void) => {
+        setConfirmationDialog({
+          visible: true,
+          title,
+          message,
+          onConfirm,
+        });
+      },
+      []
+    );
+
+    const hideConfirmation = useCallback(() => {
+      setConfirmationDialog(null);
+    }, []);
+
+    const confirmAction = useCallback(() => {
+      if (confirmationDialog?.onConfirm) {
+        confirmationDialog.onConfirm();
+      }
+      hideConfirmation();
+    }, [confirmationDialog]);
 
     // Add missing useRef declarations at the top of the component
     const userMarkerRef = useRef<L.Marker | null>(null);
@@ -1318,7 +1408,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleLocateMe = () => {
       console.log("Locate me clicked");
       if (!navigator.geolocation) {
-        alert("Browser tidak mendukung geolokasi.");
+        showNotification(
+          "error",
+          "Error",
+          "Browser tidak mendukung geolokasi."
+        );
         return;
       }
       // setIsLocating(true); // Removed as per new_code
@@ -1357,7 +1451,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         (err) => {
           console.log("Geolocation error:", err);
           // setIsLocating(false); // Removed as per new_code
-          alert(
+          showNotification(
+            "error",
+            "GPS Error",
             "Gagal mendapatkan lokasi: " +
               err.message +
               " (code: " +
@@ -1471,7 +1567,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Cek apakah user sudah login
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Anda harus login terlebih dahulu untuk mengedit bangunan.");
+        showNotification(
+          "error",
+          "Akses Ditolak",
+          "Anda harus login terlebih dahulu untuk mengedit bangunan."
+        );
         return;
       }
 
@@ -1486,12 +1586,205 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Cek apakah user sudah login
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("Anda harus login terlebih dahulu untuk mengedit bangunan.");
+        showNotification(
+          "error",
+          "Akses Ditolak",
+          "Anda harus login terlebih dahulu untuk mengedit bangunan."
+        );
         return;
       }
 
       setSelectedFile(null);
       setIsEditingThumbnail(true);
+    };
+
+    // Fungsi untuk handle edit lantai
+    const handleEditLantai = async () => {
+      if (!selectedFeature?.properties?.id) return;
+
+      // Cek apakah user sudah login
+      const token = localStorage.getItem("token");
+      if (!token) {
+        showNotification(
+          "error",
+          "Akses Ditolak",
+          "Anda harus login terlebih dahulu untuk mengedit lantai."
+        );
+        return;
+      }
+
+      try {
+        // Ambil data lantai gambar yang sudah ada
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${selectedFeature.properties.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Lantai gambar data loaded:", data);
+          console.log(
+            "Data structure check:",
+            data.map((item: any) => ({
+              id: item.id_lantai_gambar,
+              nama_file: item.nama_file,
+              path_file: item.path_file,
+            }))
+          );
+          setLantaiGambarData(data);
+        } else {
+          console.log("No lantai gambar data found");
+          setLantaiGambarData([]);
+        }
+
+        // Reset state
+        setLantaiFiles({});
+        setLantaiPreviewUrls({});
+        setSelectedLantaiFilter(1); // Reset filter ke lantai pertama
+        setEditLantaiCount(selectedFeature.properties.lantai || 1);
+        setIsEditingLantai(true);
+      } catch (error) {
+        console.error("Error loading lantai data:", error);
+        setLantaiGambarData([]);
+        setIsEditingLantai(true);
+      }
+    };
+
+    // Fungsi untuk hapus gambar lantai
+    const handleDeleteLantaiImage = async (lantaiGambarId: number) => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
+          return;
+        }
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/${lantaiGambarId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Refresh data lantai gambar
+        if (selectedFeature?.properties?.id) {
+          const lantaiResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${selectedFeature.properties.id}`,
+            {
+              headers: {
+                "ngrok-skip-browser-warning": "true",
+              },
+            }
+          );
+
+          if (lantaiResponse.ok) {
+            const lantaiData = await lantaiResponse.json();
+            setLantaiGambarData(lantaiData);
+          }
+        }
+
+        showNotification(
+          "success",
+          "Berhasil dihapus",
+          "Gambar lantai berhasil dihapus!"
+        );
+      } catch (error) {
+        console.error("Error deleting lantai image:", error);
+        showNotification(
+          "error",
+          "Gagal dihapus",
+          "Gagal menghapus gambar lantai: " + (error as Error).message
+        );
+      }
+    };
+
+    // Fungsi untuk save ruangan
+    const handleSaveRuangan = async () => {
+      if (!selectedFeature?.properties?.id || !ruanganForm.nama_ruangan.trim())
+        return;
+
+      setIsSaving(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
+          return;
+        }
+
+        const ruanganData = {
+          nama_ruangan: ruanganForm.nama_ruangan.trim(),
+          nomor_lantai: ruanganForm.nomor_lantai,
+          id_bangunan: selectedFeature.properties.id,
+          nama_jurusan: ruanganForm.nama_jurusan,
+          nama_prodi: ruanganForm.nama_prodi,
+          pin_style: ruanganForm.pin_style,
+        };
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+            },
+            body: JSON.stringify(ruanganData),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        // Reset form
+        setRuanganForm({
+          nama_ruangan: "",
+          nomor_lantai: 1,
+          nama_jurusan: "",
+          nama_prodi: "",
+          pin_style: "default",
+        });
+        setShowRuanganModal(false);
+
+        showNotification(
+          "success",
+          "Berhasil dibuat",
+          "Ruangan berhasil dibuat!"
+        );
+      } catch (error) {
+        console.error("Error creating ruangan:", error);
+        showNotification(
+          "error",
+          "Gagal dibuat",
+          "Gagal membuat ruangan: " + (error as Error).message
+        );
+      } finally {
+        setIsSaving(false);
+      }
     };
 
     // Fungsi untuk save edit
@@ -1502,7 +1795,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       try {
         const token = localStorage.getItem("token");
         if (!token) {
-          alert("Token tidak ditemukan. Silakan login ulang.");
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
           return;
         }
 
@@ -1570,13 +1867,107 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         }
 
+        // Handle update jumlah lantai
+
+        if (
+          isEditingLantaiCount &&
+          editLantaiCount !== selectedFeature.properties.lantai
+        ) {
+          const updateData = { lantai: editLantaiCount };
+
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
+              body: JSON.stringify(updateData),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          // Update local state
+          if (selectedFeature) {
+            selectedFeature.properties = {
+              ...selectedFeature.properties,
+              ...updateData,
+            };
+          }
+        }
+
+        // Handle upload lantai
+        if (isEditingLantai && Object.keys(lantaiFiles).length > 0) {
+          for (const [lantaiNumber, file] of Object.entries(lantaiFiles)) {
+            if (file) {
+              const formData = new FormData();
+              formData.append("gambar_lantai", file);
+              formData.append("nomor_lantai", lantaiNumber);
+              formData.append(
+                "id_bangunan",
+                String(selectedFeature.properties.id)
+              );
+
+              const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "ngrok-skip-browser-warning": "true",
+                  },
+                  body: formData,
+                }
+              );
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+            }
+          }
+        }
+
         // Reset edit mode
         setIsEditingName(false);
         setIsEditingThumbnail(false);
+        setIsEditingLantai(false);
+        setIsEditingLantaiCount(false);
         setEditName("");
+        setEditLantaiCount(1);
         setSelectedFile(null);
+        setLantaiFiles({});
+        // Clean up file preview URLs
+        if (filePreviewUrl) {
+          URL.revokeObjectURL(filePreviewUrl);
+          setFilePreviewUrl(null);
+        }
+        // Clean up lantai preview URLs
+        Object.values(lantaiPreviewUrls).forEach((url) => {
+          if (url) URL.revokeObjectURL(url);
+        });
+        setLantaiPreviewUrls({});
 
-        alert("Berhasil menyimpan perubahan!");
+        // Tampilkan notifikasi yang lebih spesifik
+        if (isEditingLantaiCount) {
+          showNotification(
+            "success",
+            "Berhasil diperbarui",
+            `Jumlah lantai berhasil diubah menjadi ${editLantaiCount} lantai!`
+          );
+        } else {
+          showNotification(
+            "success",
+            "Berhasil diperbarui",
+            "Berhasil menyimpan perubahan!"
+          );
+        }
 
         // Refresh data bangunan
         if (bangunanLayerRef.current) {
@@ -1592,7 +1983,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       } catch (error) {
         console.error("Error saving edit:", error);
-        alert("Gagal menyimpan perubahan. Silakan coba lagi.");
+        showNotification(
+          "error",
+          "Gagal diperbarui",
+          "Gagal menyimpan perubahan. Silakan coba lagi."
+        );
       } finally {
         setIsSaving(false);
       }
@@ -1602,8 +1997,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleCancelEdit = () => {
       setIsEditingName(false);
       setIsEditingThumbnail(false);
+      setIsEditingLantai(false);
+      setIsEditingLantaiCount(false);
       setEditName("");
+      setEditLantaiCount(1);
       setSelectedFile(null);
+      setLantaiFiles({});
+      // Clean up file preview URL
+      if (filePreviewUrl) {
+        URL.revokeObjectURL(filePreviewUrl);
+        setFilePreviewUrl(null);
+      }
+      // Clean up lantai preview URLs
+      Object.values(lantaiPreviewUrls).forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+      setLantaiPreviewUrls({});
     };
 
     // Event listener pesan close-buildingdetail dari iframe
@@ -2666,7 +3075,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
             // Routing langsung ke tujuan tanpa gerbang
             if (!endLatLng) {
-              alert("Titik tujuan tidak valid.");
+              showNotification("error", "Error", "Titik tujuan tidak valid.");
               setShowRouteModal(false);
               setIsCalculatingRoute(false);
               return;
@@ -2811,7 +3220,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setHasReachedDestination(false);
               setIsNavigationActive(true);
             } else {
-              alert(
+              showNotification(
+                "error",
+                "Rute Tidak Ditemukan",
                 "Tidak ditemukan rute yang valid dari lokasi Anda ke tujuan. Pastikan Anda berada di area yang terhubung ke jalur kampus."
               );
               setIsCalculatingRoute(false);
@@ -2845,7 +3256,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const coords = titik.geometry.coordinates;
           startLatLng = [coords[1], coords[0]];
         } else {
-          alert(`Titik awal dengan ID ${routeStartId} tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Titik awal dengan ID ${routeStartId} tidak ditemukan.`
+          );
           setShowRouteModal(false);
           setIsCalculatingRoute(false);
           return;
@@ -2856,7 +3271,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (bangunanCentroid) {
           startLatLng = bangunanCentroid as [number, number];
         } else {
-          alert(`Bangunan dengan ID ${routeStartType} tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Bangunan dengan ID ${routeStartType} tidak ditemukan.`
+          );
           setShowRouteModal(false);
           setIsCalculatingRoute(false);
           return;
@@ -2869,7 +3288,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (bangunanCentroid) {
           endLatLng = bangunanCentroid as [number, number];
         } else {
-          alert(`Bangunan dengan ID ${routeEndId} tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Bangunan dengan ID ${routeEndId} tidak ditemukan.`
+          );
           setShowRouteModal(false);
           setIsCalculatingRoute(false);
           return;
@@ -2882,7 +3305,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (tujuan) {
           endLatLng = tujuan.coordinates;
         } else {
-          alert(`Titik tujuan "${routeEndSearchText}" tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Titik tujuan "${routeEndSearchText}" tidak ditemukan.`
+          );
           setShowRouteModal(false);
           setIsCalculatingRoute(false);
           return;
@@ -2898,7 +3325,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         endLatLng[0] === undefined ||
         endLatLng[1] === undefined
       ) {
-        alert(
+        showNotification(
+          "error",
+          "Titik Tidak Valid",
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
         setShowRouteModal(false);
@@ -2910,7 +3339,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const distance = calculateDistance(startLatLng, endLatLng);
       if (distance < 10) {
         // Jika jarak kurang dari 10 meter, dianggap sama
-        alert(
+        showNotification(
+          "error",
+          "Titik Sama",
           "Titik awal dan tujuan tidak boleh sama. Silakan pilih tujuan yang berbeda."
         );
         setShowRouteModal(false);
@@ -3049,7 +3480,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   Math.pow(gpsLng - gateLng, 2) + Math.pow(gpsLat - gateLat, 2)
                 );
                 if (coordDistance < 0.000001) {
-                  alert(
+                  showNotification(
+                    "error",
+                    "GPS Error",
                     "Error: GPS dan Gerbang terlalu dekat. Coba lokasi yang berbeda."
                   );
                   setIsCalculatingRoute(false);
@@ -3281,16 +3714,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 setHasReachedDestination(false);
                 setIsNavigationActive(true);
               } else {
-                alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
+                showNotification(
+                  "error",
+                  "Rute Tidak Ditemukan",
+                  "Tidak ditemukan rute dari gerbang terdekat ke tujuan."
+                );
                 setIsCalculatingRoute(false);
               }
             } else {
-              alert("Tidak ditemukan gerbang terdekat.");
+              showNotification(
+                "error",
+                "Gerbang Tidak Ditemukan",
+                "Tidak ditemukan gerbang terdekat."
+              );
               setIsCalculatingRoute(false);
             }
           } catch (error) {
             console.error("🚨 Error dalam routing my-location:", error);
-            alert(
+            showNotification(
+              "error",
+              "Error Routing",
               "Terjadi error dalam routing dari lokasi Anda. Silakan coba lagi atau pilih titik yang berbeda."
             );
           }
@@ -3525,13 +3968,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setHasReachedDestination(false);
               setIsNavigationActive(true);
             } else {
-              alert(
+              showNotification(
+                "error",
+                "Rute Tidak Valid",
                 "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
               );
             }
           } catch (error) {
             console.error("🚨 Error dalam routing:", error);
-            alert(
+            showNotification(
+              "error",
+              "Error Routing",
               "Terjadi error dalam routing. Silakan coba lagi atau pilih titik yang berbeda."
             );
           }
@@ -3583,7 +4030,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           startLatLng = [coords[1], coords[0]];
         } else {
           console.error(`❌ Titik awal dengan ID ${startId} tidak ditemukan.`);
-          alert(`Titik awal dengan ID ${startId} tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Titik awal dengan ID ${startId} tidak ditemukan.`
+          );
           setIsCalculatingRoute(false);
           return;
         }
@@ -3593,7 +4044,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           startLatLng = bangunanCentroid as [number, number];
         } else {
           console.error(`❌ Bangunan dengan ID ${startType} tidak ditemukan.`);
-          alert(`Bangunan dengan ID ${startType} tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Bangunan dengan ID ${startType} tidak ditemukan.`
+          );
           setIsCalculatingRoute(false);
           return;
         }
@@ -3606,7 +4061,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           endLatLng = bangunanCentroid as [number, number];
         } else {
           console.error(`❌ Bangunan dengan ID ${endId} tidak ditemukan.`);
-          alert(`Bangunan dengan ID ${endId} tidak ditemukan.`);
+          showNotification(
+            "error",
+            "Error",
+            `Bangunan dengan ID ${endId} tidak ditemukan.`
+          );
           setIsCalculatingRoute(false);
           return;
         }
@@ -3622,7 +4081,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         endLatLng[1] === undefined
       ) {
         console.error("❌ Koordinat tidak valid:", { startLatLng, endLatLng });
-        alert(
+        showNotification(
+          "error",
+          "Titik Tidak Valid",
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
         setIsCalculatingRoute(false);
@@ -3856,10 +4317,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               );
               setActiveStepIndex(0);
             } else {
-              alert("Tidak ditemukan rute dari gerbang terdekat ke tujuan.");
+              showNotification(
+                "error",
+                "Rute Tidak Ditemukan",
+                "Tidak ditemukan rute dari gerbang terdekat ke tujuan."
+              );
             }
           } else {
-            alert("Tidak ditemukan gerbang terdekat.");
+            showNotification(
+              "error",
+              "Gerbang Tidak Ditemukan",
+              "Tidak ditemukan gerbang terdekat."
+            );
           }
         } else {
           // Routing biasa (bukan dari "Lokasi Saya")
@@ -3957,7 +4426,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
             setActiveStepIndex(0);
           } else {
-            alert(
+            showNotification(
+              "error",
+              "Rute Tidak Valid",
               "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
             );
           }
@@ -4593,7 +5064,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-8">
                   {selectedFeature.properties?.nama || "Tanpa Nama"}
                 </span>
-                {isDashboard && (
+                {isDashboard && isLoggedIn && (
                   <button
                     onClick={handleEditName}
                     className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
@@ -4611,9 +5082,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 <img
                   src={
                     selectedFeature.properties?.thumbnail
-                      ? `/${selectedFeature.properties.thumbnail}`
+                      ? `/${
+                          selectedFeature.properties.thumbnail
+                        }?v=${Date.now()}`
                       : selectedFeature.properties?.id
-                      ? `/img/${selectedFeature.properties.id}/thumbnail.jpg`
+                      ? `/img/${
+                          selectedFeature.properties.id
+                        }/thumbnail.jpg?v=${Date.now()}`
                       : "/img/default/thumbnail.jpg"
                   }
                   alt={selectedFeature.properties?.nama || "Bangunan"}
@@ -4624,7 +5099,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     target.src = "/img/default/thumbnail.jpg";
                   }}
                 />
-                {isDashboard && (
+                {isDashboard && isLoggedIn && (
                   <button
                     onClick={handleEditThumbnail}
                     className="absolute top-2 right-2 text-white hover:text-primary dark:hover:text-primary-dark transition-colors z-20 p-1"
@@ -4640,13 +5115,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               {selectedFeature.properties?.interaksi &&
                 selectedFeature.properties.interaksi.toLowerCase() ===
                   "interaktif" && (
-                  <button
-                    className="w-full py-2 rounded-lg font-bold text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark mb-1"
-                    onClick={() => openBuildingDetailModal()}
-                  >
-                    <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
-                    Detail Bangunan
-                  </button>
+                  <div className="flex gap-2 mb-1">
+                    <button
+                      className="flex-1 py-2 rounded-lg font-bold text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark"
+                      onClick={() => openBuildingDetailModal()}
+                    >
+                      <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
+                      Detail Bangunan
+                    </button>
+                    {isDashboard && isLoggedIn && (
+                      <button
+                        className="px-3 py-2 rounded-lg font-bold text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        onClick={handleEditLantai}
+                        title="Edit Lantai"
+                      >
+                        <i className="fas fa-layer-group text-sm"></i>
+                      </button>
+                    )}
+                  </div>
                 )}
               {selectedFeature?.properties?.id &&
                 selectedFeature?.properties?.nama && (
@@ -4675,15 +5161,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         )}
 
         {/* Modal Edit Bangunan */}
-        {(isEditingName || isEditingThumbnail) && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+        {(isEditingName ||
+          isEditingThumbnail ||
+          isEditingLantai ||
+          isEditingLantaiCount) && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999999]">
             <div
               className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
               data-modal="edit-modal"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Edit {isEditingName ? "Nama" : "Thumbnail"} Bangunan
+                  Edit{" "}
+                  {isEditingName
+                    ? "Nama"
+                    : isEditingThumbnail
+                    ? "Thumbnail"
+                    : isEditingLantaiCount
+                    ? "Jumlah Lantai"
+                    : "Lantai"}{" "}
+                  Bangunan
                 </h3>
                 <button
                   onClick={handleCancelEdit}
@@ -4734,18 +5231,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           const file = e.target.files?.[0];
                           if (file) {
                             setSelectedFile(file);
+                            // Create preview URL for the selected file
+                            const url = URL.createObjectURL(file);
+                            setFilePreviewUrl(url);
                           }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
                       />
 
                       {/* Preview file yang dipilih */}
-                      {selectedFile && (
+                      {selectedFile && filePreviewUrl && (
                         <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                              <i className="fas fa-image text-primary text-lg"></i>
-                            </div>
+                            <img
+                              src={filePreviewUrl}
+                              alt="File preview"
+                              className="w-12 h-12 object-cover rounded-lg border"
+                            />
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900 dark:text-white">
                                 {selectedFile.name}
@@ -4756,7 +5258,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               </p>
                             </div>
                             <button
-                              onClick={() => setSelectedFile(null)}
+                              onClick={() => {
+                                setSelectedFile(null);
+                                setFilePreviewUrl(null);
+                                if (filePreviewUrl) {
+                                  URL.revokeObjectURL(filePreviewUrl);
+                                }
+                              }}
                               className="text-red-500 hover:text-red-700"
                             >
                               <i className="fas fa-times"></i>
@@ -4772,7 +5280,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             Thumbnail saat ini:
                           </p>
                           <img
-                            src={`/${selectedFeature?.properties?.thumbnail}`}
+                            src={`/${
+                              selectedFeature?.properties?.thumbnail
+                            }?v=${Date.now()}`}
                             alt="Current thumbnail"
                             className="w-20 h-20 object-cover rounded-lg border"
                             onError={(e) => {
@@ -4789,14 +5299,397 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
                 )}
 
+                {isEditingLantai && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Edit Lantai Bangunan -{" "}
+                          {selectedFeature?.properties?.lantai || 0} Lantai
+                        </label>
+                        {/* Filter Lantai */}
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-gray-600 dark:text-gray-400">
+                            Filter Lantai:
+                          </label>
+                          <select
+                            value={selectedLantaiFilter}
+                            onChange={(e) =>
+                              setSelectedLantaiFilter(parseInt(e.target.value))
+                            }
+                            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary"
+                          >
+                            {Array.from(
+                              {
+                                length:
+                                  selectedFeature?.properties?.lantai || 0,
+                              },
+                              (_, index) => (
+                                <option key={index + 1} value={index + 1}>
+                                  Lantai {index + 1}
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingLantaiCount(true)}
+                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs transition-colors flex items-center gap-1"
+                        title="Atur Jumlah Lantai"
+                      >
+                        <i className="fas fa-cog text-xs"></i>
+                        Atur Lantai
+                      </button>
+                    </div>
+                    {!isEditingLantaiCount && (
+                      <>
+                        <div className="mb-4">
+                          {Array.from(
+                            {
+                              length: selectedFeature?.properties?.lantai || 0,
+                            },
+                            (_, index) => {
+                              const lantaiNumber = index + 1;
+
+                              // Hanya tampilkan lantai yang dipilih
+                              if (lantaiNumber !== selectedLantaiFilter) {
+                                return null;
+                              }
+
+                              const existingLantai = lantaiGambarData.find(
+                                (l) => {
+                                  // Extract nomor lantai from nama_file (e.g., "Lt1.svg" -> 1)
+                                  const match =
+                                    l.nama_file.match(/Lt(\d+)\.svg/i);
+                                  const extractedNumber = match
+                                    ? parseInt(match[1])
+                                    : null;
+                                  return extractedNumber === lantaiNumber;
+                                }
+                              );
+
+                              const hasFile = lantaiFiles[lantaiNumber];
+                              const previewUrl =
+                                lantaiPreviewUrls[lantaiNumber];
+
+                              return (
+                                <div
+                                  key={lantaiNumber}
+                                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 max-w-2xl mx-auto"
+                                >
+                                  <div className="mb-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                        Lantai {lantaiNumber}
+                                      </h4>
+                                      <div className="flex items-center gap-2">
+                                        {existingLantai && (
+                                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
+                                            <i className="fas fa-check mr-1"></i>
+                                            Ada Gambar
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Tampilkan gambar SVG yang sudah ada jika tersedia */}
+                                    {existingLantai && (
+                                      <div className="mb-4">
+                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                          Gambar saat ini:
+                                        </p>
+                                        <div className="relative group">
+                                          <div
+                                            className="cursor-pointer overflow-hidden rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-primary transition-all duration-200"
+                                            onClick={() => {
+                                              // Fancybox preview
+                                              const img = new Image();
+                                              img.src = `/${
+                                                existingLantai.path_file
+                                              }?v=${Date.now()}`;
+                                              img.onload = () => {
+                                                const modal =
+                                                  document.createElement("div");
+                                                modal.className =
+                                                  "fixed inset-0 bg-black/80 flex items-center justify-center z-[9999999] cursor-pointer";
+                                                modal.onclick = () =>
+                                                  modal.remove();
+
+                                                const imgContainer =
+                                                  document.createElement("div");
+                                                imgContainer.className =
+                                                  "max-w-4xl max-h-[90vh] p-4";
+                                                imgContainer.onclick = (e) =>
+                                                  e.stopPropagation();
+
+                                                const previewImg =
+                                                  document.createElement("img");
+                                                previewImg.src = img.src;
+                                                previewImg.className =
+                                                  "w-full h-full object-contain rounded-lg";
+                                                previewImg.alt = `Lantai ${lantaiNumber}`;
+
+                                                const closeBtn =
+                                                  document.createElement(
+                                                    "button"
+                                                  );
+                                                closeBtn.className =
+                                                  "absolute top-4 right-4 text-white text-2xl hover:text-gray-300";
+                                                closeBtn.innerHTML = "×";
+                                                closeBtn.onclick = () =>
+                                                  modal.remove();
+
+                                                imgContainer.appendChild(
+                                                  previewImg
+                                                );
+                                                modal.appendChild(imgContainer);
+                                                modal.appendChild(closeBtn);
+                                                document.body.appendChild(
+                                                  modal
+                                                );
+                                              };
+                                            }}
+                                          >
+                                            <img
+                                              src={`/${
+                                                existingLantai.path_file
+                                              }?v=${Date.now()}`}
+                                              alt={`Lantai ${lantaiNumber}`}
+                                              className="w-full h-32 object-contain bg-gray-50 dark:bg-gray-700 group-hover:scale-105 transition-transform duration-200"
+                                              onError={(e) => {
+                                                const target =
+                                                  e.target as HTMLImageElement;
+                                                target.style.display = "none";
+                                              }}
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center">
+                                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                <i className="fas fa-search-plus text-white text-2xl"></i>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={() =>
+                                              handleDeleteLantaiImage(
+                                                existingLantai.id_lantai_gambar
+                                              )
+                                            }
+                                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm transition-colors shadow-lg"
+                                            title="Hapus gambar lantai"
+                                          >
+                                            <i className="fas fa-trash"></i>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {hasFile && previewUrl && (
+                                      <div className="mb-4">
+                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                                          Preview file baru:
+                                        </p>
+                                        <div className="relative group">
+                                          <div className="overflow-hidden rounded-lg border-2 border-blue-200 dark:border-blue-600">
+                                            <img
+                                              src={previewUrl}
+                                              alt={`Preview Lantai ${lantaiNumber}`}
+                                              className="w-full h-32 object-contain bg-gray-50 dark:bg-gray-700"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {!existingLantai && !hasFile && (
+                                      <div className="mb-4">
+                                        <div className="w-full h-32 bg-gray-100 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                                          <div className="text-center">
+                                            <i className="fas fa-image text-gray-400 text-3xl mb-2"></i>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                              Belum ada gambar
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex flex-col gap-3">
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="file"
+                                        accept=".svg"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            setLantaiFiles((prev) => ({
+                                              ...prev,
+                                              [lantaiNumber]: file,
+                                            }));
+                                            const url =
+                                              URL.createObjectURL(file);
+                                            setLantaiPreviewUrls((prev) => ({
+                                              ...prev,
+                                              [lantaiNumber]: url,
+                                            }));
+                                          }
+                                        }}
+                                        className="hidden"
+                                        id={`lantai-${lantaiNumber}`}
+                                      />
+                                      <label
+                                        htmlFor={`lantai-${lantaiNumber}`}
+                                        className="flex-1 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                      >
+                                        <i className="fas fa-upload text-xs"></i>
+                                        {hasFile ? "Ganti File" : "Pilih File"}
+                                      </label>
+                                      {hasFile && (
+                                        <button
+                                          onClick={() => {
+                                            setLantaiFiles((prev) => {
+                                              const newFiles = { ...prev };
+                                              delete newFiles[lantaiNumber];
+                                              return newFiles;
+                                            });
+                                            setLantaiPreviewUrls((prev) => {
+                                              const newUrls = { ...prev };
+                                              if (newUrls[lantaiNumber]) {
+                                                URL.revokeObjectURL(
+                                                  newUrls[lantaiNumber]!
+                                                );
+                                                delete newUrls[lantaiNumber];
+                                              }
+                                              return newUrls;
+                                            });
+                                          }}
+                                          className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
+                                          title="Hapus file"
+                                        >
+                                          <i className="fas fa-times"></i>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {(hasFile || existingLantai) && (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedLantaiForRuangan(
+                                            lantaiNumber
+                                          );
+                                          setRuanganForm((prev) => ({
+                                            ...prev,
+                                            nomor_lantai: lantaiNumber,
+                                          }));
+                                          setShowRuanganModal(true);
+                                        }}
+                                        className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                      >
+                                        <i className="fas fa-plus text-xs"></i>
+                                        Buat Ruangan
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Format yang didukung: SVG (Maks. 2MB per file)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {isEditingLantaiCount && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Atur Jumlah Lantai
+                      </label>
+                      <button
+                        onClick={() => setIsEditingLantaiCount(false)}
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      >
+                        <i className="fas fa-arrow-left text-sm"></i>
+                        Kembali
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Jumlah Lantai <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={editLantaiCount}
+                        onChange={(e) =>
+                          setEditLantaiCount(parseInt(e.target.value) || 1)
+                        }
+                        min="1"
+                        max="20"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="Masukkan jumlah lantai"
+                        autoFocus
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Masukkan jumlah lantai bangunan (1-20)
+                      </p>
+                      {editLantaiCount <
+                        (selectedFeature?.properties?.lantai || 1) && (
+                        <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                          <div className="flex items-start">
+                            <i className="fas fa-exclamation-triangle text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2"></i>
+                            <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                              <p className="font-medium">Peringatan!</p>
+                              <p className="mt-1">
+                                Mengurangi jumlah lantai dari{" "}
+                                {selectedFeature?.properties?.lantai} ke{" "}
+                                {editLantaiCount} dapat menghapus data lantai
+                                dan ruangan yang ada di lantai{" "}
+                                {selectedFeature?.properties?.lantai}.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 pt-4">
                   <button
                     onClick={handleSaveEdit}
-                    disabled={
-                      isSaving ||
-                      (isEditingName && !editName.trim()) ||
-                      (isEditingThumbnail && !selectedFile)
-                    }
+                    disabled={(() => {
+                      let disabled = isSaving;
+
+                      if (isEditingName && !isEditingLantaiCount) {
+                        disabled = disabled || !editName.trim();
+                      }
+
+                      if (isEditingThumbnail && !isEditingLantaiCount) {
+                        disabled = disabled || !selectedFile;
+                      }
+
+                      if (isEditingLantai && !isEditingLantaiCount) {
+                        // Allow saving if there are existing files or new files selected
+                        const hasExistingFiles = lantaiGambarData.length > 0;
+                        const hasNewFiles = Object.keys(lantaiFiles).length > 0;
+                        disabled =
+                          disabled || (!hasExistingFiles && !hasNewFiles);
+                      }
+
+                      if (isEditingLantaiCount) {
+                        disabled =
+                          disabled ||
+                          Number(editLantaiCount) < 1 ||
+                          Number(editLantaiCount) > 20;
+                      }
+
+                      return disabled;
+                    })()}
                     className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSaving ? (
@@ -4828,6 +5721,155 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </span>
                   untuk batal
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Buat Ruangan */}
+        {showRuanganModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Buat Ruangan - Lantai {selectedLantaiForRuangan}
+                </h3>
+                <button
+                  onClick={() => setShowRuanganModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <i className="fas fa-times text-lg"></i>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Nama Ruangan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={ruanganForm.nama_ruangan}
+                    onChange={(e) =>
+                      setRuanganForm((prev) => ({
+                        ...prev,
+                        nama_ruangan: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Masukkan nama ruangan"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Nomor Lantai <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={ruanganForm.nomor_lantai || ""}
+                    onChange={(e) =>
+                      setRuanganForm((prev) => ({
+                        ...prev,
+                        nomor_lantai: parseInt(e.target.value) || 1,
+                      }))
+                    }
+                    min="1"
+                    max={selectedFeature?.properties?.lantai || 1}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Maksimal: {selectedFeature?.properties?.lantai || 1}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Jurusan
+                  </label>
+                  <input
+                    type="text"
+                    value={ruanganForm.nama_jurusan}
+                    onChange={(e) =>
+                      setRuanganForm((prev) => ({
+                        ...prev,
+                        nama_jurusan: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Masukkan nama jurusan"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Program Studi
+                  </label>
+                  <input
+                    type="text"
+                    value={ruanganForm.nama_prodi}
+                    onChange={(e) =>
+                      setRuanganForm((prev) => ({
+                        ...prev,
+                        nama_prodi: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Masukkan nama program studi"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Pin Style
+                  </label>
+                  <select
+                    value={ruanganForm.pin_style}
+                    onChange={(e) =>
+                      setRuanganForm((prev) => ({
+                        ...prev,
+                        pin_style: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="default">Default</option>
+                    <option value="classroom">Classroom</option>
+                    <option value="lab">Laboratory</option>
+                    <option value="office">Office</option>
+                    <option value="meeting">Meeting Room</option>
+                    <option value="library">Library</option>
+                    <option value="cafeteria">Cafeteria</option>
+                    <option value="bathroom">Bathroom</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 mt-4">
+                <button
+                  onClick={handleSaveRuangan}
+                  disabled={!ruanganForm.nama_ruangan.trim() || isSaving}
+                  className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-save text-sm"></i>
+                      Simpan Ruangan
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowRuanganModal(false)}
+                  className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Batal
+                </button>
               </div>
             </div>
           </div>
@@ -5201,6 +6243,98 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     Tutup
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Notification System */}
+        {notification && (
+          <div
+            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[99999] max-w-md w-full mx-4 transition-all duration-500 ${
+              notification.visible
+                ? "translate-y-0 opacity-100"
+                : "-translate-y-full opacity-0"
+            }`}
+          >
+            <div
+              className={`rounded-lg shadow-lg border-l-4 p-4 flex items-center gap-3 ${
+                notification.type === "success"
+                  ? "bg-green-50 border-green-500 text-green-800"
+                  : "bg-red-50 border-red-500 text-red-800"
+              }`}
+            >
+              <div
+                className={`text-xl ${
+                  notification.type === "success"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {notification.type === "success" ? (
+                  <FontAwesomeIcon
+                    icon={faCheckCircle}
+                    className="animate-pulse"
+                  />
+                ) : (
+                  <FontAwesomeIcon
+                    icon={faTimesCircle}
+                    className="animate-pulse"
+                  />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="font-semibold text-sm">
+                  {notification.title}
+                </div>
+                <div className="text-xs opacity-90">{notification.message}</div>
+              </div>
+              <button
+                onClick={hideNotification}
+                className="text-gray-400 hover:text-gray-600 text-lg"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Confirmation Dialog */}
+        {confirmationDialog && (
+          <div
+            className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] transition-all duration-300 ${
+              confirmationDialog.visible
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <div
+              className={`bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 p-6 text-center transform transition-all duration-300 ${
+                confirmationDialog.visible ? "scale-100" : "scale-95"
+              }`}
+            >
+              <div className="text-4xl text-yellow-500 mb-4">
+                <FontAwesomeIcon icon={faExclamationTriangle} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                {confirmationDialog.title}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                {confirmationDialog.message}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={hideConfirmation}
+                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={confirmAction}
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  Ya, Lanjutkan
+                </button>
               </div>
             </div>
           </div>

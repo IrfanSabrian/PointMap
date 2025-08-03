@@ -327,13 +327,13 @@ export default function Dashboard() {
             : "bg-transparent"
         } ${
           showNavbar
-            ? "translate-y-0 opacity-100"
+            ? "translate-y-0 opacity-100 pointer-events-auto"
             : "-translate-y-full opacity-0 pointer-events-none"
         } ${
           !isScrolled
             ? "group-hover/navbar:translate-y-0 group-hover/navbar:opacity-100 group-hover/navbar:pointer-events-auto"
             : ""
-        } hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
+        } pointer-events-auto hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
         style={{ willChange: "transform, opacity" }}
       >
         {/* Logo kiri */}
@@ -465,9 +465,9 @@ export default function Dashboard() {
             </button>
 
             {/* Dropdown Menu */}
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-              <div className="py-2">
-                <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-60">
+              <div className="py-1">
+                <div className="px-4 py-1 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                   <div className="font-semibold">
                     {userInfo?.username || "Admin"}
                   </div>
@@ -477,7 +477,7 @@ export default function Dashboard() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                  className="w-full px-4 py-1 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
                 >
                   <FiLogOut className="w-4 h-4" />
                   Logout
@@ -492,13 +492,13 @@ export default function Dashboard() {
       <section
         ref={mapArea}
         className="w-full h-screen min-h-0 min-w-0 pt-12 lg:pt-12 flex flex-col items-center justify-center overflow-hidden bg-primary/10 dark:bg-primary/20 border-none rounded-none shadow-none relative"
-        style={{ position: "relative", zIndex: 1 }}
+        style={{ position: "relative" }}
       >
         {/* Partikel Custom Polkadot/Bintang */}
         <ParticlesCustom isDark={isDark} />
 
         <div className="w-full h-full relative">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-12 lg:mt-16">
+          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-20 lg:mt-20">
             <span>Dashboard - Polnep Interactive Map</span>
             {isLoading && (
               <div className="flex items-center gap-2">

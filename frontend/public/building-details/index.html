@@ -194,6 +194,241 @@
         }
       }
 
+      /* Custom Notification System */
+      .notification-container {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999999;
+        max-width: 400px;
+        width: 90%;
+        pointer-events: none;
+      }
+
+      .notification-container .notification {
+        pointer-events: auto;
+      }
+
+      .notification {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-left: 4px solid;
+        animation: slideDown 0.5s ease-in-out;
+        transition: all 0.5s ease-in-out;
+      }
+
+      .notification.success {
+        border-left-color: #10b981;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+      }
+
+      .notification.error {
+        border-left-color: #ef4444;
+        background: linear-gradient(135deg, #fef2f2 0%, #fef2f2 100%);
+      }
+
+      .notification-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+
+      .notification.success .notification-icon {
+        color: #10b981;
+        animation: checkmark 0.6s ease-in-out;
+      }
+
+      .notification.error .notification-icon {
+        color: #ef4444;
+        animation: crossmark 0.6s ease-in-out;
+      }
+
+      .notification-content {
+        flex: 1;
+      }
+
+      .notification-title {
+        font-weight: 600;
+        font-size: 16px;
+        margin-bottom: 4px;
+      }
+
+      .notification.success .notification-title {
+        color: #065f46;
+      }
+
+      .notification.error .notification-title {
+        color: #991b1b;
+      }
+
+      .notification-message {
+        font-size: 14px;
+        color: #6b7280;
+      }
+
+      .notification.success .notification-message {
+        color: #047857;
+      }
+
+      .notification.error .notification-message {
+        color: #dc2626;
+      }
+
+      .notification-close {
+        background: none;
+        border: none;
+        color: #6b7280;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .notification-close:hover {
+        color: #374151;
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      @keyframes slideDown {
+        from {
+          transform: translateX(-50%) translateY(-100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(-50%) translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes checkmark {
+        0% {
+          transform: scale(0) rotate(-45deg);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2) rotate(-45deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+      }
+
+      @keyframes crossmark {
+        0% {
+          transform: scale(0) rotate(45deg);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2) rotate(45deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+      }
+
+      /* Custom Confirmation Dialog */
+      .confirmation-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .confirmation-modal.show {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .confirmation-content {
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        transform: scale(0.8);
+        transition: transform 0.3s ease;
+      }
+
+      .confirmation-modal.show .confirmation-content {
+        transform: scale(1);
+      }
+
+      .confirmation-icon {
+        font-size: 48px;
+        color: #f59e0b;
+        margin-bottom: 16px;
+      }
+
+      .confirmation-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 12px;
+      }
+
+      .confirmation-message {
+        font-size: 16px;
+        color: #6b7280;
+        margin-bottom: 24px;
+        line-height: 1.5;
+      }
+
+      .confirmation-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      .btn-confirm {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .btn-confirm.cancel {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+
+      .btn-confirm.cancel:hover {
+        background: #e5e7eb;
+      }
+
+      .btn-confirm.confirm {
+        background: #ef4444;
+        color: white;
+      }
+
+      .btn-confirm.confirm:hover {
+        background: #dc2626;
+      }
+
       /* Room Detail Layout Styles */
       .content__layout {
         display: flex;
@@ -407,6 +642,7 @@
         width: 100%;
         max-height: 90vh;
         overflow-y: auto;
+        position: relative;
       }
 
       .edit-modal-header {
@@ -415,6 +651,11 @@
         align-items: center;
         padding: 20px;
         border-bottom: 1px solid #eee;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 10;
+        border-radius: 12px 12px 0 0;
       }
 
       .edit-modal-header h3 {
@@ -474,30 +715,37 @@
 
       .btn-cancel {
         padding: 10px 20px;
-        border: 1px solid #ddd;
-        background: white;
-        color: #666;
+        border: none;
+        background: #7b8794;
+        color: white;
         border-radius: 6px;
         cursor: pointer;
         font-size: 14px;
+        transition: all 0.2s ease;
       }
 
       .btn-cancel:hover {
-        background: #f5f5f5;
+        background: #6b7a8a;
+        transform: translateY(-1px);
       }
 
       .btn-save {
         padding: 10px 20px;
         border: none;
-        background: #3498db;
+        background: #7b8794;
         color: white;
         border-radius: 6px;
         cursor: pointer;
         font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
       }
 
       .btn-save:hover {
-        background: #2980b9;
+        background: #6b7a8a;
+        transform: translateY(-1px);
       }
 
       .btn-add {
@@ -596,6 +844,63 @@
         background: #f0f8ff;
       }
 
+      /* File input container styling */
+      .file-input-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background: #f9f9f9;
+        transition: all 0.3s ease;
+      }
+
+      .file-input-container:hover {
+        border-color: #3498db;
+        background: #f0f8ff;
+      }
+
+      .btn-pilih-file {
+        padding: 8px 16px;
+        border: none;
+        background: #3b82f6;
+        color: white;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .btn-pilih-file:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+      }
+
+      .file-text {
+        color: #666;
+        font-size: 14px;
+        flex: 1;
+      }
+
+      /* Preview section styling */
+      .preview-section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 2px solid #e8f4fd;
+        border-radius: 8px;
+        background: #f8fbff;
+      }
+
+      .preview-section h4 {
+        color: #2c5aa0;
+        margin-bottom: 15px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
       /* File input styling like thumbnail */
       input[type="file"] {
         width: 100%;
@@ -641,6 +946,7 @@
         width: 90%;
         max-height: 80vh;
         overflow-y: auto;
+        position: relative;
       }
 
       .edit-modal-header {
@@ -650,6 +956,11 @@
         margin-bottom: 20px;
         padding-bottom: 15px;
         border-bottom: 1px solid #eee;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 10;
+        border-radius: 12px 12px 0 0;
       }
 
       .edit-modal-header h3 {
@@ -828,6 +1139,30 @@
     <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
   </head>
   <body class="buildingdetail">
+    <!-- Custom Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <!-- Custom Confirmation Modal -->
+    <div class="confirmation-modal" id="confirmationModal">
+      <div class="confirmation-content">
+        <div class="confirmation-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="confirmation-title" id="confirmationTitle">Konfirmasi</div>
+        <div class="confirmation-message" id="confirmationMessage">
+          Apakah Anda yakin?
+        </div>
+        <div class="confirmation-actions">
+          <button class="btn-confirm cancel" onclick="hideConfirmation()">
+            Batal
+          </button>
+          <button class="btn-confirm confirm" id="confirmButton">
+            Ya, Lanjutkan
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="container">
       <div class="buildingdetails-main">
         <header class="detail-header">
@@ -915,6 +1250,8 @@
             throw new Error(`HTTP error! status: ${buildingResponse.status}`);
           }
           const buildingData = await buildingResponse.json();
+          // Simpan data bangunan secara global untuk digunakan di modal edit
+          window.buildingData = buildingData;
 
           // Ambil data ruangan untuk bangunan ini
           const ruanganResponse = await fetch(
@@ -1194,17 +1531,25 @@
                     <div class="content__info">
                       <div class="content__header">
                         <h3 class="content__item-title">${item.title}</h3>
-                        <button 
-                          onclick="openEditRoomModal('${
-                            item.ruangan.id_ruangan
-                          }', '${item.title}', ${item.ruangan.nomor_lantai}, '${
-              item.jurusan || ""
-            }', '${item.prodi || ""}')"
-                          class="edit-room-btn"
-                          title="Edit ruangan"
-                        >
-                          <i class="fas fa-edit"></i>
-                        </button>
+                        ${
+                          localStorage.getItem("token")
+                            ? `
+                          <button 
+                            onclick="openEditRoomModal('${
+                              item.ruangan.id_ruangan
+                            }', '${item.title}', ${
+                                item.ruangan.nomor_lantai
+                              }, '${item.jurusan || ""}', '${
+                                item.prodi || ""
+                              }')"
+                            class="edit-room-btn"
+                            title="Edit ruangan"
+                          >
+                            <i class="fas fa-edit"></i>
+                          </button>
+                        `
+                            : ""
+                        }
                       </div>
                       <div class="content__meta">
                         <div class="content__meta-item">
@@ -1635,6 +1980,12 @@
 
       // Fungsi untuk membuka modal edit ruangan
       function openEditRoomModal(roomId, roomName, floor, jurusan, prodi) {
+        // Dapatkan jumlah lantai maksimal dari data bangunan
+        const buildingId = getUrlParameter("id") || "1";
+        const maxFloor = window.buildingData ? window.buildingData.lantai : 10;
+
+        // Jika bangunan tidak memiliki data lantai atau lantai = 0, gunakan default 10
+        const maxFloorValue = maxFloor > 0 ? maxFloor : 10;
         const modalHTML = `
           <div class="edit-modal" id="editRoomModal">
             <div class="edit-modal-content">
@@ -1651,8 +2002,8 @@
                     <input type="text" id="editRoomName" value="${roomName}" required>
                   </div>
                   <div class="form-group">
-                    <label>Lantai *</label>
-                    <input type="number" id="editRoomFloor" value="${floor}" min="1" max="10" required>
+                    <label>Lantai * (Maksimal: ${maxFloorValue})</label>
+                    <input type="number" id="editRoomFloor" value="${floor}" min="1" max="${maxFloorValue}" required>
                   </div>
                   <div class="form-group">
                     <label>Jurusan</label>
@@ -1689,21 +2040,40 @@
           <div class="edit-modal" id="editGalleryModal">
             <div class="edit-modal-content">
               <div class="edit-modal-header">
-                <h3>Edit Gallery - ${roomName}</h3>
+                <h3>Tambah Foto Gallery - ${roomName}</h3>
                 <button onclick="closeEditGalleryModal()" class="close-btn">
                   <i class="fas fa-times"></i>
                 </button>
               </div>
               <div class="edit-modal-body">
                 <div class="form-group">
-                  <label>Tambah Gambar Baru</label>
-                  <input type="file" id="addGalleryImage" accept="image/*" multiple>
+                  <label>Pilih File</label>
+                  <div class="file-input-container">
+                    <button type="button" class="btn-pilih-file" onclick="document.getElementById('addGalleryImage').click()">
+                      Pilih File
+                    </button>
+                    <span class="file-text" id="fileText">Tidak ada file yang dipilih</span>
+                  </div>
+                  <input type="file" id="addGalleryImage" accept="image/*" multiple style="display: none;">
+                </div>
+                <div class="preview-section" id="previewSection" style="display: none;">
+                  <h4>Preview Gambar yang Dipilih:</h4>
+                  <div id="selectedImagesPreview" class="gallery-grid">
+                    <!-- Selected images preview will be shown here -->
+                  </div>
                 </div>
                 <div class="current-gallery">
                   <h4>Gambar Saat Ini:</h4>
                   <div id="currentGalleryImages" class="gallery-grid">
                     <!-- Current images will be loaded here -->
                   </div>
+                </div>
+                <div class="form-actions">
+                  <button type="button" onclick="closeEditGalleryModal()" class="btn-cancel">Batal</button>
+                  <button type="button" onclick="saveGalleryImages(${roomId})" class="btn-save">
+                    <i class="fas fa-save"></i>
+                    Simpan
+                  </button>
                 </div>
               </div>
             </div>
@@ -1713,12 +2083,47 @@
         document.body.insertAdjacentHTML("beforeend", modalHTML);
         loadCurrentGalleryImages(roomId);
 
-        // Upload langsung setelah pilih file
+        // Handle file selection and update text
         document
           .getElementById("addGalleryImage")
           .addEventListener("change", function (e) {
+            const fileText = document.getElementById("fileText");
+            const previewSection = document.getElementById("previewSection");
+            const selectedImagesPreview = document.getElementById(
+              "selectedImagesPreview"
+            );
+
             if (e.target.files.length > 0) {
-              addGalleryImages(roomId);
+              if (e.target.files.length === 1) {
+                fileText.textContent = e.target.files[0].name;
+              } else {
+                fileText.textContent = `${e.target.files.length} file dipilih`;
+              }
+
+              // Show preview section and display image previews
+              previewSection.style.display = "block";
+              selectedImagesPreview.innerHTML = "";
+
+              Array.from(e.target.files).forEach((file, index) => {
+                if (file.type.startsWith("image/")) {
+                  const reader = new FileReader();
+                  reader.onload = function (e) {
+                    const previewDiv = document.createElement("div");
+                    previewDiv.className = "gallery-item";
+                    previewDiv.innerHTML = `
+                      <img src="${e.target.result}" alt="Preview ${file.name}" style="width: 100%; height: 100px; object-fit: cover; border-radius: 6px;">
+                      <div class="image-info" style="font-size: 12px; color: #666; margin-top: 5px; text-align: center;">
+                        ${file.name}
+                      </div>
+                    `;
+                    selectedImagesPreview.appendChild(previewDiv);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              });
+            } else {
+              fileText.textContent = "Tidak ada file yang dipilih";
+              previewSection.style.display = "none";
             }
           });
       }
@@ -1746,6 +2151,19 @@
         const jurusan = document.getElementById("editRoomJurusan").value;
         const prodi = document.getElementById("editRoomProdi").value;
 
+        // Validasi jumlah lantai
+        const maxFloor = window.buildingData ? window.buildingData.lantai : 10;
+        const maxFloorValue = maxFloor > 0 ? maxFloor : 10;
+
+        if (parseInt(floor) > maxFloorValue) {
+          showNotification(
+            "error",
+            "Validasi Error",
+            `Lantai tidak boleh lebih dari ${maxFloorValue}`
+          );
+          return;
+        }
+
         try {
           const response = await fetch(
             `http://localhost:3001/api/ruangan/${roomId}`,
@@ -1765,7 +2183,11 @@
           );
 
           if (response.ok) {
-            alert("Ruangan berhasil diupdate!");
+            showNotification(
+              "success",
+              "Berhasil diperbarui",
+              "Ruangan berhasil diupdate!"
+            );
             closeEditRoomModal();
             // Reload data
             loadBuildingData();
@@ -1774,7 +2196,11 @@
           }
         } catch (error) {
           console.error("Error:", error);
-          alert("Gagal mengupdate ruangan: " + error.message);
+          showNotification(
+            "error",
+            "Gagal diperbarui",
+            "Gagal mengupdate ruangan: " + error.message
+          );
         }
       }
 
@@ -1816,7 +2242,68 @@
         }
       }
 
-      // Fungsi untuk menambah gambar gallery
+      // Fungsi untuk menyimpan gambar gallery
+      async function saveGalleryImages(roomId) {
+        const fileInput = document.getElementById("addGalleryImage");
+        const files = fileInput.files;
+
+        if (files.length === 0) {
+          // Jika tidak ada file yang dipilih, langsung tutup modal
+          closeEditGalleryModal();
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("ruanganId", roomId);
+        for (let i = 0; i < files.length; i++) {
+          formData.append("gallery", files[i]);
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:3001/api/ruangan-gallery/upload`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              body: formData,
+            }
+          );
+
+          if (response.ok) {
+            showNotification(
+              "success",
+              "Berhasil diperbarui",
+              "Gambar berhasil ditambahkan!"
+            );
+            // Reload gallery images
+            loadCurrentGalleryImages(roomId);
+            // Reset file input and text
+            fileInput.value = "";
+            document.getElementById("fileText").textContent =
+              "Tidak ada file yang dipilih";
+            // Hide preview section
+            const previewSection = document.getElementById("previewSection");
+            if (previewSection) {
+              previewSection.style.display = "none";
+            }
+            // Close modal
+            closeEditGalleryModal();
+          } else {
+            throw new Error("Gagal menambah gambar");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showNotification(
+            "error",
+            "Gagal diperbarui",
+            "Gagal menambah gambar: " + error.message
+          );
+        }
+      }
+
+      // Fungsi untuk menambah gambar gallery (legacy function)
       async function addGalleryImages(roomId) {
         const fileInput = document.getElementById("addGalleryImage");
         const files = fileInput.files;
@@ -1853,16 +2340,27 @@
           }
         } catch (error) {
           console.error("Error:", error);
-          alert("Gagal menambah gambar: " + error.message);
+          showNotification(
+            "error",
+            "Gagal diperbarui",
+            "Gagal menambah gambar: " + error.message
+          );
         }
       }
 
       // Fungsi untuk menghapus gambar gallery
       async function deleteGalleryImage(galleryId, roomId) {
-        if (!confirm("Yakin ingin menghapus gambar ini?")) {
-          return;
-        }
+        showConfirmation(
+          "Konfirmasi Hapus",
+          "Yakin ingin menghapus gambar ini?",
+          () => {
+            performDeleteGalleryImage(galleryId, roomId);
+          }
+        );
+      }
 
+      // Fungsi untuk melakukan penghapusan gambar gallery
+      async function performDeleteGalleryImage(galleryId, roomId) {
         try {
           const response = await fetch(
             `http://localhost:3001/api/ruangan-gallery/${galleryId}`,
@@ -1875,7 +2373,11 @@
           );
 
           if (response.ok) {
-            alert("Gambar berhasil dihapus!");
+            showNotification(
+              "success",
+              "Berhasil diperbarui",
+              "Gambar berhasil dihapus!"
+            );
             // Reload gallery images
             loadCurrentGalleryImages(roomId);
           } else {
@@ -1883,9 +2385,90 @@
           }
         } catch (error) {
           console.error("Error:", error);
-          alert("Gagal menghapus gambar: " + error.message);
+          showNotification(
+            "error",
+            "Gagal diperbarui",
+            "Gagal menghapus gambar: " + error.message
+          );
         }
       }
+
+      // Custom Notification System Functions
+      function showNotification(type, title, message) {
+        const container = document.getElementById("notificationContainer");
+
+        // Create notification element
+        const notification = document.createElement("div");
+        notification.className = `notification ${type}`;
+
+        const icon =
+          type === "success" ? "fas fa-check-circle" : "fas fa-times-circle";
+
+        notification.innerHTML = `
+          <div class="notification-icon">
+            <i class="${icon}"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-title">${title}</div>
+            <div class="notification-message">${message}</div>
+          </div>
+          <button class="notification-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+          </button>
+        `;
+
+        // Add to container
+        container.appendChild(notification);
+
+        // Auto hide after 4 seconds
+        setTimeout(() => {
+          if (container.contains(notification)) {
+            notification.style.opacity = "0";
+            notification.style.transform = "translateX(-50%) translateY(-100%)";
+            setTimeout(() => {
+              if (container.contains(notification)) {
+                container.removeChild(notification);
+              }
+            }, 500);
+          }
+        }, 4000);
+      }
+
+      // Custom Confirmation Dialog Functions
+      let confirmationCallback = null;
+
+      function showConfirmation(title, message, onConfirm) {
+        const modal = document.getElementById("confirmationModal");
+        const titleEl = document.getElementById("confirmationTitle");
+        const messageEl = document.getElementById("confirmationMessage");
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        confirmationCallback = onConfirm;
+
+        modal.classList.add("show");
+      }
+
+      function hideConfirmation() {
+        const modal = document.getElementById("confirmationModal");
+        modal.classList.remove("show");
+        confirmationCallback = null;
+      }
+
+      function confirmAction() {
+        if (confirmationCallback) {
+          confirmationCallback();
+        }
+        hideConfirmation();
+      }
+
+      // Update confirm button to use the new function
+      document.addEventListener("DOMContentLoaded", function () {
+        const confirmButton = document.getElementById("confirmButton");
+        if (confirmButton) {
+          confirmButton.onclick = confirmAction;
+        }
+      });
     </script>
 
     <script src="js/list.min.js"></script>
