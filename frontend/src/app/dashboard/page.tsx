@@ -498,7 +498,7 @@ export default function Dashboard() {
         <ParticlesCustom isDark={isDark} />
 
         <div className="w-full h-full relative">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-20 lg:mt-20">
+          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-14 lg:mt-14">
             <span>Dashboard - Polnep Interactive Map</span>
             {isLoading && (
               <div className="flex items-center gap-2">
@@ -510,7 +510,7 @@ export default function Dashboard() {
 
           <div
             className={`w-full h-full relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
-            style={{ height: "calc(100vh - 180px)" }}
+            style={{ height: "calc(100vh - 160px)" }}
           >
             <LeafletMap
               ref={mapRef}

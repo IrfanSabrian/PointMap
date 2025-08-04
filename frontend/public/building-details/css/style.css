@@ -139,6 +139,10 @@
   transition: transform 0.3s;
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
+  /* Allow content to determine size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .surroundings,
@@ -161,6 +165,13 @@
   transform-style: preserve-3d;
   /* Ensure level doesn't clip pins */
   overflow: visible;
+  /* Allow content to determine size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Ensure consistent sizing */
+  min-width: 200px;
+  min-height: 150px;
 }
 
 .level::after {
@@ -378,7 +389,23 @@
 .map__outline {
   -webkit-transition: fill 0.3s;
   transition: fill 0.3s;
-  fill: #bbb;
+  fill: #000000;
+}
+
+/* Add black border to SVG images for better visualization */
+.level img {
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  /* Preserve original aspect ratio and prevent stretching */
+  object-fit: contain;
+  /* Allow JavaScript to control size dynamically */
+  width: auto;
+  height: auto;
+  /* Ensure SVG maintains its original dimensions */
+  display: block;
+  /* Ensure image scales properly */
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .level:hover .map__outline,
@@ -755,16 +782,65 @@
   transition: transform 0.1s ease;
 }
 
-/* Pin focus effects for accessibility */
+/* Pin focus effects - no outline, just color change */
+/* Focus state will only change icon color, no outline */
+
+/* Remove default outline from all pins */
 .pin:focus {
-  outline: 2px solid #007bff;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .pin:focus .pin__icon {
   opacity: 1;
   -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
+}
+
+/* Focus state icon colors - matching the pin colors based on pin_style */
+/* Default pin style */
+.pin[data-pin-style="default"]:focus .pin__icon i,
+.pin[data-pin-style=""]:focus .pin__icon i {
+  color: #9e9e9e; /* Grey */
+}
+
+/* Ruang Kelas */
+.pin[data-pin-style="ruang_kelas"]:focus .pin__icon i {
+  color: #d32f2f; /* Red */
+}
+
+/* Laboratorium */
+.pin[data-pin-style="laboratorium"]:focus .pin__icon i {
+  color: #1976d2; /* Blue */
+}
+
+/* Kantor */
+.pin[data-pin-style="kantor"]:focus .pin__icon i {
+  color: #388e3c; /* Green */
+}
+
+/* Ruang Rapat */
+.pin[data-pin-style="ruang_rapat"]:focus .pin__icon i {
+  color: #f57c00; /* Orange */
+}
+
+/* Perpustakaan */
+.pin[data-pin-style="perpustakaan"]:focus .pin__icon i {
+  color: #7b1fa2; /* Purple */
+}
+
+/* Kantin */
+.pin[data-pin-style="kantin"]:focus .pin__icon i {
+  color: #c2185b; /* Pink */
+}
+
+/* Toilet */
+.pin[data-pin-style="toilet"]:focus .pin__icon i {
+  color: #00796b; /* Teal */
+}
+
+/* Gudang */
+.pin[data-pin-style="gudang"]:focus .pin__icon i {
+  color: #5d4037; /* Brown */
 }
 
 /* Pin container */
@@ -825,6 +901,157 @@
 .pin:nth-child(9) .pin__icon {
   -webkit-transition-delay: 0.4s;
   transition-delay: 0.4s;
+}
+
+/* Pin colors based on pin_style - Different color for each room type */
+/* Default pin style */
+.pin[data-pin-style="default"] .pin__icon i,
+.pin[data-pin-style=""] .pin__icon i {
+  color: #9e9e9e; /* Grey */
+}
+
+/* Ruang Kelas */
+.pin[data-pin-style="ruang_kelas"] .pin__icon i {
+  color: #d32f2f; /* Red */
+}
+
+/* Laboratorium */
+.pin[data-pin-style="laboratorium"] .pin__icon i {
+  color: #1976d2; /* Blue */
+}
+
+/* Kantor */
+.pin[data-pin-style="kantor"] .pin__icon i {
+  color: #388e3c; /* Green */
+}
+
+/* Ruang Rapat */
+.pin[data-pin-style="ruang_rapat"] .pin__icon i {
+  color: #f57c00; /* Orange */
+}
+
+/* Perpustakaan */
+.pin[data-pin-style="perpustakaan"] .pin__icon i {
+  color: #7b1fa2; /* Purple */
+}
+
+/* Kantin */
+.pin[data-pin-style="kantin"] .pin__icon i {
+  color: #c2185b; /* Pink */
+}
+
+/* Toilet */
+.pin[data-pin-style="toilet"] .pin__icon i {
+  color: #00796b; /* Teal */
+}
+
+/* Gudang */
+.pin[data-pin-style="gudang"] .pin__icon i {
+  color: #5d4037; /* Brown */
+}
+
+/* Hover effects with matching colors - darker shades based on pin_style */
+/* Default pin style */
+.pin[data-pin-style="default"]:hover .pin__icon i,
+.pin[data-pin-style=""]:hover .pin__icon i {
+  color: #757575; /* Darker Grey */
+}
+
+/* Ruang Kelas */
+.pin[data-pin-style="ruang_kelas"]:hover .pin__icon i {
+  color: #b71c1c; /* Darker Red */
+}
+
+/* Laboratorium */
+.pin[data-pin-style="laboratorium"]:hover .pin__icon i {
+  color: #0d47a1; /* Darker Blue */
+}
+
+/* Kantor */
+.pin[data-pin-style="kantor"]:hover .pin__icon i {
+  color: #1b5e20; /* Darker Green */
+}
+
+/* Ruang Rapat */
+.pin[data-pin-style="ruang_rapat"]:hover .pin__icon i {
+  color: #e65100; /* Darker Orange */
+}
+
+/* Perpustakaan */
+.pin[data-pin-style="perpustakaan"]:hover .pin__icon i {
+  color: #4a148c; /* Darker Purple */
+}
+
+/* Kantin */
+.pin[data-pin-style="kantin"]:hover .pin__icon i {
+  color: #880e4f; /* Darker Pink */
+}
+
+/* Toilet */
+.pin[data-pin-style="toilet"]:hover .pin__icon i {
+  color: #004d40; /* Darker Teal */
+}
+
+/* Gudang */
+.pin[data-pin-style="gudang"]:hover .pin__icon i {
+  color: #3e2723; /* Darker Brown */
+}
+
+/* Active state effects with matching colors - brighter shades based on pin_style */
+/* Default pin style */
+.pin[data-pin-style="default"].pin--active .pin__icon i,
+.pin[data-pin-style="default"]:active .pin__icon i,
+.pin[data-pin-style=""].pin--active .pin__icon i,
+.pin[data-pin-style=""]:active .pin__icon i {
+  color: #bdbdbd; /* Brighter Grey */
+}
+
+/* Ruang Kelas */
+.pin[data-pin-style="ruang_kelas"].pin--active .pin__icon i,
+.pin[data-pin-style="ruang_kelas"]:active .pin__icon i {
+  color: #ff1744; /* Brighter Red */
+}
+
+/* Laboratorium */
+.pin[data-pin-style="laboratorium"].pin--active .pin__icon i,
+.pin[data-pin-style="laboratorium"]:active .pin__icon i {
+  color: #2196f3; /* Brighter Blue */
+}
+
+/* Kantor */
+.pin[data-pin-style="kantor"].pin--active .pin__icon i,
+.pin[data-pin-style="kantor"]:active .pin__icon i {
+  color: #4caf50; /* Brighter Green */
+}
+
+/* Ruang Rapat */
+.pin[data-pin-style="ruang_rapat"].pin--active .pin__icon i,
+.pin[data-pin-style="ruang_rapat"]:active .pin__icon i {
+  color: #ff9800; /* Brighter Orange */
+}
+
+/* Perpustakaan */
+.pin[data-pin-style="perpustakaan"].pin--active .pin__icon i,
+.pin[data-pin-style="perpustakaan"]:active .pin__icon i {
+  color: #9c27b0; /* Brighter Purple */
+}
+
+/* Kantin */
+.pin[data-pin-style="kantin"].pin--active .pin__icon i,
+.pin[data-pin-style="kantin"]:active .pin__icon i {
+  color: #e91e63; /* Brighter Pink */
+}
+
+/* Toilet */
+.pin[data-pin-style="toilet"].pin--active .pin__icon i,
+.pin[data-pin-style="toilet"]:active .pin__icon i {
+  color: #009688; /* Brighter Teal */
+}
+
+/* Gudang */
+.pin[data-pin-style="gudang"].pin--active .pin__icon i,
+.pin[data-pin-style="gudang"]:active .pin__icon i {
+  color: #795548; /* Brighter Brown */
 }
 
 /* Smooth transitions for all pin states */
@@ -975,5 +1202,129 @@
   .loading p,
   .error p {
     font-size: 0.9rem;
+  }
+}
+
+/* Mobile responsive styles - optimized icons, buttons and content for 3D building interface */
+@media (max-width: 640px) {
+  /* Make main box buttons bigger for mobile - 3D building interface */
+  .boxbutton {
+    font-size: 1.8em !important;
+    width: 1.8em !important;
+    height: 1.8em !important;
+  }
+
+  /* Search button bigger */
+  .open-search {
+    font-size: 1.6em !important;
+    width: 1.7em !important;
+    height: 1.7em !important;
+  }
+
+  /* Building navigation buttons bigger */
+  .buildingnav__button--up,
+  .buildingnav__button--down,
+  .buildingnav__button--all-levels {
+    font-size: 1.5em !important;
+    width: 1.6em !important;
+    height: 1.6em !important;
+  }
+
+  /* Building navigation positioning - lower position */
+  .buildingnav {
+    top: 60% !important;
+  }
+
+  /* Header smaller for mobile */
+  .detail-header {
+    padding: 1em 0.75em !important;
+  }
+
+  .detail-header h1 {
+    font-size: 0.95em !important;
+    margin: 0 0 0 0.5em !important;
+  }
+
+  /* Back button in header smaller */
+  .detail-icon {
+    font-size: 0.85em !important;
+  }
+
+  .detail-icon i {
+    font-size: 0.9em !important;
+  }
+
+  /* Content close button bigger */
+  .content__button {
+    font-size: 1.5em !important;
+    width: 1.6em !important;
+    height: 1.6em !important;
+  }
+
+  /* Pin icons bigger for mobile */
+  .pin__icon i {
+    font-size: 1em !important;
+  }
+
+  /* Level labels optimal size */
+  .level::after {
+    font-size: 2.2vmin !important;
+  }
+
+  /* Content item adjustments for mobile */
+  .content__item {
+    padding: 2em !important;
+  }
+
+  /* Content layout adjustments */
+  .content__layout {
+    gap: 1rem !important;
+    padding: 0 0.5rem !important;
+  }
+
+  /* Content title smaller for mobile */
+  .content__item-title {
+    font-size: 1.2rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  /* Content image smaller for mobile */
+  .content__image {
+    width: 200px !important;
+    height: 120px !important;
+    max-width: 200px !important;
+  }
+
+  /* Room thumbnail smaller */
+  .room-thumbnail {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  /* Meta information smaller text */
+  .content__meta-item {
+    padding: 0.15rem 0 !important;
+    font-size: 0.85rem !important;
+  }
+
+  .content__meta-item strong {
+    font-size: 0.85rem !important;
+    min-width: 80px !important;
+  }
+
+  /* Gallery indicator smaller */
+  .gallery-indicator {
+    padding: 0.3rem 0.6rem !important;
+    font-size: 0.8rem !important;
+  }
+
+  .gallery-indicator i {
+    font-size: 0.9rem !important;
+  }
+
+  /* Gallery count smaller */
+  .gallery-count {
+    font-size: 0.75rem !important;
   }
 }

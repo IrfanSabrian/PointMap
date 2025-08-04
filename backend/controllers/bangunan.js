@@ -43,10 +43,19 @@ export const updateBangunan = async (req, res) => {
   try {
     const id = req.params.id;
     const { nama, interaksi, lantai, thumbnail } = req.body;
-    const [updated] = await Bangunan.update(
-      { nama, interaksi, lantai, thumbnail },
-      { where: { id_bangunan: id } }
-    );
+
+    // Hanya update field yang dikirim (tidak undefined)
+    const updateData = {};
+    if (nama !== undefined) updateData.nama = nama;
+    if (interaksi !== undefined) updateData.interaksi = interaksi;
+    if (lantai !== undefined) updateData.lantai = lantai;
+    if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+
+    console.log("Backend update data:", updateData);
+
+    const [updated] = await Bangunan.update(updateData, {
+      where: { id_bangunan: id },
+    });
     if (updated) {
       const updatedBangunan = await Bangunan.findByPk(id);
       res.json({
@@ -57,6 +66,7 @@ export const updateBangunan = async (req, res) => {
       res.status(404).json({ error: "Bangunan tidak ditemukan" });
     }
   } catch (err) {
+    console.error("Backend update error:", err);
     res.status(500).json({ error: err.message });
   }
 };

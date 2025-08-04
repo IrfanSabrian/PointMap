@@ -83,24 +83,30 @@ export const getRuanganFor3DView = async (req, res) => {
 
     // Kelompokkan ruangan berdasarkan lantai dan tambahkan data pin dinamis
     const ruanganByLantai = {};
-    ruangan.forEach((r, index) => {
+    const levelCounters = {}; // Counter untuk setiap level
+
+    ruangan.forEach((r) => {
       const lantai = r.nomor_lantai;
       if (!ruanganByLantai[lantai]) {
         ruanganByLantai[lantai] = [];
+        levelCounters[lantai] = 0;
       }
+
+      levelCounters[lantai]++; // Increment counter untuk level ini
+      const pinIndex = levelCounters[lantai];
 
       const ruanganData = r.toJSON();
 
       // Tambahkan data pin dinamis
       const pinData = {
         ...ruanganData,
-        pin_class: `pin--${lantai}-${ruanganData.id_ruangan}`,
+        pin_class: `pin--${lantai}-${pinIndex}`, // Use level-specific counter
         pin_position: {
-          top: ruanganData.posisi_y ? `${ruanganData.posisi_y}vmin` : null,
-          left: ruanganData.posisi_x ? `${ruanganData.posisi_x}vmin` : null,
+          top: ruanganData.posisi_y ? `${ruanganData.posisi_y}%` : null,
+          left: ruanganData.posisi_x ? `${ruanganData.posisi_x}%` : null,
         },
         // Fallback ke posisi hardcoded jika tidak ada data dinamis
-        fallback_position: getFallbackPinPosition(lantai, index + 1),
+        fallback_position: getFallbackPinPosition(lantai, pinIndex),
       };
 
       ruanganByLantai[lantai].push(pinData);

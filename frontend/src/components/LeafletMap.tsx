@@ -238,9 +238,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
     const [isEditingLantai, setIsEditingLantai] = useState(false);
     const [isEditingLantaiCount, setIsEditingLantaiCount] = useState(false);
+    const [isEditingInteraksi, setIsEditingInteraksi] = useState(false);
     const [editName, setEditName] = useState("");
     const [editThumbnail, setEditThumbnail] = useState("");
     const [editLantaiCount, setEditLantaiCount] = useState(1);
+    const [editInteraksi, setEditInteraksi] = useState("");
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
     const [lantaiFiles, setLantaiFiles] = useState<{
@@ -272,6 +274,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [isSaving, setIsSaving] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
 
     // Notification system state
     const [notification, setNotification] = useState<{
@@ -409,6 +412,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }, 500); // Tunggu modal terbuka
       }
     };
+
+    // Mobile detection effect
+    useEffect(() => {
+      const checkMobile = () => {
+        setIsMobile(window.innerWidth < 640); // sm breakpoint in Tailwind
+      };
+
+      checkMobile();
+      window.addEventListener("resize", checkMobile);
+      return () => window.removeEventListener("resize", checkMobile);
+    }, []);
 
     // Load data non-bangunan dari file statis (hanya untuk tampilan, bukan pencarian)
     useEffect(() => {
@@ -655,6 +669,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         attributionControl: false,
         maxZoom: 19,
         minZoom: 2,
+        // Touch handling configuration to prevent console warnings
+        touchZoom: true,
+        doubleClickZoom: true,
+        scrollWheelZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        // Prevent passive event listener issues
+        dragging: true,
+        trackResize: true,
       });
       leafletMapRef.current = map;
       // Set posisi awal sama dengan tombol reset
@@ -668,6 +691,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
       tileLayer.addTo(map);
       basemapLayerRef.current = tileLayer;
+
+      // Configure touch handling to prevent console warnings on mobile
+      const mapContainer = map.getContainer();
+      if (mapContainer) {
+        mapContainer.style.touchAction = "none";
+        (mapContainer.style as any).webkitTouchCallout = "none";
+        (mapContainer.style as any).webkitUserSelect = "none";
+        mapContainer.style.userSelect = "none";
+      }
+
+      // Override Leaflet's preventDefault to check if event is cancelable
+      const originalPreventDefault = L.DomEvent.preventDefault;
+      (L.DomEvent as any).preventDefault = function (e: Event) {
+        if (e.cancelable !== false) {
+          originalPreventDefault(e);
+        }
+        return L.DomEvent;
+      };
+
+      // Store reference for cleanup
+      (map as any)._originalPreventDefault = originalPreventDefault;
 
       // Tambahkan custom pane untuk rute dengan zIndex tinggi
       map.createPane("routePane");
@@ -803,6 +847,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Cleanup
       return () => {
         try {
+          // Restore original preventDefault
+          if ((map as any)._originalPreventDefault) {
+            L.DomEvent.preventDefault = (map as any)._originalPreventDefault;
+          }
+
           map.eachLayer((layer: L.Layer) => {
             try {
               map.removeLayer(layer);
@@ -1079,13 +1128,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Event listener untuk keyboard shortcuts pada modal edit
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
-        if (isEditingName || isEditingThumbnail) {
+        if (isEditingName || isEditingThumbnail || isEditingInteraksi) {
           if (event.key === "Enter") {
             event.preventDefault();
             if (
               !isSaving &&
               ((isEditingName && editName.trim()) ||
-                (isEditingThumbnail && editThumbnail.trim()))
+                (isEditingThumbnail && editThumbnail.trim()) ||
+                (isEditingInteraksi && editInteraksi) ||
+                (isEditingName &&
+                  isEditingInteraksi &&
+                  editName.trim() &&
+                  editInteraksi))
             ) {
               handleSaveEdit();
             }
@@ -1096,14 +1150,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       };
 
-      if (isEditingName || isEditingThumbnail) {
+      if (isEditingName || isEditingThumbnail || isEditingInteraksi) {
         document.addEventListener("keydown", handleKeyDown);
       }
 
       return () => {
         document.removeEventListener("keydown", handleKeyDown);
       };
-    }, [isEditingName, isEditingThumbnail, editName, selectedFile, isSaving]);
+    }, [
+      isEditingName,
+      isEditingThumbnail,
+      isEditingInteraksi,
+      editName,
+      selectedFile,
+      editInteraksi,
+      isSaving,
+    ]);
 
     // Cek status login (yang login sudah pasti admin)
     useEffect(() => {
@@ -1610,6 +1672,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setIsEditingThumbnail(true);
     };
 
+    // Fungsi untuk handle edit interaksi
+    const handleEditInteraksi = () => {
+      if (!selectedFeature?.properties?.nama) return;
+
+      // Cek apakah user sudah login
+      const token = localStorage.getItem("token");
+      if (!token) {
+        showNotification(
+          "error",
+          "Akses Ditolak",
+          "Anda harus login terlebih dahulu untuk mengedit bangunan."
+        );
+        return;
+      }
+
+      setIsEditingInteraksi(true);
+      const currentInteraksi =
+        selectedFeature?.properties?.interaksi || "Noninteraktif";
+      setEditInteraksi(currentInteraksi);
+    };
+
     // Fungsi untuk handle edit lantai
     const handleEditLantai = async () => {
       if (!selectedFeature?.properties?.id) return;
@@ -1664,6 +1747,104 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         console.error("Error loading lantai data:", error);
         setLantaiGambarData([]);
         setIsEditingLantai(true);
+      }
+    };
+
+    // Fungsi untuk simpan gambar lantai individual
+    const handleSaveLantaiImage = async (lantaiNumber: number) => {
+      try {
+        const file = lantaiFiles[lantaiNumber];
+        if (!file) {
+          showNotification(
+            "error",
+            "Error",
+            "Tidak ada file yang dipilih untuk lantai ini!"
+          );
+          return;
+        }
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("gambar_lantai", file);
+        formData.append("nomor_lantai", lantaiNumber.toString());
+        formData.append("id_bangunan", String(selectedFeature?.properties?.id));
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "ngrok-skip-browser-warning": "true",
+            },
+            body: formData,
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `HTTP error! status: ${response.status} - ${errorText}`
+          );
+        }
+
+        const result = await response.json();
+        console.log("Lantai image saved:", result);
+
+        // Refresh data lantai gambar
+        if (selectedFeature?.properties?.id) {
+          const lantaiResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${selectedFeature.properties.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "ngrok-skip-browser-warning": "true",
+              },
+            }
+          );
+
+          if (lantaiResponse.ok) {
+            const data = await lantaiResponse.json();
+            setLantaiGambarData(data);
+          }
+        }
+
+        // Hapus file dari state setelah berhasil disimpan
+        setLantaiFiles((prev) => {
+          const newFiles = { ...prev };
+          delete newFiles[lantaiNumber];
+          return newFiles;
+        });
+        setLantaiPreviewUrls((prev) => {
+          const newUrls = { ...prev };
+          if (newUrls[lantaiNumber]) {
+            URL.revokeObjectURL(newUrls[lantaiNumber]!);
+            delete newUrls[lantaiNumber];
+          }
+          return newUrls;
+        });
+
+        showNotification(
+          "success",
+          "Berhasil",
+          `Gambar lantai ${lantaiNumber} berhasil disimpan!`
+        );
+      } catch (error) {
+        console.error("Error saving lantai image:", error);
+        showNotification(
+          "error",
+          "Gagal",
+          "Gagal menyimpan gambar lantai. Silakan coba lagi."
+        );
       }
     };
 
@@ -1913,6 +2094,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleEditRuangan = async () => {
       if (!selectedFeature?.properties?.id) return;
 
+      // Tutup modal edit lantai jika sedang terbuka
+      if (
+        isEditingLantai ||
+        isEditingLantaiCount ||
+        isEditingInteraksi ||
+        isEditingName
+      ) {
+        handleCancelEdit();
+      }
+
       try {
         await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
         setShowEditRuanganModal(true);
@@ -2030,6 +2221,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleSaveEdit = async () => {
       if (!selectedFeature?.properties?.id) return;
 
+      // Validasi untuk edit nama dan interaksi (opsional)
+      // Removed required validation - fields can now be empty
+
+      // Debug logging untuk troubleshooting
+      console.log("=== DEBUG SAVE EDIT ===");
+      console.log("isEditingName:", isEditingName, "editName:", editName);
+      console.log(
+        "isEditingInteraksi:",
+        isEditingInteraksi,
+        "editInteraksi:",
+        editInteraksi
+      );
+
       setIsSaving(true);
       try {
         const token = localStorage.getItem("token");
@@ -2042,9 +2246,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
-        // Handle edit nama
-        if (isEditingName && editName.trim()) {
-          const updateData = { nama: editName.trim() };
+        // Handle edit nama dan interaksi (optional) - combined in one request
+        if (isEditingName || isEditingInteraksi) {
+          const updateData: any = {};
+
+          if (isEditingName) {
+            updateData.nama = editName.trim() || undefined;
+          }
+
+          if (isEditingInteraksi) {
+            // Pastikan editInteraksi tidak kosong jika user sudah memilih nilai
+            if (editInteraksi && editInteraksi.trim() !== "") {
+              updateData.interaksi = editInteraksi;
+            } else {
+              // Jika kosong, gunakan nilai default "Noninteraktif"
+              updateData.interaksi = "Noninteraktif";
+            }
+          }
+
+          console.log("=== SENDING UPDATE DATA ===");
+          console.log("updateData:", updateData);
 
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
@@ -2060,10 +2281,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           );
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error("API Error:", errorText);
+            throw new Error(
+              `HTTP error! status: ${response.status} - ${errorText}`
+            );
           }
 
           const result = await response.json();
+          console.log("API Response:", result);
 
           // Update local state
           if (selectedFeature) {
@@ -2142,44 +2368,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         }
 
-        // Handle upload lantai
-        if (isEditingLantai && Object.keys(lantaiFiles).length > 0) {
-          for (const [lantaiNumber, file] of Object.entries(lantaiFiles)) {
-            if (file) {
-              const formData = new FormData();
-              formData.append("gambar_lantai", file);
-              formData.append("nomor_lantai", lantaiNumber);
-              formData.append(
-                "id_bangunan",
-                String(selectedFeature.properties.id)
-              );
-
-              const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "ngrok-skip-browser-warning": "true",
-                  },
-                  body: formData,
-                }
-              );
-
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-              }
-            }
-          }
-        }
+        // Handle upload lantai - removed karena sekarang menggunakan tombol simpan individual
+        // Upload lantai gambar sekarang ditangani oleh handleSaveLantaiImage
 
         // Reset edit mode
         setIsEditingName(false);
         setIsEditingThumbnail(false);
         setIsEditingLantai(false);
         setIsEditingLantaiCount(false);
+        setIsEditingInteraksi(false);
         setEditName("");
         setEditLantaiCount(1);
+        setEditInteraksi("");
         setSelectedFile(null);
         setLantaiFiles({});
         // Clean up file preview URLs
@@ -2238,8 +2438,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setIsEditingThumbnail(false);
       setIsEditingLantai(false);
       setIsEditingLantaiCount(false);
+      setIsEditingInteraksi(false);
       setEditName("");
       setEditLantaiCount(1);
+      setEditInteraksi("");
       setSelectedFile(null);
       setLantaiFiles({});
       // Clean up file preview URL
@@ -4703,18 +4905,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     return (
       <div
         className={`relative w-full h-full ${className}`}
-        style={{ minHeight: 350 }}
+        style={{
+          minHeight: 350,
+          touchAction: "none", // Prevent default touch behaviors
+        }}
       >
-        {/* Search Box ala Google Maps */}
+        {/* Search Box ala Google Maps - Mobile Responsive */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (searchResults.length > 0)
               handleSelectSearchResult(searchResults[0]);
           }}
-          className="search-container absolute top-4 left-4 z-50 min-w-56 max-w-[80vw]"
+          className="search-container absolute top-2 left-2 sm:top-4 sm:left-4 z-50 w-[calc(100vw-16px)] max-w-[280px] sm:min-w-56 sm:max-w-[80vw] sm:w-[240px]"
           autoComplete="off"
-          style={{ width: 240, zIndex: 1000 }}
+          style={{ zIndex: 1000 }}
         >
           <div
             className={`relative flex items-center border rounded-xl shadow-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition-all ${
@@ -4747,7 +4952,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 setShowSearchResults(true);
               }}
               onFocus={() => setShowSearchResults(true)}
-              placeholder="Cari nama bangunan atau ruangan..."
+              placeholder="Cari bangunan..."
               className={`pl-9 pr-2 py-1.5 w-full bg-transparent outline-none text-sm rounded-xl ${
                 isDark
                   ? "text-white placeholder:text-gray-400"
@@ -4852,43 +5057,66 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           )}
         </form>
 
-        {/* Step-by-Step Navigation Panel - Bottom Center */}
+        {/* Step-by-Step Navigation Panel - Bottom Center - Mobile Responsive */}
         {routeSteps.length > 0 && (
           <div
-            className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-[201] w-96 max-w-[90vw] ${
+            className={`absolute bottom-2 left-16 right-16 sm:bottom-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-[201] w-auto sm:w-96 max-w-none sm:max-w-[90vw] ${
               isDark
                 ? "bg-gray-800 border-gray-700 text-white"
                 : "bg-white border-gray-200 text-gray-900"
             } border rounded-xl shadow-lg`}
           >
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="p-1.5 sm:p-4">
+              <div className="flex items-center justify-between mb-1.5 sm:mb-3">
                 <div className="flex flex-col">
-                  <h3 className="font-semibold text-sm">Instruksi Navigasi</h3>
+                  <h3 className="font-semibold text-xs sm:text-sm">Navigasi</h3>
                   {routeDistance !== null && (
                     <div className="text-xs text-primary dark:text-primary-dark font-bold">
-                      Total Jarak: {Math.round(routeDistance)} meter
+                      <span className="sm:hidden">
+                        {Math.round(routeDistance)}m
+                      </span>
+                      <span className="hidden sm:inline">
+                        Total Jarak: {Math.round(routeDistance)} meter
+                      </span>
                     </div>
                   )}
                   {totalWalkingTime !== null && totalVehicleTime !== null && (
-                    <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2 mt-1">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1">
                       {transportMode === "jalan_kaki" ? (
                         <span className="flex items-center gap-1">
                           <FontAwesomeIcon
                             icon={faWalking}
-                            className="text-green-600 w-3 h-3"
+                            className="text-green-600 w-2 h-2 sm:w-3 sm:h-3"
                           />
-                          {Math.floor(totalWalkingTime / 60)} menit{" "}
-                          {Math.round(totalWalkingTime % 60)} detik
+                          <span className="sm:hidden">
+                            {Math.floor(totalWalkingTime / 60)}:
+                            {String(Math.round(totalWalkingTime % 60)).padStart(
+                              2,
+                              "0"
+                            )}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {Math.floor(totalWalkingTime / 60)} menit{" "}
+                            {Math.round(totalWalkingTime % 60)} detik
+                          </span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-1">
                           <FontAwesomeIcon
                             icon={faMotorcycle}
-                            className="text-blue-600 w-3 h-3"
+                            className="text-blue-600 w-2 h-2 sm:w-3 sm:h-3"
                           />
-                          {Math.floor(totalVehicleTime / 60)} menit{" "}
-                          {Math.round(totalVehicleTime % 60)} detik
+                          <span className="sm:hidden">
+                            {Math.floor(totalVehicleTime / 60)}:
+                            {String(Math.round(totalVehicleTime % 60)).padStart(
+                              2,
+                              "0"
+                            )}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {Math.floor(totalVehicleTime / 60)} menit{" "}
+                            {Math.round(totalVehicleTime % 60)} detik
+                          </span>
                         </span>
                       )}
                     </div>
@@ -4955,6 +5183,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         });
                       }
                     }
+
+                    // Show building detail card on mobile when navigation is closed
+                    if (isMobile && selectedFeature) {
+                      setCardVisible(true);
+                      // Trigger animation after a brief delay
+                      setTimeout(() => {
+                        setCardAnimation(true);
+                      }, 50);
+                    }
                   }}
                   className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none"
                   title="Tutup Navigasi"
@@ -4964,27 +5201,42 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               </div>
 
               {/* Current Step Display */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              <div className="mb-2 sm:mb-4">
+                <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
                     {hasReachedDestination
                       ? routeSteps.length + 1
                       : activeStepIndex + 1}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    dari {routeSteps.length + 1} langkah
+                    <span className="sm:hidden">
+                      {activeStepIndex + 1}/{routeSteps.length + 1}
+                    </span>
+                    <span className="hidden sm:inline">
+                      dari {routeSteps.length + 1} langkah
+                    </span>
                   </div>
                   {/* PERBAIKAN: Jangan tampilkan jarak untuk step terakhir (oranye) dan step merah */}
                   {activeStepIndex < routeSteps.length - 1 &&
                     !hasReachedDestination &&
                     activeStepIndex !== routeSteps.length - 1 && (
-                      <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                        {Math.round(routeSteps[activeStepIndex]?.distance || 0)}
-                        m
+                      <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 sm:py-1 rounded">
+                        <span className="sm:hidden">
+                          {Math.round(
+                            routeSteps[activeStepIndex]?.distance || 0
+                          )}
+                          m
+                        </span>
+                        <span className="hidden sm:inline">
+                          {Math.round(
+                            routeSteps[activeStepIndex]?.distance || 0
+                          )}
+                          m
+                        </span>
                       </div>
                     )}
                 </div>
-                <div className="text-sm font-medium leading-relaxed">
+                <div className="text-xs sm:text-sm font-medium leading-relaxed">
                   {hasReachedDestination
                     ? "Sampai tujuan"
                     : activeStepIndex === routeSteps.length - 1
@@ -5020,13 +5272,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   }}
                   disabled={activeStepIndex === 0 && !hasReachedDestination}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 py-3 px-4 sm:py-2 sm:px-3 rounded-lg text-sm font-medium transition-all touch-manipulation ${
                     activeStepIndex === 0 && !hasReachedDestination
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
                       : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
                   }`}
                 >
-                  ← Prev
+                  <span className="sm:hidden">←</span>
+                  <span className="hidden sm:inline">← Prev</span>
                 </button>
                 <button
                   onClick={() => {
@@ -5057,22 +5310,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     activeStepIndex === routeSteps.length - 1 &&
                     hasReachedDestination
                   }
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 py-3 px-4 sm:py-2 sm:px-3 rounded-lg text-sm font-medium transition-all touch-manipulation ${
                     activeStepIndex === routeSteps.length - 1 &&
                     hasReachedDestination
                       ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
                       : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
                   }`}
                 >
-                  Next →
+                  <span className="sm:hidden">→</span>
+                  <span className="hidden sm:inline">Next →</span>
                 </button>
               </div>
 
               {/* Progress Bar */}
-              <div className="mt-3">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div className="mt-1.5 sm:mt-3">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 sm:h-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-blue-500 h-1 sm:h-2 rounded-full transition-all duration-300"
                     style={{
                       width: `${
                         hasReachedDestination
@@ -5088,9 +5342,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {/* Kontrol kanan bawah: tombol zoom, GPS, reset, dsb */}
+        {/* Kontrol kanan bawah: tombol zoom, GPS, reset, dsb - Mobile Responsive */}
         <div
-          className="absolute right-4 bottom-4 z-50 flex flex-col gap-2"
+          className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-50 flex flex-col gap-2"
           style={{ zIndex: 1050 }}
         >
           {/* Zoom Controls */}
@@ -5109,17 +5363,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   console.log("Map not ready for zoom in");
                 }
               }}
-              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
               ${
                 isDark
                   ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
                   : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
               }
             `}
-              style={{ width: 48, height: 48 }}
               title="Zoom In"
             >
-              <FontAwesomeIcon icon={faPlus} />
+              <FontAwesomeIcon
+                icon={faPlus}
+                className="w-3 h-3 sm:w-4 sm:h-4"
+              />
             </button>
             {/* Zoom Out Button */}
             <button
@@ -5135,83 +5391,94 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   console.log("Map not ready for zoom out");
                 }
               }}
-              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
               ${
                 isDark
                   ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
                   : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
               }
             `}
-              style={{ width: 48, height: 48 }}
               title="Zoom Out"
             >
-              <FontAwesomeIcon icon={faMinus} />
+              <FontAwesomeIcon
+                icon={faMinus}
+                className="w-3 h-3 sm:w-4 sm:h-4"
+              />
             </button>
             {/* Reset Zoom Button */}
             <button
               data-control="reset-zoom"
               onClick={handleResetZoom}
-              className={`flex items-center justify-center rounded-lg shadow-lg px-3 py-2 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
               ${
                 isDark
                   ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
                   : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
               }
             `}
-              style={{ width: 48, height: 48 }}
               title="Reset ke Posisi Awal"
             >
               {/* Ikon reset posisi: panah melingkar */}
-              <FontAwesomeIcon icon={faSyncAlt} />
+              <FontAwesomeIcon
+                icon={faSyncAlt}
+                className="w-3 h-3 sm:w-4 sm:h-4"
+              />
             </button>
           </div>
         </div>
 
-        {/* Kontrol kiri bawah: basemap dan toggle layer */}
+        {/* Kontrol kiri bawah: basemap dan toggle layer - Mobile Responsive */}
         <div
-          className="absolute left-4 bottom-4 z-50 flex flex-col gap-2"
+          className="absolute left-2 bottom-2 sm:left-4 sm:bottom-4 z-50 flex flex-col gap-2"
           style={{ zIndex: 1050 }}
         >
           {/* Toggle Layer Button (ikon mata) */}
           <button
             data-control="toggle-layer"
             onClick={handleToggleLayer}
-            className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+            className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3
           ${
             isDark
               ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
               : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
           }
         `}
-            style={{ width: 64, height: 64 }}
           >
             {layerVisible ? (
               // Ikon layer visible saja, tanpa teks 'Sembunyikan'
-              <FontAwesomeIcon icon={faLayerGroup} />
+              <FontAwesomeIcon
+                icon={faLayerGroup}
+                className="w-4 h-4 sm:w-5 sm:h-5"
+              />
             ) : (
               // Ikon layer hidden saja, tanpa teks 'Tampilkan'
-              <FontAwesomeIcon icon={faLayerGroup} />
+              <FontAwesomeIcon
+                icon={faLayerGroup}
+                className="w-4 h-4 sm:w-5 sm:h-5"
+              />
             )}
           </button>
           {/* Basemap Toggle Button identik EsriMap */}
           <button
             data-control="toggle-basemap"
             onClick={handleToggleBasemap}
-            className={`flex flex-col items-center justify-center rounded-lg shadow-lg px-4 py-3 text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer
+            className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3
           ${
             isDark
               ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
               : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
           }
         `}
-            style={{ width: 64, height: 64 }}
           >
             {isSatellite ? (
               <>
                 {/* Ikon globe/peta */}
-                <FontAwesomeIcon icon={faGlobe} />
+                <FontAwesomeIcon
+                  icon={faGlobe}
+                  className="w-3 h-3 sm:w-4 sm:h-4 mb-0 sm:mb-0.5"
+                />
                 <span
-                  className={`text-xs font-bold ${
+                  className={`text-xs font-bold hidden sm:block ${
                     isDark ? "text-white" : "text-gray-700"
                   }`}
                 >
@@ -5221,9 +5488,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             ) : (
               <>
                 {/* Ikon satelit */}
-                <FontAwesomeIcon icon={faGlobe} />
+                <FontAwesomeIcon
+                  icon={faGlobe}
+                  className="w-3 h-3 sm:w-4 sm:h-4 mb-0 sm:mb-0.5"
+                />
                 <span
-                  className={`text-xs font-bold ${
+                  className={`text-xs font-bold hidden sm:block ${
                     isDark ? "text-white" : "text-gray-700"
                   }`}
                 >
@@ -5234,13 +5504,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </button>
         </div>
 
-        {/* Sidebar Gedung (floating card kanan atas) */}
+        {/* Sidebar Gedung (floating card kanan atas) - Mobile Responsive */}
         {selectedFeature && (
           <div
             data-container="building-detail"
-            className={`absolute right-4 top-4 z-[201] w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
+            className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-[201] w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
               ${
-                cardVisible && cardAnimation
+                cardVisible &&
+                cardAnimation &&
+                !(isMobile && routeSteps.length > 0)
                   ? "opacity-100 translate-y-0 scale-100"
                   : "opacity-0 translate-y-4 scale-95 pointer-events-none"
               }
@@ -5248,13 +5520,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             `}
             style={{
               boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)",
-              minHeight: 120,
+              minHeight: isMobile ? 100 : 120,
             }}
           >
             {/* Header dengan nama gedung - 2 baris */}
-            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              {/* Baris 1: Tombol close */}
-              <div className="flex justify-end mb-1">
+            <div className="px-2 py-1.5 sm:px-4 sm:py-3 border-b border-gray-100 dark:border-gray-800">
+              {/* Baris 1: Tombol close dan nama gedung */}
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs sm:text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-4 sm:pr-8 leading-tight">
+                  {selectedFeature.properties?.nama || "Tanpa Nama"}
+                </span>
                 <button
                   onClick={() => {
                     setCardVisible(false);
@@ -5262,8 +5537,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     // Reset edit mode
                     setIsEditingName(false);
                     setIsEditingThumbnail(false);
+                    setIsEditingInteraksi(false);
                     setEditName("");
                     setEditThumbnail("");
+                    setEditInteraksi("");
                     // Jika navigation aktif, tutup juga navigation
                     if (isNavigationActive) {
                       setRouteSteps([]);
@@ -5298,25 +5575,37 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 </button>
               </div>
 
-              {/* Baris 2: Nama gedung dan tombol edit */}
-              <div className="flex items-center justify-between">
-                <span className="text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-8">
-                  {selectedFeature.properties?.nama || "Tanpa Nama"}
-                </span>
-                {isDashboard && isLoggedIn && (
+              {/* Baris 2: Tombol edit nama dan interaksi */}
+              {isDashboard && isLoggedIn && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Interaksi:
+                    </span>
+                    <span className="text-sm text-gray-900 dark:text-white">
+                      {selectedFeature.properties?.interaksi || "Noninteraktif"}
+                    </span>
+                  </div>
                   <button
-                    onClick={handleEditName}
+                    onClick={() => {
+                      setIsEditingName(true);
+                      setIsEditingInteraksi(true);
+                      setEditName(selectedFeature.properties?.nama || "");
+                      const currentInteraksi =
+                        selectedFeature.properties?.interaksi || "";
+                      setEditInteraksi(currentInteraksi);
+                    }}
                     className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
-                    title="Edit nama bangunan"
+                    title="Edit nama dan interaksi bangunan"
                   >
                     <i className="fas fa-edit text-sm"></i>
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Gambar thumbnail bangunan */}
-            <div className="px-4 pt-2">
+            <div className="px-2 pt-1.5 sm:px-4 sm:pt-2">
               <div className="relative">
                 <img
                   src={
@@ -5331,7 +5620,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       : "/img/default/thumbnail.jpg"
                   }
                   alt={selectedFeature.properties?.nama || "Bangunan"}
-                  className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                  className="w-full h-20 sm:h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                   onError={(e) => {
                     // Fallback ke gambar default jika tidak ditemukan
                     const target = e.target as HTMLImageElement;
@@ -5350,25 +5639,29 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col gap-3 px-4 py-4">
+            <div className="flex-1 flex flex-col gap-1.5 sm:gap-3 px-2 py-2 sm:px-4 sm:py-4">
               {selectedFeature.properties?.interaksi &&
                 selectedFeature.properties.interaksi.toLowerCase() ===
                   "interaktif" && (
                   <div className="flex gap-2 mb-1">
                     <button
-                      className="flex-1 py-2 rounded-lg font-bold text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark"
+                      className="flex-1 py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark touch-manipulation"
                       onClick={() => openBuildingDetailModal()}
                     >
-                      <FontAwesomeIcon icon={faInfoCircle} className="mr-2" />
-                      Detail Bangunan
+                      <FontAwesomeIcon
+                        icon={faInfoCircle}
+                        className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4"
+                      />
+                      <span className="sm:hidden">Detail</span>
+                      <span className="hidden sm:inline">Detail Bangunan</span>
                     </button>
                     {isDashboard && isLoggedIn && (
                       <button
-                        className="px-3 py-2 rounded-lg font-bold text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        className="px-2 sm:px-3 py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 touch-manipulation"
                         onClick={handleEditLantai}
                         title="Edit Lantai"
                       >
-                        <i className="fas fa-layer-group text-sm"></i>
+                        <i className="fas fa-layer-group text-xs sm:text-sm"></i>
                       </button>
                     )}
                   </div>
@@ -5376,7 +5669,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               {selectedFeature?.properties?.id &&
                 selectedFeature?.properties?.nama && (
                   <button
-                    className="w-full py-2 rounded-lg font-bold text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark"
+                    className="w-full py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark touch-manipulation"
                     onClick={() => {
                       // Set tujuan otomatis ke bangunan yang sedang diklik
                       setRouteEndType("bangunan");
@@ -5386,7 +5679,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       setTimeout(() => setShowRouteModal(true), 10);
                     }}
                   >
-                    <FontAwesomeIcon icon={faRoute} className="mr-2" />
+                    <FontAwesomeIcon
+                      icon={faRoute}
+                      className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4"
+                    />
                     Rute
                   </button>
                 )}
@@ -5403,8 +5699,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {(isEditingName ||
           isEditingThumbnail ||
           isEditingLantai ||
-          isEditingLantaiCount) && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999999]">
+          isEditingLantaiCount ||
+          isEditingInteraksi) && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
             <div
               className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
               data-modal="edit-modal"
@@ -5412,12 +5709,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Edit{" "}
-                  {isEditingName
+                  {isEditingName && isEditingInteraksi
+                    ? "Nama & Interaksi"
+                    : isEditingName
                     ? "Nama"
                     : isEditingThumbnail
                     ? "Thumbnail"
                     : isEditingLantaiCount
                     ? "Jumlah Lantai"
+                    : isEditingInteraksi
+                    ? "Interaksi"
                     : "Lantai"}{" "}
                   Bangunan
                 </h3>
@@ -5430,36 +5731,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               </div>
 
               <div className="space-y-4">
-                {isEditingName && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Nama Bangunan <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent ${
-                        isEditingName && !editName.trim()
-                          ? "border-red-500 focus:border-red-500"
-                          : "border-gray-300 dark:border-gray-600"
-                      }`}
-                      placeholder="Masukkan nama bangunan"
-                      autoFocus
-                    />
-                    {isEditingName && !editName.trim() && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Nama bangunan tidak boleh kosong
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {isEditingThumbnail && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Upload Thumbnail Baru{" "}
-                      <span className="text-red-500">*</span>
+                      Upload Thumbnail Baru
                     </label>
                     <div className="space-y-3">
                       {/* File input */}
@@ -5535,6 +5810,40 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                       Format yang didukung: JPG, PNG, GIF, WebP (Maks. 5MB)
                     </p>
+                  </div>
+                )}
+
+                {isEditingName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nama Bangunan
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Masukkan nama bangunan"
+                      autoFocus
+                    />
+                    {/* Validation message removed - nama is now optional */}
+                  </div>
+                )}
+
+                {isEditingInteraksi && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Status Interaksi
+                    </label>
+                    <select
+                      value={editInteraksi}
+                      onChange={(e) => setEditInteraksi(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value="Interaktif">Interaktif</option>
+                      <option value="Noninteraktif">Noninteraktif</option>
+                    </select>
+                    {/* Validation message removed - interaksi is now optional */}
                   </div>
                 )}
 
@@ -5785,29 +6094,43 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                         {hasFile ? "Ganti File" : "Pilih File"}
                                       </label>
                                       {hasFile && (
-                                        <button
-                                          onClick={() => {
-                                            setLantaiFiles((prev) => {
-                                              const newFiles = { ...prev };
-                                              delete newFiles[lantaiNumber];
-                                              return newFiles;
-                                            });
-                                            setLantaiPreviewUrls((prev) => {
-                                              const newUrls = { ...prev };
-                                              if (newUrls[lantaiNumber]) {
-                                                URL.revokeObjectURL(
-                                                  newUrls[lantaiNumber]!
-                                                );
-                                                delete newUrls[lantaiNumber];
-                                              }
-                                              return newUrls;
-                                            });
-                                          }}
-                                          className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
-                                          title="Hapus file"
-                                        >
-                                          <i className="fas fa-times"></i>
-                                        </button>
+                                        <>
+                                          <button
+                                            onClick={() =>
+                                              handleSaveLantaiImage(
+                                                lantaiNumber
+                                              )
+                                            }
+                                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                            title="Simpan gambar"
+                                          >
+                                            <i className="fas fa-save text-xs"></i>
+                                            Simpan
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setLantaiFiles((prev) => {
+                                                const newFiles = { ...prev };
+                                                delete newFiles[lantaiNumber];
+                                                return newFiles;
+                                              });
+                                              setLantaiPreviewUrls((prev) => {
+                                                const newUrls = { ...prev };
+                                                if (newUrls[lantaiNumber]) {
+                                                  URL.revokeObjectURL(
+                                                    newUrls[lantaiNumber]!
+                                                  );
+                                                  delete newUrls[lantaiNumber];
+                                                }
+                                                return newUrls;
+                                              });
+                                            }}
+                                            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
+                                            title="Hapus file"
+                                          >
+                                            <i className="fas fa-times"></i>
+                                          </button>
+                                        </>
                                       )}
                                     </div>
 
@@ -5916,20 +6239,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     disabled={(() => {
                       let disabled = isSaving;
 
-                      if (isEditingName && !isEditingLantaiCount) {
-                        disabled = disabled || !editName.trim();
-                      }
+                      // Nama and Interaksi are now optional - removed validation
+                      // if (isEditingName && !isEditingLantaiCount) {
+                      //   disabled = disabled || !editName.trim();
+                      // }
 
                       if (isEditingThumbnail && !isEditingLantaiCount) {
                         disabled = disabled || !selectedFile;
                       }
 
                       if (isEditingLantai && !isEditingLantaiCount) {
-                        // Allow saving if there are existing files or new files selected
-                        const hasExistingFiles = lantaiGambarData.length > 0;
-                        const hasNewFiles = Object.keys(lantaiFiles).length > 0;
-                        disabled =
-                          disabled || (!hasExistingFiles && !hasNewFiles);
+                        // Lantai editing tidak memerlukan validasi khusus karena menggunakan tombol simpan individual
+                        // disabled = disabled || false; // Selalu false
                       }
 
                       if (isEditingLantaiCount) {
@@ -5938,6 +6259,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           Number(editLantaiCount) < 1 ||
                           Number(editLantaiCount) > 20;
                       }
+
+                      // Interaksi is now optional - removed validation
+                      // if (isEditingInteraksi) {
+                      //   disabled = disabled || !editInteraksi;
+                      // }
+
+                      // Combined validation for nama and interaksi is now optional
+                      // if (isEditingName && isEditingInteraksi) {
+                      //   disabled =
+                      //     disabled || !editName.trim() || !editInteraksi;
+                      // }
 
                       return disabled;
                     })()}
@@ -6162,8 +6494,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Modal Pilih Posisi Pin */}
         {showPinPositionModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999]">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+              {/* Header - Fixed */}
+              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Pilih Posisi Pin - Lantai {selectedLantaiForRuangan}
                 </h3>
@@ -6175,7 +6508,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 </button>
               </div>
 
-              <div className="mb-4">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Instructions - Fixed at top of scrollable area */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                   <div className="flex items-start">
                     <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
@@ -6306,7 +6641,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 )}
               </div>
 
-              <div className="flex gap-2 pt-4">
+              {/* Footer - Fixed */}
+              <div className="flex gap-2 p-6 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setShowPinPositionModal(false)}
                   className="flex-1 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
@@ -6339,6 +6675,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             minHeight: 300,
             zIndex: 1,
             display: showBuildingDetailCanvas ? "none" : "block",
+            touchAction: "none",
+            WebkitTouchCallout: "none",
+            userSelect: "none",
+            WebkitUserSelect: "none",
           }}
           className="w-full h-full"
         />
@@ -6754,20 +7094,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Modal Pilih Ruangan untuk Edit */}
         {showEditRuanganModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    📝 Pilih Ruangan untuk Diedit
-                  </h3>
-                  <button
-                    onClick={() => setShowEditRuanganModal(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
-                  >
-                    ×
-                  </button>
-                </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
+              {/* Header - Fixed */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Pilih Ruangan untuk Diedit
+                </h3>
+                <button
+                  onClick={() => setShowEditRuanganModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
 
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6">
                 {ruanganList.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-6xl mb-4">🏢</div>

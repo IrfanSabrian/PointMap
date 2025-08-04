@@ -337,6 +337,198 @@
         }
       }
 
+      /* Debug Layer untuk menunjukkan area pin marker */
+      .debug-pin-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 0, 0, 0.3);
+        border: 2px solid rgba(255, 0, 0, 0.8);
+        pointer-events: none;
+        z-index: 1;
+        display: none; /* Hidden by default */
+        align-items: center;
+        justify-content: center;
+        font-family: monospace;
+        font-size: 12px;
+        color: rgba(255, 0, 0, 0.9);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      }
+
+      /* Pin marker indicator in debug mode */
+      .debug-pin-indicator {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: rgba(0, 255, 0, 0.9);
+        border: 2px solid white;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 5;
+        box-shadow: 0 0 8px rgba(0, 255, 0, 0.8);
+        animation: pulse 2s infinite;
+      }
+
+      .debug-pin-indicator::after {
+        content: attr(data-room);
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 255, 0, 0.9);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        white-space: nowrap;
+        z-index: 6;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.2);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      .debug-pin-area.show {
+        display: flex;
+      }
+
+      .debug-pin-area::before {
+        content: "DEBUG: Area Pin Marker (0,0) sampai (100%,100%) - Safe Area: (5%,5%) sampai (95%,95%)";
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 0, 0, 0.9);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+        max-width: 300px;
+        white-space: normal;
+        line-height: 1.2;
+      }
+
+      /* Safe area indicator */
+      .debug-pin-area .safe-area {
+        position: absolute;
+        top: 5%;
+        left: 5%;
+        width: 90%;
+        height: 90%;
+        border: 2px dashed rgba(0, 255, 0, 0.8);
+        background: rgba(0, 255, 0, 0.1);
+        pointer-events: none;
+      }
+
+      .debug-pin-area::after {
+        content: "CENTER: X: 50% Y: 50%";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 0, 0, 0.9);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      /* Coordinate labels */
+      .debug-pin-area .coord-label {
+        position: absolute;
+        background: rgba(255, 0, 0, 0.9);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      .debug-pin-area .coord-label.top-left {
+        top: 15px;
+        left: 15px;
+      }
+
+      .debug-pin-area .coord-label.top-right {
+        top: 15px;
+        right: 15px;
+      }
+
+      .debug-pin-area .coord-label.bottom-left {
+        bottom: 15px;
+        left: 15px;
+      }
+
+      .debug-pin-area .coord-label.bottom-right {
+        bottom: 15px;
+        right: 15px;
+      }
+
+      /* Grid lines untuk membantu positioning */
+      .debug-pin-area .grid-line {
+        position: absolute;
+        background: rgba(255, 0, 0, 0.5);
+        pointer-events: none;
+      }
+
+      .debug-pin-area .grid-line.horizontal {
+        width: 100%;
+        height: 1px;
+      }
+
+      .debug-pin-area .grid-line.vertical {
+        width: 1px;
+        height: 100%;
+      }
+
+      /* Corner markers */
+      .debug-pin-area .corner-marker {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: rgba(255, 0, 0, 0.9);
+        border: 2px solid white;
+        border-radius: 50%;
+      }
+
+      .debug-pin-area .corner-marker.top-left {
+        top: 5px;
+        left: 5px;
+      }
+
+      .debug-pin-area .corner-marker.top-right {
+        top: 5px;
+        right: 5px;
+      }
+
+      .debug-pin-area .corner-marker.bottom-left {
+        bottom: 5px;
+        left: 5px;
+      }
+
+      .debug-pin-area .corner-marker.bottom-right {
+        bottom: 5px;
+        right: 5px;
+      }
+
       /* Custom Confirmation Dialog */
       .confirmation-modal {
         position: fixed;
@@ -1312,6 +1504,59 @@
             "Ruangan data for 3D view:",
             JSON.stringify(ruanganData, null, 2)
           );
+
+          // Make ruangan data globally available for debug
+          window.ruanganData = ruanganData;
+
+          // Debug: Check if data is properly structured
+          console.log("=== Data Structure Check ===");
+          Object.keys(ruanganData).forEach((lantai) => {
+            console.log(
+              `Level ${lantai} has ${ruanganData[lantai].length} rooms`
+            );
+            ruanganData[lantai].forEach((ruangan, index) => {
+              console.log(
+                `  ${index + 1}. ${ruangan.nama_ruangan} (ID: ${
+                  ruangan.id_ruangan
+                })`
+              );
+              console.log(`     - pin_class: ${ruangan.pin_class}`);
+              console.log(
+                `     - posisi_x: ${
+                  ruangan.posisi_x
+                } (${typeof ruangan.posisi_x})`
+              );
+              console.log(
+                `     - posisi_y: ${
+                  ruangan.posisi_y
+                } (${typeof ruangan.posisi_y})`
+              );
+              console.log(
+                `     - pin_position: ${JSON.stringify(ruangan.pin_position)}`
+              );
+            });
+          });
+
+          // Debug: Log specific pin positions
+          Object.keys(ruanganData).forEach((lantai) => {
+            ruanganData[lantai].forEach((ruangan, index) => {
+              console.log(`Room ${index + 1}: ${ruangan.nama_ruangan}`);
+              console.log(
+                `  - posisi_x (raw):`,
+                ruangan.posisi_x,
+                `(${typeof ruangan.posisi_x})`
+              );
+              console.log(
+                `  - posisi_y (raw):`,
+                ruangan.posisi_y,
+                `(${typeof ruangan.posisi_y})`
+              );
+              console.log(`  - pin_position:`, ruangan.pin_position);
+              console.log(`  - fallback_position:`, ruangan.fallback_position);
+              console.log(`  - pin_class:`, ruangan.pin_class);
+            });
+          });
+
           generateDynamicPinCSS(ruanganData);
 
           // Render bangunan dengan data tambahan
@@ -1373,10 +1618,22 @@
             const pinWidthPercent = 4; // 4vmin = 4% of viewport
             const pinHeightPercent = 6; // 6vmin = 6% of viewport
 
+            // Debug: Log raw data from database
+            console.log(`Raw pin data for ${pinClass}:`, {
+              pin_position: ruangan.pin_position,
+              fallback_position: ruangan.fallback_position,
+              ruangan: ruangan.nama_ruangan,
+              posisi_x_raw: ruangan.posisi_x,
+              posisi_y_raw: ruangan.posisi_y,
+            });
+
             // Gunakan posisi dinamis jika tersedia, jika tidak gunakan fallback
             if (ruangan.pin_position.top && ruangan.pin_position.left) {
               top = ruangan.pin_position.top;
               left = ruangan.pin_position.left;
+              console.log(
+                `Using dynamic position for ${pinClass}: top="${top}", left="${left}"`
+              );
             } else {
               // Gunakan fallback position dengan pin size consideration
               const fallbackTop = Math.max(
@@ -1395,51 +1652,177 @@
               );
               top = `${fallbackTop}vmin`;
               left = `${fallbackLeft}vmin`;
+              console.log(
+                `Using fallback position for ${pinClass}: top="${top}", left="${left}"`
+              );
             }
 
-            // Parse coordinates
-            const topValue = parseFloat(top);
-            const leftValue = parseFloat(left);
+            // Parse coordinates - now backend sends percentage values
+            let topPercent, leftPercent;
+
+            // Extract percentage values
+            if (typeof top === "string" && top.includes("%")) {
+              topPercent = parseFloat(top);
+              console.log(`Top parsed as percentage: ${topPercent}%`);
+            } else {
+              topPercent = parseFloat(top);
+              console.log(`Top parsed as number: ${topPercent}%`);
+            }
+
+            if (typeof left === "string" && left.includes("%")) {
+              leftPercent = parseFloat(left);
+              console.log(`Left parsed as percentage: ${leftPercent}%`);
+            } else {
+              leftPercent = parseFloat(left);
+              console.log(`Left parsed as number: ${leftPercent}%`);
+            }
 
             // Validate coordinates
-            if (isNaN(topValue) || isNaN(leftValue)) {
+            if (isNaN(topPercent) || isNaN(leftPercent)) {
               console.error(
-                `Invalid coordinates for ${pinClass}: top="${top}", left="${left}"`
+                `Invalid coordinates for ${pinClass}: top="${top}", left="${left}" -> topPercent=${topPercent}, leftPercent=${leftPercent}`
               );
               return;
             }
 
-            // Convert vmin to percentage for more stable positioning
-            // Assuming image is 100% width and height of container
-            const topPercent = (topValue / 100) * 100;
-            const leftPercent = (leftValue / 100) * 100;
+            // Use exact coordinates with adjustment based on actual SVG dimensions
+            // This ensures pin markers align with the actual SVG image, not the container
+            let finalTop, finalLeft;
 
-            // Constrain to stay within image bounds considering pin size
-            // Use more conservative bounds to ensure pins stay within SVG
-            const constrainedTop = Math.max(
-              pinHeightPercent,
-              Math.min(topPercent, 100 - pinHeightPercent)
-            );
-            const constrainedLeft = Math.max(
-              pinWidthPercent,
-              Math.min(leftPercent, 100 - pinWidthPercent)
-            );
+            // Get actual SVG dimensions and positioning within the level container
+            const levelElement = document.querySelector(`.level--${lantai}`);
+            let svgImage = null;
+            let svgRect = null;
+            let levelRect = null;
+
+            if (levelElement) {
+              svgImage = levelElement.querySelector("img");
+              if (svgImage) {
+                // Get the actual displayed dimensions of both level container and SVG image
+                levelRect = levelElement.getBoundingClientRect();
+                svgRect = svgImage.getBoundingClientRect();
+
+                console.log(`Level ${lantai} dimensions:`, {
+                  level: { width: levelRect.width, height: levelRect.height },
+                  svg: { width: svgRect.width, height: svgRect.height },
+                  svgOffset: {
+                    left: svgRect.left - levelRect.left,
+                    top: svgRect.top - levelRect.top,
+                  },
+                  svgAspectRatio: svgRect.width / svgRect.height,
+                  levelAspectRatio: levelRect.width / levelRect.height,
+                });
+              }
+            }
+
+            // Calculate coordinates based on actual SVG content area (excluding transparent padding)
+            if (svgRect && levelRect) {
+              // Get the actual SVG content dimensions (excluding transparent padding)
+              const svgContentWidth = svgImage.naturalWidth || svgRect.width;
+              const svgContentHeight = svgImage.naturalHeight || svgRect.height;
+
+              // Calculate the actual content area within the displayed SVG
+              const contentAspectRatio = svgContentWidth / svgContentHeight;
+              const displayAspectRatio = svgRect.width / svgRect.height;
+
+              let actualContentWidth, actualContentHeight;
+              let contentOffsetX = 0,
+                contentOffsetY = 0;
+
+              if (contentAspectRatio > displayAspectRatio) {
+                // Content is wider than display - fit to width
+                actualContentWidth = svgRect.width;
+                actualContentHeight = svgRect.width / contentAspectRatio;
+                contentOffsetY = (svgRect.height - actualContentHeight) / 2;
+              } else {
+                // Content is taller than display - fit to height
+                actualContentHeight = svgRect.height;
+                actualContentWidth = svgRect.height * contentAspectRatio;
+                contentOffsetX = (svgRect.width - actualContentWidth) / 2;
+              }
+
+              // Calculate coordinates relative to actual content area
+              const contentLeftPercent =
+                (leftPercent * actualContentWidth) / svgRect.width +
+                (contentOffsetX / svgRect.width) * 100;
+              const contentTopPercent =
+                (topPercent * actualContentHeight) / svgRect.height +
+                (contentOffsetY / svgRect.height) * 100;
+
+              finalTop = Math.max(0, contentTopPercent - 5);
+              finalLeft = Math.max(0, contentLeftPercent - 5);
+
+              console.log(`Pin ${pinClass} content-based calculation:`, {
+                original: { top: topPercent, left: leftPercent },
+                contentDimensions: {
+                  width: actualContentWidth,
+                  height: actualContentHeight,
+                },
+                contentOffset: { x: contentOffsetX, y: contentOffsetY },
+                contentCoordinates: {
+                  top: contentTopPercent,
+                  left: contentLeftPercent,
+                },
+                final: { top: finalTop, left: finalLeft },
+              });
+            } else {
+              // Fallback to direct coordinates if SVG info not available
+              finalTop = Math.max(0, topPercent - 5);
+              finalLeft = Math.max(0, leftPercent - 5);
+            }
+
+            console.log(`Pin ${pinClass} using direct coordinates:`, {
+              original: { top: topPercent, left: leftPercent },
+              final: { top: finalTop, left: finalLeft },
+              svgInfo: svgRect
+                ? {
+                    svgWidth: svgRect.width,
+                    svgHeight: svgRect.height,
+                    levelWidth: levelRect.width,
+                    levelHeight: levelRect.height,
+                    svgAspectRatio: (svgRect.width / svgRect.height).toFixed(2),
+                    levelAspectRatio: (
+                      levelRect.width / levelRect.height
+                    ).toFixed(2),
+                  }
+                : "SVG not found",
+            });
 
             console.log(
-              `Pin ${pinClass}: (${topValue}vmin, ${leftValue}vmin) -> (${constrainedTop}%, ${constrainedLeft}%)`
+              `Pin ${pinClass}: Original(${topPercent}%, ${leftPercent}%) -> Adjusted(${finalTop}%, ${finalLeft}%)`
             );
 
-            // Generate CSS with percentage positioning for stability
-            cssRules += `
+            // Store the coordinates for debug indicators to use
+            if (!window.pinCoordinates) window.pinCoordinates = {};
+            window.pinCoordinates[pinClass] = {
+              top: `${finalTop}%`,
+              left: `${finalLeft}%`,
+              ruangan: ruangan.nama_ruangan,
+              original: { top: `${topPercent}%`, left: `${leftPercent}%` },
+              adjusted: { top: `${finalTop}%`, left: `${finalLeft}%` },
+              shift: { top: -5, left: -5 }, // Shift values applied
+            };
+
+            console.log(
+              `Stored coordinates for ${pinClass}:`,
+              window.pinCoordinates[pinClass]
+            );
+
+            // Generate CSS with exact percentage positioning
+            const cssRule = `
               .${pinClass} {
-                top: ${constrainedTop}% !important;
-                left: ${constrainedLeft}% !important;
+                top: ${finalTop}% !important;
+                left: ${finalLeft}% !important;
                 position: absolute !important;
                 z-index: 10 !important;
                 transform-origin: 50% 100% !important;
                 -webkit-transform-origin: 50% 100% !important;
               }
             `;
+
+            cssRules += cssRule;
+
+            console.log(`Generated CSS for ${pinClass}:`, cssRule);
           });
         });
 
@@ -1455,9 +1838,30 @@
             existingStyle.remove();
           }
 
+          // Add to head
           document.head.appendChild(styleElement);
-          console.log("New dynamic pin CSS applied");
+          console.log("Dynamic pin CSS applied successfully");
         }
+      }
+
+      // Setup debug area dengan grid dan corner markers
+
+      // Get SVG dimensions for a specific level
+      function getSVGDimensions(levelId) {
+        const levelElement = document.querySelector(`.level--${levelId}`);
+        if (levelElement) {
+          const svgImage = levelElement.querySelector("img");
+          if (svgImage) {
+            // Get the actual displayed dimensions
+            const rect = svgImage.getBoundingClientRect();
+            return {
+              width: rect.width,
+              height: rect.height,
+              aspectRatio: rect.width / rect.height,
+            };
+          }
+        }
+        return null;
       }
 
       // Fungsi untuk render bangunan
@@ -1519,7 +1923,8 @@
                 style="display: block"
                 onerror="this.src='${fallbackPath}'"
               />
-              <div class="level__pins" id="level${lantai}-pins"></div>
+              <div class="level__pins" id="level${lantai}-pins">
+              </div>
             </div>
           `;
 
@@ -1565,6 +1970,10 @@
             const pinElement = document.createElement("a");
             pinElement.className = `pin pin--${lantai}-${ruanganIndex + 1}`;
             pinElement.setAttribute("data-space", spaceId);
+            pinElement.setAttribute(
+              "data-pin-style",
+              ruangan.pin_style || "default"
+            );
             pinElement.setAttribute("href", "#");
             pinElement.setAttribute(
               "aria-label",
@@ -2240,6 +2649,27 @@
             e.preventDefault();
             saveRoomEdit(roomId);
           });
+
+        // Handle close button click
+        document
+          .querySelector("#editRoomModal .close-btn")
+          .addEventListener("click", function () {
+            closeEditRoomModal();
+          });
+
+        // Handle cancel button click
+        document
+          .querySelector("#editRoomModal .btn-cancel")
+          .addEventListener("click", function () {
+            closeEditRoomModal();
+          });
+
+        // Handle escape key press
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") {
+            closeEditRoomModal();
+          }
+        });
       }
 
       // Fungsi untuk membuka modal edit gallery
@@ -2277,7 +2707,7 @@
                   </div>
                 </div>
                 <div class="form-actions">
-                  <button type="button" onclick="closeEditGalleryModal()" class="btn-cancel">Batal</button>
+                  <button type="button" class="btn-cancel">Batal</button>
                   <button type="button" onclick="saveGalleryImages(${roomId})" class="btn-save">
                     <i class="fas fa-save"></i>
                     Simpan
@@ -2290,6 +2720,27 @@
 
         document.body.insertAdjacentHTML("beforeend", modalHTML);
         loadCurrentGalleryImages(roomId);
+
+        // Handle close button click for gallery modal
+        document
+          .querySelector("#editGalleryModal .close-btn")
+          .addEventListener("click", function () {
+            closeEditGalleryModal();
+          });
+
+        // Handle cancel button click for gallery modal
+        document
+          .querySelector("#editGalleryModal .btn-cancel")
+          .addEventListener("click", function () {
+            closeEditGalleryModal();
+          });
+
+        // Handle escape key press for gallery modal
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") {
+            closeEditGalleryModal();
+          }
+        });
 
         // Handle file selection and update text
         document
@@ -2682,5 +3133,200 @@
     <script src="js/list.min.js"></script>
     <script src="js/classie.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- Script untuk mengatur ukuran gambar SVG agar pas dengan container level -->
+    <script>
+      // Fungsi untuk mengatur ukuran gambar SVG agar pas dengan container level
+      function adjustSVGSizeToLevel() {
+        // Cari semua level yang sedang aktif
+        const activeLevels = document.querySelectorAll(".level");
+
+        activeLevels.forEach((level) => {
+          const img = level.querySelector("img");
+          if (!img) return;
+
+          // Tunggu gambar selesai dimuat
+          if (img.complete) {
+            adjustImageSize(img, level);
+          } else {
+            img.onload = () => adjustImageSize(img, level);
+          }
+        });
+      }
+
+      function adjustImageSize(img, level) {
+        // Dapatkan ukuran container level (gunakan computed style untuk ukuran yang lebih akurat)
+        const levelStyle = window.getComputedStyle(level);
+        const levelWidth = parseFloat(levelStyle.width);
+        const levelHeight = parseFloat(levelStyle.height);
+
+        // Dapatkan ukuran asli gambar
+        const imgNaturalWidth = img.naturalWidth;
+        const imgNaturalHeight = img.naturalHeight;
+
+        if (imgNaturalWidth && imgNaturalHeight && levelWidth && levelHeight) {
+          // Hitung aspect ratio
+          const imgAspectRatio = imgNaturalWidth / imgNaturalHeight;
+          const levelAspectRatio = levelWidth / levelHeight;
+
+          let newWidth, newHeight;
+
+          if (imgAspectRatio > levelAspectRatio) {
+            // Gambar lebih lebar, sesuaikan dengan lebar level
+            newWidth = levelWidth;
+            newHeight = levelWidth / imgAspectRatio;
+          } else {
+            // Gambar lebih tinggi, sesuaikan dengan tinggi level
+            newHeight = levelHeight;
+            newWidth = levelHeight * imgAspectRatio;
+          }
+
+          // Terapkan ukuran baru ke gambar
+          img.style.width = newWidth + "px";
+          img.style.height = newHeight + "px";
+          img.style.objectFit = "contain";
+
+          // Jika level ini adalah current level, sesuaikan lebar container level
+          if (level.classList.contains("level--current")) {
+            // Set lebar container level agar sama dengan lebar gambar yang sudah disesuaikan
+            level.style.width = newWidth + "px";
+            level.style.height = newHeight + "px";
+
+            console.log(
+              `Level ${level.className}: Container adjusted to ${newWidth}x${newHeight}px (was ${levelWidth}x${levelHeight}px)`
+            );
+          } else {
+            console.log(
+              `Level ${level.className}: Image adjusted to ${newWidth}x${newHeight}px (Level: ${levelWidth}x${levelHeight}px)`
+            );
+          }
+        }
+      }
+
+      // Jalankan saat DOM selesai dimuat
+      document.addEventListener("DOMContentLoaded", function () {
+        // Tunggu sebentar agar level sudah ter-render
+        setTimeout(adjustSVGSizeToLevel, 500);
+
+        // Jalankan lagi setelah 1 detik untuk memastikan
+        setTimeout(adjustSVGSizeToLevel, 1000);
+
+        // Jalankan lagi setelah 2 detik untuk memastikan semua gambar sudah dimuat
+        setTimeout(adjustSVGSizeToLevel, 2000);
+      });
+
+      // Jalankan setiap kali ada perubahan pada level
+      const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          if (mutation.type === "attributes" || mutation.type === "childList") {
+            setTimeout(adjustSVGSizeToLevel, 100);
+          }
+        });
+      });
+
+      // Fungsi untuk mengatur ulang ukuran level current saat level berubah
+      function resetCurrentLevelSize() {
+        const currentLevel = document.querySelector(".level.level--current");
+        if (currentLevel) {
+          // Reset ukuran container level current ke ukuran default
+          currentLevel.style.width = "";
+          currentLevel.style.height = "";
+
+          // Tunggu sebentar lalu sesuaikan lagi
+          setTimeout(() => {
+            const img = currentLevel.querySelector("img");
+            if (img && img.complete) {
+              adjustImageSize(img, currentLevel);
+            }
+          }, 50);
+        }
+      }
+
+      // Observe perubahan pada container levels
+      document.addEventListener("DOMContentLoaded", function () {
+        const levelsContainer = document.querySelector(".levels");
+        if (levelsContainer) {
+          observer.observe(levelsContainer, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+          });
+
+          // Observe perubahan class level--current
+          const levelObserver = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+              if (
+                mutation.type === "attributes" &&
+                mutation.attributeName === "class"
+              ) {
+                const target = mutation.target;
+                if (target.classList.contains("level")) {
+                  // Jika ada level yang menjadi current atau berhenti menjadi current
+                  if (target.classList.contains("level--current")) {
+                    setTimeout(() => {
+                      const img = target.querySelector("img");
+                      if (img && img.complete) {
+                        adjustImageSize(img, target);
+                      }
+                    }, 100);
+                  } else {
+                    // Jika level berhenti menjadi current, reset ukurannya
+                    console.log(
+                      "Level stopped being current:",
+                      target.className
+                    );
+                    target.style.width = "";
+                    target.style.height = "";
+                  }
+                }
+              }
+            });
+          });
+
+          // Observe semua level untuk perubahan class
+          const allLevels = levelsContainer.querySelectorAll(".level");
+          allLevels.forEach((level) => {
+            levelObserver.observe(level, {
+              attributes: true,
+              attributeFilter: ["class"],
+            });
+          });
+
+          // Fungsi untuk observe level baru yang ditambahkan
+          function observeNewLevels() {
+            const newLevels = levelsContainer.querySelectorAll(".level");
+            newLevels.forEach((level) => {
+              // Cek apakah level ini sudah di-observe
+              if (!level.hasAttribute("data-observed")) {
+                levelObserver.observe(level, {
+                  attributes: true,
+                  attributeFilter: ["class"],
+                });
+                level.setAttribute("data-observed", "true");
+              }
+            });
+          }
+
+          // Jalankan observeNewLevels setiap kali ada perubahan childList
+          const childObserver = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+              if (mutation.type === "childList") {
+                setTimeout(observeNewLevels, 50);
+              }
+            });
+          });
+
+          childObserver.observe(levelsContainer, {
+            childList: true,
+            subtree: true,
+          });
+        }
+      });
+
+      // Jalankan juga saat window resize
+      window.addEventListener("resize", function () {
+        setTimeout(adjustSVGSizeToLevel, 100);
+      });
+    </script>
   </body>
 </html>
