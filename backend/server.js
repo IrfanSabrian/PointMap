@@ -17,6 +17,7 @@ import ruanganRoutes from "./routes/ruangan.js";
 import authRoutes from "./routes/auth.js";
 import lantaiGambarRoutes from "./routes/lantaiGambar.js";
 import ruanganGalleryRoutes from "./routes/ruanganGallery.js";
+import maintenanceRoutes from "./routes/maintenance.js";
 
 await sequelize.sync(); // pastikan tabel otomatis dibuat (jika belum ada)
 
@@ -29,6 +30,7 @@ app.use("/api/ruangan", ruanganRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/lantai-gambar", lantaiGambarRoutes);
 app.use("/api/ruangan-gallery", ruanganGalleryRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
 
 // ROUTE "/" MENAMPILKAN DATA DATABASE
 app.get("/", async (req, res) => {

@@ -1,5 +1,12 @@
 import Ruangan from "../models/Ruangan.js";
 import Bangunan from "../models/Bangunan.js";
+import RuanganGallery from "../models/RuanganGallery.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // GET semua ruangan
 export const getAllRuangan = async (req, res) => {
@@ -286,12 +293,74 @@ export const updateRuangan = async (req, res) => {
 export const deleteRuangan = async (req, res) => {
   try {
     const id = req.params.id;
+
+    // Get all gallery items for this room before deleting
+    const galleryItems = await RuanganGallery.findAll({
+      where: { id_ruangan: id },
+    });
+
+    // Delete gallery items and their physical files
+    for (const galleryItem of galleryItems) {
+      try {
+        // Construct the full file path
+        const filePath = path.join(__dirname, "..", galleryItem.path_file);
+
+        // Check if file exists and delete it
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted file: ${filePath}`);
+        }
+      } catch (fileError) {
+        console.error(
+          `Error deleting file ${galleryItem.path_file}:`,
+          fileError
+        );
+        // Continue with other files even if one fails
+      }
+    }
+
+    // Delete all gallery items from database
+    await RuanganGallery.destroy({
+      where: { id_ruangan: id },
+    });
+
+    // Delete the room
     const deleted = await Ruangan.destroy({
       where: { id_ruangan: id },
     });
 
     if (deleted) {
-      res.json({ message: "Ruangan berhasil dihapus" });
+      // Reset auto-increment setelah penghapusan
+      try {
+        await sequelize.query("ALTER TABLE ruangan AUTO_INCREMENT = 1");
+        await sequelize.query("ALTER TABLE ruangan_gallery AUTO_INCREMENT = 1");
+
+        // Reorder ID untuk tabel ruangan
+        await sequelize.query(`
+          SET @rank = 0;
+          UPDATE ruangan SET id_ruangan = (@rank := @rank + 1) ORDER BY id_ruangan;
+          ALTER TABLE ruangan AUTO_INCREMENT = (SELECT MAX(id_ruangan) + 1 FROM ruangan);
+        `);
+
+        // Reorder ID untuk tabel ruangan_gallery
+        await sequelize.query(`
+          SET @rank = 0;
+          UPDATE ruangan_gallery SET id_gallery = (@rank := @rank + 1) ORDER BY id_gallery;
+          ALTER TABLE ruangan_gallery AUTO_INCREMENT = (SELECT MAX(id_gallery) + 1 FROM ruangan_gallery);
+        `);
+
+        console.log(
+          "Auto-increment berhasil direset setelah penghapusan ruangan"
+        );
+      } catch (resetError) {
+        console.error("Error resetting auto-increment:", resetError);
+        // Continue even if reset fails
+      }
+
+      res.json({
+        message: "Ruangan berhasil dihapus",
+        deletedGalleryCount: galleryItems.length,
+      });
     } else {
       res.status(404).json({ error: "Ruangan tidak ditemukan" });
     }
