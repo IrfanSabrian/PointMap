@@ -47,7 +47,6 @@ export default function Login() {
         );
       }
     } catch (error) {
-      console.error("Login error:", error);
       setErrorMsg("Terjadi kesalahan pada server. Silakan coba lagi.");
     } finally {
       setLoading(false);

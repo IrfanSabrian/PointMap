@@ -308,13 +308,8 @@ export const deleteRuangan = async (req, res) => {
         // Check if file exists and delete it
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
-          console.log(`Deleted file: ${filePath}`);
         }
       } catch (fileError) {
-        console.error(
-          `Error deleting file ${galleryItem.path_file}:`,
-          fileError
-        );
         // Continue with other files even if one fails
       }
     }
@@ -348,12 +343,7 @@ export const deleteRuangan = async (req, res) => {
           UPDATE ruangan_gallery SET id_gallery = (@rank := @rank + 1) ORDER BY id_gallery;
           ALTER TABLE ruangan_gallery AUTO_INCREMENT = (SELECT MAX(id_gallery) + 1 FROM ruangan_gallery);
         `);
-
-        console.log(
-          "Auto-increment berhasil direset setelah penghapusan ruangan"
-        );
       } catch (resetError) {
-        console.error("Error resetting auto-increment:", resetError);
         // Continue even if reset fails
       }
 

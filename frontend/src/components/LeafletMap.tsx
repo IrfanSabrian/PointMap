@@ -435,7 +435,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         })
         .then((data) => {
           if (!data || !Array.isArray(data.features)) {
-            console.error("Data non-bangunan tidak valid:", data);
             setNonBangunanFeatures([]);
             return;
           }
@@ -443,10 +442,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             (f: FeatureType) => f.properties?.kategori !== "Bangunan"
           );
           setNonBangunanFeatures(nonBangunan);
-          console.log("Non-bangunan data loaded:", nonBangunan.length, "items");
         })
         .catch((error) => {
-          console.error("Error loading non-bangunan data:", error);
           setNonBangunanFeatures([]);
         });
     }, []);
@@ -465,16 +462,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         })
         .then((data) => {
           if (!data || !Array.isArray(data.features)) {
-            console.error("Data bangunan tidak valid:", data);
             // Hapus data dummy, set kosong saja
             setBangunanFeatures([]);
             return;
           }
           setBangunanFeatures(data.features || []);
-          console.log("Bangunan data loaded:", data.features.length, "items");
         })
         .catch((error) => {
-          console.error("Error loading bangunan data:", error);
           // Hapus data dummy, set kosong saja
           setBangunanFeatures([]);
         })
@@ -495,8 +489,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         .then((data) => {
           // Pastikan data adalah array
           if (!Array.isArray(data)) {
-            console.error("Data ruangan bukan array:", data);
-            // Hapus data dummy, set kosong saja
             setRuanganFeatures([]);
             return;
           }
@@ -528,10 +520,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             };
           }) as FeatureFixed[];
           setRuanganFeatures(ruanganForSearch);
-          console.log("Ruangan data loaded:", ruanganForSearch.length, "items");
         })
         .catch((error) => {
-          console.error("Error loading ruangan data:", error);
           // Hapus data dummy, set kosong saja
           setRuanganFeatures([]);
         });
@@ -640,11 +630,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 },
                 "*"
               );
-              // DEBUG: log setiap kirim pesan
-              console.log("Kirim postMessage ke iframe:", {
-                namaGedung,
-                jumlahLantai,
-              });
+
               count++;
               if (count > 12) clearInterval(interval);
             }
@@ -1274,8 +1260,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const map = leafletMapRef.current;
       if (!map) return;
 
-      console.log("🔍 Menampilkan detail untuk:", feature.properties?.nama);
-
       // Tampilkan detail bangunan dan zoom ke lokasi
       if (feature.properties?.displayType === "ruangan") {
         const bangunanId = feature.properties?.bangunan_id;
@@ -1314,11 +1298,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               openBuildingDetailModal(feature);
 
               // Kirim pesan ke dashboard untuk update sidebar ruangan
-              console.log("Sending room-clicked message:", {
-                type: "room-clicked",
-                roomId: feature.properties?.id,
-                roomName: feature.properties?.nama,
-              });
+
               window.postMessage(
                 {
                   type: "room-clicked",
@@ -1426,7 +1406,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Toggle basemap
     const handleToggleBasemap = () => {
-      console.log("Toggle basemap clicked, current isSatellite:", isSatellite);
       if (isSatellite) {
         setBasemap(isDark ? "alidade_smooth_dark" : "esri_topo");
         setIsSatellite(false);
@@ -1438,16 +1417,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Toggle layer
     const handleToggleLayer = () => {
-      console.log("Toggle layer clicked, current layerVisible:", layerVisible);
       setLayerVisible((v) => !v);
     };
 
     // Reset zoom/center
     const handleResetZoom = () => {
-      console.log("Reset zoom clicked");
       const map = leafletMapRef.current;
       if (!map) {
-        console.log("Map not ready");
         return;
       }
       // Fallback ke posisi awal
@@ -1480,7 +1456,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk handle klik tombol GPS
     const handleLocateMe = () => {
-      console.log("Locate me clicked");
       if (!navigator.geolocation) {
         showNotification(
           "error",
@@ -1492,7 +1467,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // setIsLocating(true); // Removed as per new_code
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          console.log("Geolocation success:", pos.coords);
           // setIsLocating(false); // Removed as per new_code
           const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
           setUserLocation(latlng);
@@ -1519,11 +1493,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const map = leafletMapRef.current;
           if (map) {
             map.setView(latlng, 18, { animate: true });
-            console.log("Map view updated to user location");
           }
         },
         (err) => {
-          console.log("Geolocation error:", err);
           // setIsLocating(false); // Removed as per new_code
           showNotification(
             "error",
@@ -1534,7 +1506,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               err.code +
               ")"
           );
-          console.error("Geolocation error", err);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
@@ -1722,18 +1693,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         if (response.ok) {
           const data = await response.json();
-          console.log("Lantai gambar data loaded:", data);
-          console.log(
-            "Data structure check:",
-            data.map((item: any) => ({
-              id: item.id_lantai_gambar,
-              nama_file: item.nama_file,
-              path_file: item.path_file,
-            }))
-          );
+
           setLantaiGambarData(data);
         } else {
-          console.log("No lantai gambar data found");
           setLantaiGambarData([]);
         }
 
@@ -1744,7 +1706,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         setEditLantaiCount(selectedFeature.properties.lantai || 1);
         setIsEditingLantai(true);
       } catch (error) {
-        console.error("Error loading lantai data:", error);
         setLantaiGambarData([]);
         setIsEditingLantai(true);
       }
@@ -1798,7 +1759,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         const result = await response.json();
-        console.log("Lantai image saved:", result);
 
         // Refresh data lantai gambar
         if (selectedFeature?.properties?.id) {
@@ -1839,7 +1799,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           `Gambar lantai ${lantaiNumber} berhasil disimpan!`
         );
       } catch (error) {
-        console.error("Error saving lantai image:", error);
         showNotification(
           "error",
           "Gagal",
@@ -1899,7 +1858,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Gambar lantai berhasil dihapus!"
         );
       } catch (error) {
-        console.error("Error deleting lantai image:", error);
         showNotification(
           "error",
           "Gagal dihapus",
@@ -1928,7 +1886,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
         return true;
       } catch (error) {
-        console.error("Error parsing token:", error);
         return false;
       }
     };
@@ -1961,9 +1918,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           localStorage.removeItem("user");
           window.location.href = "/login";
         }, autoLogoutTime);
-      } catch (error) {
-        console.error("Error setting up auto-logout:", error);
-      }
+      } catch (error) {}
     };
 
     // Fungsi untuk save ruangan
@@ -2014,7 +1969,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("Error creating ruangan:", errorText);
+
           throw new Error(
             `HTTP error! status: ${response.status} - ${errorText}`
           );
@@ -2040,7 +1995,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Ruangan berhasil dibuat!"
         );
       } catch (error) {
-        console.error("Error creating ruangan:", error);
         showNotification(
           "error",
           "Gagal dibuat",
@@ -2080,7 +2034,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         setRuanganList(ruanganArray);
         return ruanganArray;
       } catch (error) {
-        console.error("Error fetching ruangan:", error);
         showNotification(
           "error",
           "Gagal mengambil data",
@@ -2107,9 +2060,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       try {
         await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
         setShowEditRuanganModal(true);
-      } catch (error) {
-        console.error("Error opening edit ruangan modal:", error);
-      }
+      } catch (error) {}
     };
 
     // Fungsi untuk memilih ruangan untuk diedit
@@ -2179,7 +2130,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("Error updating ruangan:", errorText);
+
           throw new Error(
             `HTTP error! status: ${response.status} - ${errorText}`
           );
@@ -2206,7 +2157,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Ruangan berhasil diperbarui!"
         );
       } catch (error) {
-        console.error("Error updating ruangan:", error);
         showNotification(
           "error",
           "Gagal diperbarui",
@@ -2225,14 +2175,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Removed required validation - fields can now be empty
 
       // Debug logging untuk troubleshooting
-      console.log("=== DEBUG SAVE EDIT ===");
-      console.log("isEditingName:", isEditingName, "editName:", editName);
-      console.log(
-        "isEditingInteraksi:",
-        isEditingInteraksi,
-        "editInteraksi:",
-        editInteraksi
-      );
 
       setIsSaving(true);
       try {
@@ -2264,9 +2206,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           }
 
-          console.log("=== SENDING UPDATE DATA ===");
-          console.log("updateData:", updateData);
-
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
             {
@@ -2282,14 +2221,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.error("API Error:", errorText);
+
             throw new Error(
               `HTTP error! status: ${response.status} - ${errorText}`
             );
           }
 
           const result = await response.json();
-          console.log("API Response:", result);
 
           // Update local state
           if (selectedFeature) {
@@ -2421,7 +2359,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         }
       } catch (error) {
-        console.error("Error saving edit:", error);
         showNotification(
           "error",
           "Gagal diperbarui",
@@ -2582,11 +2519,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         featureId: number,
         featureName: string
       ) => {
-        console.log("highlightFeature called:", {
-          featureType,
-          featureId,
-          featureName,
-        });
+        // Implementation
 
         if (featureType === "bangunan") {
           // Jika container detail bangunan sedang aktif, berikan efek shake
@@ -3498,22 +3431,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const coords = await getCurrentLocation();
           setIsGettingLocation(false);
           startLatLng = coords;
-          console.log("📍 GPS berhasil diambil untuk routing:", coords);
 
           // Tambahkan pengecekan apakah user di dalam kampus
           const isInsideCampus = isUserInsideCampus(coords[0], coords[1]);
-          console.log("📍 [GPS-ROUTING] Pengecekan lokasi GPS untuk routing:");
-          console.log(
-            `📍 [GPS-ROUTING] Koordinat: [${coords[0].toFixed(
-              6
-            )}, ${coords[1].toFixed(6)}]`
-          );
-          console.log(`📍 [GPS-ROUTING] Di dalam kampus: ${isInsideCampus}`);
-
           if (isInsideCampus) {
-            console.log(
-              "📍 [GPS-ROUTING] Routing langsung ke tujuan (tanpa gerbang)"
-            );
             // Routing langsung ke tujuan tanpa gerbang
             if (!endLatLng) {
               showNotification("error", "Error", "Titik tujuan tidak valid.");

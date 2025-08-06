@@ -5,18 +5,11 @@ import jwt from "jsonwebtoken";
 export const loginAdmin = async (req, res) => {
   const { username, password } = req.body;
   try {
-    console.log("Username input:", username);
-    console.log("Password input:", password);
     const admin = await Admin.findOne({ where: { username } });
-    console.log("Admin found:", admin ? "YES" : "NO");
-    if (admin) {
-      console.log("Hash in DB:", admin.password);
-    }
     if (!admin)
       return res.status(401).json({ error: "Username atau password salah" });
 
     const valid = await bcrypt.compare(password, admin.password);
-    console.log("Compare result:", valid);
     if (!valid)
       return res.status(401).json({ error: "Username atau password salah" });
 
@@ -32,11 +25,10 @@ export const loginAdmin = async (req, res) => {
       user: {
         id: admin.id_admin,
         username: admin.username,
-        role: "admin", // Tambahkan role admin
+        role: "admin",
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
     res
       .status(500)
       .json({ error: "Terjadi kesalahan pada server. Silakan coba lagi." });
@@ -49,7 +41,7 @@ export const verifyToken = async (req, res) => {
       message: "Token valid",
       user: {
         ...req.user,
-        role: "admin", // Pastikan role admin dikembalikan
+        role: "admin",
       },
     });
   } catch (err) {

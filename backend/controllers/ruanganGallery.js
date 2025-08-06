@@ -136,11 +136,6 @@ export const uploadGallery = async (req, res) => {
             break;
           }
         }
-        console.log(
-          `Existing numbers: [${existingNumbers.join(
-            ", "
-          )}], Next number: ${nextNumber}`
-        );
       }
 
       // Generate nama file berurutan
@@ -166,7 +161,6 @@ export const uploadGallery = async (req, res) => {
       data: uploadedFiles,
     });
   } catch (err) {
-    console.error("Error uploading gallery:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -237,7 +231,6 @@ export const deleteGallery = async (req, res) => {
 
     res.json({ message: "Gallery berhasil dihapus" });
   } catch (err) {
-    console.error("Error deleting gallery:", err);
     res.status(500).json({ error: err.message });
   }
 };

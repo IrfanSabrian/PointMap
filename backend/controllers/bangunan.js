@@ -51,8 +51,6 @@ export const updateBangunan = async (req, res) => {
     if (lantai !== undefined) updateData.lantai = lantai;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
 
-    console.log("Backend update data:", updateData);
-
     const [updated] = await Bangunan.update(updateData, {
       where: { id_bangunan: id },
     });
@@ -66,7 +64,6 @@ export const updateBangunan = async (req, res) => {
       res.status(404).json({ error: "Bangunan tidak ditemukan" });
     }
   } catch (err) {
-    console.error("Backend update error:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -147,7 +144,6 @@ export const uploadThumbnail = async (req, res) => {
       thumbnailPath: newThumbnailPath,
     });
   } catch (err) {
-    console.error("Error uploading thumbnail:", err);
     res.status(500).json({ error: err.message });
   }
 };

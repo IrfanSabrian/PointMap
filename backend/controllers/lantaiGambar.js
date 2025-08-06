@@ -140,7 +140,6 @@ export const addLantaiGambar = async (req, res) => {
       data: result,
     });
   } catch (err) {
-    console.error("Error adding lantai gambar:", err);
     // Hapus file jika ada error
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
