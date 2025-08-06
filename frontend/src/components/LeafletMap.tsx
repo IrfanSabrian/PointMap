@@ -186,7 +186,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     type FeatureType = FeatureFixed;
     const basemapLayerRef = useRef<L.TileLayer | null>(null);
     const [basemap, setBasemap] = useState<string>(
-      isDark ? "alidade_smooth_dark" : "esri_topo"
+      isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
     );
     const [layerVisible, setLayerVisible] = useState(true);
     const [searchText, setSearchText] = useState("");
@@ -1407,7 +1407,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Toggle basemap
     const handleToggleBasemap = () => {
       if (isSatellite) {
-        setBasemap(isDark ? "alidade_smooth_dark" : "esri_topo");
+        setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
         setIsSatellite(false);
       } else {
         setBasemap("esri_satellite");
@@ -1443,8 +1443,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // [REFRACTOR START]
     // 1. Tambahkan efek sinkronisasi dark mode otomatis pada basemap kecuali sedang satelit
     useEffect(() => {
-      if (!isSatellite) {
-        setBasemap(isDark ? "alidade_smooth_dark" : "esri_topo");
+      if (!isSatellite && isDark !== undefined) {
+        setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDark]);
@@ -5278,7 +5278,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           {showSearchResults && (
             <div
               className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg border max-h-60 overflow-y-auto z-40 ${
-                isDark
+                isDark ?? false
                   ? "bg-gray-800 border-gray-700"
                   : "bg-white border-gray-200"
               }`}
@@ -5286,7 +5286,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               {isLoadingData ? (
                 <div
                   className={`px-3 py-4 text-center text-sm ${
-                    isDark ? "text-gray-400" : "text-gray-600"
+                    isDark ?? false ? "text-gray-400" : "text-gray-600"
                   }`}
                 >
                   Memuat data...
@@ -5295,7 +5295,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 <>
                   <div
                     className={`px-3 py-2 text-xs border-b ${
-                      isDark
+                      isDark ?? false
                         ? "text-gray-400 border-gray-700"
                         : "text-gray-600 border-gray-200"
                     }`}
@@ -5316,7 +5316,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           ? "opacity-50 cursor-not-allowed"
                           : "cursor-pointer hover:bg-opacity-80"
                       } ${
-                        isDark
+                        isDark ?? false
                           ? "hover:bg-gray-700 text-white border-b border-gray-700"
                           : "hover:bg-gray-100 text-gray-900 border-b border-gray-200"
                       } ${
@@ -5328,7 +5328,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       </div>
                       <div
                         className={`text-xs ${
-                          isDark ? "text-gray-400" : "text-gray-600"
+                          isDark ?? false ? "text-gray-400" : "text-gray-600"
                         }`}
                       >
                         {feature.properties?.displayType === "ruangan" ? (
@@ -5359,7 +5359,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               ) : (
                 <div
                   className={`px-3 py-4 text-center text-sm ${
-                    isDark ? "text-gray-400" : "text-gray-600"
+                    isDark ?? false ? "text-gray-400" : "text-gray-600"
                   }`}
                 >
                   Tidak ada hasil ditemukan
@@ -5374,8 +5374,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-[201]">
             <button
               onClick={() => setActiveStepIndex(0)}
+              aria-label="Mulai navigasi ke tujuan"
+              title="Mulai navigasi ke tujuan"
               className={`px-4 py-2 rounded-lg shadow-lg transition-colors ${
-                isDark
+                isDark ?? false
                   ? "bg-blue-600 hover:bg-blue-700 text-white"
                   : "bg-blue-500 hover:bg-blue-600 text-white"
               }`}
@@ -5764,6 +5766,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           <button
             data-control="toggle-layer"
             onClick={handleToggleLayer}
+            aria-label={
+              layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+            }
+            title={
+              layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+            }
             className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3
           ${
             isDark
@@ -5790,6 +5798,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           <button
             data-control="toggle-basemap"
             onClick={handleToggleBasemap}
+            aria-label={
+              isSatellite
+                ? "Ganti ke tampilan peta"
+                : "Ganti ke tampilan satelit"
+            }
+            title={
+              isSatellite
+                ? "Ganti ke tampilan peta"
+                : "Ganti ke tampilan satelit"
+            }
             className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3
           ${
             isDark
@@ -5807,7 +5825,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 />
                 <span
                   className={`text-xs font-bold hidden sm:block ${
-                    isDark ? "text-white" : "text-gray-700"
+                    isDark ?? false ? "text-white" : "text-gray-700"
                   }`}
                 >
                   Peta
@@ -5822,7 +5840,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 />
                 <span
                   className={`text-xs font-bold hidden sm:block ${
-                    isDark ? "text-white" : "text-gray-700"
+                    isDark ?? false ? "text-white" : "text-gray-700"
                   }`}
                 >
                   Satelit
@@ -5897,6 +5915,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     setTimeout(() => setSelectedFeature(null), 350);
                   }}
                   className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none transition-all duration-200"
+                  aria-label="Tutup detail bangunan"
                   title="Tutup"
                 >
                   ×
@@ -5924,6 +5943,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       setEditInteraksi(currentInteraksi);
                     }}
                     className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
+                    aria-label="Edit nama dan interaksi bangunan"
                     title="Edit nama dan interaksi bangunan"
                   >
                     <i className="fas fa-edit text-sm"></i>

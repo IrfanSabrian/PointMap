@@ -18,7 +18,7 @@ const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState<boolean | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
   const [isInHeroSection, setIsInHeroSection] = useState(true);
@@ -86,11 +86,14 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    setIsDark(theme === "dark");
-    if (theme === "dark") {
-      console.log("Dark mode aktif");
-    } else if (theme === "light") {
-      console.log("Light mode aktif");
+    // Only set isDark if theme is not undefined (theme has loaded)
+    if (theme !== undefined) {
+      setIsDark(theme === "dark");
+      if (theme === "dark") {
+        console.log("Dark mode aktif");
+      } else if (theme === "light") {
+        console.log("Light mode aktif");
+      }
     }
   }, [theme]);
 
@@ -277,10 +280,10 @@ export default function Home() {
   return (
     <div
       className={`min-h-screen transition-colors ${
-        isDark
+        isDark ?? false
           ? "bg-background-dark"
           : "bg-gradient-to-tr from-background via-surface to-accent"
-      } ${isDark ? "dark" : ""}`}
+      } ${isDark ?? false ? "dark" : ""}`}
     >
       {/* Area hover atas untuk munculkan navbar - hanya aktif di luar hero section */}
       {!isInHeroSection && (
@@ -442,7 +445,7 @@ export default function Home() {
       <section className="relative flex flex-col lg:flex-row items-center justify-between min-h-screen w-full pt-20 lg:pt-32 pb-0 px-2 lg:px-16 overflow-hidden gap-6 lg:gap-12">
         <div className="w-full max-w-screen-sm lg:max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-12">
           {/* Partikel Custom Polkadot/Bintang */}
-          <ParticlesCustom isDark={isDark} />
+          <ParticlesCustom isDark={isDark ?? false} />
 
           {/* Kiri: Text Content */}
           <div className="flex-1 z-10 flex flex-col items-center lg:items-start justify-center max-w-2xl text-center lg:text-left animate-fadeInUp order-2 lg:order-1">
@@ -461,9 +464,9 @@ export default function Home() {
               Polnep Interactive Map
             </p>
             <p className="max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-muted dark:text-muted-dark mb-6 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300 px-2 lg:px-0">
-              Navigasi digital untuk menjelajahi setiap sudut kampus Politeknik
-              Negeri Pontianak. Temukan gedung, ruang kelas, dan fasilitas
-              lainnya dengan mudah.
+              Sarana pemetaan digital interaktif yang mendukung kegiatan
+              eksplorasi dan navigasi kawasan kampus Politeknik Negeri Pontianak
+              secara informatif dan terarah.
             </p>
             <button
               onClick={scrollToMap}
@@ -573,7 +576,7 @@ export default function Home() {
             initialLng={109.3465}
             initialZoom={17}
             className="w-full h-full"
-            isDark={isDark}
+            isDark={isDark ?? false}
             isDashboard={false}
           />
         </div>

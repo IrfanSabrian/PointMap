@@ -31,7 +31,7 @@ interface Ruangan {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState<boolean | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -81,11 +81,14 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    setIsDark(theme === "dark");
-    if (theme === "dark") {
-      console.log("Dark mode aktif");
-    } else if (theme === "light") {
-      console.log("Light mode aktif");
+    // Only set isDark if theme is not undefined (theme has loaded)
+    if (theme !== undefined) {
+      setIsDark(theme === "dark");
+      if (theme === "dark") {
+        console.log("Dark mode aktif");
+      } else if (theme === "light") {
+        console.log("Light mode aktif");
+      }
     }
 
     // Check authentication
@@ -287,10 +290,10 @@ export default function Dashboard() {
     return (
       <div
         className={`min-h-screen flex items-center justify-center transition-colors ${
-          isDark
+          isDark ?? false
             ? "bg-background-dark"
             : "bg-gradient-to-tr from-background via-surface to-accent"
-        } ${isDark ? "dark" : ""}`}
+        } ${isDark ?? false ? "dark" : ""}`}
       >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -305,10 +308,10 @@ export default function Dashboard() {
   return (
     <div
       className={`min-h-screen transition-colors ${
-        isDark
+        isDark ?? false
           ? "bg-background-dark"
           : "bg-gradient-to-tr from-background via-surface to-accent"
-      } ${isDark ? "dark" : ""}`}
+      } ${isDark ?? false ? "dark" : ""}`}
     >
       {/* Area hover atas untuk munculkan navbar */}
       <div
@@ -495,7 +498,7 @@ export default function Dashboard() {
         style={{ position: "relative" }}
       >
         {/* Partikel Custom Polkadot/Bintang */}
-        <ParticlesCustom isDark={isDark} />
+        <ParticlesCustom isDark={isDark ?? false} />
 
         <div className="w-full h-full relative">
           <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-14 lg:mt-14">
@@ -518,7 +521,7 @@ export default function Dashboard() {
               initialLng={109.3465}
               initialZoom={17}
               className="w-full h-full"
-              isDark={isDark}
+              isDark={isDark ?? false}
               isDashboard={true}
             />
           </div>
