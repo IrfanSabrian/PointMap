@@ -2733,13 +2733,92 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // PERBAIKAN: Cari titik tujuan yang memiliki nama sama dengan gedung
       let targetPoints: Point[] = [];
       if (buildingName) {
-        // Cari titik yang namanya sama dengan gedung
-        targetPoints = points.filter((point) =>
-          point.name.toLowerCase().includes(buildingName.toLowerCase())
-        );
+        // PERBAIKAN: Cari semua titik yang terkait dengan gedung
+        targetPoints = points.filter((point) => {
+          const pointNameLower = point.name.toLowerCase();
+          const buildingNameLower = buildingName.toLowerCase();
+
+          // Cek apakah nama titik sama persis dengan nama gedung
+          if (pointNameLower === buildingNameLower) {
+            return true;
+          }
+
+          // Cek apakah nama titik mengandung nama gedung + spasi + angka (format: "Gedung A 1", "Gedung A 2")
+          const regex = new RegExp(`^${buildingNameLower}\\s+\\d+$`);
+          if (regex.test(pointNameLower)) {
+            return true;
+          }
+
+          // Cek apakah nama titik mengandung nama gedung + angka tanpa spasi (format: "Gedung A1", "Gedung A2")
+          const regexNoSpace = new RegExp(`^${buildingNameLower}\\d+$`);
+          if (regexNoSpace.test(pointNameLower)) {
+            return true;
+          }
+
+          // Cek apakah nama titik mengandung nama gedung sebagai substring
+          // Ini untuk menangani kasus seperti "gedungA", "gedungA 1", "gedungA 2"
+          if (pointNameLower.includes(buildingNameLower)) {
+            // Pastikan ini bukan substring dari nama lain yang lebih panjang
+            const words = pointNameLower.split(/\s+/);
+            if (
+              words[0] === buildingNameLower ||
+              words[0].startsWith(buildingNameLower) ||
+              pointNameLower.startsWith(buildingNameLower + " ")
+            ) {
+              return true;
+            }
+          }
+
+          // PERBAIKAN: Cek apakah nama titik dimulai dengan nama gedung (untuk kasus "A", "A 1", "A 2")
+          if (pointNameLower.startsWith(buildingNameLower)) {
+            return true;
+          }
+
+          return false;
+        });
+
         console.log(
           `🎯 Mencari titik tujuan dengan nama "${buildingName}": ${targetPoints.length} titik ditemukan`
         );
+
+        if (targetPoints.length > 0) {
+          console.log(
+            "🎯 Titik yang ditemukan:",
+            targetPoints.map((p) => p.name)
+          );
+
+          // DEBUG: Cek connectivity setiap titik
+          for (const targetPoint of targetPoints) {
+            console.log(`🔍 Debug connectivity untuk ${targetPoint.name}:`);
+            console.log(`  - Koordinat: ${targetPoint.coordinates}`);
+            console.log(`  - ID: ${targetPoint.id}`);
+
+            // Cek apakah titik ini terhubung ke jalur
+            const connectedPaths = jalurFeatures.filter((path: any) => {
+              if (path.geometry && path.geometry.coordinates) {
+                const pathCoords = path.geometry.coordinates;
+                // Cek apakah path ini dekat dengan target point
+                for (let i = 0; i < pathCoords.length; i++) {
+                  const coord = pathCoords[i];
+                  if (Array.isArray(coord) && coord.length >= 2) {
+                    const pathPoint: [number, number] = [coord[1], coord[0]]; // [lat, lng]
+                    const distance = calculateDistance(
+                      targetPoint.coordinates,
+                      pathPoint
+                    );
+                    if (distance < 50) {
+                      // Dalam 50 meter
+                      return true;
+                    }
+                  }
+                }
+              }
+              return false;
+            });
+
+            console.log(`  - Paths terhubung: ${connectedPaths.length}`);
+          }
+        }
       }
 
       // Jika tidak ada titik dengan nama gedung, gunakan titik terdekat
@@ -2776,9 +2855,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           `🎯 Multiple titik ditemukan untuk "${buildingName}". Akan mencari rute ke SEMUA ${targetPoints.length} titik:`,
           targetPoints.map((p) => p.name)
         );
+
+        // DEBUG: Analisis graph connectivity untuk multiple points
+        debugGraphConnectivity(targetPoints, gates);
       }
 
       // Test setiap gerbang apakah bisa route ke titik tujuan
+      const processedCombinations = new Set(); // Untuk mencegah duplikasi
+
       for (const gate of gates) {
         if (gate.geometry && gate.geometry.coordinates) {
           const gateCoords: [number, number] = [
@@ -2788,7 +2872,30 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           // Test route ke SEMUA titik tujuan
           for (const targetPoint of targetPoints) {
+            // Buat kombinasi unik untuk mencegah duplikasi
+            const combinationKey = `${gate.properties?.Nama || "unknown"}-${
+              targetPoint?.name || "unknown"
+            }`;
+
+            if (processedCombinations.has(combinationKey)) {
+              console.log(
+                `🔄 Skip kombinasi yang sudah diproses: ${combinationKey}`
+              );
+              continue;
+            }
+
+            processedCombinations.add(combinationKey);
+
             try {
+              // DEBUG: Log sebelum routing
+              console.log(
+                `🔍 Testing route: ${gate.properties?.Nama} → ${
+                  targetPoint?.name || "Titik Tujuan"
+                }`
+              );
+              console.log(`  - Gate coords: ${gateCoords}`);
+              console.log(`  - Target coords: ${targetPoint.coordinates}`);
+
               const routeTest = findRoute(
                 gateCoords,
                 targetPoint.coordinates,
@@ -2798,11 +2905,91 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 false // isGpsInsideCampus = false
               );
 
+              // DEBUG: Log hasil routing
+              if (routeTest) {
+                console.log(
+                  `  ✅ Route ditemukan: ${
+                    routeTest.geojsonSegments?.length || 0
+                  } segments`
+                );
+                console.log(`  📏 Total distance: ${routeTest.distance || 0}m`);
+              } else {
+                console.log(`  ❌ Route tidak ditemukan`);
+              }
+
+              // Validasi path yang ditemukan
               if (
                 routeTest &&
                 routeTest.geojsonSegments &&
                 routeTest.geojsonSegments.length > 0
               ) {
+                // PERBAIKAN: Validasi path tidak terlalu pendek dan memiliki segmen yang cukup
+                const pathDistance = routeTest.distance || 0;
+                const directDistance = calculateDistance(
+                  gateCoords,
+                  targetPoint.coordinates
+                );
+                const segmentCount = routeTest.geojsonSegments.length;
+
+                console.log(
+                  `  📏 Path: ${Math.round(
+                    pathDistance
+                  )}m, Direct: ${Math.round(
+                    directDistance
+                  )}m, Segments: ${segmentCount}`
+                );
+
+                // Validasi path harus memiliki minimal 2 segmen dan jarak yang masuk akal
+                if (
+                  segmentCount < 2 ||
+                  pathDistance < 20 ||
+                  Math.abs(pathDistance - directDistance) < 10
+                ) {
+                  console.log(
+                    `  ⚠️ Path tidak valid: terlalu pendek atau terlalu sedikit segmen, skip`
+                  );
+                  continue;
+                }
+
+                // Validasi bahwa path tidak "lompat" langsung ke tujuan
+                const firstSegment = routeTest.geojsonSegments[0];
+                const lastSegment = routeTest.geojsonSegments[segmentCount - 1];
+
+                if (firstSegment && lastSegment) {
+                  const firstCoords = firstSegment.geometry?.coordinates;
+                  const lastCoords = lastSegment.geometry?.coordinates;
+
+                  if (
+                    firstCoords &&
+                    lastCoords &&
+                    firstCoords.length > 0 &&
+                    lastCoords.length > 0
+                  ) {
+                    const startPoint = [firstCoords[0][1], firstCoords[0][0]]; // [lat, lng]
+                    const endPoint = [
+                      lastCoords[lastCoords.length - 1][1],
+                      lastCoords[lastCoords.length - 1][0],
+                    ];
+
+                    const pathStartDistance = calculateDistance(
+                      gateCoords,
+                      startPoint as [number, number]
+                    );
+                    const pathEndDistance = calculateDistance(
+                      targetPoint.coordinates,
+                      endPoint as [number, number]
+                    );
+
+                    if (pathStartDistance > 100 || pathEndDistance > 100) {
+                      console.log(
+                        `  ⚠️ Path tidak terhubung dengan baik: start gap ${Math.round(
+                          pathStartDistance
+                        )}m, end gap ${Math.round(pathEndDistance)}m`
+                      );
+                      continue;
+                    }
+                  }
+                }
                 connectedGates.push({
                   gate: gate,
                   coords: gateCoords,
@@ -2813,17 +3000,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 });
                 console.log(
                   `✅ Gerbang ${gate.properties?.Nama} → ${
-                    targetPoint.name
+                    targetPoint?.name || "Titik Tujuan"
                   }: ${Math.round(routeTest.distance)}m`
                 );
               } else {
                 console.log(
-                  `❌ Gerbang ${gate.properties?.Nama} TIDAK terhubung ke ${targetPoint.name}`
+                  `❌ Gerbang ${gate.properties?.Nama} TIDAK terhubung ke ${
+                    targetPoint?.name || "Titik Tujuan"
+                  }`
                 );
               }
             } catch (error) {
               console.warn(
-                `⚠️ Error testing route from ${gate.properties?.Nama} to ${targetPoint.name}:`,
+                `⚠️ Error testing route from ${gate.properties?.Nama} to ${
+                  targetPoint?.name || "Titik Tujuan"
+                }:`,
                 error
               );
               continue;
@@ -2839,7 +3030,99 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         `📊 Total ${connectedGates.length} gerbang terhubung, diurutkan berdasarkan jarak terpendek`
       );
 
+      // DEBUG: Log detail setiap gerbang
+      connectedGates.forEach((gate, index) => {
+        console.log(
+          `  ${index + 1}. ${gate.gateName} → ${
+            gate.targetPoint?.name || "Unknown"
+          }: ${Math.round(gate.totalDistance)}m`
+        );
+      });
+
       return connectedGates;
+    };
+
+    // Fungsi debug untuk menganalisis graph connectivity
+    const debugGraphConnectivity = (targetPoints: Point[], gates: any[]) => {
+      console.log("🔍 === DEBUG GRAPH CONNECTIVITY ===");
+
+      // Analisis target points
+      console.log("📍 Target Points Analysis:");
+      targetPoints.forEach((point, index) => {
+        console.log(`  ${index + 1}. ${point.name}`);
+        console.log(`     - ID: ${point.id}`);
+        console.log(`     - Coords: ${point.coordinates}`);
+
+        // Cek koneksi ke jalur
+        const nearbyPaths = jalurFeatures.filter((path: any) => {
+          if (path.geometry && path.geometry.coordinates) {
+            const coords = path.geometry.coordinates;
+            for (const coord of coords) {
+              if (Array.isArray(coord) && coord.length >= 2) {
+                const pathPoint: [number, number] = [coord[1], coord[0]];
+                const distance = calculateDistance(
+                  point.coordinates,
+                  pathPoint
+                );
+                if (distance < 100) {
+                  // Dalam 100 meter
+                  return true;
+                }
+              }
+            }
+          }
+          return false;
+        });
+
+        console.log(`     - Nearby paths: ${nearbyPaths.length}`);
+
+        // PERBAIKAN: Cek apakah titik ini bisa diakses dari gerbang
+        if (nearbyPaths.length === 0) {
+          console.log(
+            `     ⚠️ PERINGATAN: Titik ${point.name} tidak terhubung ke jalur!`
+          );
+        }
+      });
+
+      // Analisis gates
+      console.log("🚪 Gates Analysis:");
+      gates.forEach((gate, index) => {
+        console.log(`  ${index + 1}. ${gate.properties?.Nama || "Unknown"}`);
+        if (gate.geometry && gate.geometry.coordinates) {
+          const coords = gate.geometry.coordinates;
+          console.log(`     - Coords: [${coords[1]}, ${coords[0]}]`);
+
+          // Cek koneksi gerbang ke jalur
+          const gateNearbyPaths = jalurFeatures.filter((path: any) => {
+            if (path.geometry && path.geometry.coordinates) {
+              const pathCoords = path.geometry.coordinates;
+              for (const coord of pathCoords) {
+                if (Array.isArray(coord) && coord.length >= 2) {
+                  const pathPoint: [number, number] = [coord[1], coord[0]];
+                  const distance = calculateDistance(
+                    [coords[1], coords[0]],
+                    pathPoint
+                  );
+                  if (distance < 100) {
+                    return true;
+                  }
+                }
+              }
+            }
+            return false;
+          });
+
+          console.log(`     - Nearby paths: ${gateNearbyPaths.length}`);
+
+          if (gateNearbyPaths.length === 0) {
+            console.log(
+              `     ⚠️ PERINGATAN: Gerbang ${gate.properties?.Nama} tidak terhubung ke jalur!`
+            );
+          }
+        }
+      });
+
+      console.log("🔍 === END DEBUG ===");
     };
 
     // Fungsi untuk mencari SEMUA rute ke SEMUA titik masuk gedung
@@ -2876,7 +3159,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       for (const gateInfo of limitedGates) {
         console.log(
-          `🔍 Mencari rute OSRM ke ${gateInfo.gateName} → ${gateInfo.targetPoint.name}...`
+          `🔍 Mencari rute OSRM ke ${gateInfo.gateName} → ${
+            gateInfo.targetPoint?.name || "Titik Tujuan"
+          }...`
         );
 
         try {
@@ -2898,9 +3183,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             console.log(
               `📏 ${gateInfo.gateName} → ${
-                gateInfo.targetPoint.name
+                gateInfo.targetPoint?.name || "Titik Tujuan"
               }: OSRM ${Math.round(osrmRoute.distance)}m + GeoJSON ${Math.round(
-                gateInfo.totalDistance
+                gateInfo.totalDistance || 0
               )}m = Total ${Math.round(totalDistance)}m`
             );
           } else {
@@ -2913,11 +3198,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             console.log(
               `📏 ${gateInfo.gateName} → ${
-                gateInfo.targetPoint.name
+                gateInfo.targetPoint?.name || "Titik Tujuan"
               } (fallback): Garis lurus ${Math.round(
                 straightDistance
               )}m + GeoJSON ${Math.round(
-                gateInfo.totalDistance
+                gateInfo.totalDistance || 0
               )}m = Total ${Math.round(totalDistance)}m`
             );
           }
@@ -2934,24 +3219,39 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           });
         } catch (error) {
           console.warn(
-            `⚠️ Error getting OSRM route to ${gateInfo.gateName} → ${gateInfo.targetPoint.name}:`,
+            `⚠️ Error getting OSRM route to ${gateInfo.gateName} → ${
+              gateInfo.targetPoint?.name || "Titik Tujuan"
+            }:`,
             error
           );
+
+          // Validasi data sebelum fallback
+          if (
+            !gateInfo.coords ||
+            !Array.isArray(gateInfo.coords) ||
+            gateInfo.coords.length !== 2
+          ) {
+            console.error(
+              `❌ Koordinat gerbang tidak valid untuk ${gateInfo.gateName}`
+            );
+            continue;
+          }
 
           // Fallback ke garis lurus
           const straightDistance = calculateDistance(
             userCoords,
             gateInfo.coords
           );
-          const totalDistance = straightDistance + gateInfo.totalDistance;
+          const totalDistance =
+            straightDistance + (gateInfo.totalDistance || 0);
 
-          // Simpan rute fallback
+          // Simpan rute fallback dengan validasi tambahan
           allCompleteRoutes.push({
             gate: gateInfo.gate,
             routeToDestination: gateInfo.routeToDestination,
             osrmRoute: null,
             totalDistance: totalDistance,
-            gateName: gateInfo.gateName,
+            gateName: gateInfo.gateName || "Gerbang",
             coords: gateInfo.coords,
             targetPoint: gateInfo.targetPoint,
           });
@@ -2963,22 +3263,48 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return null;
       }
 
-      // Urutkan semua rute berdasarkan jarak (terdekat di atas)
-      allCompleteRoutes.sort((a, b) => a.totalDistance - b.totalDistance);
+      // Validasi dan filter rute yang valid
+      const validRoutes = allCompleteRoutes.filter((route) => {
+        return (
+          route &&
+          route.gate &&
+          route.targetPoint &&
+          route.coords &&
+          Array.isArray(route.coords) &&
+          route.coords.length === 2 &&
+          typeof route.totalDistance === "number" &&
+          !isNaN(route.totalDistance)
+        );
+      });
 
-      const bestRoute = allCompleteRoutes[0];
+      if (validRoutes.length === 0) {
+        console.log("❌ Tidak ada rute valid yang ditemukan setelah validasi");
+        return null;
+      }
+
+      // Urutkan semua rute berdasarkan jarak (terdekat di atas)
+      validRoutes.sort((a, b) => a.totalDistance - b.totalDistance);
+
+      const bestRoute = validRoutes[0];
       console.log(
         `🏆 Rute terbaik: ${bestRoute.gateName} → ${
-          bestRoute.targetPoint.name
+          bestRoute.targetPoint?.name || "Titik Tujuan"
         } (Total: ${Math.round(bestRoute.totalDistance)}m)`
       );
-      console.log(
-        `📊 Total ${allCompleteRoutes.length} rute alternatif tersedia`
-      );
+      console.log(`📊 Total ${validRoutes.length} rute alternatif tersedia`);
+
+      // PERBAIKAN: Log semua rute alternatif untuk debugging
+      validRoutes.forEach((route, index) => {
+        console.log(
+          `  ${index + 1}. ${route.gateName} → ${
+            route.targetPoint?.name || "Unknown"
+          }: ${Math.round(route.totalDistance)}m`
+        );
+      });
 
       return {
         bestRoute: bestRoute,
-        allRoutes: allCompleteRoutes,
+        allRoutes: validRoutes,
         gate: bestRoute.gate,
         routeToDestination: bestRoute.routeToDestination,
       };
@@ -4490,16 +4816,32 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           if (
             gateInfo &&
+            gateInfo.bestRoute &&
             gateInfo.bestRoute.gate &&
             gateInfo.bestRoute.gate.geometry &&
-            gateInfo.bestRoute.gate.geometry.coordinates
+            gateInfo.bestRoute.gate.geometry.coordinates &&
+            Array.isArray(gateInfo.bestRoute.gate.geometry.coordinates) &&
+            gateInfo.bestRoute.gate.geometry.coordinates.length >= 2
           ) {
             const bestGateInfo = gateInfo.bestRoute;
             const allRoutes = gateInfo.allRoutes;
 
+            // Validasi koordinat gerbang
+            const gateCoordsRaw = bestGateInfo.gate.geometry.coordinates;
+            if (!Array.isArray(gateCoordsRaw) || gateCoordsRaw.length < 2) {
+              console.error("❌ Koordinat gerbang tidak valid:", gateCoordsRaw);
+              showNotification(
+                "error",
+                "Error",
+                "Koordinat gerbang tidak valid. Silakan coba lagi."
+              );
+              setIsCalculatingRoute(false);
+              return;
+            }
+
             const gateCoords: [number, number] = [
-              bestGateInfo.gate.geometry.coordinates[1],
-              bestGateInfo.gate.geometry.coordinates[0],
+              gateCoordsRaw[1],
+              gateCoordsRaw[0],
             ];
 
             // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
@@ -4603,6 +4945,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 gpsToGateSegment,
                 ...gateToEndResult.geojsonSegments,
               ];
+
+              console.log(
+                `🎯 Rute terbaik: ${bestGateInfo.gateName} → ${
+                  bestGateInfo.targetPoint?.name || "Unknown"
+                }`
+              );
+              console.log(`📏 Total distance: ${Math.round(totalDistance)}m`);
+              console.log(`🛣️ Segments: ${finalRouteSegments.length}`);
+
+              console.log(
+                "🛣️ Membuat GeoJSON layer dengan segments:",
+                finalRouteSegments.length
+              );
+              console.log(
+                "🛣️ Segments:",
+                finalRouteSegments.map(
+                  (seg, idx) => `${idx + 1}. ID: ${seg.id || "unknown"}`
+                )
+              );
+
               const geoJsonLayer = L.geoJSON(
                 {
                   type: "FeatureCollection",
@@ -4619,15 +4981,28 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
               );
               if (leafletMapRef.current) {
+                console.log("🗺️ Menambahkan layer ke map");
                 geoJsonLayer.addTo(leafletMapRef.current);
-                leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-                  padding: [60, 60],
-                  maxZoom: 17,
-                  animate: true,
-                  duration: 1.5, // Smooth animation duration
-                });
+
+                try {
+                  const bounds = geoJsonLayer.getBounds();
+                  console.log("🗺️ Bounds:", bounds);
+                  leafletMapRef.current.fitBounds(bounds, {
+                    padding: [60, 60],
+                    maxZoom: 17,
+                    animate: true,
+                    duration: 1.5, // Smooth animation duration
+                  });
+                  console.log("🗺️ Map berhasil di-fit ke bounds");
+                } catch (error) {
+                  console.error("❌ Error fitting bounds:", error);
+                }
+              } else {
+                console.error("❌ leafletMapRef.current is null");
               }
+
               setRouteLine(geoJsonLayer);
+              console.log("✅ Route line berhasil diset");
 
               const allLatLngs: L.LatLng[] = [];
               if (realWorldGpsToGate) {
@@ -4674,23 +5049,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setTotalWalkingTime(totalWalkingTime);
               setTotalVehicleTime(totalVehicleTime);
 
+              // PERBAIKAN: Tampilkan jalur saja tanpa instruksi navigasi terlebih dahulu
+              console.log(
+                "🎯 Menampilkan jalur di map tanpa instruksi navigasi"
+              );
+
+              // Set route steps tapi jangan aktifkan navigasi
               setRouteSteps(
                 parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
               );
-              setActiveStepIndex(0);
+              setActiveStepIndex(-1); // Nonaktifkan navigasi
             } else {
+              console.log("❌ Tidak ditemukan rute dari gerbang ke tujuan");
               showNotification(
                 "error",
                 "Rute Tidak Ditemukan",
-                "Tidak ditemukan rute dari gerbang terdekat ke tujuan."
+                "Tidak ditemukan rute dari gerbang ke tujuan. Silakan coba lokasi lain."
               );
+              setIsCalculatingRoute(false);
+              return;
             }
           } else {
+            console.log("❌ Tidak ada gerbang yang terhubung ke tujuan");
             showNotification(
               "error",
-              "Gerbang Tidak Ditemukan",
-              "Tidak ditemukan gerbang terdekat."
+              "Tidak Ada Rute",
+              "Tidak ada gerbang yang terhubung ke tujuan. Silakan coba lokasi lain."
             );
+            setIsCalculatingRoute(false);
+            return;
           }
         } else {
           // Routing biasa (bukan dari "Lokasi Saya")
@@ -4778,6 +5165,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             setTotalWalkingTime(totalWalkingTime);
             setTotalVehicleTime(totalVehicleTime);
 
+            // PERBAIKAN: Tampilkan jalur saja tanpa instruksi navigasi
+            console.log(
+              "🎯 Menampilkan jalur di map tanpa instruksi navigasi (routing biasa)"
+            );
             setRouteSteps(
               parseRouteSteps(
                 routeResult.geojsonSegments,
@@ -4786,7 +5177,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 transportMode
               )
             );
-            setActiveStepIndex(0);
+            setActiveStepIndex(-1); // Nonaktifkan navigasi
           } else {
             showNotification(
               "error",
@@ -4977,6 +5368,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             </div>
           )}
         </form>
+
+        {/* PERBAIKAN: Tombol untuk mengaktifkan navigasi */}
+        {routeSteps.length > 0 && activeStepIndex === -1 && (
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-[201]">
+            <button
+              onClick={() => setActiveStepIndex(0)}
+              className={`px-4 py-2 rounded-lg shadow-lg transition-colors ${
+                isDark
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-blue-500 hover:bg-blue-600 text-white"
+              }`}
+            >
+              🧭 Mulai Navigasi
+            </button>
+          </div>
+        )}
 
         {/* Step-by-Step Navigation Panel - Bottom Center - Mobile Responsive */}
         {routeSteps.length > 0 && (
