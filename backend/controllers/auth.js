@@ -17,7 +17,8 @@ export const loginAdmin = async (req, res) => {
 
     const valid = await bcrypt.compare(password, admin.password);
     console.log("Compare result:", valid);
-    if (!valid) return res.status(401).json({ error: "Password salah" });
+    if (!valid)
+      return res.status(401).json({ error: "Username atau password salah" });
 
     const token = jwt.sign(
       { id: admin.id_admin, username: admin.username },
@@ -35,7 +36,10 @@ export const loginAdmin = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Login error:", err);
+    res
+      .status(500)
+      .json({ error: "Terjadi kesalahan pada server. Silakan coba lagi." });
   }
 };
 

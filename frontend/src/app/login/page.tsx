@@ -12,10 +12,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isVisible, setIsVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(""); // Reset error message
 
     try {
       const response = await fetch(
@@ -39,11 +41,14 @@ export default function Login() {
         window.dispatchEvent(new Event("login-status-changed"));
         router.push("/dashboard");
       } else {
-        // setErrorMsg(data.error || "Login gagal"); // Original line commented out
+        // Tampilkan pesan error dari server atau pesan default
+        setErrorMsg(
+          data.error || data.message || "Username atau password salah"
+        );
       }
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      // setErrorMsg("Terjadi kesalahan pada server"); // Original line commented out
+      console.error("Login error:", error);
+      setErrorMsg("Terjadi kesalahan pada server. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -154,7 +159,7 @@ export default function Login() {
             </div>
 
             {/* Error Message */}
-            {/* {errorMsg && ( // Original line commented out
+            {errorMsg && (
               <div className="bg-red-500/20 backdrop-blur-sm border border-red-500/30 text-red-800 dark:text-red-200 px-4 py-3 rounded-xl text-sm animate-fadeInUp mb-4">
                 <div className="flex items-center">
                   <svg
@@ -171,7 +176,7 @@ export default function Login() {
                   {errorMsg}
                 </div>
               </div>
-            )} */}
+            )}
 
             {/* Submit Button */}
             <button
