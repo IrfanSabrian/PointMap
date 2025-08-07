@@ -5,7 +5,7 @@ import { parseRouteSteps, getStepInstruction } from "../lib/routeSteps";
 export type TransportMode = "jalan_kaki" | "kendaraan";
 
 export function useRouting() {
-  const [routeSteps, setRouteSteps] = useState<any[]>([]);
+  const [routeSteps, setRouteSteps] = useState<Record<string, any>[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [totalWalkingTime, setTotalWalkingTime] = useState<number | null>(null);

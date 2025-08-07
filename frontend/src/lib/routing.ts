@@ -65,7 +65,9 @@ export function findNearestPoint(
 }
 
 // Fungsi untuk mendapatkan koordinat jalur dalam format [lat, lng]
-export function getRouteCoordinates(route: any): [number, number][] {
+export function getRouteCoordinates(
+  route: Record<string, any>
+): [number, number][] {
   if (route.geometry?.type === "LineString" && route.geometry?.coordinates) {
     return route.geometry.coordinates.map(
       (coord: number[]) => [coord[1], coord[0]] // Convert [lng, lat] to [lat, lng]
@@ -89,10 +91,10 @@ export function getRouteCoordinates(route: any): [number, number][] {
 // Fungsi untuk mencari jalur yang terhubung dengan titik
 export function findConnectedRoutes(
   point: [number, number],
-  routes: any[],
+  routes: Record<string, any>[],
   maxDistance: number = 150 // PERBAIKAN: Tingkatkan jarak maksimal untuk mencari lebih banyak jalur
-): any[] {
-  const connectedRoutes: any[] = [];
+): Record<string, any>[] {
+  const connectedRoutes: Record<string, any>[] = [];
 
   for (const route of routes) {
     const routeCoords = getRouteCoordinates(route);
@@ -149,11 +151,11 @@ export function findConnectedRoutes(
 
 // Fungsi untuk mencari jalur yang terhubung dengan jalur lain
 export function findConnectedRouteToRoute(
-  route: any,
-  routes: any[],
+  route: Record<string, any>,
+  routes: Record<string, any>[],
   maxDistance: number = 50 // PERBAIKAN: Tingkatkan jarak maksimal untuk mencari lebih banyak jalur terhubung
-): any[] {
-  const connectedRoutes: any[] = [];
+): Record<string, any>[] {
+  const connectedRoutes: Record<string, any>[] = [];
   const routeCoords = getRouteCoordinates(route);
 
   if (routeCoords.length === 0) return connectedRoutes;

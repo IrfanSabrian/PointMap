@@ -50,7 +50,7 @@ export default function Dashboard() {
   const [bangunan, setBangunan] = useState<Bangunan[]>([]);
   const [ruangan, setRuangan] = useState<Ruangan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState<any>(null);
+  const [userInfo, setUserInfo] = useState<Record<string, any> | null>(null);
 
   const { theme, setTheme } = useTheme();
   const [weatherDesc, setWeatherDesc] = useState("");
@@ -419,7 +419,7 @@ export default function Dashboard() {
 
           {/* Tombol darkmode */}
           <button
-            onClick={(e) => {
+            onClick={() => {
               const icon = document.getElementById("icon-darkmode");
               if (icon) {
                 icon.classList.add("animate-spin-fast");

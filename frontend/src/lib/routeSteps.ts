@@ -41,7 +41,10 @@ function calculateDistance(
 }
 
 // Fungsi untuk menghitung sudut belok yang lebih presisi
-function calculatePreciseTurnAngle(prevStep: any, currStep: any): number {
+function calculatePreciseTurnAngle(
+  prevStep: Record<string, any>,
+  currStep: Record<string, any>
+): number {
   if (!prevStep.coordinates || !currStep.coordinates) return 0;
   if (prevStep.coordinates.length < 2 || currStep.coordinates.length < 2)
     return 0;
@@ -93,7 +96,7 @@ function calculatePreciseTurnAngle(prevStep: any, currStep: any): number {
 }
 
 // Fungsi untuk mendapatkan bearing dari step
-function getStepBearing(step: any): number {
+function getStepBearing(step: Record<string, any>): number {
   if (!step.coordinates || step.coordinates.length < 2) return 0;
 
   const coords = step.coordinates;
@@ -119,13 +122,13 @@ function normalizeBearingDifference(diff: number): number {
 // Fungsi untuk mencari jalur "both" terdekat dari titik pejalan kaki
 function findNearestBothSegment(
   point: [number, number],
-  routeSegments: any[]
+  routeSegments: Record<string, any>[]
 ): {
-  nearestSegment: any;
+  nearestSegment: Record<string, any>;
   nearestPoint: [number, number];
   distance: number;
 } | null {
-  let nearestSegment: any = null;
+  let nearestSegment: Record<string, any> | null = null;
   let nearestPoint: [number, number] | null = null;
   let minDistance = Infinity;
 
@@ -134,7 +137,7 @@ function findNearestBothSegment(
       const coords = segment.geometry?.coordinates || [];
       if (coords.length > 0) {
         // Cek setiap titik dalam segmen
-        coords.forEach((coord: any) => {
+        coords.forEach((coord: Record<string, any>) => {
           const segmentPoint: [number, number] = [coord[1], coord[0]]; // [lat, lng]
           const distance = calculateDistance(point, segmentPoint);
 
@@ -161,7 +164,7 @@ function findNearestBothSegment(
 
 // Fungsi untuk parsing routeSegments dengan mode transportasi
 export function parseRouteSteps(
-  routeSegments: any[],
+  routeSegments: Record<string, any>[],
   startPoint?: [number, number],
   endPoint?: [number, number],
   transportMode: "jalan_kaki" | "kendaraan" = "jalan_kaki"
@@ -194,7 +197,7 @@ export function parseRouteSteps(
     }
   });
 
-  let processedSegments = routeSegments;
+  const processedSegments = routeSegments;
 
   // PERBAIKAN: Logika kendaraan yang lebih cerdas - tidak perlu akses khusus
   // Kendaraan bisa menggunakan jalur pejalan kaki dengan penalty untuk menghemat jarak

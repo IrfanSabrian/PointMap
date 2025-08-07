@@ -74,9 +74,10 @@ export function useGps() {
     // Request permission untuk device orientation (untuk iOS)
     if (
       typeof DeviceOrientationEvent !== "undefined" &&
-      typeof (DeviceOrientationEvent as any).requestPermission === "function"
+      typeof (DeviceOrientationEvent as Record<string, any>)
+        .requestPermission === "function"
     ) {
-      (DeviceOrientationEvent as any)
+      (DeviceOrientationEvent as Record<string, any>)
         .requestPermission()
         .then((permission: string) => {
           if (permission === "granted") {
@@ -87,7 +88,7 @@ export function useGps() {
             console.log("📍 Device orientation permission denied");
           }
         })
-        .catch((error: any) => {
+        .catch((error: unknown) => {
           console.log("📍 Device orientation permission error:", error);
         });
     } else {
@@ -101,8 +102,8 @@ export function useGps() {
         (position) => {
           const { latitude, longitude } = position.coords;
           const latLng = L.latLng(latitude, longitude);
-          (latLng as any).timestamp = Date.now();
-          (latLng as any).heading = headingRef.current;
+          (latLng as Record<string, any>).timestamp = Date.now();
+          (latLng as Record<string, any>).heading = headingRef.current;
           setUserLocation(latLng);
           console.log(
             "📍 Manual GPS update (3s interval):",
@@ -140,15 +141,15 @@ export function useGps() {
     const gpsInterval = setInterval(updateGPS, 3000);
 
     // Simpan interval ID untuk cleanup
-    watchIdRef.current = gpsInterval as any;
+    watchIdRef.current = gpsInterval as unknown as number;
 
     // Juga gunakan watchPosition sebagai backup
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const latLng = L.latLng(latitude, longitude);
-        (latLng as any).timestamp = Date.now();
-        (latLng as any).heading = headingRef.current;
+        (latLng as Record<string, any>).timestamp = Date.now();
+        (latLng as Record<string, any>).heading = headingRef.current;
         setUserLocation(latLng);
         console.log(
           "📍 Watch GPS update:",
@@ -232,7 +233,7 @@ export function useGps() {
       // Jika sudah ada lokasi GPS yang valid dan belum terlalu lama, gunakan cache
       if (userLocation && isGpsRequesting === false) {
         const now = Date.now();
-        const lastUpdate = (userLocation as any).timestamp || 0;
+        const lastUpdate = (userLocation as Record<string, any>).timestamp || 0;
         if (now - lastUpdate < 30000) {
           // 30 detik cache
           console.log("📍 Menggunakan GPS cache:", [
@@ -263,8 +264,8 @@ export function useGps() {
           setIsGpsRequesting(false);
           const { latitude, longitude } = position.coords;
           const latLng = L.latLng(latitude, longitude);
-          (latLng as any).timestamp = Date.now();
-          (latLng as any).heading = headingRef.current;
+          (latLng as Record<string, any>).timestamp = Date.now();
+          (latLng as Record<string, any>).heading = headingRef.current;
           setUserLocation(latLng);
           console.log(
             "📍 GPS berhasil diambil:",

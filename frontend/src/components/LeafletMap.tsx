@@ -7057,7 +7057,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         <p className="text-sm text-green-700 dark:text-green-300">
                           Koordinat pin telah disimpan:{" "}
                           <strong>
-                            X = {ruanganForm.posisi_x}%, Y ={" "}
+                            X = {ruanganForm.posisi_x}%, Y =&nbsp;
                             {ruanganForm.posisi_y}%
                           </strong>
                         </p>
