@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Use MySQL URL if available, otherwise use individual parameters
-const dbConfig = process.env.MYSQL_URL 
+const dbConfig = process.env.MYSQL_URL
   ? {
       url: process.env.MYSQL_URL,
       dialect: "mysql",
@@ -12,14 +12,17 @@ const dbConfig = process.env.MYSQL_URL
         max: 5,
         min: 0,
         acquire: 30000,
-        idle: 10000
+        idle: 10000,
       },
       dialectOptions: {
-        ssl: process.env.NODE_ENV === 'production' ? {
-          require: true,
-          rejectUnauthorized: false
-        } : false
-      }
+        ssl:
+          process.env.NODE_ENV === "production"
+            ? {
+                require: true,
+                rejectUnauthorized: false,
+              }
+            : false,
+      },
     }
   : {
       database: process.env.DB_NAME,
@@ -33,14 +36,17 @@ const dbConfig = process.env.MYSQL_URL
         max: 5,
         min: 0,
         acquire: 30000,
-        idle: 10000
+        idle: 10000,
       },
       dialectOptions: {
-        ssl: process.env.NODE_ENV === 'production' ? {
-          require: true,
-          rejectUnauthorized: false
-        } : false
-      }
+        ssl:
+          process.env.NODE_ENV === "production"
+            ? {
+                require: true,
+                rejectUnauthorized: false,
+              }
+            : false,
+      },
     };
 
 const sequelize = new Sequelize(dbConfig);
