@@ -19,8 +19,6 @@ import lantaiGambarRoutes from "./routes/lantaiGambar.js";
 import ruanganGalleryRoutes from "./routes/ruanganGallery.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 
-await sequelize.sync(); // pastikan tabel otomatis dibuat (jika belum ada)
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -61,13 +59,46 @@ app.get("/", async (req, res) => {
   }
 });
 
-try {
-  await sequelize.authenticate();
-  console.log("✅ Koneksi DB berhasil");
-  await sequelize.sync();
-} catch (err) {
-  console.error("❌ Gagal koneksi DB:", err);
-}
+// Database connection with retry logic
+const connectDB = async (retries = 5) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await sequelize.authenticate();
+      console.log("✅ Koneksi DB berhasil");
+      await sequelize.sync();
+      return true;
+    } catch (err) {
+      console.error(
+        `❌ Gagal koneksi DB (attempt ${i + 1}/${retries}):`,
+        err.message
+      );
+      if (i === retries - 1) {
+        console.error("❌ Gagal koneksi DB setelah semua percobaan");
+        return false;
+      }
+      // Wait 5 seconds before retry
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+};
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`🚀 Server di http://localhost:${PORT}`));
+// Start server
+const startServer = async () => {
+  const PORT = process.env.PORT || 3001;
+
+  // Try to connect to database
+  const dbConnected = await connectDB();
+
+  if (!dbConnected) {
+    console.log("⚠️ Server akan start tanpa koneksi database");
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server di http://localhost:${PORT}`);
+    console.log(
+      `📊 Database status: ${dbConnected ? "Connected" : "Disconnected"}`
+    );
+  });
+};
+
+startServer();
