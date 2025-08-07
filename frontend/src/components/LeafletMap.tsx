@@ -26,6 +26,7 @@ import {
   faCheckCircle,
   faTimesCircle,
   faExclamationTriangle,
+  faLocationArrow,
 } from "@fortawesome/free-solid-svg-icons";
 import { findRoute, Point, calculateDistance } from "../lib/routing";
 // Import fungsi routing dari src/lib/routeSteps
@@ -295,6 +296,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Gunakan custom hook
     const {
       userLocation,
+      userHeading,
       setUserLocation,
       isGettingLocation,
       setIsGettingLocation,
@@ -303,7 +305,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setShowGPSTroubleshoot,
       isUserInsideCampus,
       getCurrentLocation,
+      isLiveTracking,
       startLiveTracking,
+      stopLiveTracking,
     } = useGps();
 
     const {
@@ -1464,78 +1468,99 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         );
         return;
       }
-      // setIsLocating(true); // Removed as per new_code
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          // setIsLocating(false); // Removed as per new_code
-          const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
-          setUserLocation(latlng);
 
-          // Tambahkan pengecekan apakah user di dalam kampus
-          const isInsideCampus = isUserInsideCampus(
-            pos.coords.latitude,
-            pos.coords.longitude
-          );
-          console.log("📍 [GPS-CHECK] User location check:", {
-            coordinates: [pos.coords.latitude, pos.coords.longitude],
-            isInsideCampus: isInsideCampus,
-          });
+      if (isLiveTracking) {
+        // Hentikan live tracking
+        stopLiveTracking();
 
-          // Tampilkan informasi lokasi user
-          const locationMessage = isInsideCampus
-            ? "📍 Anda berada di dalam area kampus"
-            : "📍 Anda berada di luar area kampus";
-          console.log("📍 [GPS-CHECK] " + locationMessage);
+        // Hapus marker GPS
+        if (userMarkerRef.current && leafletMapRef.current) {
+          leafletMapRef.current.removeLayer(userMarkerRef.current);
+          userMarkerRef.current = null;
+        }
 
-          // Simpan status lokasi untuk digunakan nanti
-          (latlng as any).isInsideCampus = isInsideCampus;
+        showNotification(
+          "success",
+          "Live GPS Tracking",
+          "Live tracking GPS telah dihentikan."
+        );
+      } else {
+        // Mulai live tracking dengan arah
+        startLiveTracking();
 
-          const map = leafletMapRef.current;
-          if (map) {
-            map.setView(latlng, 18, { animate: true });
-          }
-        },
-        (err) => {
-          // setIsLocating(false); // Removed as per new_code
-          showNotification(
-            "error",
-            "GPS Error",
-            "Gagal mendapatkan lokasi: " +
-              err.message +
-              " (code: " +
-              err.code +
-              ")"
-          );
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
+        showNotification(
+          "success",
+          "Live GPS Tracking",
+          "Live tracking GPS dengan arah telah diaktifkan. Posisi Anda akan selalu terupdate setiap 3 detik."
+        );
+      }
+    };
+
+    // Fungsi untuk membuat custom icon GPS marker
+    const createUserMarkerIcon = (heading: number | null) => {
+      const size = 40;
+      return L.divIcon({
+        html: `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
+                 <div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: rgba(59, 130, 246, 0.3); border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center;">
+                   <div style="width: ${size - 8}px; height: ${
+          size - 8
+        }px; border-radius: 50%; background: white; border: 1px solid #3b82f6; position: relative;">
+                     ${
+                       heading !== null
+                         ? `<div style="position: absolute; top: 2px; left: 50%; transform: translateX(-50%) rotate(${heading}deg); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 12px solid #3b82f6;"></div>`
+                         : ""
+                     }
+                   </div>
+                 </div>
+               </div>`,
+        className: "custom-user-marker",
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+      });
     };
 
     // Tampilkan marker user di map jika userLocation ada
     useEffect(() => {
       const map = leafletMapRef.current;
       if (!map) return;
-      if (userMarkerRef.current) {
-        map.removeLayer(userMarkerRef.current);
-        userMarkerRef.current = null;
-      }
+
       if (userLocation) {
-        const marker = L.marker(userLocation, {
-          icon: L.icon({
-            iconUrl:
-              "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png",
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowUrl:
-              "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
-            shadowSize: [41, 41],
-          }),
-          title: "Lokasi Saya",
-        });
-        marker.addTo(map).bindPopup("Lokasi Saya");
-        userMarkerRef.current = marker;
+        const heading = (userLocation as any).heading || userHeading;
+
+        // Jika marker sudah ada, update posisinya
+        if (userMarkerRef.current) {
+          userMarkerRef.current.setLatLng(userLocation);
+          userMarkerRef.current.setIcon(createUserMarkerIcon(heading));
+          console.log(
+            "📍 GPS marker updated to:",
+            [userLocation.lat, userLocation.lng],
+            "heading:",
+            heading
+          );
+        } else {
+          // Buat marker baru jika belum ada
+          const marker = L.marker(userLocation, {
+            icon: createUserMarkerIcon(heading),
+            title: "Lokasi Saya",
+          });
+          marker.addTo(map).bindPopup("Lokasi Saya");
+          userMarkerRef.current = marker;
+          console.log(
+            "📍 GPS marker created at:",
+            [userLocation.lat, userLocation.lng],
+            "heading:",
+            heading
+          );
+        }
+      } else {
+        // Hapus marker jika tidak ada lokasi
+        if (userMarkerRef.current) {
+          map.removeLayer(userMarkerRef.current);
+          userMarkerRef.current = null;
+          console.log("📍 GPS marker removed");
+        }
       }
+
       // Cleanup
       return () => {
         if (userMarkerRef.current) {
@@ -1543,7 +1568,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           userMarkerRef.current = null;
         }
       };
-    }, [userLocation]);
+    }, [userLocation, userHeading]);
 
     // Fungsi untuk menghitung centroid dari feature (Polygon/MultiPolygon)
     function getFeatureCentroid(feature: FeatureType): [number, number] {
@@ -4679,12 +4704,38 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Listener untuk GPS updates
     useEffect(() => {
       const handleGpsUpdate = (event: MessageEvent) => {
-        if (event.data.type === "gps-updated" && routeSteps.length > 0) {
-          console.log("📍 GPS updated, recalculating route...");
-          // Recalculate route dengan GPS baru
-          setTimeout(() => {
-            handleRouteSubmit();
-          }, 1000); // Tunggu 1 detik untuk stabilitas
+        if (event.data.type === "gps-updated") {
+          console.log("📍 GPS updated, updating marker and route...");
+
+          const newCoords = event.data.coordinates;
+          const newHeading = event.data.heading;
+          const newLatLng = L.latLng(newCoords[0], newCoords[1]);
+
+          // Update marker GPS secara otomatis jika ada
+          if (userMarkerRef.current) {
+            const currentLatLng = userMarkerRef.current.getLatLng();
+            const distance = currentLatLng.distanceTo(newLatLng);
+
+            // Update marker setiap kali GPS berubah (tanpa batasan jarak)
+            userMarkerRef.current.setLatLng(newLatLng);
+            userMarkerRef.current.setIcon(createUserMarkerIcon(newHeading));
+            console.log(
+              "📍 GPS marker automatically updated to:",
+              newCoords,
+              "heading:",
+              newHeading,
+              "distance moved:",
+              Math.round(distance),
+              "meters"
+            );
+          }
+
+          // Recalculate route jika ada rute aktif
+          if (routeSteps.length > 0) {
+            setTimeout(() => {
+              handleRouteSubmit();
+            }, 1000); // Tunggu 1 detik untuk stabilitas
+          }
         }
       };
 
@@ -5672,7 +5723,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {/* Kontrol kanan bawah: tombol zoom, GPS, reset, dsb - Mobile Responsive */}
+        {/* Kontrol kanan bawah: tombol zoom, reset, GPS - Mobile Responsive */}
         <div
           className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-50 flex flex-col gap-2"
           style={{ zIndex: 1050 }}
@@ -5752,6 +5803,37 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <FontAwesomeIcon
                 icon={faSyncAlt}
                 className="w-3 h-3 sm:w-4 sm:h-4"
+              />
+            </button>
+            {/* GPS Live Tracking Button */}
+            <button
+              data-control="locate-me"
+              onClick={handleLocateMe}
+              aria-label={
+                isLiveTracking
+                  ? "Hentikan live GPS tracking"
+                  : "Aktifkan live GPS tracking dengan arah"
+              }
+              title={
+                isLiveTracking
+                  ? "Hentikan live GPS tracking"
+                  : "Aktifkan live GPS tracking dengan arah"
+              }
+              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
+              ${
+                isLiveTracking
+                  ? "bg-red-500 border-red-600 hover:bg-red-600 text-white"
+                  : isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              }
+            `}
+            >
+              <FontAwesomeIcon
+                icon={faLocationArrow}
+                className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                  isLiveTracking ? "animate-pulse" : ""
+                }`}
               />
             </button>
           </div>

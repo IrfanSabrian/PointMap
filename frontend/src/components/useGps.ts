@@ -3,11 +3,13 @@ import L from "leaflet";
 
 export function useGps() {
   const [userLocation, setUserLocation] = useState<L.LatLng | null>(null);
+  const [userHeading, setUserHeading] = useState<number | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isGpsRequesting, setIsGpsRequesting] = useState(false);
   const [showGPSTroubleshoot, setShowGPSTroubleshoot] = useState(false);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const watchIdRef = useRef<number | null>(null);
+  const headingRef = useRef<number | null>(null);
 
   // Cek apakah user berada di dalam kampus
   const isUserInsideCampus = (userLat: number, userLng: number): boolean => {
@@ -25,7 +27,36 @@ export function useGps() {
     );
   };
 
-  // Mulai live GPS tracking
+  // Fungsi untuk mendapatkan heading dari device orientation
+  const getDeviceHeading = (): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      if (!window.DeviceOrientationEvent) {
+        reject(new Error("Device orientation tidak didukung"));
+        return;
+      }
+
+      const handleOrientation = (event: DeviceOrientationEvent) => {
+        if (event.alpha !== null) {
+          // alpha adalah rotasi pada sumbu Z (heading)
+          const heading = event.alpha;
+          setUserHeading(heading);
+          headingRef.current = heading;
+          window.removeEventListener("deviceorientation", handleOrientation);
+          resolve(heading);
+        }
+      };
+
+      window.addEventListener("deviceorientation", handleOrientation);
+
+      // Timeout setelah 5 detik
+      setTimeout(() => {
+        window.removeEventListener("deviceorientation", handleOrientation);
+        reject(new Error("Timeout mendapatkan heading"));
+      }, 5000);
+    });
+  };
+
+  // Mulai live GPS tracking dengan heading
   const startLiveTracking = () => {
     if (!navigator.geolocation) {
       console.error("Geolocation tidak didukung");
@@ -40,41 +71,150 @@ export function useGps() {
     setIsLiveTracking(true);
     console.log("📍 Memulai live GPS tracking...");
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
+    // Request permission untuk device orientation (untuk iOS)
+    if (
+      typeof DeviceOrientationEvent !== "undefined" &&
+      typeof (DeviceOrientationEvent as any).requestPermission === "function"
+    ) {
+      (DeviceOrientationEvent as any)
+        .requestPermission()
+        .then((permission: string) => {
+          if (permission === "granted") {
+            console.log("📍 Device orientation permission granted");
+            // Mulai listening untuk device orientation setelah permission granted
+            startDeviceOrientationListening();
+          } else {
+            console.log("📍 Device orientation permission denied");
+          }
+        })
+        .catch((error: any) => {
+          console.log("📍 Device orientation permission error:", error);
+        });
+    } else {
+      // Untuk browser yang tidak memerlukan permission, langsung mulai listening
+      startDeviceOrientationListening();
+    }
+
+    // Fungsi untuk update GPS secara manual setiap 3 detik
+    const updateGPS = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const latLng = L.latLng(latitude, longitude);
+          (latLng as any).timestamp = Date.now();
+          (latLng as any).heading = headingRef.current;
+          setUserLocation(latLng);
+          console.log(
+            "📍 Manual GPS update (3s interval):",
+            [latitude, longitude],
+            "heading:",
+            headingRef.current
+          );
+
+          // Trigger route update jika ada rute aktif
+          window.postMessage(
+            {
+              type: "gps-updated",
+              coordinates: [latitude, longitude],
+              heading: headingRef.current,
+              timestamp: Date.now(),
+            },
+            "*"
+          );
+        },
+        (error) => {
+          console.error("📍 Manual GPS error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0, // Selalu ambil posisi terbaru
+        }
+      );
+    };
+
+    // Jalankan update GPS pertama kali
+    updateGPS();
+
+    // Set interval untuk update GPS setiap 3 detik
+    const gpsInterval = setInterval(updateGPS, 3000);
+
+    // Simpan interval ID untuk cleanup
+    watchIdRef.current = gpsInterval as any;
+
+    // Juga gunakan watchPosition sebagai backup
+    const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const latLng = L.latLng(latitude, longitude);
         (latLng as any).timestamp = Date.now();
+        (latLng as any).heading = headingRef.current;
         setUserLocation(latLng);
-        console.log("📍 Live GPS update:", [latitude, longitude]);
+        console.log(
+          "📍 Watch GPS update:",
+          [latitude, longitude],
+          "heading:",
+          headingRef.current
+        );
 
         // Trigger route update jika ada rute aktif
-        // Kirim event untuk update route
         window.postMessage(
           {
             type: "gps-updated",
             coordinates: [latitude, longitude],
+            heading: headingRef.current,
             timestamp: Date.now(),
           },
           "*"
         );
       },
       (error) => {
-        console.error("📍 Live GPS error:", error);
-        setIsLiveTracking(false);
+        console.error("📍 Watch GPS error:", error);
       },
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 3000, // Update setiap 3 detik untuk responsivitas lebih baik
+        maximumAge: 3000,
       }
     );
+
+    // Simpan watch ID untuk cleanup
+    const originalWatchId = watchId;
+    return () => {
+      clearInterval(gpsInterval);
+      navigator.geolocation.clearWatch(originalWatchId);
+    };
+  };
+
+  // Fungsi untuk mulai listening device orientation
+  const startDeviceOrientationListening = () => {
+    if (window.DeviceOrientationEvent) {
+      const handleOrientation = (event: DeviceOrientationEvent) => {
+        if (event.alpha !== null) {
+          const heading = event.alpha;
+          setUserHeading(heading);
+          headingRef.current = heading;
+          console.log("📍 Device orientation heading:", heading);
+        }
+      };
+
+      window.addEventListener("deviceorientation", handleOrientation);
+
+      // Simpan reference untuk cleanup
+      const orientationHandler = handleOrientation;
+
+      // Cleanup function
+      return () => {
+        window.removeEventListener("deviceorientation", orientationHandler);
+      };
+    }
   };
 
   // Stop live GPS tracking
   const stopLiveTracking = () => {
     if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      // Clear interval timer
+      clearInterval(watchIdRef.current);
       watchIdRef.current = null;
     }
     setIsLiveTracking(false);
@@ -124,8 +264,14 @@ export function useGps() {
           const { latitude, longitude } = position.coords;
           const latLng = L.latLng(latitude, longitude);
           (latLng as any).timestamp = Date.now();
+          (latLng as any).heading = headingRef.current;
           setUserLocation(latLng);
-          console.log("📍 GPS berhasil diambil:", [latitude, longitude]);
+          console.log(
+            "📍 GPS berhasil diambil:",
+            [latitude, longitude],
+            "heading:",
+            headingRef.current
+          );
           resolve([latitude, longitude]);
         },
         (error) => {
@@ -147,14 +293,16 @@ export function useGps() {
   useEffect(() => {
     return () => {
       if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+        clearInterval(watchIdRef.current);
       }
     };
   }, []);
 
   return {
     userLocation,
+    userHeading,
     setUserLocation,
+    setUserHeading,
     isGettingLocation,
     setIsGettingLocation,
     isGpsRequesting,
@@ -162,6 +310,7 @@ export function useGps() {
     setShowGPSTroubleshoot,
     isUserInsideCampus,
     getCurrentLocation,
+    getDeviceHeading,
     isLiveTracking,
     startLiveTracking,
     stopLiveTracking,
