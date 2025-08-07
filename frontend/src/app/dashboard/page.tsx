@@ -190,8 +190,12 @@ export default function Dashboard() {
       };
 
       const [bangunanRes, ruanganRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`, { headers }),
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`, { headers }),
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`, {
+          headers,
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`, {
+          headers,
+        }),
       ]);
 
       if (bangunanRes.ok) {

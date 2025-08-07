@@ -4,10 +4,10 @@
 
 @layer base {
   body {
-    @apply bg-background text-muted transition-colors duration-300 font-sans;
+    @apply bg-white text-muted transition-colors duration-300 font-sans;
   }
   .dark body {
-    @apply bg-background-dark text-muted-dark;
+    @apply bg-gray-900 text-muted-dark;
   }
 
   /* Font smoothing untuk tampilan yang lebih halus */
@@ -29,16 +29,16 @@
 
 @layer components {
   .input {
-    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-surface text-muted font-sans;
-    @apply dark:bg-surface-dark dark:text-muted-dark dark:border-accent-dark dark:focus:border-primary-dark dark:focus:ring-primary-dark/20;
+    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-white text-muted font-sans;
+    @apply dark:bg-gray-800 dark:text-muted-dark dark:border-accent-dark dark:focus:border-primary-dark dark:focus:ring-primary-dark/20;
   }
   .btn-icon {
     @apply p-2 rounded-lg text-white hover:opacity-90 transition bg-primary font-sans;
     @apply dark:bg-primary-dark;
   }
   .stat-card {
-    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-surface text-muted font-sans;
-    @apply dark:bg-surface-dark dark:text-muted-dark;
+    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-white text-muted font-sans;
+    @apply dark:bg-gray-800 dark:text-muted-dark;
   }
 }
 

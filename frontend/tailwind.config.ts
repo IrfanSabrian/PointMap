@@ -5,6 +5,7 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   darkMode: "class",
   theme: {
@@ -22,14 +23,17 @@ const config: Config = {
           DEFAULT: "#f1faee", // abu muda
           dark: "#181926", // biru navy gelap
         },
+        "background-dark": "#181926", // alias untuk dark mode
         surface: {
           DEFAULT: "#ffffff",
           dark: "#232946",
         },
+        "surface-dark": "#232946", // alias untuk dark mode
         muted: {
           DEFAULT: "#6c757d",
           dark: "#b8c1ec",
         },
+        "muted-dark": "#b8c1ec", // alias untuk dark mode
         error: {
           DEFAULT: "#e63946",
           dark: "#ff6b6b",
