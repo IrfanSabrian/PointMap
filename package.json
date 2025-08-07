@@ -1,0 +1,12 @@
+{
+  "name": "pointmap-root",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "install": "cd backend && npm install"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  }
+}
