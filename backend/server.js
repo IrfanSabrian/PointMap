@@ -83,22 +83,45 @@ app.get("/", async (req, res) => {
 
 // Database connection with retry logic
 const connectDB = async (retries = 5) => {
+  console.log("🔍 Database Connection Details:");
+  console.log("DB_HOST:", process.env.DB_HOST);
+  console.log("DB_PORT:", process.env.DB_PORT);
+  console.log("DB_USER:", process.env.DB_USER);
+  console.log("DB_NAME:", process.env.DB_NAME);
+  console.log("DB_PASS:", process.env.DB_PASS ? "***SET***" : "NOT SET");
+  console.log("NODE_ENV:", process.env.NODE_ENV);
+  console.log("");
+
   for (let i = 0; i < retries; i++) {
     try {
+      console.log(`🔄 Attempt ${i + 1}/${retries} - Connecting to database...`);
       await sequelize.authenticate();
       console.log("✅ Koneksi DB berhasil");
       await sequelize.sync();
       return true;
     } catch (err) {
       console.error(
-        `❌ Gagal koneksi DB (attempt ${i + 1}/${retries}):`,
-        err.message
+        `❌ Gagal koneksi DB (attempt ${i + 1}/${retries}):`
       );
+      console.error("Error:", err.message);
+      console.error("Code:", err.code);
+      console.error("Errno:", err.errno);
+      
+      // Provide specific troubleshooting tips
+      if (err.code === "ECONNREFUSED") {
+        console.log("💡 Troubleshooting: Connection refused - Check if database service is running");
+      } else if (err.code === "ER_ACCESS_DENIED_ERROR") {
+        console.log("💡 Troubleshooting: Access denied - Check DB_USER and DB_PASS");
+      } else if (err.code === "ER_BAD_DB_ERROR") {
+        console.log("💡 Troubleshooting: Database doesn't exist - Check DB_NAME");
+      }
+      
       if (i === retries - 1) {
         console.error("❌ Gagal koneksi DB setelah semua percobaan");
         return false;
       }
       // Wait 5 seconds before retry
+      console.log("⏳ Waiting 5 seconds before retry...");
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
   }
