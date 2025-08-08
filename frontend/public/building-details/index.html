@@ -1655,7 +1655,7 @@
 
     <script>
       // Konfigurasi API
-      const API_BASE_URL = "http://localhost:3001/api";
+      const API_BASE_URL = "https://pointmap-production.up.railway.app";
 
       // Fungsi untuk mendapatkan parameter dari URL
       function getUrlParameter(name) {
@@ -1671,7 +1671,14 @@
 
           // Ambil data bangunan
           const buildingResponse = await fetch(
-            `${API_BASE_URL}/bangunan/${buildingId}`
+            `${API_BASE_URL}/bangunan/${buildingId}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+            }
           );
           if (!buildingResponse.ok) {
             throw new Error(`HTTP error! status: ${buildingResponse.status}`);
@@ -1682,7 +1689,14 @@
 
           // Ambil data ruangan untuk bangunan ini (gunakan endpoint 3D untuk posisi pin dinamis)
           const ruanganResponse = await fetch(
-            `${API_BASE_URL}/ruangan/bangunan/${buildingId}/3d`
+            `${API_BASE_URL}/ruangan/bangunan/${buildingId}/3d`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+            }
           );
           if (!ruanganResponse.ok) {
             throw new Error(`HTTP error! status: ${ruanganResponse.status}`);
@@ -1700,7 +1714,14 @@
           let lantaiGambarData = [];
           try {
             const lantaiResponse = await fetch(
-              `${API_BASE_URL}/lantai-gambar/bangunan/${buildingId}`
+              `${API_BASE_URL}/lantai-gambar/bangunan/${buildingId}`,
+              {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                credentials: "include",
+              }
             );
             if (lantaiResponse.ok) {
               lantaiGambarData = await lantaiResponse.json();
@@ -1718,7 +1739,14 @@
           let ruanganGalleryData = [];
           try {
             const galleryResponse = await fetch(
-              `${API_BASE_URL}/ruangan-gallery`
+              `${API_BASE_URL}/ruangan-gallery`,
+              {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                credentials: "include",
+              }
             );
             if (galleryResponse.ok) {
               ruanganGalleryData = await galleryResponse.json();
@@ -1811,7 +1839,13 @@
           // Jika error terjadi setelah data bangunan berhasil diambil, gunakan nama dari API
           if (error.message.includes("Data ruangan tidak ditemukan")) {
             // Gunakan fetch tanpa await karena di dalam catch block
-            fetch(`${API_BASE_URL}/bangunan/${buildingId}`)
+            fetch(`${API_BASE_URL}/bangunan/${buildingId}`, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+            })
               .then((response) => {
                 if (response.ok) {
                   return response.json();
