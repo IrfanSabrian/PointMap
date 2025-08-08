@@ -298,9 +298,11 @@ export default function Home() {
       {/* NAVBAR */}
       <nav
         id="navbar-main"
-        className={`flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-300 group/navbar ${
+        className={`navbar ${
+          isScrolled ? "navbar-scrolled" : "navbar-transparent"
+        } flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-300 group/navbar ${
           isScrolled
-            ? "bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md shadow-lg"
+            ? "bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-lg"
             : "bg-transparent"
         } ${
           showNavbar
@@ -361,13 +363,13 @@ export default function Home() {
                   <span className="text-xl font-bold leading-none text-primary dark:text-primary-dark">
                     {cuaca}
                   </span>
-                  <span className="text-xs font-medium capitalize text-muted dark:text-muted-dark leading-none">
+                  <span className="text-xs font-medium capitalize text-gray-600 dark:text-gray-400 leading-none">
                     {weatherDescID(weatherDesc)}
                   </span>
                 </div>
               </div>
               {/* Tanggal */}
-              <span className="text-base lg:text-lg font-bold text-muted dark:text-muted-dark whitespace-nowrap">
+              <span className="text-base lg:text-lg font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                 {hari}, {tanggal}
               </span>
             </div>
@@ -442,14 +444,14 @@ export default function Home() {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative flex flex-col lg:flex-row items-center justify-between min-h-screen w-full pt-20 lg:pt-32 pb-0 px-2 lg:px-16 overflow-hidden gap-6 lg:gap-12">
-        <div className="w-full max-w-screen-sm lg:max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-12">
+      <section className="hero-section relative flex flex-col lg:flex-row items-center justify-between min-h-screen w-full pt-24 sm:pt-28 lg:pt-32 pb-8 lg:pb-0 px-4 sm:px-6 lg:px-16 overflow-hidden gap-8 lg:gap-12">
+        <div className="w-full max-w-screen-sm lg:max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12">
           {/* Partikel Custom Polkadot/Bintang */}
           <ParticlesCustom isDark={isDark ?? false} />
 
           {/* Kiri: Text Content */}
-          <div className="flex-1 z-10 flex flex-col items-center lg:items-start justify-center max-w-2xl text-center lg:text-left animate-fadeInUp order-2 lg:order-1">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-heading font-semibold leading-tight mb-2 lg:mb-6 text-[#1a1a1a] dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1 justify-center lg:justify-start">
+          <div className="hero-content flex-1 z-10 flex flex-col items-center lg:items-start justify-center max-w-2xl text-center lg:text-left animate-fadeInUp order-2 lg:order-1 mt-8 lg:mt-0">
+            <h1 className="hero-title text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-heading font-semibold leading-tight mb-4 lg:mb-6 text-gray-900 dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1 justify-center lg:justify-start">
               {"PointMap".split("").map((char, i) => (
                 <span
                   key={i}
@@ -460,17 +462,17 @@ export default function Home() {
                 </span>
               ))}
             </h1>
-            <p className="text-base sm:text-lg lg:text-xl xl:text-2xl text-primary/80 dark:text-primary-dark/80 my-3 lg:my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
+            <p className="hero-subtitle text-base sm:text-lg lg:text-xl xl:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 lg:my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
               Polnep Interactive Map
             </p>
-            <p className="max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-muted dark:text-muted-dark mb-6 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-muted/80 dark:hover:text-muted-dark/80 transition-colors duration-300 px-2 lg:px-0">
+            <p className="hero-description max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-gray-700 dark:text-gray-300 mb-8 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-300 px-2 lg:px-0">
               Sarana pemetaan digital interaktif yang mendukung kegiatan
               eksplorasi dan navigasi kawasan kampus Politeknik Negeri Pontianak
               secara informatif dan terarah.
             </p>
             <button
               onClick={scrollToMap}
-              className="group px-5 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-4 bg-primary text-white font-bold text-sm sm:text-base lg:text-lg rounded-xl shadow-lg hover:bg-gradient-to-r hover:from-primary hover:to-accent dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="hero-button group px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 bg-primary text-white font-bold text-sm sm:text-base lg:text-lg rounded-xl shadow-lg hover:bg-gradient-to-r hover:from-primary hover:to-accent dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
               style={{ position: "relative" }}
             >
               <span className="relative z-10 flex items-center gap-2">
@@ -495,7 +497,7 @@ export default function Home() {
           </div>
 
           {/* Kanan: Image Slider */}
-          <div className="flex-1 flex items-center justify-center relative w-full aspect-[16/9] max-w-xs sm:max-w-md lg:max-w-2xl animate-fadeInRight order-1 lg:order-2 mb-1 lg:mb-0">
+          <div className="hero-slider flex-1 flex items-center justify-center relative w-full aspect-[16/9] max-w-xs sm:max-w-md lg:max-w-2xl animate-fadeInRight order-1 lg:order-2 mb-4 lg:mb-0">
             <div className="relative w-full h-full overflow-hidden rounded-2xl lg:rounded-3xl shadow-[0_8px_32px_0_rgba(30,41,59,0.25)] lg:shadow-[0_16px_64px_0_rgba(30,41,59,0.35)] bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md z-20 -translate-y-2 lg:-translate-y-8 transition-all duration-500 floating-anim">
               <Slider {...sliderSettings} className="w-full h-full">
                 {sliderImages.map((image, index) => (
@@ -532,15 +534,15 @@ export default function Home() {
         {/* Tombol Scroll absolut di tengah bawah hero section */}
         <button
           onClick={scrollToMap}
-          className="absolute left-1/2 -translate-x-1/2 bottom-4 lg:bottom-6 z-30 flex flex-col items-center group focus:outline-none"
+          className="scroll-button absolute left-1/2 -translate-x-1/2 bottom-8 sm:bottom-10 lg:bottom-6 z-30 flex flex-col items-center group focus:outline-none"
           style={{ background: "none", border: "none" }}
           aria-label="Scroll ke bawah"
         >
-          <span className="text-xs lg:text-sm text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark font-medium transition-colors">
+          <span className="text-xs lg:text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark font-medium transition-colors">
             Scroll
           </span>
           <svg
-            className="w-5 h-5 lg:w-6 lg:h-6 text-primary dark:text-primary-dark group-hover:text-accent dark:group-hover:text-accent-dark animate-bounce mt-0.5 transition-colors"
+            className="w-5 h-5 lg:w-6 lg:h-6 text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark animate-bounce mt-0.5 transition-colors"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

@@ -64,6 +64,36 @@ app.use("/api/lantai-gambar", lantaiGambarRoutes);
 app.use("/api/ruangan-gallery", ruanganGalleryRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 
+// Debug endpoints
+app.get("/api/debug/env", (req, res) => {
+  res.json({
+    DB_HOST: process.env.DB_HOST,
+    DB_PORT: process.env.DB_PORT,
+    DB_USER: process.env.DB_USER,
+    DB_NAME: process.env.DB_NAME,
+    DB_PASS: process.env.DB_PASS ? "***SET***" : "❌ NOT SET",
+    JWT_SECRET: process.env.JWT_SECRET ? "***SET***" : "❌ NOT SET",
+    NODE_ENV: process.env.NODE_ENV,
+    MYSQL_URL: process.env.MYSQL_URL ? "***SET***" : "❌ NOT SET",
+  });
+});
+
+app.get("/api/debug/db", async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({
+      status: "Database connected",
+      message: "Database connection successful",
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "Database disconnected",
+      error: err.message,
+      code: err.code,
+    });
+  }
+});
+
 // ROUTE "/" MENAMPILKAN DATA DATABASE
 app.get("/", async (req, res) => {
   try {

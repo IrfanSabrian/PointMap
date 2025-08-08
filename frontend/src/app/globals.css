@@ -4,10 +4,10 @@
 
 @layer base {
   body {
-    @apply bg-white text-muted transition-colors duration-300 font-sans;
+    @apply bg-white text-gray-700 transition-colors duration-300 font-sans;
   }
   .dark body {
-    @apply bg-gray-900 text-muted-dark;
+    @apply bg-gray-900 text-gray-300;
   }
 
   /* Font smoothing untuk tampilan yang lebih halus */
@@ -29,16 +29,16 @@
 
 @layer components {
   .input {
-    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-white text-muted font-sans;
-    @apply dark:bg-gray-800 dark:text-muted-dark dark:border-accent-dark dark:focus:border-primary-dark dark:focus:ring-primary-dark/20;
+    @apply w-full px-4 py-2 rounded-xl border-2 border-accent/50 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition bg-white text-gray-700 font-sans;
+    @apply dark:bg-gray-800 dark:text-gray-300 dark:border-accent-dark dark:focus:border-primary-dark dark:focus:ring-primary-dark/20;
   }
   .btn-icon {
     @apply p-2 rounded-lg text-white hover:opacity-90 transition bg-primary font-sans;
     @apply dark:bg-primary-dark;
   }
   .stat-card {
-    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-white text-muted font-sans;
-    @apply dark:bg-gray-800 dark:text-muted-dark;
+    @apply flex flex-col items-center justify-center px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 bg-white text-gray-700 font-sans;
+    @apply dark:bg-gray-800 dark:text-gray-300;
   }
 }
 
@@ -313,4 +313,206 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* ===== MOBILE RESPONSIVENESS FIXES ===== */
+
+/* Hero Section Mobile Fixes */
+@media (max-width: 640px) {
+  .hero-section {
+    min-height: 100vh;
+    padding-top: 6rem;
+    padding-bottom: 2rem;
+  }
+
+  .hero-content {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    padding: 0 1rem;
+  }
+
+  .hero-button {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .hero-slider {
+    margin-bottom: 2rem;
+    max-width: 280px;
+  }
+
+  .scroll-button {
+    bottom: 2rem;
+  }
+}
+
+/* ===== DARK MODE FIXES ===== */
+
+.dark-mode-fix {
+  color-scheme: dark;
+}
+
+.dark .text-gray-700 {
+  color: rgb(55 65 81);
+}
+
+.dark .text-gray-600 {
+  color: rgb(75 85 99);
+}
+
+.dark .text-gray-300 {
+  color: rgb(209 213 219);
+}
+
+.dark .text-gray-400 {
+  color: rgb(156 163 175);
+}
+
+/* Navbar Dark Mode Fixes */
+.dark .navbar-scrolled {
+  background-color: rgba(17, 24, 39, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.dark .navbar-transparent {
+  background-color: transparent;
+}
+
+/* Button Dark Mode Fixes */
+.dark .btn-primary {
+  background-color: rgb(59 130 246);
+  color: white;
+}
+
+.dark .btn-primary:hover {
+  background-color: rgb(37 99 235);
+}
+
+/* Text Color Fixes for Dark Mode */
+.dark .text-primary {
+  color: rgb(59 130 246);
+}
+
+.dark .text-primary-dark {
+  color: rgb(96 165 250);
+}
+
+/* Background Fixes for Dark Mode */
+.dark .bg-white {
+  background-color: rgb(17 24 39);
+}
+
+.dark .bg-gray-100 {
+  background-color: rgb(31 41 55);
+}
+
+.dark .bg-gray-800 {
+  background-color: rgb(31 41 55);
+}
+
+/* Border Fixes for Dark Mode */
+.dark .border-gray-200 {
+  border-color: rgb(55 65 81);
+}
+
+.dark .border-gray-300 {
+  border-color: rgb(75 85 99);
+}
+
+/* Shadow Fixes for Dark Mode */
+.dark .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3),
+    0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* Focus Ring Fixes for Dark Mode */
+.dark .focus:ring-primary\/20 {
+  --tw-ring-color: rgb(59 130 246 / 0.2);
+}
+
+.dark .focus:ring-primary-dark\/20 {
+  --tw-ring-color: rgb(96 165 250 / 0.2);
+}
+
+/* Hover State Fixes for Dark Mode */
+.dark .hover\:bg-primary\/20:hover {
+  background-color: rgb(59 130 246 / 0.2);
+}
+
+.dark .hover\:bg-primary-dark\/20:hover {
+  background-color: rgb(96 165 250 / 0.2);
+}
+
+/* Mobile Specific Dark Mode Fixes */
+@media (max-width: 640px) {
+  .dark .mobile-hero-title {
+    color: rgb(243 244 246);
+  }
+
+  .dark .mobile-hero-description {
+    color: rgb(209 213 219);
+  }
+
+  .dark .mobile-navbar {
+    background-color: rgba(17, 24, 39, 0.95);
+  }
+}
+
+/* Ensure proper contrast in dark mode */
+.dark .text-muted {
+  color: rgb(156 163 175);
+}
+
+.dark .text-muted-dark {
+  color: rgb(209 213 219);
+}
+
+/* Fix for any remaining light text in dark mode */
+.dark * {
+  color-scheme: dark;
+}
+
+/* Ensure proper visibility of interactive elements */
+.dark .interactive-element {
+  color: rgb(96 165 250);
+}
+
+.dark .interactive-element:hover {
+  color: rgb(147 197 253);
+}
+
+/* Fix for any white text that should be dark in light mode */
+.text-white {
+  color: rgb(255 255 255);
+}
+
+.dark .text-white {
+  color: rgb(255 255 255);
+}
+
+/* Fix for any black text that should be light in dark mode */
+.text-black {
+  color: rgb(0 0 0);
+}
+
+.dark .text-black {
+  color: rgb(243 244 246);
 }
