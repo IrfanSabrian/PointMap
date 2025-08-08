@@ -39,7 +39,7 @@ const corsOptions = {
     "ngrok-skip-browser-warning",
     "User-Agent",
     "Origin",
-    "Referer"
+    "Referer",
   ],
   optionsSuccessStatus: 200,
 };
@@ -49,8 +49,8 @@ app.use(cors(corsOptions));
 // Remove ngrok headers if present
 app.use((req, res, next) => {
   // Remove ngrok headers that might cause CORS issues
-  delete req.headers['ngrok-skip-browser-warning'];
-  delete req.headers['ngrok-trace-id'];
+  delete req.headers["ngrok-skip-browser-warning"];
+  delete req.headers["ngrok-trace-id"];
   next();
 });
 
