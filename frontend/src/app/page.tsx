@@ -86,8 +86,10 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
-    // Only set isDark if theme is not undefined (theme has loaded)
-    if (theme !== undefined) {
+    // Set default theme to light mode if theme is undefined
+    if (theme === undefined) {
+      setIsDark(false); // Default to light mode
+    } else {
       setIsDark(theme === "dark");
       if (theme === "dark") {
         console.log("Dark mode aktif");
@@ -302,7 +304,9 @@ export default function Home() {
           isScrolled ? "navbar-scrolled" : "navbar-transparent"
         } flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-300 group/navbar ${
           isScrolled
-            ? "bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-lg"
+            ? isDark
+              ? "bg-gray-900/90 backdrop-blur-md shadow-lg"
+              : "bg-white/90 backdrop-blur-md shadow-lg"
             : "bg-transparent"
         } ${
           showNavbar
@@ -360,16 +364,31 @@ export default function Home() {
                   />
                 </span>
                 <div className="flex flex-col items-start">
-                  <span className="text-xl font-bold leading-none text-primary dark:text-primary-dark">
+                  <span
+                    className="text-xl font-bold leading-none text-primary dark:text-primary-dark"
+                    style={{
+                      color: isDark ? "#60a5fa" : "#3b82f6", // Explicit color based on theme
+                    }}
+                  >
                     {cuaca}
                   </span>
-                  <span className="text-xs font-medium capitalize text-gray-600 dark:text-gray-400 leading-none">
+                  <span
+                    className="text-xs font-medium capitalize text-gray-600 dark:text-gray-400 leading-none"
+                    style={{
+                      color: isDark ? "#9ca3af" : "#4b5563", // Explicit color based on theme
+                    }}
+                  >
                     {weatherDescID(weatherDesc)}
                   </span>
                 </div>
               </div>
               {/* Tanggal */}
-              <span className="text-base lg:text-lg font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+              <span
+                className="text-base lg:text-lg font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap"
+                style={{
+                  color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+                }}
+              >
                 {hari}, {tanggal}
               </span>
             </div>
@@ -388,7 +407,12 @@ export default function Home() {
                   style={{ filter: theme === "dark" ? "invert(1)" : "none" }}
                 />
               </span>
-              <span className="text-sm font-bold text-primary dark:text-primary-dark">
+              <span
+                className="text-sm font-bold text-primary dark:text-primary-dark"
+                style={{
+                  color: isDark ? "#60a5fa" : "#3b82f6", // Explicit color based on theme
+                }}
+              >
                 {cuaca}
               </span>
             </div>
@@ -412,10 +436,18 @@ export default function Home() {
               theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
             }
           >
-            {theme === "dark" ? (
-              <FiMoon id="icon-darkmode" className="w-5 h-5 text-accent-dark" />
+            {isDark ? (
+              <FiMoon
+                id="icon-darkmode"
+                className="w-5 h-5"
+                style={{ color: "#60a5fa" }} // Explicit color for dark mode
+              />
             ) : (
-              <FiSun id="icon-darkmode" className="w-5 h-5 text-primary" />
+              <FiSun
+                id="icon-darkmode"
+                className="w-5 h-5"
+                style={{ color: "#3b82f6" }} // Explicit color for light mode
+              />
             )}
           </button>
 
@@ -456,16 +488,31 @@ export default function Home() {
                 <span
                   key={i}
                   className="inline-block transition-all duration-300 hover:scale-125 hover:text-primary dark:hover:text-primary-dark hover:drop-shadow-lg hover:animate-bounce"
-                  style={{ transitionDelay: `${i * 40}ms` }}
+                  style={{
+                    transitionDelay: `${i * 40}ms`,
+                    color: isDark ? "#ffffff" : "#111827", // Explicit color based on theme
+                  }}
                 >
                   {char}
                 </span>
               ))}
             </h1>
-            <p className="hero-subtitle text-base sm:text-lg lg:text-xl xl:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 lg:my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer">
+            <p
+              className="hero-subtitle text-base sm:text-lg lg:text-xl xl:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 lg:my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer"
+              style={{
+                color: isDark
+                  ? "rgba(96, 165, 250, 0.8)"
+                  : "rgba(59, 130, 246, 0.8)", // Explicit color based on theme
+              }}
+            >
               Polnep Interactive Map
             </p>
-            <p className="hero-description max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-gray-700 dark:text-gray-300 mb-8 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-300 px-2 lg:px-0">
+            <p
+              className="hero-description max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-gray-700 dark:text-gray-300 mb-8 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-300 px-2 lg:px-0"
+              style={{
+                color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+              }}
+            >
               Sarana pemetaan digital interaktif yang mendukung kegiatan
               eksplorasi dan navigasi kawasan kampus Politeknik Negeri Pontianak
               secara informatif dan terarah.
@@ -538,7 +585,12 @@ export default function Home() {
           style={{ background: "none", border: "none" }}
           aria-label="Scroll ke bawah"
         >
-          <span className="text-xs lg:text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark font-medium transition-colors">
+          <span
+            className="text-xs lg:text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark font-medium transition-colors"
+            style={{
+              color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+            }}
+          >
             Scroll
           </span>
           <svg
@@ -546,6 +598,9 @@ export default function Home() {
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            style={{
+              color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+            }}
           >
             <path
               strokeLinecap="round"

@@ -10,6 +10,15 @@
     @apply bg-gray-900 text-gray-300;
   }
 
+  /* Ensure proper default colors for first load */
+  html {
+    color-scheme: light;
+  }
+
+  .dark html {
+    color-scheme: dark;
+  }
+
   /* Font smoothing untuk tampilan yang lebih halus */
   * {
     -webkit-font-smoothing: antialiased;
@@ -328,6 +337,21 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* ===== FIRST LOAD FIXES ===== */
+
+/* Ensure proper colors on first load before theme is detected */
+.hero-title {
+  color: #111827 !important; /* Default dark text */
+}
+
+.hero-subtitle {
+  color: rgba(59, 130, 246, 0.8) !important; /* Default primary color */
+}
+
+.hero-description {
+  color: #374151 !important; /* Default gray text */
 }
 
 /* ===== MOBILE RESPONSIVENESS FIXES ===== */
