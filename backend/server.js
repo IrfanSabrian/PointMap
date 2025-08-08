@@ -36,11 +36,23 @@ const corsOptions = {
     "Authorization",
     "X-Requested-With",
     "Accept",
+    "ngrok-skip-browser-warning",
+    "User-Agent",
+    "Origin",
+    "Referer"
   ],
   optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
+
+// Remove ngrok headers if present
+app.use((req, res, next) => {
+  // Remove ngrok headers that might cause CORS issues
+  delete req.headers['ngrok-skip-browser-warning'];
+  delete req.headers['ngrok-trace-id'];
+  next();
+});
 
 app.use(express.json());
 
@@ -100,22 +112,26 @@ const connectDB = async (retries = 5) => {
       await sequelize.sync();
       return true;
     } catch (err) {
-      console.error(
-        `❌ Gagal koneksi DB (attempt ${i + 1}/${retries}):`
-      );
+      console.error(`❌ Gagal koneksi DB (attempt ${i + 1}/${retries}):`);
       console.error("Error:", err.message);
       console.error("Code:", err.code);
       console.error("Errno:", err.errno);
-      
+
       // Provide specific troubleshooting tips
       if (err.code === "ECONNREFUSED") {
-        console.log("💡 Troubleshooting: Connection refused - Check if database service is running");
+        console.log(
+          "💡 Troubleshooting: Connection refused - Check if database service is running"
+        );
       } else if (err.code === "ER_ACCESS_DENIED_ERROR") {
-        console.log("💡 Troubleshooting: Access denied - Check DB_USER and DB_PASS");
+        console.log(
+          "💡 Troubleshooting: Access denied - Check DB_USER and DB_PASS"
+        );
       } else if (err.code === "ER_BAD_DB_ERROR") {
-        console.log("💡 Troubleshooting: Database doesn't exist - Check DB_NAME");
+        console.log(
+          "💡 Troubleshooting: Database doesn't exist - Check DB_NAME"
+        );
       }
-      
+
       if (i === retries - 1) {
         console.error("❌ Gagal koneksi DB setelah semua percobaan");
         return false;
