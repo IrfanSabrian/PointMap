@@ -202,6 +202,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [isContainerShaking, setIsContainerShaking] = useState(false);
     const [isNavigationActive, setIsNavigationActive] = useState(false);
     const [isStartDropdownOpen, setIsStartDropdownOpen] = useState(false);
+    const [searchHighlightedId, setSearchHighlightedId] = useState<
+      number | null
+    >(null);
     const isHighlightActiveRef = useRef(false);
     const isNavigationActiveRef = useRef(false);
     const [showRouteModal, setShowRouteModal] = useState(false);
@@ -1191,6 +1194,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const bangunanLayer = bangunanLayerRef.current;
       if (!bangunanLayer) return;
 
+      // Reset highlight sebelumnya jika ada
+      if (searchHighlightedId && searchHighlightedId !== featureId) {
+        resetBangunanHighlight();
+      }
+
       bangunanLayer.eachLayer((layer: L.Layer) => {
         if (
           (layer as any).feature &&
@@ -1200,7 +1208,46 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         ) {
           console.log("Highlighting bangunan from search:", featureId);
 
-          // Simpan style awal
+          // Style highlight yang sama dengan saat bangunan diklik
+          const highlightStyle = {
+            color: "#ff3333",
+            fillColor: "#ff3333",
+            fillOpacity: 0.7,
+            opacity: 1,
+            weight: 3,
+          };
+
+          // Terapkan style highlight permanen (tidak hilang setelah 1 detik)
+          (layer as any).setStyle(highlightStyle);
+
+          // Tambahkan CSS class untuk transisi yang lebih smooth
+          if ((layer as any)._path) {
+            (layer as any)._path.classList.add("building-highlight");
+          }
+
+          // Simpan reference ke layer yang di-highlight untuk bisa di-reset nanti
+          (layer as any)._isHighlighted = true;
+          (layer as any)._highlightedFeatureId = featureId;
+        }
+      });
+
+      // Simpan ID yang sedang di-highlight
+      setSearchHighlightedId(featureId);
+    };
+
+    // Fungsi untuk reset highlight bangunan
+    const resetBangunanHighlight = () => {
+      const bangunanLayer = bangunanLayerRef.current;
+      if (!bangunanLayer) return;
+
+      bangunanLayer.eachLayer((layer: L.Layer) => {
+        if (
+          (layer as any).feature &&
+          (layer as any).feature.geometry &&
+          (layer as any).feature.geometry.type === "Polygon" &&
+          (layer as any)._isHighlighted
+        ) {
+          // Reset ke style default
           const kategori =
             (layer as any).feature?.properties?.kategori || "Bangunan";
           const defaultStyle = kategoriStyle[kategori] || {
@@ -1209,40 +1256,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             fillOpacity: 0.5,
           };
 
-          // Animasi fade ke merah dengan transisi smooth
-          const highlightStyle = {
-            color: "#ff3333",
-            fillColor: "#ff3333",
-            fillOpacity: 0.7,
-            opacity: 1,
-            weight: 3, // Tambah ketebalan border untuk efek yang lebih dramatis
-          };
+          (layer as any).setStyle(defaultStyle);
 
-          // Terapkan style highlight dengan animasi
-          (layer as any).setStyle(highlightStyle);
+          // Hapus CSS class highlight
+          if ((layer as any)._path) {
+            (layer as any)._path.classList.remove("building-highlight");
+          }
 
-          // Kembalikan ke style awal setelah 1 detik dengan efek fade yang lebih smooth
-          setTimeout(() => {
-            // Animasi fade kembali ke warna asli dengan transisi bertahap
-            (layer as any).setStyle({
-              ...defaultStyle,
-              opacity: 0.9, // Mulai dengan opacity sedikit transparan
-              weight: 2, // Kurangi ketebalan secara bertahap
-            });
-
-            // Transisi bertahap untuk efek fade yang lebih smooth
-            setTimeout(() => {
-              (layer as any).setStyle({
-                ...defaultStyle,
-                opacity: 0.7,
-                weight: 1, // Kembalikan ke ketebalan normal
-              });
-
-              setTimeout(() => {
-                (layer as any).setStyle(defaultStyle);
-              }, 50);
-            }, 50);
-          }, 1000); // Durasi highlight 1 detik
+          (layer as any)._isHighlighted = false;
+          (layer as any)._highlightedFeatureId = null;
         }
       });
     };
@@ -1397,6 +1419,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Reset input dan tutup dropdown setelah pilih hasil
       setSearchText("");
       setShowSearchResults(false);
+
+      // Reset search highlight jika ada highlight sebelumnya
+      if (searchHighlightedId) {
+        resetBangunanHighlight();
+        setSearchHighlightedId(null);
+      }
 
       if (
         feature.properties?.kategori === "Bangunan" ||
@@ -1627,6 +1655,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setTimeout(() => {
         setShowBuildingDetailCanvas(false);
         setIsBuildingDetailFadingOut(false);
+
+        // Reset search highlight saat modal ditutup
+        if (searchHighlightedId) {
+          resetBangunanHighlight();
+          setSearchHighlightedId(null);
+        }
       }, 300); // durasi animasi fade
     };
 
@@ -2672,6 +2706,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     useEffect(() => {
       const bangunanLayer = bangunanLayerRef.current;
       if (!bangunanLayer) return;
+
       // Reset semua bangunan ke style default
       bangunanLayer.eachLayer((layer: L.Layer) => {
         if (
@@ -2690,6 +2725,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           (layer as any).setStyle(defaultStyle);
         }
       });
+
       // Highlight merah hanya pada bangunan yang sedang aktif
       if (cardVisible && selectedFeature?.properties?.id) {
         const featureId = Number(selectedFeature.properties.id);
@@ -2709,8 +2745,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             });
           }
         });
+
+        // Reset search highlight jika ada card detail yang aktif
+        if (searchHighlightedId) {
+          setSearchHighlightedId(null);
+        }
+      } else if (!cardVisible && searchHighlightedId) {
+        // Jika card ditutup dan ada search highlight, biarkan highlight tetap
+        // Highlight akan di-reset saat ada pencarian baru atau highlight baru
       }
-    }, [cardVisible, selectedFeature]);
+    }, [cardVisible, selectedFeature, searchHighlightedId]);
 
     // Fungsi untuk dapatkan koordinat centroid dari featureId (bangunan/ruangan)
     const getCentroidById = (type: "bangunan" | "ruangan", id: string) => {
@@ -5311,8 +5355,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               type="text"
               value={searchText}
               onChange={(e) => {
-                setSearchText(e.target.value);
+                const value = e.target.value;
+                setSearchText(value);
                 setShowSearchResults(true);
+
+                // Reset highlight saat search dikosongkan
+                if (value.trim() === "" && searchHighlightedId) {
+                  resetBangunanHighlight();
+                  setSearchHighlightedId(null);
+                }
               }}
               onFocus={() => setShowSearchResults(true)}
               placeholder="Cari bangunan..."

@@ -240,6 +240,21 @@
   stroke-opacity: 1 !important;
 }
 
+/* Smooth transition untuk highlight bangunan */
+.leaflet-interactive {
+  transition: fill 0.3s ease, stroke 0.3s ease, fill-opacity 0.3s ease,
+    stroke-opacity 0.3s ease, opacity 0.3s ease, stroke-width 0.3s ease !important;
+}
+
+/* Highlight effect untuk bangunan */
+.building-highlight {
+  fill: #ff3333 !important;
+  stroke: #ff3333 !important;
+  fill-opacity: 0.7 !important;
+  stroke-opacity: 1 !important;
+  stroke-width: 3px !important;
+}
+
 .leaflet-interactive {
   transition: fill 0.5s, stroke 0.5s, fill-opacity 0.5s, stroke-opacity 0.5s;
 }
@@ -370,149 +385,150 @@
   color-scheme: dark;
 }
 
-.dark .text-gray-700 {
+/* Custom dark mode text colors - hanya untuk override yang diperlukan */
+.dark .custom-text-gray-700 {
   color: rgb(55 65 81);
 }
 
-.dark .text-gray-600 {
+.dark .custom-text-gray-600 {
   color: rgb(75 85 99);
 }
 
-.dark .text-gray-300 {
+.dark .custom-text-gray-300 {
   color: rgb(209 213 219);
 }
 
-.dark .text-gray-400 {
+.dark .custom-text-gray-400 {
   color: rgb(156 163 175);
 }
 
 /* Navbar Dark Mode Fixes */
-.dark .navbar-scrolled {
+.dark .custom-navbar-scrolled {
   background-color: rgba(17, 24, 39, 0.9);
   backdrop-filter: blur(8px);
 }
 
-.dark .navbar-transparent {
+.dark .custom-navbar-transparent {
   background-color: transparent;
 }
 
 /* Button Dark Mode Fixes */
-.dark .btn-primary {
+.dark .custom-btn-primary {
   background-color: rgb(59 130 246);
   color: white;
 }
 
-.dark .btn-primary:hover {
+.dark .custom-btn-primary:hover {
   background-color: rgb(37 99 235);
 }
 
 /* Text Color Fixes for Dark Mode */
-.dark .text-primary {
+.dark .custom-text-primary {
   color: rgb(59 130 246);
 }
 
-.dark .text-primary-dark {
+.dark .custom-text-primary-dark {
   color: rgb(96 165 250);
 }
 
 /* Background Fixes for Dark Mode */
-.dark .bg-white {
+.dark .custom-bg-white {
   background-color: rgb(17 24 39);
 }
 
-.dark .bg-gray-100 {
+.dark .custom-bg-gray-100 {
   background-color: rgb(31 41 55);
 }
 
-.dark .bg-gray-800 {
+.dark .custom-bg-gray-800 {
   background-color: rgb(31 41 55);
 }
 
 /* Border Fixes for Dark Mode */
-.dark .border-gray-200 {
+.dark .custom-border-gray-200 {
   border-color: rgb(55 65 81);
 }
 
-.dark .border-gray-300 {
+.dark .custom-border-gray-300 {
   border-color: rgb(75 85 99);
 }
 
 /* Shadow Fixes for Dark Mode */
-.dark .shadow-lg {
+.dark .custom-shadow-lg {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3),
     0 4px 6px -2px rgba(0, 0, 0, 0.2);
 }
 
 /* Focus Ring Fixes for Dark Mode */
-.dark .focus:ring-primary\/20 {
+.dark .custom-focus\:ring-primary\/20 {
   --tw-ring-color: rgb(59 130 246 / 0.2);
 }
 
-.dark .focus:ring-primary-dark\/20 {
+.dark .custom-focus\:ring-primary-dark\/20 {
   --tw-ring-color: rgb(96 165 250 / 0.2);
 }
 
 /* Hover State Fixes for Dark Mode */
-.dark .hover\:bg-primary\/20:hover {
+.dark .custom-hover\:bg-primary\/20:hover {
   background-color: rgb(59 130 246 / 0.2);
 }
 
-.dark .hover\:bg-primary-dark\/20:hover {
+.dark .custom-hover\:bg-primary-dark\/20:hover {
   background-color: rgb(96 165 250 / 0.2);
 }
 
 /* Mobile Specific Dark Mode Fixes */
 @media (max-width: 640px) {
-  .dark .mobile-hero-title {
+  .dark .custom-mobile-hero-title {
     color: rgb(243 244 246);
   }
 
-  .dark .mobile-hero-description {
+  .dark .custom-mobile-hero-description {
     color: rgb(209 213 219);
   }
 
-  .dark .mobile-navbar {
+  .dark .custom-mobile-navbar {
     background-color: rgba(17, 24, 39, 0.95);
   }
 }
 
 /* Ensure proper contrast in dark mode */
-.dark .text-muted {
+.dark .custom-text-muted {
   color: rgb(156 163 175);
 }
 
-.dark .text-muted-dark {
+.dark .custom-text-muted-dark {
   color: rgb(209 213 219);
 }
 
 /* Fix for any remaining light text in dark mode */
-.dark * {
+.dark .custom-dark-scheme {
   color-scheme: dark;
 }
 
 /* Ensure proper visibility of interactive elements */
-.dark .interactive-element {
+.dark .custom-interactive-element {
   color: rgb(96 165 250);
 }
 
-.dark .interactive-element:hover {
+.dark .custom-interactive-element:hover {
   color: rgb(147 197 253);
 }
 
 /* Fix for any white text that should be dark in light mode */
-.text-white {
+.custom-text-white {
   color: rgb(255 255 255);
 }
 
-.dark .text-white {
+.dark .custom-text-white {
   color: rgb(255 255 255);
 }
 
 /* Fix for any black text that should be light in dark mode */
-.text-black {
+.custom-text-black {
   color: rgb(0 0 0);
 }
 
-.dark .text-black {
+.dark .custom-text-black {
   color: rgb(243 244 246);
 }
