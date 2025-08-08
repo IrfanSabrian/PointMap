@@ -354,38 +354,6 @@
   color: #374151 !important; /* Default gray text */
 }
 
-/* Fix button colors */
-.hero-button {
-  background-color: #3b82f6 !important; /* Default blue background */
-  color: #ffffff !important; /* Default white text */
-}
-
-/* Fix navbar elements */
-.navbar {
-  background-color: rgba(
-    255,
-    255,
-    255,
-    0.9
-  ) !important; /* Default white background */
-}
-
-/* Fix login button */
-.navbar a[href="/login"] {
-  background-color: #3b82f6 !important; /* Default blue background */
-  color: #ffffff !important; /* Default white text */
-}
-
-/* Fix dark mode button */
-.navbar button[title*="Switch"] {
-  background-color: rgba(
-    59,
-    130,
-    246,
-    0.2
-  ) !important; /* Default light blue background */
-}
-
 /* ===== MOBILE RESPONSIVENESS FIXES ===== */
 
 /* Hero Section Mobile Fixes */
