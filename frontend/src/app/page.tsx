@@ -431,10 +431,14 @@ export default function Home() {
               }
               toggleDark();
             }}
-            className="rounded-full p-2 hover:bg-primary/20 dark:hover:bg-primary-dark/20 focus:outline-none focus:ring-2 focus:ring-primary/40 dark:focus:ring-primary-dark/40 transition-colors duration-200"
-            title={
-              theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"
-            }
+            className="rounded-full p-2 focus:outline-none focus:ring-2 transition-colors duration-200"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            style={{
+              backgroundColor: isDark
+                ? "rgba(96, 165, 250, 0.2)"
+                : "rgba(59, 130, 246, 0.2)", // Explicit hover background
+              border: "none",
+            }}
           >
             {isDark ? (
               <FiMoon
@@ -454,8 +458,24 @@ export default function Home() {
           {/* Tombol Login - tablet dan desktop dengan teks, mobile hanya icon */}
           <Link
             href="/login"
-            className="rounded-lg bg-primary text-white font-semibold text-sm shadow-lg hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl px-2 py-2 lg:px-4 lg:py-2"
+            className="rounded-lg font-semibold text-sm shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl px-2 py-2 lg:px-4 lg:py-2"
             title="Login"
+            style={{
+              backgroundColor: isDark ? "#3b82f6" : "#3b82f6", // Explicit background color
+              color: "#ffffff", // Explicit text color
+              border: "none",
+              textDecoration: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = isDark
+                ? "#2563eb"
+                : "#2563eb"; // Darker blue on hover
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = isDark
+                ? "#3b82f6"
+                : "#3b82f6"; // Back to original
+            }}
           >
             <svg
               className="w-4 h-4"
@@ -519,8 +539,23 @@ export default function Home() {
             </p>
             <button
               onClick={scrollToMap}
-              className="hero-button group px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 bg-primary text-white font-bold text-sm sm:text-base lg:text-lg rounded-xl shadow-lg hover:bg-gradient-to-r hover:from-primary hover:to-accent dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
-              style={{ position: "relative" }}
+              className="hero-button group px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-white font-bold text-sm sm:text-base lg:text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              style={{
+                position: "relative",
+                backgroundColor: isDark ? "#3b82f6" : "#3b82f6", // Explicit background color
+                color: "#ffffff", // Explicit text color
+                border: "none",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "#2563eb"
+                  : "#2563eb"; // Darker blue on hover
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = isDark
+                  ? "#3b82f6"
+                  : "#3b82f6"; // Back to original
+              }}
             >
               <span className="relative z-10 flex items-center gap-2">
                 Jelajahi Peta
