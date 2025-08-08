@@ -24,21 +24,26 @@ const app = express();
 // CORS configuration
 const corsOptions = {
   origin: [
-    'https://pointmap.vercel.app',
-    'https://pointmap-production.up.railway.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
+    "https://pointmap.vercel.app",
+    "https://pointmap-production.up.railway.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  optionsSuccessStatus: 200
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 
 // Handle preflight requests
-app.options('*', cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 app.use(express.json());
 
