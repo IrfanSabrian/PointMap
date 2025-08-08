@@ -619,7 +619,7 @@ export default function Home() {
         style={{ position: "relative", zIndex: 1 }}
       >
         <div className="w-full">
-          <div className="bg-white dark:bg-primary text-primary dark:text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between border border-primary/20 dark:border-transparent">
+          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between border border-primary/20 dark:border-transparent">
             <span>Polnep Interactive Map</span>
           </div>
         </div>
@@ -641,17 +641,31 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer className="bg-surface dark:bg-surface-dark/90 border-t border-primary/20 dark:border-primary-dark/30 shadow-inner shadow-primary/5 dark:shadow-primary-dark/10 px-4 py-10 md:py-12 transition-colors backdrop-blur-md">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 items-center">
           {/* Kiri: Logo & deskripsi */}
           <div className="flex flex-col items-center md:items-start gap-2">
-            <img
-              src="/logo.svg"
-              alt="Logo PointMap"
-              className="h-14 select-none mb-2"
-            />
-            <span className="font-bold text-lg text-primary dark:text-primary-dark">
-              PointMap
-            </span>
+            <a
+              href="https://pointmap.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cursor-pointer hover:scale-105 transition-transform duration-200"
+            >
+              <img
+                src="/logo.svg"
+                alt="Logo PointMap"
+                className="h-14 select-none mb-2"
+              />
+            </a>
+            <a
+              href="https://pointmap.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cursor-pointer hover:text-accent dark:hover:text-accent-dark transition-colors"
+            >
+              <span className="font-bold text-lg text-primary dark:text-primary-dark">
+                PointMap
+              </span>
+            </a>
             <span
               className="text-xs text-muted dark:text-muted-dark text-center md:text-left max-w-xs"
               style={{
@@ -669,7 +683,9 @@ export default function Home() {
             </span>
             <div className="flex gap-4">
               <a
-                href="#"
+                href="https://www.instagram.com/mediapolnep/"
+                target="_blank"
+                rel="noopener noreferrer"
                 title="Instagram"
                 className="hover:scale-110 transition-transform"
               >
@@ -682,8 +698,10 @@ export default function Home() {
                 </svg>
               </a>
               <a
-                href="#"
-                title="LinkedIn"
+                href="https://www.youtube.com/@mediapolnep"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="YouTube"
                 className="hover:scale-110 transition-transform"
               >
                 <svg
@@ -691,11 +709,26 @@ export default function Home() {
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path d="M19 0h-14c-2.76 0-5 2.24-5 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5v-14c0-2.76-2.24-5-5-5zm-11 19h-3v-9h3v9zm-1.5-10.28c-.97 0-1.75-.79-1.75-1.75s.78-1.75 1.75-1.75s1.75.79 1.75 1.75s-.78 1.75-1.75 1.75zm13.5 10.28h-3v-4.5c0-1.08-.02-2.47-1.5-2.47c-1.5 0-1.73 1.17-1.73 2.39v4.58h-3v-9h2.88v1.23h.04c.4-.75 1.38-1.54 2.85-1.54c3.05 0 3.62 2.01 3.62 4.62v4.69z" />
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.tiktok.com/@mediapolnep"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="TikTok"
+                className="hover:scale-110 transition-transform"
+              >
+                <svg
+                  className="w-6 h-6 text-muted dark:text-muted-dark hover:text-primary dark:hover:text-primary-dark"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.7-1.35 3.85-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+                </svg>
+              </a>
+              <a
+                href="mailto:kampus@polnep.ac.id"
                 title="Email"
                 className="hover:scale-110 transition-transform"
               >
@@ -709,7 +742,7 @@ export default function Home() {
               </a>
             </div>
             <span className="text-xs text-muted dark:text-muted-dark mt-2">
-              polnep@ac.id
+              kampus@polnep.ac.id
             </span>
           </div>
           {/* Kanan: Kontak & Lokasi */}
@@ -724,13 +757,26 @@ export default function Home() {
               Jam Operasional: 07.00 - 17.00 WIB
             </span>
             <a
-              href="https://maps.app.goo.gl/2Qw1v8k8k8k8k8k8A"
+              href="https://maps.app.goo.gl/4hSueu7RmXbesVe19"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-primary dark:text-primary-dark underline hover:text-accent dark:hover:text-accent-dark transition-colors"
             >
               Lihat di Google Maps
             </a>
+            <div className="mt-2 w-full max-w-xs">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.748123456789!2d109.3465!3d-0.0545!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMMKwMDMnMTYuMiJTIDEwOcKwMjAnNDcuNCJF!5e0!3m2!1sen!2sid!4v1234567890123"
+                width="100%"
+                height="150"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="rounded-lg shadow-md"
+                title="Lokasi Politeknik Negeri Pontianak"
+              ></iframe>
+            </div>
           </div>
         </div>
         <div className="mt-8 text-center text-xs text-muted dark:text-muted-dark/80">
