@@ -42,21 +42,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Handle preflight requests
-app.options("*", cors(corsOptions));
-
 app.use(express.json());
 
-// Add CORS headers to all API routes
-app.use("/api/bangunan", cors(corsOptions), bangunanRoutes);
-app.use("/api/ruangan", cors(corsOptions), ruanganRoutes);
-app.use("/api/auth", cors(corsOptions), authRoutes);
-app.use("/api/lantai-gambar", cors(corsOptions), lantaiGambarRoutes);
-app.use("/api/ruangan-gallery", cors(corsOptions), ruanganGalleryRoutes);
-app.use("/api/maintenance", cors(corsOptions), maintenanceRoutes);
+// API routes
+app.use("/api/bangunan", bangunanRoutes);
+app.use("/api/ruangan", ruanganRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/lantai-gambar", lantaiGambarRoutes);
+app.use("/api/ruangan-gallery", ruanganGalleryRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
 
 // ROUTE "/" MENAMPILKAN DATA DATABASE
-app.get("/", cors(corsOptions), async (req, res) => {
+app.get("/", async (req, res) => {
   try {
     const daftarBangunan = await Bangunan.findAll();
     const daftarRuangan = await Ruangan.findAll();
