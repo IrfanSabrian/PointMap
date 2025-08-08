@@ -367,7 +367,7 @@ export default function Home() {
                   <span
                     className="text-xl font-bold leading-none text-primary dark:text-primary-dark"
                     style={{
-                      color: isDark ? "#60a5fa" : "#3b82f6", // Explicit color based on theme
+                      color: isDark ? "#60a5fa" : "#1d3557", // Navy blue for light mode
                     }}
                   >
                     {cuaca}
@@ -410,7 +410,7 @@ export default function Home() {
               <span
                 className="text-sm font-bold text-primary dark:text-primary-dark"
                 style={{
-                  color: isDark ? "#60a5fa" : "#3b82f6", // Explicit color based on theme
+                  color: isDark ? "#60a5fa" : "#1d3557", // Navy blue for light mode
                 }}
               >
                 {cuaca}
@@ -446,7 +446,7 @@ export default function Home() {
               <FiSun
                 id="icon-darkmode"
                 className="w-5 h-5"
-                style={{ color: "#3b82f6" }} // Explicit color for light mode
+                style={{ color: "#1d3557" }} // Navy blue for light mode
               />
             )}
           </button>
@@ -619,7 +619,7 @@ export default function Home() {
         style={{ position: "relative", zIndex: 1 }}
       >
         <div className="w-full">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between">
+          <div className="bg-white dark:bg-primary text-primary dark:text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between border border-primary/20 dark:border-transparent">
             <span>Polnep Interactive Map</span>
           </div>
         </div>

@@ -383,7 +383,12 @@ export default function Dashboard() {
                   />
                 </span>
                 <div className="flex flex-col items-start">
-                  <span className="text-xl font-bold leading-none text-primary dark:text-primary-dark">
+                  <span
+                    className="text-xl font-bold leading-none text-primary dark:text-primary-dark"
+                    style={{
+                      color: isDark ? "#3a86ff" : "#1d3557", // Navy blue for light mode
+                    }}
+                  >
                     {cuaca}
                   </span>
                   <span className="text-xs font-medium capitalize text-muted dark:text-muted-dark leading-none">
@@ -411,7 +416,12 @@ export default function Dashboard() {
                   style={{ filter: theme === "dark" ? "invert(1)" : "none" }}
                 />
               </span>
-              <span className="text-sm font-bold text-primary dark:text-primary-dark">
+              <span
+                className="text-sm font-bold text-primary dark:text-primary-dark"
+                style={{
+                  color: isDark ? "#3a86ff" : "#1d3557", // Navy blue for light mode
+                }}
+              >
                 {cuaca}
               </span>
             </div>
@@ -438,7 +448,11 @@ export default function Dashboard() {
             {theme === "dark" ? (
               <FiMoon id="icon-darkmode" className="w-5 h-5 text-accent-dark" />
             ) : (
-              <FiSun id="icon-darkmode" className="w-5 h-5 text-primary" />
+              <FiSun
+                id="icon-darkmode"
+                className="w-5 h-5"
+                style={{ color: "#1d3557" }} // Navy blue for light mode
+              />
             )}
           </button>
 
@@ -505,7 +519,7 @@ export default function Dashboard() {
         <ParticlesCustom isDark={isDark ?? false} />
 
         <div className="w-full h-full relative">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-14 lg:mt-14">
+          <div className="bg-white dark:bg-primary text-primary dark:text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-14 lg:mt-14 border border-primary/20 dark:border-transparent">
             <span>Dashboard - Polnep Interactive Map</span>
             {isLoading && (
               <div className="flex items-center gap-2">
