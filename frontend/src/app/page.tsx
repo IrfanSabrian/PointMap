@@ -502,7 +502,7 @@ export default function Home() {
               style={{
                 color: isDark
                   ? "rgba(96, 165, 250, 0.8)"
-                  : "rgba(59, 130, 246, 0.8)", // Explicit color based on theme
+                  : "rgba(29, 53, 87, 0.8)", // Navy blue for light mode
               }}
             >
               Polnep Interactive Map
@@ -652,7 +652,12 @@ export default function Home() {
             <span className="font-bold text-lg text-primary dark:text-primary-dark">
               PointMap
             </span>
-            <span className="text-xs text-muted dark:text-muted-dark text-center md:text-left max-w-xs">
+            <span
+              className="text-xs text-muted dark:text-muted-dark text-center md:text-left max-w-xs"
+              style={{
+                color: isDark ? "#b8c1ec" : "#1d3557", // Navy blue for light mode
+              }}
+            >
               Polnep Interactive Map - Navigasi digital kampus Politeknik Negeri
               Pontianak.
             </span>
