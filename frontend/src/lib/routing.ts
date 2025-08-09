@@ -88,6 +88,50 @@ export function getRouteCoordinates(
   return [];
 }
 
+// Dapatkan rute dunia nyata via OSRM (driving)
+export async function getRealWorldRoute(
+  startCoords: [number, number], // [lat, lng]
+  endCoords: [number, number] // [lat, lng]
+): Promise<{
+  coordinates: [number, number][];
+  distance: number;
+  geometry: any;
+} | null> {
+  try {
+    if (
+      !startCoords ||
+      !endCoords ||
+      typeof startCoords[0] !== "number" ||
+      typeof startCoords[1] !== "number" ||
+      typeof endCoords[0] !== "number" ||
+      typeof endCoords[1] !== "number"
+    ) {
+      console.error("❌ Koordinat tidak valid:", { startCoords, endCoords });
+      return null;
+    }
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${startCoords[1]},${startCoords[0]};${endCoords[1]},${endCoords[0]}?overview=full&geometries=geojson`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`OSRM API error: ${response.status}`);
+    const data = await response.json();
+    if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      const coordinates = route.geometry.coordinates.map(
+        (coord: [number, number]) => [coord[1], coord[0]]
+      );
+      return {
+        coordinates,
+        distance: route.distance,
+        geometry: route.geometry,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("OSRM routing error:", error);
+    return null;
+  }
+}
+
 // Fungsi untuk mencari jalur yang terhubung dengan titik
 export function findConnectedRoutes(
   point: [number, number],
@@ -1309,6 +1353,296 @@ export function findRoute(
         },
       },
     ],
+  };
+}
+
+// =========================
+// Routing ke gedung via gerbang
+// =========================
+
+function debugGraphConnectivity(
+  targetPoints: Point[],
+  gates: any[],
+  jalurFeatures: any[]
+) {
+  console.log("🔍 === DEBUG GRAPH CONNECTIVITY ===");
+  console.log("📍 Target Points Analysis:");
+  targetPoints.forEach((point, index) => {
+    console.log(`  ${index + 1}. ${point.name}`);
+    console.log(`     - ID: ${point.id}`);
+    console.log(`     - Coords: ${point.coordinates}`);
+    const nearbyPaths = jalurFeatures.filter((path: any) => {
+      if (path.geometry && path.geometry.coordinates) {
+        const coords = path.geometry.coordinates;
+        for (const coord of coords) {
+          if (Array.isArray(coord) && coord.length >= 2) {
+            const pathPoint: [number, number] = [coord[1], coord[0]];
+            const distance = calculateDistance(point.coordinates, pathPoint);
+            if (distance < 100) return true;
+          }
+        }
+      }
+      return false;
+    });
+    console.log(`     - Nearby paths: ${nearbyPaths.length}`);
+    if (nearbyPaths.length === 0) {
+      console.log(
+        `     ⚠️ PERINGATAN: Titik ${point.name} tidak terhubung ke jalur!`
+      );
+    }
+  });
+
+  console.log("🚪 Gates Analysis:");
+  gates.forEach((gate, index) => {
+    console.log(`  ${index + 1}. ${gate.properties?.Nama || "Unknown"}`);
+    if (gate.geometry && gate.geometry.coordinates) {
+      const coords = gate.geometry.coordinates;
+      console.log(`     - Coords: [${coords[1]}, ${coords[0]}]`);
+      const gateNearbyPaths = jalurFeatures.filter((path: any) => {
+        if (path.geometry && path.geometry.coordinates) {
+          const pathCoords = path.geometry.coordinates;
+          for (const coord of pathCoords) {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              const pathPoint: [number, number] = [coord[1], coord[0]];
+              const distance = calculateDistance(
+                [coords[1], coords[0]],
+                pathPoint
+              );
+              if (distance < 100) return true;
+            }
+          }
+        }
+        return false;
+      });
+      console.log(`     - Nearby paths: ${gateNearbyPaths.length}`);
+      if (gateNearbyPaths.length === 0) {
+        console.log(
+          `     ⚠️ PERINGATAN: Gerbang ${gate.properties?.Nama} tidak terhubung ke jalur!`
+        );
+      }
+    }
+  });
+  console.log("🔍 === END DEBUG ===");
+}
+
+function findConnectedGates(
+  endCoords: [number, number],
+  buildingName: string | undefined,
+  points: Point[],
+  jalurFeatures: any[],
+  titikFeatures: any[]
+): any[] {
+  const gates = titikFeatures.filter(
+    (t: any) =>
+      t.properties?.Nama && t.properties.Nama.toLowerCase().includes("gerbang")
+  );
+  if (gates.length === 0) return [];
+
+  let targetPoints: Point[] = [];
+  if (buildingName) {
+    targetPoints = points.filter((point) => {
+      const pointNameLower = point.name.toLowerCase();
+      const buildingNameLower = buildingName.toLowerCase();
+      if (pointNameLower === buildingNameLower) return true;
+      const regex = new RegExp(`^${buildingNameLower}\\s+\\d+$`);
+      if (regex.test(pointNameLower)) return true;
+      const regexNoSpace = new RegExp(`^${buildingNameLower}\\d+$`);
+      if (regexNoSpace.test(pointNameLower)) return true;
+      if (pointNameLower.includes(buildingNameLower)) {
+        const words = pointNameLower.split(/\s+/);
+        if (
+          words[0] === buildingNameLower ||
+          words[0].startsWith(buildingNameLower) ||
+          pointNameLower.startsWith(buildingNameLower + " ")
+        ) {
+          return true;
+        }
+      }
+      if (pointNameLower.startsWith(buildingNameLower)) return true;
+      return false;
+    });
+
+    if (targetPoints.length > 1) {
+      debugGraphConnectivity(targetPoints, gates, jalurFeatures);
+    }
+  }
+
+  if (targetPoints.length === 0) {
+    let nearestPoint: Point | null = null;
+    let minDistance = Infinity;
+    for (const point of points) {
+      const distance = calculateDistance(endCoords, point.coordinates);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestPoint = point;
+      }
+    }
+    if (nearestPoint) {
+      targetPoints = [nearestPoint];
+    }
+  }
+
+  if (targetPoints.length === 0) return [];
+
+  const connectedGates: any[] = [];
+  const processedCombinations = new Set<string>();
+  for (const gate of gates) {
+    if (gate.geometry && gate.geometry.coordinates) {
+      const gateCoords: [number, number] = [
+        gate.geometry.coordinates[1],
+        gate.geometry.coordinates[0],
+      ];
+      for (const targetPoint of targetPoints) {
+        const combinationKey = `${gate.properties?.Nama || "unknown"}-${
+          targetPoint?.name || "unknown"
+        }`;
+        if (processedCombinations.has(combinationKey)) continue;
+        processedCombinations.add(combinationKey);
+        try {
+          const routeTest = findRoute(
+            gateCoords,
+            targetPoint.coordinates,
+            points,
+            jalurFeatures,
+            "jalan_kaki",
+            false
+          );
+          if (
+            routeTest &&
+            routeTest.geojsonSegments &&
+            routeTest.geojsonSegments.length > 0
+          ) {
+            const pathDistance = routeTest.distance || 0;
+            const directDistance = calculateDistance(
+              gateCoords,
+              targetPoint.coordinates
+            );
+            const segmentCount = routeTest.geojsonSegments.length;
+            if (
+              segmentCount < 2 ||
+              pathDistance < 20 ||
+              Math.abs(pathDistance - directDistance) < 10
+            ) {
+              continue;
+            }
+            const firstSegment = routeTest.geojsonSegments[0];
+            const lastSegment = routeTest.geojsonSegments[segmentCount - 1];
+            if (firstSegment && lastSegment) {
+              const firstCoords = firstSegment.geometry?.coordinates;
+              const lastCoords = lastSegment.geometry?.coordinates;
+              if (
+                firstCoords &&
+                lastCoords &&
+                firstCoords.length > 0 &&
+                lastCoords.length > 0
+              ) {
+                const startPoint = [firstCoords[0][1], firstCoords[0][0]] as [
+                  number,
+                  number
+                ];
+                const endPoint = [
+                  lastCoords[lastCoords.length - 1][1],
+                  lastCoords[lastCoords.length - 1][0],
+                ] as [number, number];
+                const pathStartDistance = calculateDistance(
+                  gateCoords,
+                  startPoint
+                );
+                const pathEndDistance = calculateDistance(
+                  targetPoint.coordinates,
+                  endPoint
+                );
+                if (pathStartDistance > 100 || pathEndDistance > 100) {
+                  continue;
+                }
+              }
+            }
+            connectedGates.push({
+              gate: gate,
+              coords: gateCoords,
+              routeToDestination: routeTest,
+              gateName: gate.properties?.Nama || "Gerbang",
+              targetPoint: targetPoint,
+              totalDistance: routeTest.distance,
+            });
+          }
+        } catch (_err) {
+          continue;
+        }
+      }
+    }
+  }
+
+  connectedGates.sort((a, b) => a.totalDistance - b.totalDistance);
+  return connectedGates;
+}
+
+export async function findAllRoutesToBuilding(
+  userCoords: [number, number],
+  endCoords: [number, number],
+  buildingName: string | undefined,
+  points: Point[],
+  jalurFeatures: any[],
+  titikFeatures: any[]
+): Promise<{
+  bestRoute: any;
+  allRoutes: any[];
+  gate: any;
+  routeToDestination: any;
+} | null> {
+  const connectedGates = findConnectedGates(
+    endCoords,
+    buildingName,
+    points,
+    jalurFeatures,
+    titikFeatures
+  );
+  if (connectedGates.length === 0) return null;
+
+  const allCompleteRoutes: any[] = [];
+  const limitedGates = connectedGates.slice(0, 5);
+  for (const gateInfo of limitedGates) {
+    try {
+      const osrmRoute = (await Promise.race([
+        getRealWorldRoute(userCoords, gateInfo.coords),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("OSRM timeout")), 5000)
+        ),
+      ])) as any;
+
+      let totalDistance: number;
+      let osrmRouteToUse: any = null;
+      if (osrmRoute) {
+        totalDistance = osrmRoute.distance + gateInfo.totalDistance;
+        osrmRouteToUse = osrmRoute;
+      } else {
+        totalDistance =
+          calculateDistance(userCoords, gateInfo.coords) +
+          gateInfo.totalDistance;
+      }
+
+      allCompleteRoutes.push({
+        gate: gateInfo.gate,
+        gateName: gateInfo.gateName,
+        osrmRoute: osrmRouteToUse,
+        routeToDestination: gateInfo.routeToDestination,
+        totalDistance,
+        targetPoint: gateInfo.targetPoint,
+      });
+    } catch (_error) {
+      continue;
+    }
+  }
+
+  if (allCompleteRoutes.length === 0) return null;
+
+  allCompleteRoutes.sort((a, b) => a.totalDistance - b.totalDistance);
+  const bestRoute = allCompleteRoutes[0];
+  return {
+    bestRoute,
+    allRoutes: allCompleteRoutes,
+    gate: bestRoute.gate,
+    routeToDestination: bestRoute.routeToDestination,
   };
 }
 

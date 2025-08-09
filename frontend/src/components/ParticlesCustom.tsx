@@ -1,5 +1,11 @@
 import React from "react";
 
+/**
+ * ParticlesCustom
+ *
+ * Dekorasi latar: polkadot (mode terang) atau bintang (mode gelap).
+ */
+
 export default function ParticlesCustom({ isDark }: { isDark: boolean }) {
   // Generate partikel hanya sekali
   const polkadotBigList = React.useRef(

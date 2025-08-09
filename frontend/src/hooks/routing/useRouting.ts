@@ -1,9 +1,18 @@
 import { useState, useRef } from "react";
 import L from "leaflet";
-import { parseRouteSteps, getStepInstruction } from "../lib/routeSteps";
+import { parseRouteSteps, getStepInstruction } from "@/lib/routeSteps";
 
 export type TransportMode = "jalan_kaki" | "kendaraan";
 
+/**
+ * useRouting
+ *
+ * Hook state manajemen navigasi rute:
+ * - routeSteps, activeStepIndex, jarak total, estimasi waktu
+ * - layer garis rute & alternatif
+ * - marker tujuan, status sampai tujuan, moda transport
+ * Juga mengekspos helper `parseRouteSteps` dan `getStepInstruction`.
+ */
 export function useRouting() {
   const [routeSteps, setRouteSteps] = useState<Record<string, any>[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);

@@ -28,15 +28,49 @@ import {
   faExclamationTriangle,
   faLocationArrow,
 } from "@fortawesome/free-solid-svg-icons";
-import { findRoute, Point, calculateDistance } from "../lib/routing";
+import {
+  findRoute,
+  Point,
+  calculateDistance,
+  getRealWorldRoute,
+} from "../lib/routing";
 // Import fungsi routing dari src/lib/routeSteps
-import { useGps } from "./useGps";
-import { useRouting } from "./useRouting";
+import { useGps } from "@/hooks/gps/useGps";
+import { useRouting } from "@/hooks/routing/useRouting";
 import {
   parseRouteSteps,
   getStepInstruction,
   calculateBearing,
 } from "../lib/routeSteps";
+import { geojsonBangunanUrl, geojsonStatisUrl } from "../lib/map/constants";
+import { kategoriStyle, defaultStyle } from "../lib/map/styles";
+import { BASEMAPS } from "../lib/map/basemaps";
+import MapControlsPanel from "./map/LeafletMap/MapControlsPanel";
+import { useRouteDrawing } from "@/hooks/routing/useRouteDrawing";
+import { findAllRoutesToBuilding } from "../lib/routing";
+import Navigation from "./map/LeafletMap/Navigation";
+import { useFeatureSearch } from "@/hooks/map/useFeatureSearch";
+import BuildingDetailModal from "./map/LeafletMap/BuildingDetailModal";
+import EditRuanganForm from "./map/LeafletMap/EditRuanganForm";
+import EditLantaiImageUploader from "./map/LeafletMap/EditLantaiImageUploader";
+import type {
+  FeatureType,
+  FeatureFixed,
+  FeatureProperties,
+} from "../types/map";
+import { validateToken, setupAutoLogout } from "../lib/auth";
+import { useAuth } from "@/hooks/auth/useAuth";
+import {
+  getLantaiGambarByBangunan,
+  createLantaiGambar,
+  deleteLantaiGambar,
+} from "../services/lantaiGambar";
+import {
+  createRuangan,
+  updateRuangan,
+  getRuanganByBangunan,
+} from "../services/ruangan";
+import { updateBangunan, uploadBangunanThumbnail } from "../services/bangunan";
 
 interface LeafletMapProps {
   isDark?: boolean;
@@ -55,95 +89,7 @@ export interface LeafletMapRef {
   ) => void;
 }
 
-const geojsonBangunanUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/geojson`;
-const geojsonStatisUrl = "/geojson/Polnep WGS_1984.geojson";
-
-const kategoriStyle: Record<string, L.PathOptions> = {
-  Bangunan: {
-    color: "#1e40af", // Blue-800 - lebih gelap untuk bangunan
-    weight: 2,
-    fillColor: "#3b82f6", // Blue-500
-    fillOpacity: 0.8,
-  },
-  Trotoar: {
-    color: "#78716c", // Stone-600
-    weight: 1,
-    fillColor: "#a8a29e", // Stone-400
-    fillOpacity: 0.7,
-  },
-  Jalan: {
-    color: "#374151", // Gray-700
-    weight: 2,
-    fillColor: "#6b7280", // Gray-500
-    fillOpacity: 0.8,
-  },
-  Lahan: {
-    color: "#166534", // Green-800 - lebih gelap
-    weight: 1,
-    fillColor: "#22c55e", // Green-500
-    fillOpacity: 0.6,
-  },
-  Parkir: {
-    color: "#52525b", // Zinc-600
-    weight: 1,
-    fillColor: "#71717a", // Zinc-500
-    fillOpacity: 0.7,
-  },
-  Kanopi: {
-    color: "#ea580c", // Orange-600
-    weight: 1,
-    fillColor: "#fb923c", // Orange-400
-    fillOpacity: 0.6,
-  },
-  Kolam: {
-    color: "#0369a1", // Sky-700
-    weight: 1,
-    fillColor: "#0ea5e9", // Sky-500
-    fillOpacity: 0.6,
-  },
-  Paving: {
-    color: "#57534e", // Stone-700
-    weight: 1,
-    fillColor: "#78716c", // Stone-600
-    fillOpacity: 0.8,
-  },
-  Taman: {
-    color: "#7c3aed", // Violet-600
-    weight: 1,
-    fillColor: "#a78bfa", // Violet-400
-    fillOpacity: 0.6,
-  },
-};
-
-const defaultStyle: L.PathOptions = {
-  color: "#adb5bd",
-  weight: 1,
-  fillColor: "#adb5bd",
-  fillOpacity: 0.5,
-};
-
-const BASEMAPS = [
-  {
-    key: "esri_satellite",
-    label: "Esri Satellite",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution:
-      "Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-  },
-  {
-    key: "esri_topo",
-    label: "Esri Topographic",
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-    attribution:
-      "Tiles © Esri — Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012",
-  },
-  {
-    key: "alidade_smooth_dark",
-    label: "CartoDB Dark Matter",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '© <a href="https://carto.com/attributions">CARTO</a>',
-  },
-];
+// moved constants/styles/basemaps/types to dedicated modules
 
 const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
   (
@@ -159,40 +105,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
   ) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const leafletMapRef = useRef<L.Map | null>(null);
-    // Tambahkan type untuk properti GeoJSON agar tidak error linter
-    interface FeatureProperties {
-      id?: number | string;
-      nama?: string;
-      interaksi?: string;
-      lantai?: number;
-      kategori?: string;
-      subtipe?: string;
-      displayType?: string;
-      displayInfo?: string;
-      jurusan?: string;
-      prodi?: string;
-      isRuangan?: boolean;
-      bangunan_id?: number | string;
-      nomor_lantai?: number;
-      thumbnail?: string;
-      [key: string]: any;
-    }
-
-    interface FeatureFixed extends GeoJSON.Feature {
-      properties: FeatureProperties;
-      geometry: GeoJSON.Geometry;
-    }
-
-    // Ganti FeatureType menjadi FeatureFixed
-    type FeatureType = FeatureFixed;
+    // FeatureType imported from ../types/map
     const basemapLayerRef = useRef<L.TileLayer | null>(null);
     const [basemap, setBasemap] = useState<string>(
       isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
     );
     const [layerVisible, setLayerVisible] = useState(true);
-    const [searchText, setSearchText] = useState("");
-    const [searchResults, setSearchResults] = useState<FeatureType[]>([]);
-    const [showSearchResults, setShowSearchResults] = useState(false);
+    // inisialisasi setelah features dideklarasikan
     const [isSatellite, setIsSatellite] = useState(
       basemap === "esri_satellite"
     );
@@ -207,6 +126,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     >(null);
     const isHighlightActiveRef = useRef(false);
     const isNavigationActiveRef = useRef(false);
+    const isGpsRecalcRef = useRef(false);
+    const isZoomingRef = useRef(false);
     const [showRouteModal, setShowRouteModal] = useState(false);
     const [routeEndType, setRouteEndType] = useState("bangunan");
     const [routeEndId, setRouteEndId] = useState("");
@@ -276,8 +197,25 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       posisi_y: null as number | null,
     });
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const {
+      searchText,
+      setSearchText,
+      showSearchResults,
+      setShowSearchResults,
+      searchResults,
+    } = useFeatureSearch({ bangunanFeatures, ruanganFeatures });
+    const {
+      isLoggedIn,
+      isAdmin,
+      refresh: refreshAuth,
+    } = useAuth(() => {
+      // Auto-logout callback
+      showNotification(
+        "error",
+        "Sesi berakhir",
+        "Token kedaluwarsa. Anda telah keluar otomatis."
+      );
+    });
     const [isMobile, setIsMobile] = useState(false);
 
     // Notification system state
@@ -939,9 +877,165 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           document.addEventListener("click", handleCanvasClick);
 
+          // Tambahkan efek shake saat mencoba menggeser peta ketika highlight aktif
+          const mapContainer = document.querySelector(
+            ".leaflet-container"
+          ) as HTMLElement | null;
+          let isPointerDown = false;
+          let lastX = 0;
+          let lastY = 0;
+          let shakeCooldown = false;
+
+          const isTargetMapControl = (target: Element | null) => {
+            if (!target) return false;
+            return (
+              target.closest(".leaflet-control-zoom") ||
+              target.closest(".leaflet-control-layers") ||
+              target.closest('[data-control="reset-zoom"]') ||
+              target.closest('[data-control="toggle-layer"]') ||
+              target.closest('[data-control="toggle-basemap"]') ||
+              target.closest('[data-control="zoom-in"]') ||
+              target.closest('[data-control="zoom-out"]') ||
+              target.closest('[data-control="locate-me"]') ||
+              target.closest(".leaflet-control-attribution") ||
+              target.closest(".leaflet-control-scale")
+            );
+          };
+
+          const tryShake = (target: Element | null) => {
+            const container = document.querySelector(
+              '[data-container="building-detail"]'
+            );
+            const routeModal = document.querySelector(
+              '[data-modal="route-modal"]'
+            );
+            const isMapControl = isTargetMapControl(target as Element);
+            if (container && !routeModal && !isMapControl && !shakeCooldown) {
+              setIsContainerShaking(true);
+              shakeCooldown = true;
+              setTimeout(() => {
+                setIsContainerShaking(false);
+                shakeCooldown = false;
+              }, 600);
+            }
+          };
+
+          const onMouseDown = (e: MouseEvent) => {
+            if (!mapContainer) return;
+            isPointerDown = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+          };
+
+          const onMouseMove = (e: MouseEvent) => {
+            if (!isPointerDown) return;
+            const dx = Math.abs(e.clientX - lastX);
+            const dy = Math.abs(e.clientY - lastY);
+            if (dx + dy > 4) {
+              tryShake(e.target as Element);
+            }
+          };
+
+          const onMouseUp = () => {
+            isPointerDown = false;
+          };
+
+          const onTouchStart = (e: TouchEvent) => {
+            if (!mapContainer || e.touches.length === 0) return;
+            isPointerDown = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+          };
+
+          const onTouchMove = (e: TouchEvent) => {
+            if (!isPointerDown || e.touches.length === 0) return;
+            const dx = Math.abs(e.touches[0].clientX - lastX);
+            const dy = Math.abs(e.touches[0].clientY - lastY);
+            if (dx + dy > 4) {
+              tryShake(e.target as Element);
+            }
+          };
+
+          const onTouchEnd = () => {
+            isPointerDown = false;
+          };
+
+          if (mapContainer) {
+            mapContainer.addEventListener("mousedown", onMouseDown, {
+              passive: true,
+              capture: true,
+            } as AddEventListenerOptions);
+            mapContainer.addEventListener("mousemove", onMouseMove, {
+              passive: true,
+              capture: true,
+            } as AddEventListenerOptions);
+            mapContainer.addEventListener("mouseup", onMouseUp, {
+              passive: true,
+              capture: true,
+            } as AddEventListenerOptions);
+            mapContainer.addEventListener("touchstart", onTouchStart, {
+              passive: true,
+              capture: true,
+            } as AddEventListenerOptions);
+            mapContainer.addEventListener("touchmove", onTouchMove, {
+              passive: true,
+              capture: true,
+            } as AddEventListenerOptions);
+            mapContainer.addEventListener("touchend", onTouchEnd, {
+              passive: true,
+              capture: true,
+            } as AddEventListenerOptions);
+          }
+
+          // Fallback document-level listeners to catch movements intercepted by Leaflet
+          const docOptions = {
+            passive: true,
+            capture: true,
+          } as AddEventListenerOptions;
+          document.addEventListener("mousemove", onMouseMove, docOptions);
+          document.addEventListener("mouseup", onMouseUp, docOptions);
+          document.addEventListener("touchmove", onTouchMove, docOptions);
+          document.addEventListener("touchend", onTouchEnd, docOptions);
+
           // Cleanup function untuk dijalankan saat highlight nonaktif
           const cleanup = () => {
             document.removeEventListener("click", handleCanvasClick);
+            if (mapContainer) {
+              mapContainer.removeEventListener(
+                "mousedown",
+                onMouseDown as any,
+                true
+              );
+              mapContainer.removeEventListener(
+                "mousemove",
+                onMouseMove as any,
+                true
+              );
+              mapContainer.removeEventListener(
+                "mouseup",
+                onMouseUp as any,
+                true
+              );
+              mapContainer.removeEventListener(
+                "touchstart",
+                onTouchStart as any,
+                true
+              );
+              mapContainer.removeEventListener(
+                "touchmove",
+                onTouchMove as any,
+                true
+              );
+              mapContainer.removeEventListener(
+                "touchend",
+                onTouchEnd as any,
+                true
+              );
+            }
+            document.removeEventListener("mousemove", onMouseMove as any, true);
+            document.removeEventListener("mouseup", onMouseUp as any, true);
+            document.removeEventListener("touchmove", onTouchMove as any, true);
+            document.removeEventListener("touchend", onTouchEnd as any, true);
           };
 
           // Simpan cleanup function untuk dijalankan nanti
@@ -1039,49 +1133,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     }, [bangunanFeatures, layerVisible]);
 
-    // Search logic - untuk bangunan dan ruangan
-    useEffect(() => {
-      if (!searchText.trim()) {
-        setSearchResults([]); // Tidak menampilkan apapun jika input kosong
-        return;
-      }
-
-      const searchLower = searchText.toLowerCase();
-      const results: FeatureType[] = [];
-
-      // Cari bangunan terlebih dahulu
-      bangunanFeatures.forEach((bangunan) => {
-        const nama = bangunan.properties?.nama || "";
-        if (nama.toLowerCase().includes(searchLower)) {
-          // Tambahkan bangunan dengan format yang diinginkan
-          results.push({
-            ...bangunan,
-            properties: {
-              ...bangunan.properties,
-              displayType: "bangunan",
-              displayInfo: `${bangunan.properties?.lantai || 0} Lantai`,
-            },
-          });
-        }
-      });
-
-      // Cari ruangan
-      ruanganFeatures.forEach((ruangan) => {
-        const nama = ruangan.properties?.nama || "";
-        if (nama.toLowerCase().includes(searchLower)) {
-          results.push({
-            ...ruangan,
-            properties: {
-              ...ruangan.properties,
-              displayType: "ruangan",
-              isRuangan: true,
-            },
-          });
-        }
-      });
-
-      setSearchResults(results);
-    }, [searchText, bangunanFeatures, ruanganFeatures]);
+    // Pencarian dipindahkan ke useFeatureSearch hook
 
     // Event listener untuk menutup dropdown search
     useEffect(() => {
@@ -1160,34 +1212,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       isSaving,
     ]);
 
-    // Cek status login (yang login sudah pasti admin)
+    // Sinkronisasi status login dengan perubahan storage/event, gunakan useAuth.refresh
     useEffect(() => {
-      const checkLoginStatus = () => {
-        const token = localStorage.getItem("token");
-        const isUserLoggedIn = !!token;
-        setIsLoggedIn(isUserLoggedIn);
-        setIsAdmin(isUserLoggedIn); // Yang login sudah pasti admin
-
-        // Setup auto-logout jika user logged in
-        if (token) {
-          setupAutoLogout(token);
-        }
-      };
-
-      // Cek status awal
-      checkLoginStatus();
-
-      // Listen untuk perubahan storage (login/logout)
-      window.addEventListener("storage", checkLoginStatus);
-
-      // Listen untuk custom event login/logout
-      window.addEventListener("login-status-changed", checkLoginStatus);
-
+      const handleStatus = () => refreshAuth();
+      window.addEventListener("storage", handleStatus);
+      window.addEventListener("login-status-changed", handleStatus);
       return () => {
-        window.removeEventListener("storage", checkLoginStatus);
-        window.removeEventListener("login-status-changed", checkLoginStatus);
+        window.removeEventListener("storage", handleStatus);
+        window.removeEventListener("login-status-changed", handleStatus);
       };
-    }, []);
+    }, [refreshAuth]);
 
     // Fungsi helper untuk highlight bangunan
     const highlightBangunan = (featureId: number) => {
@@ -1269,6 +1303,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
     };
 
+    // Hapus highlight untuk satu bangunan berdasarkan ID apapun sumber highlight-nya
+    const clearBangunanHighlightById = (featureId: number | string) => {
+      const bangunanLayer = bangunanLayerRef.current;
+      if (!bangunanLayer) return;
+
+      bangunanLayer.eachLayer((layer: L.Layer) => {
+        const f = (layer as any).feature;
+        if (
+          f &&
+          f.geometry &&
+          f.geometry.type === "Polygon" &&
+          f.properties?.id == featureId
+        ) {
+          const kategori = f.properties?.kategori || "Bangunan";
+          const style = kategoriStyle[kategori] || {
+            color: "#adb5bd",
+            fillColor: "#adb5bd",
+            fillOpacity: 0.5,
+          };
+          (layer as any).setStyle(style);
+          if ((layer as any)._path) {
+            (layer as any)._path.classList.remove("building-highlight");
+          }
+          (layer as any)._isHighlighted = false;
+          (layer as any)._highlightedFeatureId = null;
+        }
+      });
+    };
+
     // Handle select search result
     const handleSelectSearchResult = async (feature: FeatureType) => {
       // Blokir jika highlight aktif - user harus close container dulu
@@ -1322,6 +1385,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setSelectedFeature(bangunan);
               setCardVisible(true);
               openBuildingDetailModal(feature);
+              // Samakan perilaku dengan klik bangunan: nonaktifkan interaksi peta dan highlight bangunan
+              setIsHighlightActive(true);
+              if (bangunan.properties?.id != null) {
+                highlightBangunan(Number(bangunan.properties.id));
+              }
 
               // Kirim pesan ke dashboard untuk update sidebar ruangan
 
@@ -1342,6 +1410,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             setSelectedFeature(bangunan);
             setCardVisible(true);
             openBuildingDetailModal(feature);
+            // Samakan perilaku dengan klik bangunan: nonaktifkan interaksi peta dan highlight bangunan
+            setIsHighlightActive(true);
+            if (bangunan.properties?.id != null) {
+              highlightBangunan(Number(bangunan.properties.id));
+            }
 
             window.postMessage(
               {
@@ -1359,6 +1432,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             feature.properties?.nama
           );
           openBuildingDetailModal(feature);
+          // Tetap nonaktifkan interaksi peta saat modal ruangan dibuka
+          setIsHighlightActive(true);
 
           window.postMessage(
             {
@@ -1472,19 +1547,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       );
     };
 
-    // [REFRACTOR START]
-    // 1. Tambahkan efek sinkronisasi dark mode otomatis pada basemap kecuali sedang satelit
     useEffect(() => {
       if (!isSatellite && isDark !== undefined) {
         setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDark]);
-
-    // 2. Refactor tombol toggle basemap agar identik EsriMap (ikon + label)
-    // 3. Refactor search box dan hasil search agar identik EsriMap
-    // 4. Pastikan semua styling tombol, legend, dsb, identik EsriMap
-    // [REFRACTOR END]
 
     // Fungsi untuk handle klik tombol GPS
     const handleLocateMe = () => {
@@ -1614,18 +1682,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     }
 
     // Tampilkan polyline rute jika userLocation & hasil pencarian dipilih
+    const { addRouteLine, removeRouteLine } = useRouteDrawing(
+      leafletMapRef as any
+    );
     useEffect(() => {
       const map = leafletMapRef.current;
       if (!map) return;
       if (routeLineRef.current) {
-        map.removeLayer(routeLineRef.current);
+        removeRouteLine(routeLineRef.current);
         routeLineRef.current = null;
       }
       // Cek: jika userLocation & searchText & searchResults.length==1 (hasil dipilih)
       if (userLocation && searchText && searchResults.length === 1) {
         const feature = searchResults[0];
         const [lat, lng] = getFeatureCentroid(feature);
-        const polyline = L.polyline(
+        const line = addRouteLine(
           [
             [userLocation.lat, userLocation.lng],
             [lat, lng],
@@ -1637,13 +1708,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             dashArray: "8 8",
           }
         );
-        polyline.addTo(map);
-        routeLineRef.current = polyline;
+        routeLineRef.current = line as any;
       }
       // Cleanup
       return () => {
         if (routeLineRef.current) {
-          map.removeLayer(routeLineRef.current);
+          removeRouteLine(routeLineRef.current);
           routeLineRef.current = null;
         }
       };
@@ -1740,23 +1810,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       try {
         // Ambil data lantai gambar yang sudah ada
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${selectedFeature.properties.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "ngrok-skip-browser-warning": "true",
-            },
-          }
+        const data = await getLantaiGambarByBangunan(
+          Number(selectedFeature.properties.id),
+          token
         );
-
-        if (response.ok) {
-          const data = await response.json();
-
-          setLantaiGambarData(data);
-        } else {
-          setLantaiGambarData([]);
-        }
+        setLantaiGambarData(data || []);
 
         // Reset state
         setLantaiFiles({});
@@ -1798,43 +1856,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         formData.append("nomor_lantai", lantaiNumber.toString());
         formData.append("id_bangunan", String(selectedFeature?.properties?.id));
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`,
+        await createLantaiGambar(
           {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "ngrok-skip-browser-warning": "true",
-            },
-            body: formData,
-          }
+            file,
+            lantaiNumber,
+            bangunanId: Number(selectedFeature?.properties?.id),
+          },
+          token
         );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `HTTP error! status: ${response.status} - ${errorText}`
-          );
-        }
-
-        const result = await response.json();
 
         // Refresh data lantai gambar
         if (selectedFeature?.properties?.id) {
-          const lantaiResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${selectedFeature.properties.id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "ngrok-skip-browser-warning": "true",
-              },
-            }
+          const data = await getLantaiGambarByBangunan(
+            Number(selectedFeature.properties.id),
+            token
           );
-
-          if (lantaiResponse.ok) {
-            const data = await lantaiResponse.json();
-            setLantaiGambarData(data);
-          }
+          setLantaiGambarData(data || []);
         }
 
         // Hapus file dari state setelah berhasil disimpan
@@ -1879,36 +1916,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/${lantaiGambarId}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "ngrok-skip-browser-warning": "true",
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        await deleteLantaiGambar(lantaiGambarId, token);
 
         // Refresh data lantai gambar
         if (selectedFeature?.properties?.id) {
-          const lantaiResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${selectedFeature.properties.id}`,
-            {
-              headers: {
-                "ngrok-skip-browser-warning": "true",
-              },
-            }
+          const lantaiData = await getLantaiGambarByBangunan(
+            Number(selectedFeature.properties.id)
           );
-
-          if (lantaiResponse.ok) {
-            const lantaiData = await lantaiResponse.json();
-            setLantaiGambarData(lantaiData);
-          }
+          setLantaiGambarData(lantaiData || []);
         }
 
         showNotification(
@@ -1925,60 +1940,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     };
 
-    // Helper function untuk validasi token
-    const validateToken = (token: string): boolean => {
-      try {
-        const tokenPayload = JSON.parse(atob(token.split(".")[1]));
-        const currentTime = Math.floor(Date.now() / 1000);
-
-        if (currentTime > tokenPayload.exp) {
-          showNotification(
-            "error",
-            "Sesi Berakhir",
-            "Sesi Anda telah berakhir. Silakan login ulang."
-          );
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          // Redirect ke login page
-          window.location.href = "/login";
-          return false;
-        }
-        return true;
-      } catch (error) {
-        return false;
-      }
-    };
-
-    // Helper function untuk setup auto-logout timer
-    const setupAutoLogout = (token: string) => {
-      try {
-        const tokenPayload = JSON.parse(atob(token.split(".")[1]));
-        const currentTime = Math.floor(Date.now() / 1000);
-        const timeUntilExpiry = (tokenPayload.exp - currentTime) * 1000; // Convert to milliseconds
-
-        // Set timer untuk auto-logout 5 menit sebelum expired
-        const autoLogoutTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 0);
-
-        setTimeout(() => {
-          showNotification(
-            "error",
-            "Sesi Akan Berakhir",
-            "Sesi Anda akan berakhir dalam 5 menit. Silakan simpan pekerjaan Anda."
-          );
-        }, autoLogoutTime - 5 * 60 * 1000); // Warning 10 menit sebelum expired
-
-        setTimeout(() => {
-          showNotification(
-            "error",
-            "Sesi Berakhir",
-            "Sesi Anda telah berakhir. Silakan login ulang."
-          );
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/login";
-        }, autoLogoutTime);
-      } catch (error) {}
-    };
+    // Auth helpers dipindahkan ke lib
 
     // Fungsi untuk save ruangan
     const handleSaveRuangan = async () => {
@@ -2013,28 +1975,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_y: ruanganForm.posisi_y,
         };
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-              "ngrok-skip-browser-warning": "true",
-            },
-            body: JSON.stringify(ruanganData),
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-
-          throw new Error(
-            `HTTP error! status: ${response.status} - ${errorText}`
-          );
-        }
-
-        const result = await response.json();
+        await createRuangan(ruanganData, token);
 
         // Reset form
         setRuanganForm({
@@ -2067,20 +2008,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Fungsi untuk fetch ruangan berdasarkan bangunan
     const fetchRuanganByBangunan = async (idBangunan: number) => {
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan/bangunan/${idBangunan}`,
-          {
-            headers: {
-              "ngrok-skip-browser-warning": "true",
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await getRuanganByBangunan(idBangunan);
 
         // Convert object to array
         const ruanganArray: any[] = [];
@@ -2174,28 +2102,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_y: ruanganForm.posisi_y,
         };
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan/${selectedRuanganForEdit.id_ruangan}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-              "ngrok-skip-browser-warning": "true",
-            },
-            body: JSON.stringify(ruanganData),
-          }
+        await updateRuangan(
+          selectedRuanganForEdit.id_ruangan,
+          ruanganData,
+          token
         );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-
-          throw new Error(
-            `HTTP error! status: ${response.status} - ${errorText}`
-          );
-        }
-
-        const result = await response.json();
 
         // Reset form dan modal
         setRuanganForm({
@@ -2265,28 +2176,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           }
 
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-                "ngrok-skip-browser-warning": "true",
-              },
-              body: JSON.stringify(updateData),
-            }
+          await updateBangunan(
+            selectedFeature.properties.id,
+            updateData,
+            token
           );
-
-          if (!response.ok) {
-            const errorText = await response.text();
-
-            throw new Error(
-              `HTTP error! status: ${response.status} - ${errorText}`
-            );
-          }
-
-          const result = await response.json();
 
           // Update local state
           if (selectedFeature) {
@@ -2302,23 +2196,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const formData = new FormData();
           formData.append("thumbnail", selectedFile);
 
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}/upload-thumbnail`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "ngrok-skip-browser-warning": "true",
-              },
-              body: formData,
-            }
+          const result = await uploadBangunanThumbnail(
+            Number(selectedFeature.properties.id),
+            selectedFile,
+            token
           );
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const result = await response.json();
 
           // Update local state
           if (selectedFeature) {
@@ -2337,24 +2219,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         ) {
           const updateData = { lantai: editLantaiCount };
 
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan/${selectedFeature.properties.id}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-                "ngrok-skip-browser-warning": "true",
-              },
-              body: JSON.stringify(updateData),
-            }
+          await updateBangunan(
+            Number(selectedFeature.properties.id),
+            updateData,
+            token
           );
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const result = await response.json();
 
           // Update local state
           if (selectedFeature) {
@@ -2783,670 +2652,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return [lat, lng];
     };
 
-    // Fungsi untuk mencari gerbang yang terhubung ke tujuan
-    const findConnectedGates = (
-      endCoords: [number, number],
-      buildingName?: string
-    ): any[] => {
-      const gates = titikFeatures.filter(
-        (t: any) =>
-          t.properties?.Nama &&
-          t.properties.Nama.toLowerCase().includes("gerbang")
-      );
+    // findConnectedGates dipindahkan ke ../lib/routing
 
-      if (gates.length === 0) return [];
+    // debugGraphConnectivity dipindahkan ke ../lib/routing
 
-      const connectedGates: any[] = [];
-      const points = convertTitikToPoints();
+    // findAllRoutesToBuilding dipindahkan ke ../lib/routing
 
-      // PERBAIKAN: Cari titik tujuan yang memiliki nama sama dengan gedung
-      let targetPoints: Point[] = [];
-      if (buildingName) {
-        // PERBAIKAN: Cari semua titik yang terkait dengan gedung
-        targetPoints = points.filter((point) => {
-          const pointNameLower = point.name.toLowerCase();
-          const buildingNameLower = buildingName.toLowerCase();
-
-          // Cek apakah nama titik sama persis dengan nama gedung
-          if (pointNameLower === buildingNameLower) {
-            return true;
-          }
-
-          // Cek apakah nama titik mengandung nama gedung + spasi + angka (format: "Gedung A 1", "Gedung A 2")
-          const regex = new RegExp(`^${buildingNameLower}\\s+\\d+$`);
-          if (regex.test(pointNameLower)) {
-            return true;
-          }
-
-          // Cek apakah nama titik mengandung nama gedung + angka tanpa spasi (format: "Gedung A1", "Gedung A2")
-          const regexNoSpace = new RegExp(`^${buildingNameLower}\\d+$`);
-          if (regexNoSpace.test(pointNameLower)) {
-            return true;
-          }
-
-          // Cek apakah nama titik mengandung nama gedung sebagai substring
-          // Ini untuk menangani kasus seperti "gedungA", "gedungA 1", "gedungA 2"
-          if (pointNameLower.includes(buildingNameLower)) {
-            // Pastikan ini bukan substring dari nama lain yang lebih panjang
-            const words = pointNameLower.split(/\s+/);
-            if (
-              words[0] === buildingNameLower ||
-              words[0].startsWith(buildingNameLower) ||
-              pointNameLower.startsWith(buildingNameLower + " ")
-            ) {
-              return true;
-            }
-          }
-
-          // PERBAIKAN: Cek apakah nama titik dimulai dengan nama gedung (untuk kasus "A", "A 1", "A 2")
-          if (pointNameLower.startsWith(buildingNameLower)) {
-            return true;
-          }
-
-          return false;
-        });
-
-        console.log(
-          `🎯 Mencari titik tujuan dengan nama "${buildingName}": ${targetPoints.length} titik ditemukan`
-        );
-
-        if (targetPoints.length > 0) {
-          console.log(
-            "🎯 Titik yang ditemukan:",
-            targetPoints.map((p) => p.name)
-          );
-
-          // DEBUG: Cek connectivity setiap titik
-          for (const targetPoint of targetPoints) {
-            console.log(`🔍 Debug connectivity untuk ${targetPoint.name}:`);
-            console.log(`  - Koordinat: ${targetPoint.coordinates}`);
-            console.log(`  - ID: ${targetPoint.id}`);
-
-            // Cek apakah titik ini terhubung ke jalur
-            const connectedPaths = jalurFeatures.filter((path: any) => {
-              if (path.geometry && path.geometry.coordinates) {
-                const pathCoords = path.geometry.coordinates;
-                // Cek apakah path ini dekat dengan target point
-                for (let i = 0; i < pathCoords.length; i++) {
-                  const coord = pathCoords[i];
-                  if (Array.isArray(coord) && coord.length >= 2) {
-                    const pathPoint: [number, number] = [coord[1], coord[0]]; // [lat, lng]
-                    const distance = calculateDistance(
-                      targetPoint.coordinates,
-                      pathPoint
-                    );
-                    if (distance < 50) {
-                      // Dalam 50 meter
-                      return true;
-                    }
-                  }
-                }
-              }
-              return false;
-            });
-
-            console.log(`  - Paths terhubung: ${connectedPaths.length}`);
-          }
-        }
-      }
-
-      // Jika tidak ada titik dengan nama gedung, gunakan titik terdekat
-      if (targetPoints.length === 0) {
-        let nearestPoint: Point | null = null;
-        let minDistance = Infinity;
-
-        for (const point of points) {
-          const distance = calculateDistance(endCoords, point.coordinates);
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearestPoint = point;
-          }
-        }
-
-        if (nearestPoint) {
-          targetPoints = [nearestPoint];
-          console.log(
-            `🎯 Menggunakan titik terdekat: ${nearestPoint.name} (${Math.round(
-              minDistance
-            )}m)`
-          );
-        }
-      }
-
-      if (targetPoints.length === 0) {
-        console.log("❌ Tidak ada titik tujuan yang ditemukan");
-        return [];
-      }
-
-      // PERBAIKAN: Jika ada multiple titik dengan nama sama, GUNAKAN SEMUA titik
-      if (targetPoints.length > 1) {
-        console.log(
-          `🎯 Multiple titik ditemukan untuk "${buildingName}". Akan mencari rute ke SEMUA ${targetPoints.length} titik:`,
-          targetPoints.map((p) => p.name)
-        );
-
-        // DEBUG: Analisis graph connectivity untuk multiple points
-        debugGraphConnectivity(targetPoints, gates);
-      }
-
-      // Test setiap gerbang apakah bisa route ke titik tujuan
-      const processedCombinations = new Set(); // Untuk mencegah duplikasi
-
-      for (const gate of gates) {
-        if (gate.geometry && gate.geometry.coordinates) {
-          const gateCoords: [number, number] = [
-            gate.geometry.coordinates[1],
-            gate.geometry.coordinates[0],
-          ];
-
-          // Test route ke SEMUA titik tujuan
-          for (const targetPoint of targetPoints) {
-            // Buat kombinasi unik untuk mencegah duplikasi
-            const combinationKey = `${gate.properties?.Nama || "unknown"}-${
-              targetPoint?.name || "unknown"
-            }`;
-
-            if (processedCombinations.has(combinationKey)) {
-              console.log(
-                `🔄 Skip kombinasi yang sudah diproses: ${combinationKey}`
-              );
-              continue;
-            }
-
-            processedCombinations.add(combinationKey);
-
-            try {
-              // DEBUG: Log sebelum routing
-              console.log(
-                `🔍 Testing route: ${gate.properties?.Nama} → ${
-                  targetPoint?.name || "Titik Tujuan"
-                }`
-              );
-              console.log(`  - Gate coords: ${gateCoords}`);
-              console.log(`  - Target coords: ${targetPoint.coordinates}`);
-
-              const routeTest = findRoute(
-                gateCoords,
-                targetPoint.coordinates,
-                points,
-                jalurFeatures,
-                "jalan_kaki", // Default untuk mencari gerbang terhubung
-                false // isGpsInsideCampus = false
-              );
-
-              // DEBUG: Log hasil routing
-              if (routeTest) {
-                console.log(
-                  `  ✅ Route ditemukan: ${
-                    routeTest.geojsonSegments?.length || 0
-                  } segments`
-                );
-                console.log(`  📏 Total distance: ${routeTest.distance || 0}m`);
-              } else {
-                console.log(`  ❌ Route tidak ditemukan`);
-              }
-
-              // Validasi path yang ditemukan
-              if (
-                routeTest &&
-                routeTest.geojsonSegments &&
-                routeTest.geojsonSegments.length > 0
-              ) {
-                // PERBAIKAN: Validasi path tidak terlalu pendek dan memiliki segmen yang cukup
-                const pathDistance = routeTest.distance || 0;
-                const directDistance = calculateDistance(
-                  gateCoords,
-                  targetPoint.coordinates
-                );
-                const segmentCount = routeTest.geojsonSegments.length;
-
-                console.log(
-                  `  📏 Path: ${Math.round(
-                    pathDistance
-                  )}m, Direct: ${Math.round(
-                    directDistance
-                  )}m, Segments: ${segmentCount}`
-                );
-
-                // Validasi path harus memiliki minimal 2 segmen dan jarak yang masuk akal
-                if (
-                  segmentCount < 2 ||
-                  pathDistance < 20 ||
-                  Math.abs(pathDistance - directDistance) < 10
-                ) {
-                  console.log(
-                    `  ⚠️ Path tidak valid: terlalu pendek atau terlalu sedikit segmen, skip`
-                  );
-                  continue;
-                }
-
-                // Validasi bahwa path tidak "lompat" langsung ke tujuan
-                const firstSegment = routeTest.geojsonSegments[0];
-                const lastSegment = routeTest.geojsonSegments[segmentCount - 1];
-
-                if (firstSegment && lastSegment) {
-                  const firstCoords = firstSegment.geometry?.coordinates;
-                  const lastCoords = lastSegment.geometry?.coordinates;
-
-                  if (
-                    firstCoords &&
-                    lastCoords &&
-                    firstCoords.length > 0 &&
-                    lastCoords.length > 0
-                  ) {
-                    const startPoint = [firstCoords[0][1], firstCoords[0][0]]; // [lat, lng]
-                    const endPoint = [
-                      lastCoords[lastCoords.length - 1][1],
-                      lastCoords[lastCoords.length - 1][0],
-                    ];
-
-                    const pathStartDistance = calculateDistance(
-                      gateCoords,
-                      startPoint as [number, number]
-                    );
-                    const pathEndDistance = calculateDistance(
-                      targetPoint.coordinates,
-                      endPoint as [number, number]
-                    );
-
-                    if (pathStartDistance > 100 || pathEndDistance > 100) {
-                      console.log(
-                        `  ⚠️ Path tidak terhubung dengan baik: start gap ${Math.round(
-                          pathStartDistance
-                        )}m, end gap ${Math.round(pathEndDistance)}m`
-                      );
-                      continue;
-                    }
-                  }
-                }
-                connectedGates.push({
-                  gate: gate,
-                  coords: gateCoords,
-                  routeToDestination: routeTest,
-                  gateName: gate.properties?.Nama || "Gerbang",
-                  targetPoint: targetPoint,
-                  totalDistance: routeTest.distance,
-                });
-                console.log(
-                  `✅ Gerbang ${gate.properties?.Nama} → ${
-                    targetPoint?.name || "Titik Tujuan"
-                  }: ${Math.round(routeTest.distance)}m`
-                );
-              } else {
-                console.log(
-                  `❌ Gerbang ${gate.properties?.Nama} TIDAK terhubung ke ${
-                    targetPoint?.name || "Titik Tujuan"
-                  }`
-                );
-              }
-            } catch (error) {
-              console.warn(
-                `⚠️ Error testing route from ${gate.properties?.Nama} to ${
-                  targetPoint?.name || "Titik Tujuan"
-                }:`,
-                error
-              );
-              continue;
-            }
-          }
-        }
-      }
-
-      // Urutkan berdasarkan jarak terpendek
-      connectedGates.sort((a, b) => a.totalDistance - b.totalDistance);
-
-      console.log(
-        `📊 Total ${connectedGates.length} gerbang terhubung, diurutkan berdasarkan jarak terpendek`
-      );
-
-      // DEBUG: Log detail setiap gerbang
-      connectedGates.forEach((gate, index) => {
-        console.log(
-          `  ${index + 1}. ${gate.gateName} → ${
-            gate.targetPoint?.name || "Unknown"
-          }: ${Math.round(gate.totalDistance)}m`
-        );
-      });
-
-      return connectedGates;
-    };
-
-    // Fungsi debug untuk menganalisis graph connectivity
-    const debugGraphConnectivity = (targetPoints: Point[], gates: any[]) => {
-      console.log("🔍 === DEBUG GRAPH CONNECTIVITY ===");
-
-      // Analisis target points
-      console.log("📍 Target Points Analysis:");
-      targetPoints.forEach((point, index) => {
-        console.log(`  ${index + 1}. ${point.name}`);
-        console.log(`     - ID: ${point.id}`);
-        console.log(`     - Coords: ${point.coordinates}`);
-
-        // Cek koneksi ke jalur
-        const nearbyPaths = jalurFeatures.filter((path: any) => {
-          if (path.geometry && path.geometry.coordinates) {
-            const coords = path.geometry.coordinates;
-            for (const coord of coords) {
-              if (Array.isArray(coord) && coord.length >= 2) {
-                const pathPoint: [number, number] = [coord[1], coord[0]];
-                const distance = calculateDistance(
-                  point.coordinates,
-                  pathPoint
-                );
-                if (distance < 100) {
-                  // Dalam 100 meter
-                  return true;
-                }
-              }
-            }
-          }
-          return false;
-        });
-
-        console.log(`     - Nearby paths: ${nearbyPaths.length}`);
-
-        // PERBAIKAN: Cek apakah titik ini bisa diakses dari gerbang
-        if (nearbyPaths.length === 0) {
-          console.log(
-            `     ⚠️ PERINGATAN: Titik ${point.name} tidak terhubung ke jalur!`
-          );
-        }
-      });
-
-      // Analisis gates
-      console.log("🚪 Gates Analysis:");
-      gates.forEach((gate, index) => {
-        console.log(`  ${index + 1}. ${gate.properties?.Nama || "Unknown"}`);
-        if (gate.geometry && gate.geometry.coordinates) {
-          const coords = gate.geometry.coordinates;
-          console.log(`     - Coords: [${coords[1]}, ${coords[0]}]`);
-
-          // Cek koneksi gerbang ke jalur
-          const gateNearbyPaths = jalurFeatures.filter((path: any) => {
-            if (path.geometry && path.geometry.coordinates) {
-              const pathCoords = path.geometry.coordinates;
-              for (const coord of pathCoords) {
-                if (Array.isArray(coord) && coord.length >= 2) {
-                  const pathPoint: [number, number] = [coord[1], coord[0]];
-                  const distance = calculateDistance(
-                    [coords[1], coords[0]],
-                    pathPoint
-                  );
-                  if (distance < 100) {
-                    return true;
-                  }
-                }
-              }
-            }
-            return false;
-          });
-
-          console.log(`     - Nearby paths: ${gateNearbyPaths.length}`);
-
-          if (gateNearbyPaths.length === 0) {
-            console.log(
-              `     ⚠️ PERINGATAN: Gerbang ${gate.properties?.Nama} tidak terhubung ke jalur!`
-            );
-          }
-        }
-      });
-
-      console.log("🔍 === END DEBUG ===");
-    };
-
-    // Fungsi untuk mencari SEMUA rute ke SEMUA titik masuk gedung
-    const findAllRoutesToBuilding = async (
-      userCoords: [number, number],
-      endCoords: [number, number],
-      buildingName?: string
-    ): Promise<{
-      bestRoute: any;
-      allRoutes: any[];
-      gate: any;
-      routeToDestination: any;
-    } | null> => {
-      // 1. PERTAMA: Cari gerbang yang terhubung ke tujuan dengan nama gedung
-      const connectedGates = findConnectedGates(endCoords, buildingName);
-
-      if (connectedGates.length === 0) {
-        console.log("❌ Tidak ada gerbang yang terhubung ke tujuan");
-        return null;
-      }
-
-      console.log(
-        `🎯 Ditemukan ${connectedGates.length} gerbang yang terhubung ke tujuan`
-      );
-
-      // 2. KEDUA: Hitung rute OSRM dari GPS ke setiap gerbang untuk setiap kombinasi
-      const allCompleteRoutes: any[] = [];
-
-      // Batasi maksimal 5 kombinasi untuk performa
-      const limitedGates = connectedGates.slice(0, 5);
-      console.log(
-        `🔍 Mencoba ${limitedGates.length} kombinasi gerbang-titik untuk performa`
-      );
-
-      for (const gateInfo of limitedGates) {
-        console.log(
-          `🔍 Mencari rute OSRM ke ${gateInfo.gateName} → ${
-            gateInfo.targetPoint?.name || "Titik Tujuan"
-          }...`
-        );
-
-        try {
-          // Dapatkan rute OSRM dari GPS ke gerbang dengan timeout
-          const osrmRoute = (await Promise.race([
-            getRealWorldRoute(userCoords, gateInfo.coords),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("OSRM timeout")), 5000)
-            ),
-          ])) as any;
-
-          let totalDistance: number;
-          let osrmRouteToUse: any = null;
-
-          if (osrmRoute) {
-            // Total jarak = OSRM (GPS->Gerbang) + GeoJSON (Gerbang->Tujuan)
-            totalDistance = osrmRoute.distance + gateInfo.totalDistance;
-            osrmRouteToUse = osrmRoute;
-
-            console.log(
-              `📏 ${gateInfo.gateName} → ${
-                gateInfo.targetPoint?.name || "Titik Tujuan"
-              }: OSRM ${Math.round(osrmRoute.distance)}m + GeoJSON ${Math.round(
-                gateInfo.totalDistance || 0
-              )}m = Total ${Math.round(totalDistance)}m`
-            );
-          } else {
-            // Fallback ke garis lurus jika OSRM gagal
-            const straightDistance = calculateDistance(
-              userCoords,
-              gateInfo.coords
-            );
-            totalDistance = straightDistance + gateInfo.totalDistance;
-
-            console.log(
-              `📏 ${gateInfo.gateName} → ${
-                gateInfo.targetPoint?.name || "Titik Tujuan"
-              } (fallback): Garis lurus ${Math.round(
-                straightDistance
-              )}m + GeoJSON ${Math.round(
-                gateInfo.totalDistance || 0
-              )}m = Total ${Math.round(totalDistance)}m`
-            );
-          }
-
-          // Simpan rute lengkap
-          allCompleteRoutes.push({
-            gate: gateInfo.gate,
-            routeToDestination: gateInfo.routeToDestination,
-            osrmRoute: osrmRouteToUse,
-            totalDistance: totalDistance,
-            gateName: gateInfo.gateName,
-            coords: gateInfo.coords,
-            targetPoint: gateInfo.targetPoint,
-          });
-        } catch (error) {
-          console.warn(
-            `⚠️ Error getting OSRM route to ${gateInfo.gateName} → ${
-              gateInfo.targetPoint?.name || "Titik Tujuan"
-            }:`,
-            error
-          );
-
-          // Validasi data sebelum fallback
-          if (
-            !gateInfo.coords ||
-            !Array.isArray(gateInfo.coords) ||
-            gateInfo.coords.length !== 2
-          ) {
-            console.error(
-              `❌ Koordinat gerbang tidak valid untuk ${gateInfo.gateName}`
-            );
-            continue;
-          }
-
-          // Fallback ke garis lurus
-          const straightDistance = calculateDistance(
-            userCoords,
-            gateInfo.coords
-          );
-          const totalDistance =
-            straightDistance + (gateInfo.totalDistance || 0);
-
-          // Simpan rute fallback dengan validasi tambahan
-          allCompleteRoutes.push({
-            gate: gateInfo.gate,
-            routeToDestination: gateInfo.routeToDestination,
-            osrmRoute: null,
-            totalDistance: totalDistance,
-            gateName: gateInfo.gateName || "Gerbang",
-            coords: gateInfo.coords,
-            targetPoint: gateInfo.targetPoint,
-          });
-        }
-      }
-
-      if (allCompleteRoutes.length === 0) {
-        console.log("❌ Tidak ada rute lengkap yang berhasil dibuat");
-        return null;
-      }
-
-      // Validasi dan filter rute yang valid
-      const validRoutes = allCompleteRoutes.filter((route) => {
-        return (
-          route &&
-          route.gate &&
-          route.targetPoint &&
-          route.coords &&
-          Array.isArray(route.coords) &&
-          route.coords.length === 2 &&
-          typeof route.totalDistance === "number" &&
-          !isNaN(route.totalDistance)
-        );
-      });
-
-      if (validRoutes.length === 0) {
-        console.log("❌ Tidak ada rute valid yang ditemukan setelah validasi");
-        return null;
-      }
-
-      // Urutkan semua rute berdasarkan jarak (terdekat di atas)
-      validRoutes.sort((a, b) => a.totalDistance - b.totalDistance);
-
-      const bestRoute = validRoutes[0];
-      console.log(
-        `🏆 Rute terbaik: ${bestRoute.gateName} → ${
-          bestRoute.targetPoint?.name || "Titik Tujuan"
-        } (Total: ${Math.round(bestRoute.totalDistance)}m)`
-      );
-      console.log(`📊 Total ${validRoutes.length} rute alternatif tersedia`);
-
-      // PERBAIKAN: Log semua rute alternatif untuk debugging
-      validRoutes.forEach((route, index) => {
-        console.log(
-          `  ${index + 1}. ${route.gateName} → ${
-            route.targetPoint?.name || "Unknown"
-          }: ${Math.round(route.totalDistance)}m`
-        );
-      });
-
-      return {
-        bestRoute: bestRoute,
-        allRoutes: validRoutes,
-        gate: bestRoute.gate,
-        routeToDestination: bestRoute.routeToDestination,
-      };
-    };
-
-    // Fungsi untuk mendapatkan jalur jalan asli menggunakan OSRM API
-    const getRealWorldRoute = async (
-      startCoords: [number, number], // [lat, lng]
-      endCoords: [number, number] // [lat, lng]
-    ): Promise<{
-      coordinates: [number, number][];
-      distance: number;
-      geometry: any;
-    } | null> => {
-      try {
-        // Validasi koordinat
-        if (
-          !startCoords ||
-          !endCoords ||
-          typeof startCoords[0] !== "number" ||
-          typeof startCoords[1] !== "number" ||
-          typeof endCoords[0] !== "number" ||
-          typeof endCoords[1] !== "number"
-        ) {
-          console.error("❌ Koordinat tidak valid:", {
-            startCoords,
-            endCoords,
-          });
-          return null;
-        }
-
-        // OSRM API endpoint (public instance)
-        const url = `https://router.project-osrm.org/route/v1/driving/${startCoords[1]},${startCoords[0]};${endCoords[1]},${endCoords[0]}?overview=full&geometries=geojson`;
-
-        console.log("🛣️ Fetching real-world route from OSRM...", {
-          startCoords,
-          endCoords,
-        });
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(`OSRM API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (data.code === "Ok" && data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          const coordinates = route.geometry.coordinates.map(
-            (coord: [number, number]) => [coord[1], coord[0]]
-          ); // Convert lng,lat to lat,lng
-
-          console.log(
-            "Real-world route found:",
-            coordinates.length,
-            "points,",
-            Math.round(route.distance),
-            "meters"
-          );
-          return {
-            coordinates,
-            distance: route.distance, // meters
-            geometry: route.geometry,
-          };
-        } else {
-          console.warn("No route found from OSRM");
-          return null;
-        }
-      } catch (error) {
-        console.error("OSRM routing error:", error);
-        return null;
-      }
-    };
+    // getRealWorldRoute dipindahkan ke src/lib/routing.ts
 
     // Handle semua step navigation dalam satu useEffect - tidak ada yang di-skip
     useEffect(() => {
@@ -3459,7 +2671,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       )
         return;
 
-      // Hapus line sebelumnya
+      // Jangan hapus jalur utama saat berpindah step
+      // (hapus hanya highlight step jika digunakan)
       if (activeStepLineRef.current) {
         map.removeLayer(activeStepLineRef.current);
         activeStepLineRef.current = null;
@@ -3647,8 +2860,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           setDestinationMarker(null);
         }
 
-        // Zoom ke posisi marker
+        // Zoom ke posisi marker dengan smooth dan tahan di tengah ketika zooming
+        isZoomingRef.current = true;
         map.setView(markerPosition, 19, { animate: true, duration: 0.8 });
+        map.once("moveend", () => {
+          isZoomingRef.current = false;
+        });
 
         // HAPUS: Highlight jalur step - menyebabkan garis leaflet-interactive yang mengganggu
         // if (step.coordinates.length > 1) {
@@ -3782,7 +2999,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           map.createPane("routePane");
           const routePane = map.getPane("routePane");
           if (routePane) {
-            routePane.style.zIndex = "400"; // Di bawah marker biasa (600)
+            routePane.style.zIndex = "650"; // Di atas overlay biasa, di bawah marker (>= 650)
           }
         }
 
@@ -3806,17 +3023,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setRouteDistance(null);
 
       // PERBAIKAN: Cleanup routes sebelumnya
-      if (routeLine && leafletMapRef.current) {
-        leafletMapRef.current.removeLayer(routeLine);
-        setRouteLine(null);
-      }
-      if (alternativeRouteLines.length > 0) {
-        alternativeRouteLines.forEach((layer) => {
-          if (leafletMapRef.current) {
-            leafletMapRef.current.removeLayer(layer);
-          }
-        });
-        setAlternativeRouteLines([]);
+      if (!isGpsRecalcRef.current) {
+        if (routeLine && leafletMapRef.current) {
+          leafletMapRef.current.removeLayer(routeLine);
+          setRouteLine(null);
+        }
+        if (alternativeRouteLines.length > 0) {
+          alternativeRouteLines.forEach((layer) => {
+            if (leafletMapRef.current) {
+              leafletMapRef.current.removeLayer(layer);
+            }
+          });
+          setAlternativeRouteLines([]);
+        }
       }
 
       // Titik awal
@@ -3946,12 +3165,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               );
               if (leafletMapRef.current) {
                 geoJsonLayer.addTo(leafletMapRef.current);
-                leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-                  padding: [40, 40],
-                  maxZoom: 19,
-                  animate: true,
-                  duration: 1.5,
-                });
+                if (!isGpsRecalcRef.current) {
+                  leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+                    padding: [40, 40],
+                    maxZoom: 19,
+                    animate: true,
+                    duration: 1.5,
+                  });
+                }
               }
               setRouteDistance(Math.round(routeResult.distance));
               // Hitung total waktu berjalan kaki dan kendaraan
@@ -4108,7 +3329,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Routing dengan logika khusus untuk "Lokasi Saya"
       if (startLatLng && endLatLng && leafletMapRef.current) {
-        if (routeLine) {
+        if (!isGpsRecalcRef.current && routeLine) {
           leafletMapRef.current.removeLayer(routeLine);
         }
 
@@ -4121,7 +3342,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           try {
             const bestGateInfo = await findAllRoutesToBuilding(
               startLatLng,
-              endLatLng
+              endLatLng,
+              undefined,
+              convertTitikToPoints(),
+              jalurFeatures,
+              titikFeatures
             );
 
             if (
@@ -4154,20 +3379,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               if (realWorldGpsToGate) {
                 gpsToGateDistance = realWorldGpsToGate.distance;
                 const latLngs = realWorldGpsToGate.coordinates;
-                // HAPUS: Debug polyline yang mengganggu routing
-                // if (leafletMapRef.current) {
-                //   const debugPolyline = L.polyline(latLngs, {
-                //     color: "#00FF00",
-                //     weight: 8,
-                //     opacity: 0.8,
-                //     dashArray: "10, 5",
-                //   }).addTo(leafletMapRef.current);
-                //   setTimeout(() => {
-                //     if (leafletMapRef.current) {
-                //       leafletMapRef.current.removeLayer(debugPolyline);
-                //     }
-                //   }, 10000);
-                // }
                 gpsToGateSegment = {
                   type: "Feature",
                   geometry: {
@@ -4197,7 +3408,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   bestGateInfo.gate.geometry.coordinates[1]
                 );
                 if (leafletMapRef.current) {
-                  const fallbackPolyline = L.polyline(
+                  const line = addRouteLine(
                     [
                       [gpsLat, gpsLng],
                       [gateLat, gateLng],
@@ -4208,11 +3419,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       opacity: 0.8,
                       dashArray: "10, 5",
                     }
-                  ).addTo(leafletMapRef.current);
+                  );
                   setTimeout(() => {
-                    if (leafletMapRef.current) {
-                      leafletMapRef.current.removeLayer(fallbackPolyline);
-                    }
+                    removeRouteLine(line as any);
                   }, 10000);
                 }
                 gpsToGateSegment = {
@@ -4275,12 +3484,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 );
                 if (leafletMapRef.current) {
                   mainRouteLayer.addTo(leafletMapRef.current);
-                  leafletMapRef.current.fitBounds(mainRouteLayer.getBounds(), {
-                    padding: [60, 60],
-                    maxZoom: 17,
-                    animate: true,
-                    duration: 1.5, // Smooth animation duration
-                  });
+                  if (!isGpsRecalcRef.current) {
+                    leafletMapRef.current.fitBounds(
+                      mainRouteLayer.getBounds(),
+                      {
+                        padding: [60, 60],
+                        maxZoom: 17,
+                        animate: true,
+                        duration: 1.5, // Smooth animation duration
+                      }
+                    );
+                  }
                 }
                 setRouteLine(mainRouteLayer);
 
@@ -4743,6 +3957,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
       setShowRouteModal(false);
       setIsCalculatingRoute(false);
+      // reset flag recalc setelah selesai
+      isGpsRecalcRef.current = false;
     };
 
     // Listener untuk GPS updates
@@ -4774,8 +3990,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
           }
 
-          // Recalculate route jika ada rute aktif
-          if (routeSteps.length > 0) {
+          // Recalculate route HANYA jika navigasi aktif dan start dari GPS
+          if (isNavigationActive && routeStartType === "my-location") {
+            // tandai recalc dari GPS agar tidak hapus routeLine lebih dulu
+            isGpsRecalcRef.current = true;
             setTimeout(() => {
               handleRouteSubmit();
             }, 1000); // Tunggu 1 detik untuk stabilitas
@@ -4787,7 +4005,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return () => {
         window.removeEventListener("message", handleGpsUpdate);
       };
-    }, [routeSteps.length]);
+    }, [isNavigationActive, routeStartType, routeSteps.length]);
 
     // Fungsi untuk melakukan routing dengan parameter yang sudah pasti
     const performRouting = async (
@@ -4906,7 +4124,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const gateInfo = await findAllRoutesToBuilding(
             startLatLng,
             endLatLng,
-            buildingName
+            buildingName,
+            convertTitikToPoints(),
+            jalurFeatures,
+            titikFeatures
           );
 
           if (
@@ -4954,20 +4175,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             if (realWorldGpsToGate) {
               gpsToGateDistance = realWorldGpsToGate.distance;
               const latLngs = realWorldGpsToGate.coordinates;
-              // HAPUS: Debug polyline yang mengganggu routing
-              // if (leafletMapRef.current) {
-              //   const debugPolyline = L.polyline(latLngs, {
-              //     color: "#00FF00",
-              //     weight: 8,
-              //     opacity: 0.8,
-              //     dashArray: "10, 5",
-              //   }).addTo(leafletMapRef.current);
-              //   setTimeout(() => {
-              //     if (leafletMapRef.current) {
-              //       leafletMapRef.current.removeLayer(debugPolyline);
-              //     }
-              //   }, 10000);
-              // }
               gpsToGateSegment = {
                 type: "Feature",
                 geometry: {
@@ -4993,7 +4200,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
               const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
               if (leafletMapRef.current) {
-                const fallbackPolyline = L.polyline(
+                const line = addRouteLine(
                   [
                     [gpsLat, gpsLng],
                     [gateLat, gateLng],
@@ -5004,12 +4211,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     opacity: 0.8,
                     dashArray: "10, 5",
                   }
-                ).addTo(leafletMapRef.current);
-                setTimeout(() => {
-                  if (leafletMapRef.current) {
-                    leafletMapRef.current.removeLayer(fallbackPolyline);
-                  }
-                }, 10000);
+                );
+                setTimeout(() => removeRouteLine(line as any), 10000);
               }
               gpsToGateSegment = {
                 type: "Feature",
@@ -5293,7 +4496,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           map.createPane("routePane");
           const routePane = map.getPane("routePane");
           if (routePane) {
-            routePane.style.zIndex = "400"; // Di bawah marker biasa (600)
+            routePane.style.zIndex = "650"; // Konsisten di atas overlay
           }
         }
 
@@ -5317,863 +4520,183 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           touchAction: "none", // Prevent default touch behaviors
         }}
       >
-        {/* Search Box ala Google Maps - Mobile Responsive */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (searchResults.length > 0)
-              handleSelectSearchResult(searchResults[0]);
+        <MapControlsPanel
+          isDark={!!isDark}
+          isLiveTracking={!!isLiveTracking}
+          isSatellite={!!isSatellite}
+          layerVisible={!!layerVisible}
+          onZoomIn={() => {
+            const map = leafletMapRef.current;
+            if (map) map.setZoom(Math.min(map.getZoom() + 1, 19));
           }}
-          className="search-container absolute top-2 left-2 sm:top-4 sm:left-4 z-50 w-[calc(100vw-16px)] max-w-[280px] sm:min-w-56 sm:max-w-[80vw] sm:w-[240px]"
-          autoComplete="off"
-          style={{ zIndex: 1000 }}
-        >
-          <div
-            className={`relative flex items-center border rounded-xl shadow-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition-all ${
-              isDark
-                ? "bg-[#232946] border-[#232946] text-white placeholder:text-gray-400"
-                : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-500"
-            }`}
-          >
-            <span className="absolute left-3 text-gray-400">
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </span>
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSearchText(value);
-                setShowSearchResults(true);
+          onZoomOut={() => {
+            const map = leafletMapRef.current;
+            if (map) map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()));
+          }}
+          onReset={handleResetZoom}
+          onLocateMe={handleLocateMe}
+          onToggleLayer={handleToggleLayer}
+          onToggleBasemap={handleToggleBasemap}
+          searchText={searchText}
+          onSearchTextChange={(value) => {
+            setSearchText(value);
+            setShowSearchResults(true);
+            if (value.trim() === "" && searchHighlightedId) {
+              resetBangunanHighlight();
+              setSearchHighlightedId(null);
+            }
+          }}
+          showSearchResults={showSearchResults}
+          onToggleSearchResults={(show) => setShowSearchResults(show)}
+          isLoadingData={isLoadingData}
+          searchResults={searchResults}
+          onSelectSearchResult={handleSelectSearchResult as any}
+          isHighlightActive={!!isHighlightActive}
+        />
 
-                // Reset highlight saat search dikosongkan
-                if (value.trim() === "" && searchHighlightedId) {
-                  resetBangunanHighlight();
-                  setSearchHighlightedId(null);
-                }
-              }}
-              onFocus={() => setShowSearchResults(true)}
-              placeholder="Cari bangunan..."
-              className={`pl-9 pr-2 py-1.5 w-full bg-transparent outline-none text-sm rounded-xl ${
-                isDark
-                  ? "text-white placeholder:text-gray-400"
-                  : "text-gray-900 placeholder:text-gray-500"
-              } ${isHighlightActive ? "opacity-50 cursor-not-allowed" : ""}`}
-              style={{ minWidth: 120 }}
-              disabled={isHighlightActive}
-            />
-          </div>
-          {/* Dropdown hasil pencarian */}
-          {showSearchResults && (
-            <div
-              className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg border max-h-60 overflow-y-auto z-40 ${
-                isDark ?? false
-                  ? "bg-gray-800 border-gray-700"
-                  : "bg-white border-gray-200"
-              }`}
-            >
-              {isLoadingData ? (
-                <div
-                  className={`px-3 py-4 text-center text-sm ${
-                    isDark ?? false ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  Memuat data...
-                </div>
-              ) : searchResults.length > 0 ? (
-                <>
-                  <div
-                    className={`px-3 py-2 text-xs border-b ${
-                      isDark ?? false
-                        ? "text-gray-400 border-gray-700"
-                        : "text-gray-600 border-gray-200"
-                    }`}
-                  >
-                    {searchText.trim()
-                      ? `${searchResults.length} hasil ditemukan`
-                      : `Menampilkan ${Math.min(
-                          searchResults.length,
-                          10
-                        )} bangunan`}
-                  </div>
-                  {searchResults.map((feature, index) => (
-                    <div
-                      key={index}
-                      onClick={() => handleSelectSearchResult(feature)}
-                      className={`px-3 py-2 transition-colors ${
-                        isHighlightActive
-                          ? "opacity-50 cursor-not-allowed"
-                          : "cursor-pointer hover:bg-opacity-80"
-                      } ${
-                        isDark ?? false
-                          ? "hover:bg-gray-700 text-white border-b border-gray-700"
-                          : "hover:bg-gray-100 text-gray-900 border-b border-gray-200"
-                      } ${
-                        index === searchResults.length - 1 ? "border-b-0" : ""
-                      }`}
-                    >
-                      <div className="font-medium text-sm">
-                        {feature.properties?.nama || "Tanpa Nama"}
-                      </div>
-                      <div
-                        className={`text-xs ${
-                          isDark ?? false ? "text-gray-400" : "text-gray-600"
-                        }`}
-                      >
-                        {feature.properties?.displayType === "ruangan" ? (
-                          <>
-                            <span className="text-blue-600 dark:text-blue-400">
-                              🏢 Ruangan
-                            </span>
-                            {feature.properties?.lantai &&
-                              ` • Lantai ${feature.properties.lantai}`}
-                            {feature.properties?.jurusan &&
-                              ` • ${feature.properties.jurusan}`}
-                            {feature.properties?.prodi &&
-                              ` • ${feature.properties.prodi}`}
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-green-600 dark:text-green-400">
-                              🏛️ Bangunan
-                            </span>
-                            {feature.properties?.displayInfo &&
-                              ` • ${feature.properties.displayInfo}`}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <div
-                  className={`px-3 py-4 text-center text-sm ${
-                    isDark ?? false ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  Tidak ada hasil ditemukan
-                </div>
-              )}
-            </div>
-          )}
-        </form>
-
-        {/* PERBAIKAN: Tombol untuk mengaktifkan navigasi */}
-        {routeSteps.length > 0 && activeStepIndex === -1 && (
-          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-[201]">
-            <button
-              onClick={() => setActiveStepIndex(0)}
-              aria-label="Mulai navigasi ke tujuan"
-              title="Mulai navigasi ke tujuan"
-              className={`px-4 py-2 rounded-lg shadow-lg transition-colors ${
-                isDark ?? false
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "bg-blue-500 hover:bg-blue-600 text-white"
-              }`}
-            >
-              🧭 Mulai Navigasi
-            </button>
-          </div>
-        )}
-
-        {/* Step-by-Step Navigation Panel - Bottom Center - Mobile Responsive */}
-        {routeSteps.length > 0 && (
-          <div
-            className={`absolute bottom-2 left-16 right-16 sm:bottom-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-[201] w-auto sm:w-96 max-w-none sm:max-w-[90vw] ${
-              isDark
-                ? "bg-gray-800 border-gray-700 text-white"
-                : "bg-white border-gray-200 text-gray-900"
-            } border rounded-xl shadow-lg`}
-          >
-            <div className="p-1.5 sm:p-4">
-              <div className="flex items-center justify-between mb-1.5 sm:mb-3">
-                <div className="flex flex-col">
-                  <h3 className="font-semibold text-xs sm:text-sm">Navigasi</h3>
-                  {routeDistance !== null && (
-                    <div className="text-xs text-primary dark:text-primary-dark font-bold">
-                      <span className="sm:hidden">
-                        {Math.round(routeDistance)}m
-                      </span>
-                      <span className="hidden sm:inline">
-                        Total Jarak: {Math.round(routeDistance)} meter
-                      </span>
-                    </div>
-                  )}
-                  {totalWalkingTime !== null && totalVehicleTime !== null && (
-                    <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 sm:gap-2 mt-0.5 sm:mt-1">
-                      {transportMode === "jalan_kaki" ? (
-                        <span className="flex items-center gap-1">
-                          <FontAwesomeIcon
-                            icon={faWalking}
-                            className="text-green-600 w-2 h-2 sm:w-3 sm:h-3"
-                          />
-                          <span className="sm:hidden">
-                            {Math.floor(totalWalkingTime / 60)}:
-                            {String(Math.round(totalWalkingTime % 60)).padStart(
-                              2,
-                              "0"
-                            )}
-                          </span>
-                          <span className="hidden sm:inline">
-                            {Math.floor(totalWalkingTime / 60)} menit{" "}
-                            {Math.round(totalWalkingTime % 60)} detik
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1">
-                          <FontAwesomeIcon
-                            icon={faMotorcycle}
-                            className="text-blue-600 w-2 h-2 sm:w-3 sm:h-3"
-                          />
-                          <span className="sm:hidden">
-                            {Math.floor(totalVehicleTime / 60)}:
-                            {String(Math.round(totalVehicleTime % 60)).padStart(
-                              2,
-                              "0"
-                            )}
-                          </span>
-                          <span className="hidden sm:inline">
-                            {Math.floor(totalVehicleTime / 60)} menit{" "}
-                            {Math.round(totalVehicleTime % 60)} detik
-                          </span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => {
-                    setRouteSteps([]);
-                    setActiveStepIndex(0);
-                    setHasReachedDestination(false);
-                    setIsNavigationActive(false);
-                    setTotalWalkingTime(null);
-                    setTotalVehicleTime(null);
-                    if (destinationMarker && leafletMapRef.current) {
-                      leafletMapRef.current.removeLayer(destinationMarker);
-                      setDestinationMarker(null);
-                    }
-                    if (routeLine && leafletMapRef.current) {
-                      leafletMapRef.current.removeLayer(routeLine);
-                      setRouteLine(null);
-                    }
-                    // Hapus navigation marker
-                    if (navigationMarkerRef.current && leafletMapRef.current) {
-                      leafletMapRef.current.removeLayer(
-                        navigationMarkerRef.current
-                      );
-                      navigationMarkerRef.current = null;
-                    }
-                    // Kembalikan highlight gedung
-                    if (selectedFeature && selectedFeature.properties?.id) {
-                      setIsHighlightActive(true);
-
-                      // Highlight permanen gedung (tidak hilang setelah 1 detik)
-                      const bangunanLayer = bangunanLayerRef.current;
-                      if (bangunanLayer) {
-                        bangunanLayer.eachLayer((layer: L.Layer) => {
-                          if (
-                            (layer as any).feature &&
-                            (layer as any).feature.geometry &&
-                            (layer as any).feature.geometry.type ===
-                              "Polygon" &&
-                            (layer as any).feature.properties?.id ===
-                              Number(selectedFeature.properties.id)
-                          ) {
-                            const highlightStyle = {
-                              color: "#ff3333",
-                              fillColor: "#ff3333",
-                              fillOpacity: 0.7,
-                              opacity: 1,
-                              weight: 3,
-                            };
-                            (layer as any).setStyle(highlightStyle);
-                          }
-                        });
-                      }
-
-                      // Pindahkan map ke posisi gedung yang di-highlight (tanpa mengubah zoom)
-                      if (leafletMapRef.current && selectedFeature.geometry) {
-                        const centroid = getFeatureCentroid(selectedFeature);
-                        const currentZoom = leafletMapRef.current.getZoom();
-                        leafletMapRef.current.setView(centroid, currentZoom, {
-                          animate: true,
-                          duration: 1,
-                        });
-                      }
-                    }
-
-                    // Show building detail card on mobile when navigation is closed
-                    if (isMobile && selectedFeature) {
-                      setCardVisible(true);
-                      // Trigger animation after a brief delay
-                      setTimeout(() => {
-                        setCardAnimation(true);
-                      }, 50);
-                    }
-                  }}
-                  className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none"
-                  title="Tutup Navigasi"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Current Step Display */}
-              <div className="mb-2 sm:mb-4">
-                <div className="flex items-center gap-2 mb-1 sm:mb-2">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                    {hasReachedDestination
-                      ? routeSteps.length + 1
-                      : activeStepIndex + 1}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    <span className="sm:hidden">
-                      {activeStepIndex + 1}/{routeSteps.length + 1}
-                    </span>
-                    <span className="hidden sm:inline">
-                      dari {routeSteps.length + 1} langkah
-                    </span>
-                  </div>
-                  {/* PERBAIKAN: Jangan tampilkan jarak untuk step terakhir (oranye) dan step merah */}
-                  {activeStepIndex < routeSteps.length - 1 &&
-                    !hasReachedDestination &&
-                    activeStepIndex !== routeSteps.length - 1 && (
-                      <div className="ml-auto text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 sm:py-1 rounded">
-                        <span className="sm:hidden">
-                          {Math.round(
-                            routeSteps[activeStepIndex]?.distance || 0
-                          )}
-                          m
-                        </span>
-                        <span className="hidden sm:inline">
-                          {Math.round(
-                            routeSteps[activeStepIndex]?.distance || 0
-                          )}
-                          m
-                        </span>
-                      </div>
-                    )}
-                </div>
-                <div className="text-xs sm:text-sm font-medium leading-relaxed">
-                  {hasReachedDestination
-                    ? "Sampai tujuan"
-                    : activeStepIndex === routeSteps.length - 1
-                    ? "Jalan ke tujuan"
-                    : getStepInstruction(
-                        activeStepIndex,
-                        routeSteps,
-                        transportMode
-                      )}
-                </div>
-              </div>
-
-              {/* Navigation Buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    console.log(
-                      `🔍 [DEBUG] Prev clicked - activeStepIndex: ${activeStepIndex}, hasReachedDestination: ${hasReachedDestination}`
-                    );
-                    if (hasReachedDestination) {
-                      // Jika sedang di marker merah, kembali ke step oranye
-                      console.log(
-                        `🔍 [DEBUG] Resetting hasReachedDestination to false`
-                      );
-                      setHasReachedDestination(false);
-                    } else if (activeStepIndex > 0) {
-                      console.log(
-                        `🔍 [DEBUG] Moving to previous step: ${
-                          activeStepIndex - 1
-                        }`
-                      );
-                      setActiveStepIndex(activeStepIndex - 1);
-                    }
-                  }}
-                  disabled={activeStepIndex === 0 && !hasReachedDestination}
-                  className={`flex-1 py-3 px-4 sm:py-2 sm:px-3 rounded-lg text-sm font-medium transition-all touch-manipulation ${
-                    activeStepIndex === 0 && !hasReachedDestination
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                      : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                  }`}
-                >
-                  <span className="sm:hidden">←</span>
-                  <span className="hidden sm:inline">← Prev</span>
-                </button>
-                <button
-                  onClick={() => {
-                    console.log(
-                      `🔍 [DEBUG] Next clicked - activeStepIndex: ${activeStepIndex}, routeSteps.length: ${routeSteps.length}, hasReachedDestination: ${hasReachedDestination}`
-                    );
-                    if (activeStepIndex < routeSteps.length - 1) {
-                      console.log(
-                        `🔍 [DEBUG] Moving to next step: ${activeStepIndex + 1}`
-                      );
-                      setActiveStepIndex(activeStepIndex + 1);
-                    } else if (
-                      activeStepIndex === routeSteps.length - 1 &&
-                      !hasReachedDestination
-                    ) {
-                      // Jika sudah di step terakhir dan belum mencapai tujuan, set hasReachedDestination
-                      console.log(
-                        `🔴 [DEBUG] Setting hasReachedDestination to true - activeStepIndex: ${activeStepIndex}, routeSteps.length: ${routeSteps.length}`
-                      );
-                      setHasReachedDestination(true);
-                    } else {
-                      console.log(
-                        `⚠️ [DEBUG] No action taken - activeStepIndex: ${activeStepIndex}, routeSteps.length: ${routeSteps.length}, hasReachedDestination: ${hasReachedDestination}`
-                      );
-                    }
-                  }}
-                  disabled={
-                    activeStepIndex === routeSteps.length - 1 &&
-                    hasReachedDestination
+        <Navigation
+          isDark={!!isDark}
+          isMobile={!!isMobile}
+          routeSteps={routeSteps as any}
+          activeStepIndex={activeStepIndex}
+          hasReachedDestination={!!hasReachedDestination}
+          routeDistance={routeDistance}
+          totalWalkingTime={totalWalkingTime}
+          totalVehicleTime={totalVehicleTime}
+          transportMode={transportMode as any}
+          showStartButton={routeSteps.length > 0 && activeStepIndex === -1}
+          onStart={() => setActiveStepIndex(0)}
+          onClose={() => {
+            setRouteSteps([]);
+            setActiveStepIndex(0);
+            setHasReachedDestination(false);
+            setIsNavigationActive(false);
+            setTotalWalkingTime(null);
+            setTotalVehicleTime(null);
+            if (destinationMarker && leafletMapRef.current) {
+              leafletMapRef.current.removeLayer(destinationMarker);
+              setDestinationMarker(null);
+            }
+            if (routeLine && leafletMapRef.current) {
+              leafletMapRef.current.removeLayer(routeLine);
+              setRouteLine(null);
+            }
+            if (navigationMarkerRef.current && leafletMapRef.current) {
+              leafletMapRef.current.removeLayer(navigationMarkerRef.current);
+              navigationMarkerRef.current = null;
+            }
+            if (selectedFeature && selectedFeature.properties?.id) {
+              setIsHighlightActive(true);
+              const bangunanLayer = bangunanLayerRef.current;
+              if (bangunanLayer) {
+                bangunanLayer.eachLayer((layer: L.Layer) => {
+                  if (
+                    (layer as any).feature &&
+                    (layer as any).feature.geometry &&
+                    (layer as any).feature.geometry.type === "Polygon" &&
+                    (layer as any).feature.properties?.id ===
+                      Number(selectedFeature.properties.id)
+                  ) {
+                    (layer as any).setStyle({
+                      color: "#ff3333",
+                      fillColor: "#ff3333",
+                      fillOpacity: 0.7,
+                      opacity: 1,
+                      weight: 3,
+                    });
                   }
-                  className={`flex-1 py-3 px-4 sm:py-2 sm:px-3 rounded-lg text-sm font-medium transition-all touch-manipulation ${
-                    activeStepIndex === routeSteps.length - 1 &&
-                    hasReachedDestination
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                      : "bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-                  }`}
-                >
-                  <span className="sm:hidden">→</span>
-                  <span className="hidden sm:inline">Next →</span>
-                </button>
-              </div>
+                });
+              }
+              if (leafletMapRef.current && selectedFeature.geometry) {
+                const centroid = getFeatureCentroid(selectedFeature);
+                const currentZoom = leafletMapRef.current.getZoom();
+                leafletMapRef.current.setView(centroid, currentZoom, {
+                  animate: true,
+                  duration: 1,
+                });
+              }
+            }
+            if (isMobile && selectedFeature) {
+              setCardVisible(true);
+              setTimeout(() => setCardAnimation(true), 50);
+            }
+          }}
+          onPrev={() => {
+            if (hasReachedDestination) setHasReachedDestination(false);
+            else if (activeStepIndex > 0)
+              setActiveStepIndex(activeStepIndex - 1);
+          }}
+          onNext={() => {
+            if (activeStepIndex < routeSteps.length - 1)
+              setActiveStepIndex(activeStepIndex + 1);
+            else if (
+              activeStepIndex === routeSteps.length - 1 &&
+              !hasReachedDestination
+            )
+              setHasReachedDestination(true);
+          }}
+        />
 
-              {/* Progress Bar */}
-              <div className="mt-1.5 sm:mt-3">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 sm:h-2">
-                  <div
-                    className="bg-blue-500 h-1 sm:h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${
-                        hasReachedDestination
-                          ? 100
-                          : ((activeStepIndex + 1) / (routeSteps.length + 1)) *
-                            100
-                      }%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Panel navigasi digabung menjadi satu komponen */}
 
-        {/* Kontrol kanan bawah: tombol zoom, reset, GPS - Mobile Responsive */}
-        <div
-          className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-50 flex flex-col gap-2"
-          style={{ zIndex: 1050 }}
-        >
-          {/* Zoom Controls */}
-          <div className="flex flex-col gap-1 mb-2">
-            {/* Zoom In Button */}
-            <button
-              data-control="zoom-in"
-              onClick={() => {
-                console.log("Zoom in clicked");
-                const map = leafletMapRef.current;
-                if (map) {
-                  const newZoom = Math.min(map.getZoom() + 1, 19);
-                  map.setZoom(newZoom);
-                  console.log("Zoom in successful, new zoom:", newZoom);
-                } else {
-                  console.log("Map not ready for zoom in");
-                }
-              }}
-              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
-              ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-              title="Zoom In"
-            >
-              <FontAwesomeIcon
-                icon={faPlus}
-                className="w-3 h-3 sm:w-4 sm:h-4"
-              />
-            </button>
-            {/* Zoom Out Button */}
-            <button
-              data-control="zoom-out"
-              onClick={() => {
-                console.log("Zoom out clicked");
-                const map = leafletMapRef.current;
-                if (map) {
-                  const newZoom = Math.max(map.getZoom() - 1, map.getMinZoom());
-                  map.setZoom(newZoom);
-                  console.log("Zoom out successful, new zoom:", newZoom);
-                } else {
-                  console.log("Map not ready for zoom out");
-                }
-              }}
-              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
-              ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-              title="Zoom Out"
-            >
-              <FontAwesomeIcon
-                icon={faMinus}
-                className="w-3 h-3 sm:w-4 sm:h-4"
-              />
-            </button>
-            {/* Reset Zoom Button */}
-            <button
-              data-control="reset-zoom"
-              onClick={handleResetZoom}
-              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
-              ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-              title="Reset ke Posisi Awal"
-            >
-              {/* Ikon reset posisi: panah melingkar */}
-              <FontAwesomeIcon
-                icon={faSyncAlt}
-                className="w-3 h-3 sm:w-4 sm:h-4"
-              />
-            </button>
-            {/* GPS Live Tracking Button */}
-            <button
-              data-control="locate-me"
-              onClick={handleLocateMe}
-              aria-label={
-                isLiveTracking
-                  ? "Hentikan live GPS tracking"
-                  : "Aktifkan live GPS tracking dengan arah"
-              }
-              title={
-                isLiveTracking
-                  ? "Hentikan live GPS tracking"
-                  : "Aktifkan live GPS tracking dengan arah"
-              }
-              className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2
-              ${
-                isLiveTracking
-                  ? "bg-red-500 border-red-600 hover:bg-red-600 text-white"
-                  : isDark
-                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-              }
-            `}
-            >
-              <FontAwesomeIcon
-                icon={faLocationArrow}
-                className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                  isLiveTracking ? "animate-pulse" : ""
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Kontrol kiri bawah: basemap dan toggle layer - Mobile Responsive */}
-        <div
-          className="absolute left-2 bottom-2 sm:left-4 sm:bottom-4 z-50 flex flex-col gap-2"
-          style={{ zIndex: 1050 }}
-        >
-          {/* Toggle Layer Button (ikon mata) */}
-          <button
-            data-control="toggle-layer"
-            onClick={handleToggleLayer}
-            aria-label={
-              layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
-            }
-            title={
-              layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
-            }
-            className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3
-          ${
-            isDark
-              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-          }
-        `}
-          >
-            {layerVisible ? (
-              // Ikon layer visible saja, tanpa teks 'Sembunyikan'
-              <FontAwesomeIcon
-                icon={faLayerGroup}
-                className="w-4 h-4 sm:w-5 sm:h-5"
-              />
-            ) : (
-              // Ikon layer hidden saja, tanpa teks 'Tampilkan'
-              <FontAwesomeIcon
-                icon={faLayerGroup}
-                className="w-4 h-4 sm:w-5 sm:h-5"
-              />
-            )}
-          </button>
-          {/* Basemap Toggle Button identik EsriMap */}
-          <button
-            data-control="toggle-basemap"
-            onClick={handleToggleBasemap}
-            aria-label={
-              isSatellite
-                ? "Ganti ke tampilan peta"
-                : "Ganti ke tampilan satelit"
-            }
-            title={
-              isSatellite
-                ? "Ganti ke tampilan peta"
-                : "Ganti ke tampilan satelit"
-            }
-            className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3
-          ${
-            isDark
-              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-          }
-        `}
-          >
-            {isSatellite ? (
-              <>
-                {/* Ikon globe/peta */}
-                <FontAwesomeIcon
-                  icon={faGlobe}
-                  className="w-3 h-3 sm:w-4 sm:h-4 mb-0 sm:mb-0.5"
-                />
-                <span
-                  className={`text-xs font-bold hidden sm:block ${
-                    isDark ?? false ? "text-white" : "text-gray-700"
-                  }`}
-                >
-                  Peta
-                </span>
-              </>
-            ) : (
-              <>
-                {/* Ikon satelit */}
-                <FontAwesomeIcon
-                  icon={faGlobe}
-                  className="w-3 h-3 sm:w-4 sm:h-4 mb-0 sm:mb-0.5"
-                />
-                <span
-                  className={`text-xs font-bold hidden sm:block ${
-                    isDark ?? false ? "text-white" : "text-gray-700"
-                  }`}
-                >
-                  Satelit
-                </span>
-              </>
-            )}
-          </button>
-        </div>
+        {/* Kontrol peta disatukan dalam MapControlsPanel */}
 
         {/* Sidebar Gedung (floating card kanan atas) - Mobile Responsive */}
-        {selectedFeature && (
-          <div
-            data-container="building-detail"
-            className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-[201] w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out
-              ${
-                cardVisible &&
-                cardAnimation &&
-                !(isMobile && routeSteps.length > 0)
-                  ? "opacity-100 translate-y-0 scale-100"
-                  : "opacity-0 translate-y-4 scale-95 pointer-events-none"
+        {selectedFeature && cardVisible && (
+          <BuildingDetailModal
+            isDark={!!isDark}
+            isDashboard={!!isDashboard}
+            isLoggedIn={isLoggedIn}
+            selectedFeature={selectedFeature}
+            isContainerShaking={isContainerShaking}
+            onClose={() => {
+              setCardVisible(false);
+              setIsHighlightActive(false);
+              setIsEditingName(false);
+              setIsEditingThumbnail(false);
+              setIsEditingInteraksi(false);
+              setEditName("");
+              setEditThumbnail("");
+              setEditInteraksi("");
+              // Hapus highlight seperti saat klik bangunan (prioritas ke yang sedang ditampilkan)
+              if (selectedFeature?.properties?.id) {
+                clearBangunanHighlightById(selectedFeature.properties.id);
               }
-              ${isContainerShaking ? "animate-shake" : ""}
-            `}
-            style={{
-              boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)",
-              minHeight: isMobile ? 100 : 120,
+              if (searchHighlightedId) {
+                resetBangunanHighlight();
+                setSearchHighlightedId(null);
+              }
+              if (isNavigationActive) {
+                setRouteSteps([]);
+                setActiveStepIndex(0);
+                setHasReachedDestination(false);
+                setIsNavigationActive(false);
+                if (routeLine && leafletMapRef.current) {
+                  leafletMapRef.current.removeLayer(routeLine);
+                  setRouteLine(null);
+                }
+                if (navigationMarkerRef.current && leafletMapRef.current) {
+                  leafletMapRef.current.removeLayer(
+                    navigationMarkerRef.current
+                  );
+                  navigationMarkerRef.current = null;
+                }
+              }
+              // Pastikan style layer bangunan kembali default
+              if (bangunanLayerRef.current) {
+                bangunanLayerRef.current.resetStyle();
+              }
+              setTimeout(() => setSelectedFeature(null), 350);
             }}
-          >
-            {/* Header dengan nama gedung - 2 baris */}
-            <div className="px-2 py-1.5 sm:px-4 sm:py-3 border-b border-gray-100 dark:border-gray-800">
-              {/* Baris 1: Tombol close dan nama gedung */}
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs sm:text-base font-bold text-primary dark:text-primary-dark break-words whitespace-pre-line pr-4 sm:pr-8 leading-tight">
-                  {selectedFeature.properties?.nama || "Tanpa Nama"}
-                </span>
-                <button
-                  onClick={() => {
-                    setCardVisible(false);
-                    setIsHighlightActive(false);
-                    // Reset edit mode
-                    setIsEditingName(false);
-                    setIsEditingThumbnail(false);
-                    setIsEditingInteraksi(false);
-                    setEditName("");
-                    setEditThumbnail("");
-                    setEditInteraksi("");
-                    // Jika navigation aktif, tutup juga navigation
-                    if (isNavigationActive) {
-                      setRouteSteps([]);
-                      setActiveStepIndex(0);
-                      setHasReachedDestination(false);
-                      setIsNavigationActive(false);
-                      if (routeLine && leafletMapRef.current) {
-                        leafletMapRef.current.removeLayer(routeLine);
-                        setRouteLine(null);
-                      }
-                      // Hapus navigation marker
-                      if (
-                        navigationMarkerRef.current &&
-                        leafletMapRef.current
-                      ) {
-                        leafletMapRef.current.removeLayer(
-                          navigationMarkerRef.current
-                        );
-                        navigationMarkerRef.current = null;
-                      }
-                    }
-                    // Clear highlight dari bangunan layer
-                    if (bangunanLayerRef.current) {
-                      bangunanLayerRef.current.resetStyle();
-                    }
-                    setTimeout(() => setSelectedFeature(null), 350);
-                  }}
-                  className="text-gray-400 hover:text-primary dark:hover:text-primary-dark text-xl font-bold focus:outline-none transition-all duration-200"
-                  aria-label="Tutup detail bangunan"
-                  title="Tutup"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Baris 2: Tombol edit nama dan interaksi */}
-              {isDashboard && isLoggedIn && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Interaksi:
-                    </span>
-                    <span className="text-sm text-gray-900 dark:text-white">
-                      {selectedFeature.properties?.interaksi || "Noninteraktif"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setIsEditingName(true);
-                      setIsEditingInteraksi(true);
-                      setEditName(selectedFeature.properties?.nama || "");
-                      const currentInteraksi =
-                        selectedFeature.properties?.interaksi || "";
-                      setEditInteraksi(currentInteraksi);
-                    }}
-                    className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
-                    aria-label="Edit nama dan interaksi bangunan"
-                    title="Edit nama dan interaksi bangunan"
-                  >
-                    <i className="fas fa-edit text-sm"></i>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Gambar thumbnail bangunan */}
-            <div className="px-2 pt-1.5 sm:px-4 sm:pt-2">
-              <div className="relative">
-                <img
-                  src={
-                    selectedFeature.properties?.thumbnail
-                      ? `/${
-                          selectedFeature.properties.thumbnail
-                        }?v=${Date.now()}`
-                      : selectedFeature.properties?.id
-                      ? `/img/${
-                          selectedFeature.properties.id
-                        }/thumbnail.jpg?v=${Date.now()}`
-                      : "/img/default/thumbnail.jpg"
-                  }
-                  alt={selectedFeature.properties?.nama || "Bangunan"}
-                  className="w-full h-20 sm:h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => {
-                    // Fallback ke gambar default jika tidak ditemukan
-                    const target = e.target as HTMLImageElement;
-                    target.src = "/img/default/thumbnail.jpg";
-                  }}
-                />
-                {isDashboard && isLoggedIn && (
-                  <button
-                    onClick={handleEditThumbnail}
-                    className="absolute top-2 right-2 text-white hover:text-primary dark:hover:text-primary-dark transition-colors z-20 p-1"
-                    title="Edit thumbnail"
-                  >
-                    <i className="fas fa-edit text-sm"></i>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col gap-1.5 sm:gap-3 px-2 py-2 sm:px-4 sm:py-4">
-              {selectedFeature.properties?.interaksi &&
-                selectedFeature.properties.interaksi.toLowerCase() ===
-                  "interaktif" && (
-                  <div className="flex gap-2 mb-1">
-                    <button
-                      className="flex-1 py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark touch-manipulation"
-                      onClick={() => openBuildingDetailModal()}
-                    >
-                      <FontAwesomeIcon
-                        icon={faInfoCircle}
-                        className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4"
-                      />
-                      <span className="sm:hidden">Detail</span>
-                      <span className="hidden sm:inline">Detail Bangunan</span>
-                    </button>
-                    {isDashboard && isLoggedIn && (
-                      <button
-                        className="px-2 sm:px-3 py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 touch-manipulation"
-                        onClick={handleEditLantai}
-                        title="Edit Lantai"
-                      >
-                        <i className="fas fa-layer-group text-xs sm:text-sm"></i>
-                      </button>
-                    )}
-                  </div>
-                )}
-              {selectedFeature?.properties?.id &&
-                selectedFeature?.properties?.nama && (
-                  <button
-                    className="w-full py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark touch-manipulation"
-                    onClick={() => {
-                      // Set tujuan otomatis ke bangunan yang sedang diklik
-                      setRouteEndType("bangunan");
-                      setRouteEndId(
-                        String(selectedFeature.properties.id ?? "")
-                      );
-                      setTimeout(() => setShowRouteModal(true), 10);
-                    }}
-                  >
-                    <FontAwesomeIcon
-                      icon={faRoute}
-                      className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4"
-                    />
-                    Rute
-                  </button>
-                )}
-              {!selectedFeature?.properties?.id && (
-                <div className="text-xs text-red-500">
-                  [DEBUG] Ini bukan bangunan dari API (tidak ada properti id)
-                </div>
-              )}
-            </div>
-          </div>
+            onOpenDetail={() => openBuildingDetailModal()}
+            onEditThumbnail={handleEditThumbnail}
+            onEditLantai={handleEditLantai}
+            onSetRouteToBuilding={() => {
+              setRouteEndType("bangunan");
+              setRouteEndId(String(selectedFeature.properties.id ?? ""));
+              setTimeout(() => setShowRouteModal(true), 10);
+            }}
+          />
         )}
 
         {/* Modal Edit Bangunan */}
@@ -6790,187 +5313,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {/* Modal Buat Ruangan */}
-        {showRuanganModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999]">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {selectedRuanganForEdit ? "Edit Ruangan" : "Buat Ruangan"} -
-                  Lantai {selectedLantaiForRuangan}
-                </h3>
-                <button
-                  onClick={() => setShowRuanganModal(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <i className="fas fa-times text-lg"></i>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nama Ruangan <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={ruanganForm.nama_ruangan}
-                    onChange={(e) =>
-                      setRuanganForm((prev) => ({
-                        ...prev,
-                        nama_ruangan: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Masukkan nama ruangan"
-                    autoFocus
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nomor Lantai <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={ruanganForm.nomor_lantai || ""}
-                    onChange={(e) =>
-                      setRuanganForm((prev) => ({
-                        ...prev,
-                        nomor_lantai: parseInt(e.target.value) || 1,
-                      }))
-                    }
-                    min="1"
-                    max={selectedFeature?.properties?.lantai || 1}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Maksimal: {selectedFeature?.properties?.lantai || 1}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Jurusan
-                  </label>
-                  <input
-                    type="text"
-                    value={ruanganForm.nama_jurusan}
-                    onChange={(e) =>
-                      setRuanganForm((prev) => ({
-                        ...prev,
-                        nama_jurusan: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Masukkan nama jurusan"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Program Studi
-                  </label>
-                  <input
-                    type="text"
-                    value={ruanganForm.nama_prodi}
-                    onChange={(e) =>
-                      setRuanganForm((prev) => ({
-                        ...prev,
-                        nama_prodi: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Masukkan nama program studi"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Pin Style
-                  </label>
-                  <select
-                    value={ruanganForm.pin_style}
-                    onChange={(e) =>
-                      setRuanganForm((prev) => ({
-                        ...prev,
-                        pin_style: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="default">Default</option>
-                    <option value="ruang_kelas">Ruang Kelas</option>
-                    <option value="laboratorium">Laboratorium</option>
-                    <option value="kantor">Kantor</option>
-                    <option value="ruang_rapat">Ruang Rapat</option>
-                    <option value="perpustakaan">Perpustakaan</option>
-                    <option value="kantin">Kantin</option>
-                    <option value="toilet">Toilet</option>
-                    <option value="gudang">Gudang</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Posisi Pin
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPinPositionModal(true)}
-                    className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                  >
-                    <i className="fas fa-map-marker-alt text-xs"></i>
-                    {ruanganForm.posisi_x && ruanganForm.posisi_y
-                      ? "Ubah Posisi Pin"
-                      : "Tentukan Posisi Pin"}
-                  </button>
-                  {ruanganForm.posisi_x && ruanganForm.posisi_y && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      ✓ Posisi pin sudah ditentukan (X: {ruanganForm.posisi_x},
-                      Y: {ruanganForm.posisi_y})
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Klik untuk memilih posisi pin pada gambar lantai
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-4 mt-4">
-                <button
-                  onClick={
-                    selectedRuanganForEdit
-                      ? handleUpdateRuangan
-                      : handleSaveRuangan
-                  }
-                  disabled={!ruanganForm.nama_ruangan.trim() || isSaving}
-                  className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-save text-sm"></i>
-                      {selectedRuanganForEdit
-                        ? "Update Ruangan"
-                        : "Simpan Ruangan"}
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => setShowRuanganModal(false)}
-                  className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Batal
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modal Buat/Edit Ruangan */}
+        <EditRuanganForm
+          visible={showRuanganModal}
+          isDark={!!isDark}
+          selectedRuanganForEdit={selectedRuanganForEdit}
+          selectedLantaiForRuangan={selectedLantaiForRuangan}
+          ruanganForm={ruanganForm as any}
+          maxLantai={selectedFeature?.properties?.lantai || 1}
+          isSaving={isSaving}
+          onChange={(partial) =>
+            setRuanganForm((prev) => ({ ...prev, ...partial }))
+          }
+          onSave={handleSaveRuangan}
+          onUpdate={handleUpdateRuangan}
+          onClose={() => setShowRuanganModal(false)}
+          onOpenPinPicker={() => setShowPinPositionModal(true)}
+        />
 
         {/* Modal Pilih Posisi Pin */}
         {showPinPositionModal && (

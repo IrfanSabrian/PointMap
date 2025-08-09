@@ -519,7 +519,7 @@ export default function Dashboard() {
         <ParticlesCustom isDark={isDark ?? false} />
 
         <div className="w-full h-full relative">
-          <div className="bg-white dark:bg-primary text-primary dark:text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-14 lg:mt-14 border border-primary/20 dark:border-transparent">
+          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between mt-14 lg:mt-14 border border-primary/20 dark:border-transparent">
             <span>Dashboard - Polnep Interactive Map</span>
             {isLoading && (
               <div className="flex items-center gap-2">

@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 
+/**
+ * useGps
+ *
+ * Hook untuk mengelola lokasi pengguna (GPS) dan heading (kompas) di browser.
+ * - startLiveTracking: mulai pelacakan berkala + watchPosition (backup)
+ * - stopLiveTracking: hentikan pelacakan
+ * - userLocation, userHeading: state posisi & arah
+ */
+
 export function useGps() {
   const [userLocation, setUserLocation] = useState<L.LatLng | null>(null);
   const [userHeading, setUserHeading] = useState<number | null>(null);
