@@ -2171,7 +2171,9 @@
           let fallbackPath = `../img/default/lantai/Lt${lantai}.svg`;
 
           if (lantaiData && lantaiData.path_file) {
-            svgPath = `../${lantaiData.path_file}`;
+            svgPath = `${lantaiData.path_file.startsWith("http") ? "" : "../"}${
+              lantaiData.path_file
+            }`;
           } else if (buildingData.id_bangunan) {
             svgPath = `../img/${buildingData.id_bangunan}/lantai/Lt${lantai}.svg`;
           } else {
@@ -2423,12 +2425,20 @@
                                 `
                                     : ""
                                 }
-                                <a href="../${firstImage.path_file}" 
+                                <a href="${
+                                  firstImage.path_file.startsWith("http")
+                                    ? ""
+                                    : "../"
+                                }${firstImage.path_file}" 
                                    data-fancybox="gallery-${item.space}"
                                    data-caption="${item.title} - Foto 1"
                                    class="gallery-link">
                                   <img 
-                                    src="../${firstImage.path_file}" 
+                                    src="${
+                                      firstImage.path_file.startsWith("http")
+                                        ? ""
+                                        : "../"
+                                    }${firstImage.path_file}" 
                                     alt="${item.title}"
                                     class="room-thumbnail"
                                     onError="this.src='../img/default/ruangan/thumbnail.jpg'"
@@ -2447,7 +2457,11 @@
                                 .slice(1)
                                 .map(
                                   (gallery, index) => `
-                                <a href="../${gallery.path_file}" 
+                                <a href="${
+                                  gallery.path_file.startsWith("http")
+                                    ? ""
+                                    : "../"
+                                }${gallery.path_file}" 
                                    data-fancybox="gallery-${item.space}"
                                    data-caption="${item.title} - Foto ${
                                     index + 2
@@ -2722,7 +2736,9 @@
               // Tambahkan gallery links untuk gambar 2 dan seterusnya
               roomGallery.slice(1).forEach((gallery, index) => {
                 const link = document.createElement("a");
-                link.href = `../${gallery.path_file}`;
+                link.href = `${
+                  gallery.path_file.startsWith("http") ? "" : "../"
+                }${gallery.path_file}`;
                 link.setAttribute("data-fancybox", `gallery-${spaceId}`);
                 link.setAttribute(
                   "data-caption",

@@ -3,6 +3,7 @@ import Ruangan from "../models/Ruangan.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import cloudinary from "../config/cloudinary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -101,35 +102,21 @@ export const uploadGallery = async (req, res) => {
         continue;
       }
 
-      // Buat direktori jika belum ada
-      const uploadDir = path.join(
-        __dirname,
-        "../../frontend/public/img",
-        ruangan.id_bangunan.toString(),
-        "ruangan",
-        ruanganId.toString()
-      );
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
-      // Cek file yang sudah ada untuk menentukan nomor berikutnya
-      const existingFiles = fs
-        .readdirSync(uploadDir)
-        .filter((file) => file.startsWith("gallery") && file.endsWith(".jpg"));
-
-      // Extract nomor dari file yang ada
-      const existingNumbers = existingFiles
-        .map((file) => {
-          const match = file.match(/gallery(\d+)\.jpg/);
+      // Cek file yang sudah ada di DB untuk menentukan nomor berikutnya
+      const existingRecords = await RuanganGallery.findAll({
+        where: { id_ruangan: ruanganId },
+        order: [["created_at", "ASC"]],
+      });
+      const existingNumbers = existingRecords
+        .map((rec) => {
+          const match = rec.nama_file?.match(/gallery(\d+)\.jpg/);
           return match ? parseInt(match[1]) : 0;
         })
-        .sort((a, b) => a - b); // Sort ascending
+        .filter((n) => n > 0)
+        .sort((a, b) => a - b);
 
-      // Tentukan nomor berikutnya dengan mengisi gap
       let nextNumber = 1;
       if (existingNumbers.length > 0) {
-        // Cari gap pertama yang tersedia
         for (let i = 1; i <= Math.max(...existingNumbers) + 1; i++) {
           if (!existingNumbers.includes(i)) {
             nextNumber = i;
@@ -138,19 +125,29 @@ export const uploadGallery = async (req, res) => {
         }
       }
 
-      // Generate nama file berurutan
+      // Generate nama file berurutan dan upload ke Cloudinary
       const fileName = `gallery${nextNumber}.jpg`;
-      const filePath = path.join(uploadDir, fileName);
+      const folder = `img/${ruangan.id_bangunan}/ruangan/${ruanganId}`;
+      const publicId = fileName.replace(/\.[^.]+$/, "");
 
-      // Pindahkan file yang diupload
-      fs.renameSync(file.path, filePath);
+      const uploadResult = await cloudinary.uploader.upload(file.path, {
+        folder,
+        public_id: publicId,
+        overwrite: true,
+        resource_type: "image",
+        format: "jpg",
+      });
 
-      // Simpan ke database
-      const galleryPath = `img/${ruangan.id_bangunan}/ruangan/${ruanganId}/${fileName}`;
+      // Hapus file sementara
+      if (file?.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+
+      // Simpan ke database dgn URL Cloudinary
       const galleryData = await RuanganGallery.create({
         id_ruangan: ruanganId,
         nama_file: fileName,
-        path_file: galleryPath,
+        path_file: uploadResult.secure_url,
       });
 
       uploadedFiles.push(galleryData);
@@ -214,14 +211,26 @@ export const deleteGallery = async (req, res) => {
       return res.status(404).json({ error: "Gallery tidak ditemukan" });
     }
 
-    // Hapus file dari filesystem
-    const filePath = path.join(
-      __dirname,
-      "../../frontend/public",
-      gallery.path_file
-    );
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Jika path_file adalah URL Cloudinary, hapus asset di Cloudinary
+    if (gallery.path_file?.includes("res.cloudinary.com")) {
+      try {
+        // Derive public_id from URL: folder/.../name.ext -> folder/.../name
+        const url = new URL(gallery.path_file);
+        const parts = url.pathname.split("/").filter(Boolean);
+        const uploadIdx = parts.findIndex((p) => p === "upload");
+        let publicParts =
+          uploadIdx >= 0 ? parts.slice(uploadIdx + 1) : parts.slice(1);
+        // remove version segment if present (v123...)
+        if (publicParts[0] && /^v\d+/.test(publicParts[0])) {
+          publicParts = publicParts.slice(1);
+        }
+        const last = publicParts.pop() || "";
+        const baseName = last.replace(/\.[^.]+$/, "");
+        const publicId = [...publicParts, baseName].join("/");
+        await cloudinary.uploader.destroy(publicId);
+      } catch (e) {
+        // ignore cleanup errors
+      }
     }
 
     // Hapus dari database

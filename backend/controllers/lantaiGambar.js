@@ -2,6 +2,7 @@ import { LantaiGambar, Bangunan } from "../models/index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import cloudinary from "../config/cloudinary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -89,26 +90,25 @@ export const addLantaiGambar = async (req, res) => {
       return res.status(404).json({ error: "Bangunan tidak ditemukan" });
     }
 
-    // Buat direktori jika belum ada
-    const uploadDir = path.join(
-      __dirname,
-      "../../frontend/public/img",
-      id_bangunan.toString(),
-      "lantai"
-    );
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    // Generate nama file
+    // Generate nama file sesuai pola
     const nama_file = `Lt${nomor_lantai}.svg`;
-    const path_file = path.join(uploadDir, nama_file);
 
-    // Pindahkan file dari uploads sementara ke lokasi final
-    fs.renameSync(req.file.path, path_file);
+    // Upload ke Cloudinary di folder sesuai struktur
+    const folder = `img/${id_bangunan}/lantai`;
+    const publicId = nama_file.replace(/\.[^.]+$/, ""); // Lt{n}
 
-    // Path untuk database (relative dari public)
-    const dbPath = `img/${id_bangunan}/lantai/${nama_file}`;
+    const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+      folder,
+      public_id: publicId,
+      overwrite: true,
+      resource_type: "image",
+      format: "svg",
+    });
+
+    // Hapus file sementara
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
 
     // Cek apakah sudah ada gambar untuk lantai ini
     const existingLantai = await LantaiGambar.findOne({
@@ -122,7 +122,7 @@ export const addLantaiGambar = async (req, res) => {
     if (existingLantai) {
       // Update jika sudah ada
       await LantaiGambar.update(
-        { path_file: dbPath },
+        { path_file: uploadResult.secure_url },
         { where: { id_lantai_gambar: existingLantai.id_lantai_gambar } }
       );
       result = await LantaiGambar.findByPk(existingLantai.id_lantai_gambar);
@@ -131,7 +131,7 @@ export const addLantaiGambar = async (req, res) => {
       result = await LantaiGambar.create({
         id_bangunan,
         nama_file,
-        path_file: dbPath,
+        path_file: uploadResult.secure_url,
       });
     }
 
@@ -178,6 +178,26 @@ export const deleteLantaiGambar = async (req, res) => {
     const deletedLantaiGambar = await LantaiGambar.findByPk(id);
     if (!deletedLantaiGambar) {
       return res.status(404).json({ error: "Lantai gambar tidak ditemukan" });
+    }
+    // Hapus asset di Cloudinary jika path adalah URL Cloudinary
+    if (deletedLantaiGambar.path_file?.includes("res.cloudinary.com")) {
+      try {
+        const url = new URL(deletedLantaiGambar.path_file);
+        const parts = url.pathname.split("/").filter(Boolean);
+        const uploadIdx = parts.findIndex((p) => p === "upload");
+        let publicParts =
+          uploadIdx >= 0 ? parts.slice(uploadIdx + 1) : parts.slice(1);
+        // remove version segment if present (v123...)
+        if (publicParts[0] && /^v\d+/.test(publicParts[0])) {
+          publicParts = publicParts.slice(1);
+        }
+        const last = publicParts.pop() || "";
+        const baseName = last.replace(/\.[^.]+$/, "");
+        const publicId = [...publicParts, baseName].join("/");
+        await cloudinary.uploader.destroy(publicId);
+      } catch (e) {
+        // ignore cleanup errors
+      }
     }
     await deletedLantaiGambar.destroy();
     res.json({

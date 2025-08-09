@@ -95,7 +95,9 @@ export default function EditLantaiImageUploader(props: Props) {
           </div>
         ) : (
           <img
-            src={`/${existingLantai.path_file}?v=${Date.now()}`}
+            src={`${existingLantai.path_file.startsWith("http") ? "" : "/"}${
+              existingLantai.path_file
+            }?v=${Date.now()}`}
             alt={`Lantai ${selectedLantaiFilter}`}
             className="w-full h-auto"
           />

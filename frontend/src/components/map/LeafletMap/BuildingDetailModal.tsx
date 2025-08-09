@@ -81,7 +81,11 @@ export default function BuildingDetailModal(props: Props) {
             <img
               src={
                 selectedFeature.properties?.thumbnail
-                  ? `/${selectedFeature.properties.thumbnail}?v=${Date.now()}`
+                  ? `${
+                      selectedFeature.properties.thumbnail.startsWith("http")
+                        ? ""
+                        : "/"
+                    }${selectedFeature.properties.thumbnail}?v=${Date.now()}`
                   : selectedFeature.properties?.id
                   ? `/img/${
                       selectedFeature.properties.id

@@ -4798,7 +4798,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             Thumbnail saat ini:
                           </p>
                           <img
-                            src={`/${
+                            src={`${
+                              selectedFeature?.properties?.thumbnail?.startsWith(
+                                "http"
+                              )
+                                ? ""
+                                : "/"
+                            }${
                               selectedFeature?.properties?.thumbnail
                             }?v=${Date.now()}`}
                             alt="Current thumbnail"
@@ -4957,7 +4963,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                             onClick={() => {
                                               // Fancybox preview
                                               const img = new Image();
-                                              img.src = `/${
+                                              img.src = `${
+                                                existingLantai.path_file.startsWith(
+                                                  "http"
+                                                )
+                                                  ? ""
+                                                  : "/"
+                                              }${
                                                 existingLantai.path_file
                                               }?v=${Date.now()}`;
                                               img.onload = () => {
@@ -5004,7 +5016,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                             }}
                                           >
                                             <img
-                                              src={`/${
+                                              src={`${
+                                                existingLantai.path_file.startsWith(
+                                                  "http"
+                                                )
+                                                  ? ""
+                                                  : "/"
+                                              }${
                                                 existingLantai.path_file
                                               }?v=${Date.now()}`}
                                               alt={`Lantai ${lantaiNumber}`}
@@ -5404,7 +5422,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     return (
                       <div className="relative">
                         <img
-                          src={`/${existingLantai.path_file}?v=${Date.now()}`}
+                          src={`${
+                            existingLantai.path_file.startsWith("http")
+                              ? ""
+                              : "/"
+                          }${existingLantai.path_file}?v=${Date.now()}`}
                           alt={`Lantai ${selectedLantaiForRuangan}`}
                           className="w-full h-auto cursor-crosshair"
                           onClick={(e) => {

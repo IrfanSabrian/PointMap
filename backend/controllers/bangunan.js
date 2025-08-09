@@ -2,6 +2,7 @@ import Bangunan from "../models/Bangunan.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import cloudinary from "../config/cloudinary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,7 +85,7 @@ export const uploadThumbnail = async (req, res) => {
       return res.status(400).json({ error: "Tidak ada file yang diupload" });
     }
 
-    // Validasi tipe file
+    // Validasi tipe file (gambar umum)
     const allowedTypes = [
       "image/jpeg",
       "image/jpg",
@@ -93,45 +94,33 @@ export const uploadThumbnail = async (req, res) => {
       "image/webp",
     ];
     if (!allowedTypes.includes(req.file.mimetype)) {
-      // Hapus file yang tidak valid
-      fs.unlinkSync(req.file.path);
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
       return res.status(400).json({
         error: "Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP",
       });
     }
 
-    // Buat direktori jika belum ada
-    const uploadDir = path.join(
-      __dirname,
-      "../../frontend/public/img",
-      id.toString()
-    );
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    // Upload ke Cloudinary dengan struktur folder yang sama
+    const folder = `img/${id}`;
+    const publicId = `thumbnail`;
+    const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+      folder,
+      public_id: publicId,
+      overwrite: true,
+      resource_type: "image",
+      format: undefined, // biarkan Cloudinary deteksi
+    });
+
+    // Hapus file sementara
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
     }
 
-    // Path untuk thumbnail baru
-    const thumbnailPath = path.join(uploadDir, "thumbnail.jpg");
-
-    // Hapus thumbnail lama jika ada
-    if (bangunan.thumbnail) {
-      const oldThumbnailPath = path.join(
-        __dirname,
-        "../../frontend/public",
-        bangunan.thumbnail
-      );
-      if (fs.existsSync(oldThumbnailPath)) {
-        fs.unlinkSync(oldThumbnailPath);
-      }
-    }
-
-    // Pindahkan file yang diupload ke lokasi thumbnail
-    fs.renameSync(req.file.path, thumbnailPath);
-
-    // Update database dengan path baru
-    const newThumbnailPath = `img/${id}/thumbnail.jpg`;
+    // Simpan URL Cloudinary ke database
     await Bangunan.update(
-      { thumbnail: newThumbnailPath },
+      { thumbnail: uploadResult.secure_url },
       { where: { id_bangunan: id } }
     );
 
@@ -141,9 +130,15 @@ export const uploadThumbnail = async (req, res) => {
     res.json({
       message: "Thumbnail berhasil diupload",
       data: updatedBangunan,
-      thumbnailPath: newThumbnailPath,
+      thumbnailPath: uploadResult.secure_url,
     });
   } catch (err) {
+    // Bersihkan file sementara jika ada
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch {}
+    }
     res.status(500).json({ error: err.message });
   }
 };
