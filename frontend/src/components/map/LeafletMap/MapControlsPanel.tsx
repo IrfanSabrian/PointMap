@@ -67,9 +67,8 @@ export default function MapControlsPanel(props: Props) {
           e.preventDefault();
           if (searchResults.length > 0) onSelectSearchResult(searchResults[0]);
         }}
-        className="search-container absolute top-2 left-2 sm:top-4 sm:left-4 z-50 w-[calc(100vw-16px)] max-w-[280px] sm:min-w-56 sm:max-w-[80vw] sm:w-[240px]"
+        className="search-container absolute top-2 left-2 sm:top-4 sm:left-4 z-20 w-[calc(100vw-16px)] max-w-[280px] sm:min-w-56 sm:max-w-[80vw] sm:w-[240px]"
         autoComplete="off"
-        style={{ zIndex: 1000 }}
       >
         <div
           className={`relative flex items-center border rounded-xl shadow-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition-all ${
@@ -114,7 +113,7 @@ export default function MapControlsPanel(props: Props) {
         </div>
         {showSearchResults && (
           <div
-            className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg border max-h-60 overflow-y-auto z-40 ${
+            className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg border max-h-60 overflow-y-auto z-20 ${
               isDark
                 ? "bg-gray-800 border-gray-700"
                 : "bg-white border-gray-200"
@@ -196,10 +195,7 @@ export default function MapControlsPanel(props: Props) {
       </form>
 
       {/* Kontrol kanan bawah */}
-      <div
-        className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-50 flex flex-col gap-2"
-        style={{ zIndex: 1050 }}
-      >
+      <div className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-20 flex flex-col gap-2">
         <div className="flex flex-col gap-1 mb-2">
           <button
             data-control="zoom-in"
@@ -272,10 +268,7 @@ export default function MapControlsPanel(props: Props) {
       </div>
 
       {/* Kontrol kiri bawah */}
-      <div
-        className="absolute left-2 bottom-2 sm:left-4 sm:bottom-4 z-50 flex flex-col gap-2"
-        style={{ zIndex: 1050 }}
-      >
+      <div className="absolute left-2 bottom-2 sm:left-4 sm:left-4 z-20 flex flex-col gap-2">
         <button
           data-control="toggle-layer"
           onClick={onToggleLayer}

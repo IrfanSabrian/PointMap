@@ -12,6 +12,7 @@ type Props = {
   onOpenDetail: () => void;
   onEditThumbnail: () => void;
   onEditLantai: () => void;
+  onEditNameAndInteraksi: () => void;
   onSetRouteToBuilding: () => void;
 };
 
@@ -26,6 +27,7 @@ export default function BuildingDetailModal(props: Props) {
     onOpenDetail,
     onEditThumbnail,
     onEditLantai,
+    onEditNameAndInteraksi,
     onSetRouteToBuilding,
   } = props;
 
@@ -34,7 +36,7 @@ export default function BuildingDetailModal(props: Props) {
   return (
     <div
       data-container="building-detail"
-      className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-[201] w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out ${
+      className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-[40] w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out ${
         isContainerShaking ? "animate-shake" : ""
       }`}
       style={{ boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)" }}
@@ -65,7 +67,7 @@ export default function BuildingDetailModal(props: Props) {
                 </span>
               </div>
               <button
-                onClick={onEditThumbnail}
+                onClick={onEditNameAndInteraksi}
                 className="text-gray-400 hover:text-primary dark:hover:text-primary-dark transition-colors"
                 aria-label="Edit nama dan interaksi bangunan"
                 title="Edit nama dan interaksi bangunan"
@@ -127,15 +129,18 @@ export default function BuildingDetailModal(props: Props) {
                 <span className="hidden sm:inline">Detail Bangunan</span>
               </button>
             )}
-            {isDashboard && isLoggedIn && (
-              <button
-                className="px-2 sm:px-3 py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 touch-manipulation"
-                onClick={onEditLantai}
-                title="Edit Lantai"
-              >
-                <i className="fas fa-layer-group text-xs sm:text-sm"></i>
-              </button>
-            )}
+            {isDashboard &&
+              isLoggedIn &&
+              selectedFeature.properties?.interaksi?.toLowerCase() ===
+                "interaktif" && (
+                <button
+                  className="px-2 sm:px-3 py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 touch-manipulation"
+                  onClick={onEditLantai}
+                  title="Edit Lantai"
+                >
+                  <i className="fas fa-layer-group text-xs sm:text-sm"></i>
+                </button>
+              )}
           </div>
 
           {selectedFeature?.properties?.id && (

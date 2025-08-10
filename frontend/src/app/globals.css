@@ -346,9 +346,8 @@
   color: #111827 !important; /* Default dark text */
 }
 
-
 .hero-description {
-  color: #374151 !important; /* Default gray text */
+  color: #374151 
 }
 
 /* ===== MOBILE RESPONSIVENESS FIXES ===== */

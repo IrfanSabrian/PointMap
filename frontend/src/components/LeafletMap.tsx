@@ -64,11 +64,13 @@ import {
   getLantaiGambarByBangunan,
   createLantaiGambar,
   deleteLantaiGambar,
+  updateLantaiGambar,
 } from "../services/lantaiGambar";
 import {
   createRuangan,
   updateRuangan,
   getRuanganByBangunan,
+  deleteRuangan,
 } from "../services/ruangan";
 import { updateBangunan, uploadBangunanThumbnail } from "../services/bangunan";
 
@@ -162,11 +164,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [isEditingName, setIsEditingName] = useState(false);
     const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
     const [isEditingLantai, setIsEditingLantai] = useState(false);
-    const [isEditingLantaiCount, setIsEditingLantaiCount] = useState(false);
+
     const [isEditingInteraksi, setIsEditingInteraksi] = useState(false);
     const [editName, setEditName] = useState("");
     const [editThumbnail, setEditThumbnail] = useState("");
-    const [editLantaiCount, setEditLantaiCount] = useState(1);
+
     const [editInteraksi, setEditInteraksi] = useState("");
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
@@ -177,11 +179,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       [key: number]: string | null;
     }>({});
     const [lantaiGambarData, setLantaiGambarData] = useState<any[]>([]);
-    const [selectedLantaiFilter, setSelectedLantaiFilter] = useState<number>(1);
+    const [selectedLantaiFilter, setSelectedLantaiFilter] = useState(1);
+    const [savedLantaiFiles, setSavedLantaiFiles] = useState<{
+      [key: number]: boolean;
+    }>({});
     const [showRuanganModal, setShowRuanganModal] = useState(false);
-    const [showEditRuanganModal, setShowEditRuanganModal] = useState(false);
+
     const [showPinPositionModal, setShowPinPositionModal] = useState(false);
+    const [showTambahLantaiModal, setShowTambahLantaiModal] = useState(false);
+    const [showEditLantaiModal, setShowEditLantaiModal] = useState(false);
+    const [tambahLantaiFile, setTambahLantaiFile] = useState<File | null>(null);
+    const [tambahLantaiPreviewUrl, setTambahLantaiPreviewUrl] = useState<
+      string | null
+    >(null);
     const [selectedLantaiForRuangan, setSelectedLantaiForRuangan] = useState<
+      number | null
+    >(null);
+    const [selectedLantaiForEdit, setSelectedLantaiForEdit] = useState<
       number | null
     >(null);
     const [selectedRuanganForEdit, setSelectedRuanganForEdit] =
@@ -336,6 +350,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setTimeout(() => {
         setIsBuildingDetailFadingIn(false);
       }, 300); // durasi animasi fade
+
+      // Refresh data lantai setiap kali modal dibuka
+      setTimeout(() => {
+        refreshLantaiData();
+      }, 100);
 
       // Jika ada ruangan yang dipilih, kirim informasi ke iframe
       if (selectedRuangan) {
@@ -1731,6 +1750,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           resetBangunanHighlight();
           setSearchHighlightedId(null);
         }
+
+        // Reset state lantai saat modal ditutup
+        setLantaiFiles({});
+        setLantaiPreviewUrls({});
+        setSavedLantaiFiles({});
+        setLantaiGambarData([]);
+        setShowTambahLantaiModal(false);
+        setTambahLantaiFile(null);
+        setTambahLantaiPreviewUrl(null);
       }, 300); // durasi animasi fade
     };
 
@@ -1816,11 +1844,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         );
         setLantaiGambarData(data || []);
 
+        // Ambil data ruangan untuk menghitung jumlah ruangan per lantai
+        await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
+
         // Reset state
         setLantaiFiles({});
         setLantaiPreviewUrls({});
         setSelectedLantaiFilter(1); // Reset filter ke lantai pertama
-        setEditLantaiCount(selectedFeature.properties.lantai || 1);
+
+        // Inisialisasi savedLantaiFiles berdasarkan data yang sudah ada
+        const savedFiles: { [key: number]: boolean } = {};
+        if (data && data.length > 0) {
+          data.forEach((lantai: any) => {
+            const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+            if (match) {
+              const lantaiNumber = parseInt(match[1]);
+              savedFiles[lantaiNumber] = true;
+            }
+          });
+        }
+        setSavedLantaiFiles(savedFiles);
+
         setIsEditingLantai(true);
       } catch (error) {
         setLantaiGambarData([]);
@@ -1872,6 +1916,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             token
           );
           setLantaiGambarData(data || []);
+
+          // Update savedLantaiFiles berdasarkan data yang baru
+          const savedFiles: { [key: number]: boolean } = {};
+          if (data && data.length > 0) {
+            data.forEach((lantai: any) => {
+              const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+              if (match) {
+                const lantaiNumber = parseInt(match[1]);
+                savedFiles[lantaiNumber] = true;
+              }
+            });
+          }
+          setSavedLantaiFiles(savedFiles);
         }
 
         // Hapus file dari state setelah berhasil disimpan
@@ -1888,6 +1945,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
           return newUrls;
         });
+
+        // Refresh modal jika sedang terbuka
+        if (showBuildingDetailCanvas) {
+          await openBuildingDetailModal();
+        }
 
         showNotification(
           "success",
@@ -1916,14 +1978,89 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
+        // Cari lantai yang akan dihapus untuk validasi
+        const lantaiToDelete = lantaiGambarData.find(
+          (l) => l.id_lantai_gambar === lantaiGambarId
+        );
+        if (!lantaiToDelete) {
+          showNotification(
+            "error",
+            "Data Error",
+            "Data lantai tidak ditemukan."
+          );
+          return;
+        }
+
+        // Validasi: hanya lantai teratas yang boleh dihapus
+        const maxLantaiNumber = Math.max(
+          ...lantaiGambarData.map((l) => {
+            const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
+            return match ? parseInt(match[1]) : 0;
+          })
+        );
+
+        const currentLantaiNumber = parseInt(
+          lantaiToDelete.nama_file.match(/Lt(\d+)\.svg/i)?.[1] || "0"
+        );
+
+        if (currentLantaiNumber !== maxLantaiNumber) {
+          showNotification(
+            "error",
+            "Tidak Bisa Dihapus",
+            `Lantai ${currentLantaiNumber} tidak bisa dihapus karena bukan lantai teratas. Hapus lantai ${maxLantaiNumber} terlebih dahulu.`
+          );
+          return;
+        }
+
         await deleteLantaiGambar(lantaiGambarId, token);
 
-        // Refresh data lantai gambar
+        // Refresh data lantai gambar dan update field lantai di tabel bangunan
         if (selectedFeature?.properties?.id) {
-          const lantaiData = await getLantaiGambarByBangunan(
-            Number(selectedFeature.properties.id)
-          );
+          const bangunanId = Number(selectedFeature.properties.id);
+          const lantaiData = await getLantaiGambarByBangunan(bangunanId, token);
           setLantaiGambarData(lantaiData || []);
+
+          // Update field lantai di tabel bangunan
+          const jumlahLantaiTersisa = lantaiData ? lantaiData.length : 0;
+          const newLantaiValue = jumlahLantaiTersisa; // Gunakan jumlah lantai yang tersisa (0, 1, 2, dst)
+
+          try {
+            await updateBangunan(bangunanId, { lantai: newLantaiValue }, token);
+
+            // Update selectedFeature properties dengan jumlah lantai yang baru
+            if (selectedFeature && selectedFeature.properties) {
+              selectedFeature.properties.lantai = newLantaiValue;
+            }
+
+            // Update savedLantaiFiles berdasarkan data yang baru
+            const savedFiles: { [key: number]: boolean } = {};
+            if (lantaiData && lantaiData.length > 0) {
+              lantaiData.forEach((lantai: any) => {
+                const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+                if (match) {
+                  const lantaiNumber = parseInt(match[1]);
+                  savedFiles[lantaiNumber] = true;
+                }
+              });
+            }
+            setSavedLantaiFiles(savedFiles);
+
+            // Renumbering lantai setelah penghapusan
+            await renumberLantaiAfterDelete(currentLantaiNumber);
+
+            // Refresh modal dengan data terbaru secara immediate
+            if (showBuildingDetailCanvas) {
+              // Refresh data tanpa tutup modal
+              await openBuildingDetailModal();
+            }
+          } catch (error) {
+            console.error("Gagal update field lantai di bangunan:", error);
+            showNotification(
+              "error",
+              "Update tidak lengkap",
+              "Gambar lantai berhasil dihapus tapi gagal update jumlah lantai di bangunan"
+            );
+          }
         }
 
         showNotification(
@@ -1936,6 +2073,420 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "error",
           "Gagal dihapus",
           "Gagal menghapus gambar lantai: " + (error as Error).message
+        );
+      }
+    };
+
+    // Fungsi untuk hapus lantai dan semua ruangan di dalamnya
+    const handleDeleteLantai = async (lantaiNumber: number) => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
+          return;
+        }
+
+        if (!selectedFeature?.properties?.id) {
+          showNotification(
+            "error",
+            "Data Error",
+            "ID bangunan tidak ditemukan."
+          );
+          return;
+        }
+
+        const bangunanId = Number(selectedFeature.properties.id);
+
+        // Validasi: hanya lantai teratas yang boleh dihapus
+        const maxLantaiNumber = Math.max(
+          ...lantaiGambarData.map((l) => {
+            const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
+            return match ? parseInt(match[1]) : 0;
+          })
+        );
+
+        if (lantaiNumber !== maxLantaiNumber) {
+          showNotification(
+            "error",
+            "Tidak Bisa Dihapus",
+            `Lantai ${lantaiNumber} tidak bisa dihapus karena bukan lantai teratas. Hapus lantai ${maxLantaiNumber} terlebih dahulu.`
+          );
+          return;
+        }
+
+        // Hapus gambar lantai terlebih dahulu
+        const lantaiGambar = lantaiGambarData.find((l) => {
+          const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
+          const extractedNumber = match ? parseInt(match[1]) : null;
+          return extractedNumber === lantaiNumber;
+        });
+
+        if (lantaiGambar) {
+          try {
+            await deleteLantaiGambar(lantaiGambar.id_lantai_gambar, token);
+          } catch (error) {
+            console.error("Gagal menghapus gambar lantai:", error);
+            showNotification(
+              "error",
+              "Gagal hapus gambar",
+              "Gagal menghapus gambar lantai dari Cloudinary"
+            );
+            return;
+          }
+        }
+
+        // Hapus semua ruangan di lantai tersebut
+        const ruanganDiLantai = ruanganList.filter(
+          (ruangan) => ruangan.nomor_lantai === lantaiNumber
+        );
+
+        for (const ruangan of ruanganDiLantai) {
+          try {
+            // Hapus ruangan (gallery akan otomatis terhapus karena CASCADE)
+            await deleteRuangan(ruangan.id_ruangan, token);
+          } catch (error) {
+            console.error(
+              `Gagal menghapus ruangan ${ruangan.nama_ruangan}:`,
+              error
+            );
+          }
+        }
+
+        // Refresh data lantai gambar untuk menghitung jumlah lantai yang tersisa
+        const lantaiData = await getLantaiGambarByBangunan(bangunanId, token);
+        setLantaiGambarData(lantaiData || []);
+
+        // Update field lantai di tabel bangunan
+        const jumlahLantaiTersisa = lantaiData ? lantaiData.length : 0;
+        const newLantaiValue = jumlahLantaiTersisa; // Gunakan jumlah lantai yang tersisa (0, 1, 2, dst)
+
+        try {
+          await updateBangunan(bangunanId, { lantai: newLantaiValue }, token);
+
+          // Update selectedFeature properties dengan jumlah lantai yang baru
+          if (selectedFeature && selectedFeature.properties) {
+            selectedFeature.properties.lantai = newLantaiValue;
+          }
+
+          // Refresh modal dengan data terbaru secara immediate
+          if (showBuildingDetailCanvas) {
+            // Refresh data tanpa tutup modal
+            await openBuildingDetailModal();
+          }
+        } catch (error) {
+          console.error("Gagal update field lantai di bangunan:", error);
+          showNotification(
+            "error",
+            "Update tidak lengkap",
+            "Lantai berhasil dihapus tapi gagal update jumlah lantai di bangunan"
+          );
+        }
+
+        // Renumbering lantai setelah penghapusan
+        await renumberLantaiAfterDelete(lantaiNumber);
+
+        // Refresh data ruangan
+        await fetchRuanganByBangunan(bangunanId);
+
+        // Update savedLantaiFiles
+        const savedFiles: { [key: number]: boolean } = {};
+        if (lantaiData && lantaiData.length > 0) {
+          lantaiData.forEach((lantai: any) => {
+            const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+            if (match) {
+              const lantaiNumber = parseInt(match[1]);
+              savedFiles[lantaiNumber] = true;
+            }
+          });
+        }
+        setSavedLantaiFiles(savedFiles);
+
+        showNotification(
+          "success",
+          "Berhasil dihapus",
+          `Lantai ${lantaiNumber} dan semua ruangan di dalamnya berhasil dihapus! Jumlah lantai tersisa: ${jumlahLantaiTersisa}`
+        );
+      } catch (error) {
+        console.error("Error dalam handleDeleteLantai:", error);
+        showNotification(
+          "error",
+          "Gagal dihapus",
+          "Gagal menghapus lantai: " + (error as Error).message
+        );
+      }
+    };
+
+    // Fungsi untuk tambah lantai baru
+    const handleAddLantai = () => {
+      if (!selectedFeature?.properties?.id) return;
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        showNotification(
+          "error",
+          "Akses Ditolak",
+          "Anda harus login terlebih dahulu untuk menambah lantai."
+        );
+        return;
+      }
+
+      // Reset state untuk modal tambah lantai
+      setTambahLantaiFile(null);
+      setTambahLantaiPreviewUrl(null);
+      setShowTambahLantaiModal(true);
+    };
+
+    // Fungsi untuk handle file selection saat tambah lantai
+    const handleTambahLantaiFileChange = (
+      event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        if (file.type !== "image/svg+xml") {
+          showNotification(
+            "error",
+            "Format File Salah",
+            "Hanya file SVG yang diperbolehkan untuk lantai."
+          );
+          return;
+        }
+
+        // Validasi ukuran file (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          showNotification(
+            "error",
+            "Ukuran File Terlalu Besar",
+            "Ukuran file SVG maksimal 5MB."
+          );
+          return;
+        }
+
+        setTambahLantaiFile(file);
+        const url = URL.createObjectURL(file);
+        setTambahLantaiPreviewUrl(url);
+      }
+    };
+
+    // Fungsi untuk save lantai baru dengan SVG
+    const handleSaveTambahLantai = async () => {
+      if (!selectedFeature?.properties?.id || !tambahLantaiFile) {
+        showNotification(
+          "error",
+          "Data Tidak Lengkap",
+          "Pilih file SVG terlebih dahulu."
+        );
+        return;
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        showNotification(
+          "error",
+          "Akses Ditolak",
+          "Token tidak ditemukan. Silakan login ulang."
+        );
+        return;
+      }
+
+      try {
+        setIsSaving(true);
+        const newLantaiCount = (selectedFeature.properties.lantai || 0) + 1;
+
+        // Upload SVG untuk lantai baru TERLEBIH DAHULU menggunakan service
+        const bangunanId = Number(selectedFeature.properties.id);
+        await createLantaiGambar(
+          {
+            file: tambahLantaiFile,
+            lantaiNumber: newLantaiCount,
+            bangunanId: bangunanId,
+          },
+          token
+        );
+
+        // Hanya jika upload SVG berhasil, baru update field lantai di database
+        await updateBangunan(
+          selectedFeature.properties.id,
+          {
+            lantai: newLantaiCount,
+          },
+          token
+        );
+
+        // Update selectedFeature properties
+        if (selectedFeature && selectedFeature.properties) {
+          selectedFeature.properties.lantai = newLantaiCount;
+        }
+
+        // Reset state
+        setTambahLantaiFile(null);
+        setTambahLantaiPreviewUrl(null);
+        setShowTambahLantaiModal(false);
+        setLantaiFiles({});
+        setLantaiPreviewUrls({});
+        setSavedLantaiFiles({});
+        setSelectedLantaiFilter(newLantaiCount);
+
+        // Refresh data lantai gambar
+        const data = await getLantaiGambarByBangunan(
+          Number(selectedFeature.properties.id),
+          token
+        );
+        setLantaiGambarData(data || []);
+
+        // Update savedLantaiFiles
+        const savedFiles: { [key: number]: boolean } = {};
+        if (data && data.length > 0) {
+          data.forEach((lantai: any) => {
+            const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+            if (match) {
+              const lantaiNumber = parseInt(match[1]);
+              savedFiles[lantaiNumber] = true;
+            }
+          });
+        }
+        setSavedLantaiFiles(savedFiles);
+
+        // Refresh modal jika sedang terbuka
+        if (showBuildingDetailCanvas) {
+          await openBuildingDetailModal();
+        }
+
+        showNotification(
+          "success",
+          "Berhasil ditambahkan",
+          `Lantai baru dengan SVG berhasil ditambahkan! Total lantai sekarang: ${newLantaiCount}`
+        );
+      } catch (error) {
+        console.error("Error saat menambah lantai:", error);
+
+        // Jika upload SVG gagal, field lantai tidak akan bertambah
+        // User bisa coba lagi tanpa perlu khawatir data tidak konsisten
+        showNotification(
+          "error",
+          "Gagal ditambahkan",
+          "Gagal menambah lantai: " +
+            (error as Error).message +
+            ". Silakan coba lagi."
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    // Fungsi untuk cancel tambah lantai
+    const handleCancelTambahLantai = () => {
+      setTambahLantaiFile(null);
+      setTambahLantaiPreviewUrl(null);
+      setShowTambahLantaiModal(false);
+    };
+
+    // Fungsi untuk force refresh data lantai
+    const refreshLantaiData = async () => {
+      if (!selectedFeature?.properties?.id) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const lantaiData = await getLantaiGambarByBangunan(
+            Number(selectedFeature.properties.id),
+            token
+          );
+          setLantaiGambarData(lantaiData || []);
+
+          // Update savedLantaiFiles
+          const savedFiles: { [key: number]: boolean } = {};
+          if (lantaiData && lantaiData.length > 0) {
+            lantaiData.forEach((lantai: any) => {
+              const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+              if (match) {
+                const lantaiNumber = parseInt(match[1]);
+                savedFiles[lantaiNumber] = true;
+              }
+            });
+          }
+          setSavedLantaiFiles(savedFiles);
+        }
+      } catch (error) {
+        console.error("Error refreshing lantai data:", error);
+      }
+    };
+
+    // Fungsi untuk renumbering lantai setelah penghapusan
+    const renumberLantaiAfterDelete = async (deletedLantaiNumber: number) => {
+      if (!selectedFeature?.properties?.id) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const bangunanId = Number(selectedFeature.properties.id);
+
+        // Ambil data lantai yang tersisa
+        const lantaiData = await getLantaiGambarByBangunan(bangunanId, token);
+
+        if (!lantaiData || lantaiData.length === 0) return;
+
+        // Urutkan lantai berdasarkan nomor yang ada di nama file
+        const sortedLantai = lantaiData.sort((a: any, b: any) => {
+          const matchA = (a.nama_file || "").match(/Lt(\d+)\.svg/i);
+          const matchB = (b.nama_file || "").match(/Lt(\d+)\.svg/i);
+          const numA = matchA ? parseInt(matchA[1]) : 0;
+          const numB = matchB ? parseInt(matchB[1]) : 0;
+          return numA - numB;
+        });
+
+        // Renumbering: lantai dengan nomor tertinggi akan menjadi lantai teratas
+        let newLantaiNumber = 1;
+        for (const lantai of sortedLantai) {
+          const currentMatch = lantai.nama_file.match(/Lt(\d+)\.svg/i);
+          if (currentMatch) {
+            const currentNumber = parseInt(currentMatch[1]);
+
+            // Jika nomor lantai berubah, update nama file
+            if (currentNumber !== newLantaiNumber) {
+              const newFileName = `Lt${newLantaiNumber}.svg`;
+
+              // Update nama file di database menggunakan service yang ada
+              try {
+                await updateLantaiGambar(
+                  lantai.id_lantai_gambar,
+                  {
+                    nama_file: newFileName,
+                    nomor_lantai: newLantaiNumber,
+                    id_bangunan: bangunanId,
+                  },
+                  token
+                );
+              } catch (error) {
+                console.error(
+                  `Gagal update nama file lantai ${currentNumber}:`,
+                  error
+                );
+              }
+            }
+
+            newLantaiNumber++;
+          }
+        }
+
+        // Refresh data setelah renumbering
+        await refreshLantaiData();
+
+        showNotification(
+          "success",
+          "Renumbering Selesai",
+          "Nomor lantai telah diurutkan ulang setelah penghapusan."
+        );
+      } catch (error) {
+        console.error("Error renumbering lantai:", error);
+        showNotification(
+          "error",
+          "Renumbering Gagal",
+          "Gagal mengurutkan ulang nomor lantai, tapi penghapusan tetap berhasil."
         );
       }
     };
@@ -2031,22 +2582,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     // Fungsi untuk membuka modal edit ruangan
-    const handleEditRuangan = async () => {
+    const handleEditRuangan = async (lantaiNumber?: number) => {
       if (!selectedFeature?.properties?.id) return;
 
       // Tutup modal edit lantai jika sedang terbuka
-      if (
-        isEditingLantai ||
-        isEditingLantaiCount ||
-        isEditingInteraksi ||
-        isEditingName
-      ) {
+      if (isEditingLantai || isEditingInteraksi || isEditingName) {
         handleCancelEdit();
       }
 
       try {
         await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
-        setShowEditRuanganModal(true);
+
+        // Jika ada lantaiNumber, set lantai untuk ruangan baru
+        if (lantaiNumber) {
+          setSelectedLantaiForRuangan(lantaiNumber);
+          setRuanganForm((prev) => ({ ...prev, nomor_lantai: lantaiNumber }));
+        }
+
+        // Reset form dan buka modal buat ruangan baru
+        setSelectedRuanganForEdit(null);
+        setRuanganForm({
+          nama_ruangan: "",
+          nomor_lantai: lantaiNumber || 1,
+          nama_jurusan: "",
+          nama_prodi: "",
+          pin_style: "default",
+          posisi_x: null,
+          posisi_y: null,
+        });
+        setShowRuanganModal(true);
       } catch (error) {}
     };
 
@@ -2063,8 +2627,32 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         posisi_y: ruangan.posisi_y,
       });
       setSelectedLantaiForRuangan(ruangan.nomor_lantai);
-      setShowEditRuanganModal(false);
+
       setShowRuanganModal(true);
+    };
+
+    // Fungsi untuk edit ruangan yang sudah ada
+    const handleEditExistingRuangan = async (ruangan: any) => {
+      if (!selectedFeature?.properties?.id) return;
+
+      try {
+        await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
+
+        // Set ruangan yang akan diedit
+        setSelectedRuanganForEdit(ruangan);
+        setRuanganForm({
+          nama_ruangan: ruangan.nama_ruangan,
+          nomor_lantai: ruangan.nomor_lantai,
+          nama_jurusan: ruangan.nama_jurusan || "",
+          nama_prodi: ruangan.nama_prodi || "",
+          pin_style: ruangan.pin_style || "default",
+          posisi_x: ruangan.posisi_x,
+          posisi_y: ruangan.posisi_y,
+        });
+        setSelectedLantaiForRuangan(ruangan.nomor_lantai);
+
+        setShowRuanganModal(true);
+      } catch (error) {}
     };
 
     // Fungsi untuk update ruangan
@@ -2213,27 +2801,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Handle update jumlah lantai
 
-        if (
-          isEditingLantaiCount &&
-          editLantaiCount !== selectedFeature.properties.lantai
-        ) {
-          const updateData = { lantai: editLantaiCount };
-
-          await updateBangunan(
-            Number(selectedFeature.properties.id),
-            updateData,
-            token
-          );
-
-          // Update local state
-          if (selectedFeature) {
-            selectedFeature.properties = {
-              ...selectedFeature.properties,
-              ...updateData,
-            };
-          }
-        }
-
         // Handle upload lantai - removed karena sekarang menggunakan tombol simpan individual
         // Upload lantai gambar sekarang ditangani oleh handleSaveLantaiImage
 
@@ -2241,10 +2808,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         setIsEditingName(false);
         setIsEditingThumbnail(false);
         setIsEditingLantai(false);
-        setIsEditingLantaiCount(false);
+
         setIsEditingInteraksi(false);
         setEditName("");
-        setEditLantaiCount(1);
+
         setEditInteraksi("");
         setSelectedFile(null);
         setLantaiFiles({});
@@ -2259,20 +2826,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
         setLantaiPreviewUrls({});
 
-        // Tampilkan notifikasi yang lebih spesifik
-        if (isEditingLantaiCount) {
-          showNotification(
-            "success",
-            "Berhasil diperbarui",
-            `Jumlah lantai berhasil diubah menjadi ${editLantaiCount} lantai!`
-          );
-        } else {
-          showNotification(
-            "success",
-            "Berhasil diperbarui",
-            "Berhasil menyimpan perubahan!"
-          );
-        }
+        // Tampilkan notifikasi
+        showNotification(
+          "success",
+          "Berhasil diperbarui",
+          "Berhasil menyimpan perubahan!"
+        );
 
         // Refresh data bangunan
         if (bangunanLayerRef.current) {
@@ -2302,13 +2861,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setIsEditingName(false);
       setIsEditingThumbnail(false);
       setIsEditingLantai(false);
-      setIsEditingLantaiCount(false);
       setIsEditingInteraksi(false);
       setEditName("");
-      setEditLantaiCount(1);
       setEditInteraksi("");
       setSelectedFile(null);
       setLantaiFiles({});
+      setSavedLantaiFiles({});
+      setShowTambahLantaiModal(false);
+      setTambahLantaiFile(null);
+      setTambahLantaiPreviewUrl(null);
       // Clean up file preview URL
       if (filePreviewUrl) {
         URL.revokeObjectURL(filePreviewUrl);
@@ -4642,7 +5203,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Kontrol peta disatukan dalam MapControlsPanel */}
 
         {/* Sidebar Gedung (floating card kanan atas) - Mobile Responsive */}
-        {selectedFeature && cardVisible && (
+        {selectedFeature && cardVisible && !showBuildingDetailCanvas && (
           <BuildingDetailModal
             isDark={!!isDark}
             isDashboard={!!isDashboard}
@@ -4691,6 +5252,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             onOpenDetail={() => openBuildingDetailModal()}
             onEditThumbnail={handleEditThumbnail}
             onEditLantai={handleEditLantai}
+            onEditNameAndInteraksi={() => {
+              // Buka modal edit nama dan interaksi
+              setIsEditingName(true);
+              setIsEditingInteraksi(true);
+              setEditName(selectedFeature.properties?.nama || "");
+              setEditInteraksi(
+                selectedFeature.properties?.interaksi || "Noninteraktif"
+              );
+            }}
             onSetRouteToBuilding={() => {
               setRouteEndType("bangunan");
               setRouteEndId(String(selectedFeature.properties.id ?? ""));
@@ -4703,9 +5273,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {(isEditingName ||
           isEditingThumbnail ||
           isEditingLantai ||
-          isEditingLantaiCount ||
           isEditingInteraksi) && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[50]">
             <div
               className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
               data-modal="edit-modal"
@@ -4719,8 +5288,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     ? "Nama"
                     : isEditingThumbnail
                     ? "Thumbnail"
-                    : isEditingLantaiCount
-                    ? "Jumlah Lantai"
                     : isEditingInteraksi
                     ? "Interaksi"
                     : "Lantai"}{" "}
@@ -4858,401 +5425,50 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 )}
 
                 {isEditingLantai && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Edit Lantai Bangunan -{" "}
-                          {selectedFeature?.properties?.lantai || 0} Lantai
-                        </label>
-                        {/* Filter Lantai */}
-                        <div className="flex items-center gap-3">
-                          <label className="text-xs text-gray-600 dark:text-gray-400">
-                            Filter Lantai:
-                          </label>
-                          <select
-                            value={selectedLantaiFilter}
-                            onChange={(e) =>
-                              setSelectedLantaiFilter(parseInt(e.target.value))
-                            }
-                            className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary"
-                          >
-                            {Array.from(
-                              {
-                                length:
-                                  selectedFeature?.properties?.lantai || 0,
-                              },
-                              (_, index) => (
-                                <option key={index + 1} value={index + 1}>
-                                  Lantai {index + 1}
-                                </option>
-                              )
-                            )}
-                          </select>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setIsEditingLantaiCount(true)}
-                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs transition-colors flex items-center gap-1"
-                        title="Atur Jumlah Lantai"
-                      >
-                        <i className="fas fa-cog text-xs"></i>
-                        Atur Lantai
-                      </button>
-                    </div>
-                    {!isEditingLantaiCount && (
-                      <>
-                        <div className="mb-4">
-                          {Array.from(
-                            {
-                              length: selectedFeature?.properties?.lantai || 0,
-                            },
-                            (_, index) => {
-                              const lantaiNumber = index + 1;
-
-                              // Hanya tampilkan lantai yang dipilih
-                              if (lantaiNumber !== selectedLantaiFilter) {
-                                return null;
-                              }
-
-                              const existingLantai = lantaiGambarData.find(
-                                (l) => {
-                                  // Extract nomor lantai from nama_file (e.g., "Lt1.svg" -> 1)
-                                  const match =
-                                    l.nama_file.match(/Lt(\d+)\.svg/i);
-                                  const extractedNumber = match
-                                    ? parseInt(match[1])
-                                    : null;
-                                  return extractedNumber === lantaiNumber;
-                                }
-                              );
-
-                              const hasFile = lantaiFiles[lantaiNumber];
-                              const previewUrl =
-                                lantaiPreviewUrls[lantaiNumber];
-
-                              return (
-                                <div
-                                  key={lantaiNumber}
-                                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 max-w-2xl mx-auto"
-                                >
-                                  <div className="mb-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                        Lantai {lantaiNumber}
-                                      </h4>
-                                      <div className="flex items-center gap-2">
-                                        {existingLantai && (
-                                          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">
-                                            <i className="fas fa-check mr-1"></i>
-                                            Ada Gambar
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* Tampilkan gambar SVG yang sudah ada jika tersedia */}
-                                    {existingLantai && (
-                                      <div className="mb-4">
-                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                          Gambar saat ini:
-                                        </p>
-                                        <div className="relative group">
-                                          <div
-                                            className="cursor-pointer overflow-hidden rounded-lg border-2 border-gray-200 dark:border-gray-600 hover:border-primary transition-all duration-200"
-                                            onClick={() => {
-                                              // Fancybox preview
-                                              const img = new Image();
-                                              img.src = `${
-                                                existingLantai.path_file.startsWith(
-                                                  "http"
-                                                )
-                                                  ? ""
-                                                  : "/"
-                                              }${
-                                                existingLantai.path_file
-                                              }?v=${Date.now()}`;
-                                              img.onload = () => {
-                                                const modal =
-                                                  document.createElement("div");
-                                                modal.className =
-                                                  "fixed inset-0 bg-black/80 flex items-center justify-center z-[9999999] cursor-pointer";
-                                                modal.onclick = () =>
-                                                  modal.remove();
-
-                                                const imgContainer =
-                                                  document.createElement("div");
-                                                imgContainer.className =
-                                                  "max-w-4xl max-h-[90vh] p-4";
-                                                imgContainer.onclick = (e) =>
-                                                  e.stopPropagation();
-
-                                                const previewImg =
-                                                  document.createElement("img");
-                                                previewImg.src = img.src;
-                                                previewImg.className =
-                                                  "w-full h-full object-contain rounded-lg";
-                                                previewImg.alt = `Lantai ${lantaiNumber}`;
-
-                                                const closeBtn =
-                                                  document.createElement(
-                                                    "button"
-                                                  );
-                                                closeBtn.className =
-                                                  "absolute top-4 right-4 text-white text-2xl hover:text-gray-300";
-                                                closeBtn.innerHTML = "×";
-                                                closeBtn.onclick = () =>
-                                                  modal.remove();
-
-                                                imgContainer.appendChild(
-                                                  previewImg
-                                                );
-                                                modal.appendChild(imgContainer);
-                                                modal.appendChild(closeBtn);
-                                                document.body.appendChild(
-                                                  modal
-                                                );
-                                              };
-                                            }}
-                                          >
-                                            <img
-                                              src={`${
-                                                existingLantai.path_file.startsWith(
-                                                  "http"
-                                                )
-                                                  ? ""
-                                                  : "/"
-                                              }${
-                                                existingLantai.path_file
-                                              }?v=${Date.now()}`}
-                                              alt={`Lantai ${lantaiNumber}`}
-                                              className="w-full h-32 object-contain bg-gray-50 dark:bg-gray-700 group-hover:scale-105 transition-transform duration-200"
-                                              onError={(e) => {
-                                                const target =
-                                                  e.target as HTMLImageElement;
-                                                target.style.display = "none";
-                                              }}
-                                            />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center">
-                                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                <i className="fas fa-search-plus text-white text-2xl"></i>
-                                              </div>
-                                            </div>
-                                          </div>
-                                          <button
-                                            onClick={() =>
-                                              handleDeleteLantaiImage(
-                                                existingLantai.id_lantai_gambar
-                                              )
-                                            }
-                                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm transition-colors shadow-lg"
-                                            title="Hapus gambar lantai"
-                                          >
-                                            <i className="fas fa-trash"></i>
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {hasFile && previewUrl && (
-                                      <div className="mb-4">
-                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                          Preview file baru:
-                                        </p>
-                                        <div className="relative group">
-                                          <div className="overflow-hidden rounded-lg border-2 border-blue-200 dark:border-blue-600">
-                                            <img
-                                              src={previewUrl}
-                                              alt={`Preview Lantai ${lantaiNumber}`}
-                                              className="w-full h-32 object-contain bg-gray-50 dark:bg-gray-700"
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {!existingLantai && !hasFile && (
-                                      <div className="mb-4">
-                                        <div className="w-full h-32 bg-gray-100 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                                          <div className="text-center">
-                                            <i className="fas fa-image text-gray-400 text-3xl mb-2"></i>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                              Belum ada gambar
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="flex flex-col gap-3">
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="file"
-                                        accept=".svg"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            setLantaiFiles((prev) => ({
-                                              ...prev,
-                                              [lantaiNumber]: file,
-                                            }));
-                                            const url =
-                                              URL.createObjectURL(file);
-                                            setLantaiPreviewUrls((prev) => ({
-                                              ...prev,
-                                              [lantaiNumber]: url,
-                                            }));
-                                          }
-                                        }}
-                                        className="hidden"
-                                        id={`lantai-${lantaiNumber}`}
-                                      />
-                                      <label
-                                        htmlFor={`lantai-${lantaiNumber}`}
-                                        className="flex-1 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                                      >
-                                        <i className="fas fa-upload text-xs"></i>
-                                        {hasFile ? "Ganti File" : "Pilih File"}
-                                      </label>
-                                      {hasFile && (
-                                        <>
-                                          <button
-                                            onClick={() =>
-                                              handleSaveLantaiImage(
-                                                lantaiNumber
-                                              )
-                                            }
-                                            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                                            title="Simpan gambar"
-                                          >
-                                            <i className="fas fa-save text-xs"></i>
-                                            Simpan
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              setLantaiFiles((prev) => {
-                                                const newFiles = { ...prev };
-                                                delete newFiles[lantaiNumber];
-                                                return newFiles;
-                                              });
-                                              setLantaiPreviewUrls((prev) => {
-                                                const newUrls = { ...prev };
-                                                if (newUrls[lantaiNumber]) {
-                                                  URL.revokeObjectURL(
-                                                    newUrls[lantaiNumber]!
-                                                  );
-                                                  delete newUrls[lantaiNumber];
-                                                }
-                                                return newUrls;
-                                              });
-                                            }}
-                                            className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors"
-                                            title="Hapus file"
-                                          >
-                                            <i className="fas fa-times"></i>
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-
-                                    {(hasFile || existingLantai) && (
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => {
-                                            setSelectedLantaiForRuangan(
-                                              lantaiNumber
-                                            );
-                                            setRuanganForm((prev) => ({
-                                              ...prev,
-                                              nomor_lantai: lantaiNumber,
-                                              posisi_x: null,
-                                              posisi_y: null,
-                                            }));
-                                            setShowRuanganModal(true);
-                                          }}
-                                          className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                                        >
-                                          <i className="fas fa-plus text-xs"></i>
-                                          Buat Ruangan
-                                        </button>
-                                        <button
-                                          onClick={handleEditRuangan}
-                                          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                                          title="Edit Ruangan"
-                                        >
-                                          <i className="fas fa-edit text-xs"></i>
-                                          Edit Ruangan
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Format yang didukung: SVG (Maks. 2MB per file)
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {isEditingLantaiCount && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Atur Jumlah Lantai
-                      </label>
-                      <button
-                        onClick={() => setIsEditingLantaiCount(false)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      >
-                        <i className="fas fa-arrow-left text-sm"></i>
-                        Kembali
-                      </button>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Jumlah Lantai <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={editLantaiCount}
-                        onChange={(e) =>
-                          setEditLantaiCount(parseInt(e.target.value) || 1)
-                        }
-                        min="1"
-                        max="20"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="Masukkan jumlah lantai"
-                        autoFocus
-                      />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Masukkan jumlah lantai bangunan (1-20)
-                      </p>
-                      {editLantaiCount <
-                        (selectedFeature?.properties?.lantai || 1) && (
-                        <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                          <div className="flex items-start">
-                            <i className="fas fa-exclamation-triangle text-yellow-600 dark:text-yellow-400 mt-0.5 mr-2"></i>
-                            <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                              <p className="font-medium">Peringatan!</p>
-                              <p className="mt-1">
-                                Mengurangi jumlah lantai dari{" "}
-                                {selectedFeature?.properties?.lantai} ke{" "}
-                                {editLantaiCount} dapat menghapus data lantai
-                                dan ruangan yang ada di lantai{" "}
-                                {selectedFeature?.properties?.lantai}.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <EditLantaiImageUploader
+                    visible={true}
+                    isDark={isDark}
+                    lantaiCount={selectedFeature?.properties?.lantai || 0}
+                    selectedLantaiFilter={selectedLantaiFilter}
+                    onChangeLantaiFilter={setSelectedLantaiFilter}
+                    lantaiGambarData={lantaiGambarData}
+                    lantaiFiles={lantaiFiles}
+                    lantaiPreviewUrls={lantaiPreviewUrls}
+                    onChooseFile={(lantaiNumber: number, file: File) => {
+                      setLantaiFiles((prev) => ({
+                        ...prev,
+                        [lantaiNumber]: file,
+                      }));
+                      const url = URL.createObjectURL(file);
+                      setLantaiPreviewUrls((prev) => ({
+                        ...prev,
+                        [lantaiNumber]: url,
+                      }));
+                    }}
+                    onSave={handleSaveLantaiImage}
+                    onDelete={handleDeleteLantaiImage}
+                    onAddLantai={handleAddLantai}
+                    onEditRuangan={handleEditRuangan}
+                    onEditExistingRuangan={handleEditExistingRuangan}
+                    onBuatRuangan={(lantaiNumber: number) => {
+                      setSelectedLantaiForRuangan(lantaiNumber);
+                      setRuanganForm((prev) => ({
+                        ...prev,
+                        nomor_lantai: lantaiNumber,
+                        posisi_x: null,
+                        posisi_y: null,
+                      }));
+                      setShowRuanganModal(true);
+                    }}
+                    savedLantaiFiles={savedLantaiFiles}
+                    ruanganList={ruanganList}
+                    onDeleteLantai={handleDeleteLantai}
+                    onEditLantai={(lantaiNumber) => {
+                      // Buka modal edit lantai dengan file picker
+                      setSelectedLantaiForEdit(lantaiNumber);
+                      setShowEditLantaiModal(true);
+                    }}
+                  />
                 )}
 
                 <div className="flex gap-2 pt-4">
@@ -5262,24 +5478,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       let disabled = isSaving;
 
                       // Nama and Interaksi are now optional - removed validation
-                      // if (isEditingName && !isEditingLantaiCount) {
-                      //   disabled = disabled || !editName.trim();
-                      // }
 
-                      if (isEditingThumbnail && !isEditingLantaiCount) {
+                      if (isEditingThumbnail) {
                         disabled = disabled || !selectedFile;
                       }
 
-                      if (isEditingLantai && !isEditingLantaiCount) {
+                      if (isEditingLantai) {
                         // Lantai editing tidak memerlukan validasi khusus karena menggunakan tombol simpan individual
                         // disabled = disabled || false; // Selalu false
-                      }
-
-                      if (isEditingLantaiCount) {
-                        disabled =
-                          disabled ||
-                          Number(editLantaiCount) < 1 ||
-                          Number(editLantaiCount) > 20;
                       }
 
                       // Interaksi is now optional - removed validation
@@ -5351,7 +5557,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* Modal Pilih Posisi Pin */}
         {showPinPositionModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999]">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
             <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
               {/* Header - Fixed */}
               <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
@@ -5546,7 +5752,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         />
         {showBuildingDetailCanvas && (
           <div
-            className={`absolute inset-0 w-full h-full flex flex-col z-[2000] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
+            className={`absolute inset-0 w-full h-full flex flex-col z-[20] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
               isBuildingDetailFadingOut
                 ? "opacity-0"
                 : isBuildingDetailFadingIn
@@ -5559,7 +5765,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 selectedFeature?.properties?.id || "45"
               }`}
               title="Building Detail"
-              className="flex-1 w-full h-full border-0 rounded-b-xl"
+              className="w-full h-full border-0"
               style={{ minHeight: "300px" }}
             />
           </div>
@@ -5569,7 +5775,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {showRouteModal && (
           <div
             data-modal="route-modal"
-            className="absolute inset-0 z-[3000] flex items-center justify-center"
+            className="absolute inset-0 z-[25] flex items-center justify-center"
           >
             {/* Overlay */}
             <div
@@ -5577,7 +5783,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               onClick={() => setShowRouteModal(false)}
             />
             {/* Modal */}
-            <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 z-[3010] animate-fadeInUp">
+            <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 z-[26] animate-fadeInUp">
               {/* Tombol tutup */}
               <button
                 className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl focus:outline-none"
@@ -5905,7 +6111,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Custom Notification System */}
         {notification && (
           <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[99999] max-w-md w-full mx-4 transition-all duration-500 ${
+            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] max-w-md w-full mx-4 transition-all duration-500 ${
               notification.visible
                 ? "translate-y-0 opacity-100"
                 : "-translate-y-full opacity-0"
@@ -5953,114 +6159,358 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {/* Modal Pilih Ruangan untuk Edit */}
-        {showEditRuanganModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
-              {/* Header - Fixed */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Pilih Ruangan untuk Diedit
+        {/* Modal Tambah Lantai */}
+        {showTambahLantaiModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Tambah Lantai Baru
                 </h3>
                 <button
-                  onClick={() => setShowEditRuanganModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
+                  onClick={handleCancelTambahLantai}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
-                  ×
+                  <i className="fas fa-times text-lg"></i>
                 </button>
               </div>
 
-              {/* Content - Scrollable */}
+              {/* Content */}
               <div className="flex-1 overflow-y-auto p-6">
-                {ruanganList.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-6xl mb-4">🏢</div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      Belum Ada Ruangan
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Belum ada ruangan yang dibuat untuk bangunan ini.
-                    </p>
-                    <button
-                      onClick={() => setShowEditRuanganModal(false)}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                    >
-                      Tutup
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid gap-4">
-                      {ruanganList.map((ruangan, index) => (
-                        <div
-                          key={ruangan.id_ruangan}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                          onClick={() => handleSelectRuanganForEdit(ruangan)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                                  <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm">
-                                    {index + 1}
-                                  </span>
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold text-gray-900 dark:text-white">
-                                    {ruangan.nama_ruangan}
-                                  </h4>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Lantai {ruangan.nomor_lantai}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Jurusan:
-                                  </span>
-                                  <p className="font-medium text-gray-900 dark:text-white">
-                                    {ruangan.nama_jurusan || "-"}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Program Studi:
-                                  </span>
-                                  <p className="font-medium text-gray-900 dark:text-white">
-                                    {ruangan.nama_prodi || "-"}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Tipe Pin:
-                                  </span>
-                                  <p className="font-medium text-gray-900 dark:text-white capitalize">
-                                    {ruangan.pin_style?.replace(/_/g, " ") ||
-                                      "default"}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Posisi Pin:
-                                  </span>
-                                  <p className="font-medium text-gray-900 dark:text-white">
-                                    {ruangan.posisi_x && ruangan.posisi_y
-                                      ? `${ruangan.posisi_x}%, ${ruangan.posisi_y}%`
-                                      : "Belum diatur"}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <i className="fas fa-chevron-right text-gray-400"></i>
-                            </div>
-                          </div>
+                <div className="mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    Untuk menambah lantai baru, Anda harus mengupload file SVG
+                    lantai terlebih dahulu.
+                  </p>
+
+                  {/* File Upload */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Upload File SVG Lantai *
+                    </label>
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+                      {!tambahLantaiFile ? (
+                        <div>
+                          <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                          <p className="text-gray-600 dark:text-gray-400 mb-2">
+                            Klik untuk memilih file SVG
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-500">
+                            Hanya file SVG yang diperbolehkan
+                          </p>
+                          <input
+                            type="file"
+                            accept=".svg"
+                            onChange={handleTambahLantaiFileChange}
+                            className="hidden"
+                            id="tambah-lantai-file"
+                          />
+                          <label
+                            htmlFor="tambah-lantai-file"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors"
+                          >
+                            <i className="fas fa-folder-open mr-2"></i>
+                            Pilih File
+                          </label>
                         </div>
-                      ))}
+                      ) : (
+                        <div>
+                          <i className="fas fa-check-circle text-4xl text-green-500 mb-4"></i>
+                          <p className="text-gray-600 dark:text-gray-400 mb-2">
+                            File dipilih: {tambahLantaiFile.name}
+                          </p>
+                          <button
+                            onClick={() => {
+                              setTambahLantaiFile(null);
+                              setTambahLantaiPreviewUrl(null);
+                            }}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                          >
+                            <i className="fas fa-times mr-1"></i>
+                            Ganti File
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Preview */}
+                  {tambahLantaiPreviewUrl && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Preview SVG
+                      </label>
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                        <img
+                          src={tambahLantaiPreviewUrl}
+                          alt="Preview SVG"
+                          className="w-full h-48 object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Info */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
+                      <div>
+                        <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                          Informasi
+                        </h4>
+                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                          <li>
+                            • Lantai baru akan otomatis ditambahkan ke database
+                          </li>
+                          <li>
+                            • File SVG akan disimpan dan dapat digunakan untuk
+                            mengatur ruangan
+                          </li>
+                          <li>
+                            • Setelah lantai ditambahkan, Anda dapat langsung
+                            membuat ruangan di lantai tersebut
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={handleCancelTambahLantai}
+                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSaveTambahLantai}
+                  disabled={!tambahLantaiFile || isSaving}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-1"></i>
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-plus mr-1"></i>
+                      Tambah Lantai
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Edit Lantai */}
+        {showEditLantaiModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Edit Gambar Lantai {selectedLantaiForEdit}
+                </h3>
+                <button
+                  onClick={() => setShowEditLantaiModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <i className="fas fa-times text-xl"></i>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <div className="space-y-4">
+                  {/* File Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Pilih File SVG Baru
+                    </label>
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
+                      <input
+                        type="file"
+                        accept=".svg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setTambahLantaiFile(file);
+                            const url = URL.createObjectURL(file);
+                            setTambahLantaiPreviewUrl(url);
+                          }
+                        }}
+                        className="hidden"
+                        id="edit-lantai-file"
+                      />
+                      <label
+                        htmlFor="edit-lantai-file"
+                        className="cursor-pointer block"
+                      >
+                        <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 dark:text-gray-500 mb-4"></i>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Klik untuk memilih file SVG
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          Format yang didukung: SVG
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  {tambahLantaiPreviewUrl && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Preview
+                      </label>
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                        <img
+                          src={tambahLantaiPreviewUrl}
+                          alt="Preview SVG"
+                          className="w-full h-32 object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Info */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
+                      <div>
+                        <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                          Informasi
+                        </h4>
+                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                          <li>• File SVG lama akan diganti dengan yang baru</li>
+                          <li>• Gambar lantai akan diperbarui di database</li>
+                          <li>• Perubahan akan langsung terlihat di peta</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    setShowEditLantaiModal(false);
+                    setTambahLantaiFile(null);
+                    setTambahLantaiPreviewUrl(null);
+                  }}
+                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={async () => {
+                    if (tambahLantaiFile && selectedLantaiForEdit) {
+                      try {
+                        // Set loading state
+                        setIsSaving(true);
+
+                        // Update gambar lantai dengan file baru
+                        const token = localStorage.getItem("token");
+                        if (!token) {
+                          showNotification(
+                            "error",
+                            "Token Error",
+                            "Token tidak ditemukan. Silakan login ulang."
+                          );
+                          return;
+                        }
+
+                        // Hapus gambar lama dari database dan Cloudinary
+                        if (selectedFeature?.properties?.id) {
+                          const lantaiData = lantaiGambarData.find(
+                            (lantai: any) =>
+                              lantai.nomor_lantai === selectedLantaiForEdit
+                          );
+
+                          if (lantaiData) {
+                            // Hapus dari database
+                            await fetch(
+                              `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/${lantaiData.id_lantai_gambar}`,
+                              {
+                                method: "DELETE",
+                                headers: {
+                                  Authorization: `Bearer ${token}`,
+                                },
+                              }
+                            );
+                          }
+                        }
+
+                        // Tambah gambar baru
+                        const formData = new FormData();
+                        formData.append("gambar_lantai", tambahLantaiFile);
+                        formData.append(
+                          "nomor_lantai",
+                          selectedLantaiForEdit.toString()
+                        );
+                        formData.append(
+                          "id_bangunan",
+                          String(selectedFeature?.properties?.id)
+                        );
+
+                        await createLantaiGambar(
+                          {
+                            file: tambahLantaiFile,
+                            lantaiNumber: selectedLantaiForEdit,
+                            bangunanId: Number(selectedFeature?.properties?.id),
+                          },
+                          token
+                        );
+
+                        // Refresh data lantai gambar agar langsung terlihat
+                        if (selectedFeature?.properties?.id) {
+                          await refreshLantaiData();
+                        }
+
+                        setShowEditLantaiModal(false);
+                        setTambahLantaiFile(null);
+                        setTambahLantaiPreviewUrl(null);
+
+                        showNotification(
+                          "success",
+                          "Berhasil",
+                          `Gambar lantai ${selectedLantaiForEdit} berhasil diperbarui!`
+                        );
+                      } catch (error) {
+                        showNotification(
+                          "error",
+                          "Gagal",
+                          "Gagal memperbarui gambar lantai. Silakan coba lagi."
+                        );
+                      } finally {
+                        // Reset loading state
+                        setIsSaving(false);
+                      }
+                    }
+                  }}
+                  disabled={!tambahLantaiFile || isSaving}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-1"></i>
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-save mr-1"></i>
+                      Update Gambar
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -6069,7 +6519,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Custom Confirmation Dialog */}
         {confirmationDialog && (
           <div
-            className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999] transition-all duration-300 ${
+            className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] transition-all duration-300 ${
               confirmationDialog.visible
                 ? "opacity-100"
                 : "opacity-0 pointer-events-none"

@@ -45,7 +45,15 @@ export async function createLantaiGambar(
   formData.append("nomor_lantai", String(params.lantaiNumber));
   formData.append("id_bangunan", String(params.bangunanId));
 
-  const res = await fetch(`${API_BASE}/api/lantai-gambar`, {
+  const url = `${API_BASE}/api/lantai-gambar`;
+  console.log("Uploading to:", url);
+  console.log("FormData:", {
+    file: params.file.name,
+    lantaiNumber: params.lantaiNumber,
+    bangunanId: params.bangunanId,
+  });
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       ...defaultHeaders,
@@ -53,11 +61,19 @@ export async function createLantaiGambar(
     },
     body: formData,
   });
+
+  console.log("Response status:", res.status);
+  console.log("Response headers:", res.headers);
+
   if (!res.ok) {
     const text = await res.text();
+    console.error("Error response:", text);
     throw new Error(`HTTP ${res.status}: ${text}`);
   }
-  return res.json();
+
+  const result = await res.json();
+  console.log("Success response:", result);
+  return result;
 }
 
 /**
@@ -81,4 +97,37 @@ export async function deleteLantaiGambar(
     throw new Error(`HTTP ${res.status}: ${text}`);
   }
   return true;
+}
+
+/**
+ * Update gambar lantai.
+ * @param lantaiGambarId ID gambar lantai
+ * @param params data yang akan diupdate
+ * @param token JWT bearer token
+ */
+export async function updateLantaiGambar(
+  lantaiGambarId: number,
+  params: {
+    nama_file?: string;
+    nomor_lantai?: number;
+    id_bangunan?: number;
+  },
+  token: string
+) {
+  const res = await fetch(`${API_BASE}/api/lantai-gambar/${lantaiGambarId}`, {
+    method: "PUT",
+    headers: {
+      ...defaultHeaders,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+
+  return res.json();
 }

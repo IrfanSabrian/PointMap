@@ -71,3 +71,23 @@ export async function getRuanganByBangunan(idBangunan: number) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+/**
+ * Hapus ruangan berdasarkan ID.
+ * @param idRuangan ID ruangan
+ * @param token JWT bearer token
+ */
+export async function deleteRuangan(idRuangan: number, token: string) {
+  const res = await fetch(`${API_BASE}/api/ruangan/${idRuangan}`, {
+    method: "DELETE",
+    headers: {
+      ...defaultHeaders,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  return true;
+}
