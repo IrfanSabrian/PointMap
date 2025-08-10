@@ -737,6 +737,9 @@
   display: block;
   text-align: center;
   line-height: 1;
+  /* Add outline/glow effect for better visibility */
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff,
+    1px 1px 0 #fff, 0 0 4px rgba(0, 0, 0, 0.8);
 }
 
 /* Active state for pins - show icon when container is active */

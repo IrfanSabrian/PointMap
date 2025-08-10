@@ -762,7 +762,7 @@
         padding: 5px;
         border-radius: 4px;
         transition: all 0.2s ease;
-        font-size: 14px;
+        font-size: 20px;
       }
 
       .edit-room-btn:hover {
@@ -811,14 +811,14 @@
         transform: scale(1.1);
       }
 
-      /* Modal Edit Styles */
+      /* Modal Edit Styles - Redesigned */
       .edit-modal {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -828,116 +828,209 @@
 
       .edit-modal-content {
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        max-width: 500px;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
         width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
+        max-width: 600px;
         position: relative;
+        overflow: hidden;
       }
 
       .edit-modal-header {
+        background: #f8fafc;
+        padding: 24px 30px;
+        border-bottom: 1px solid #e2e8f0;
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        border-bottom: 1px solid #eee;
-        position: sticky;
-        top: 0;
-        background: white;
-        z-index: 10;
-        border-radius: 12px 12px 0 0;
+        align-items: flex-start;
       }
 
-      .edit-modal-header h3 {
+      .header-left h3 {
+        margin: 0 0 8px 0;
+        color: #1e293b;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .header-left p {
         margin: 0;
-        color: #333;
-        font-size: 18px;
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 400;
       }
 
       .close-btn {
-        background: none;
+        background: #e2e8f0;
         border: none;
-        font-size: 20px;
+        font-size: 18px;
         cursor: pointer;
-        color: #666;
-        padding: 5px;
+        color: #475569;
+        padding: 8px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .close-btn:hover {
-        color: #333;
+        background: #cbd5e1;
+        color: #334155;
       }
 
       .edit-modal-body {
-        padding: 20px;
+        padding: 30px;
+        background: white;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .form-row:last-child {
+        margin-bottom: 0;
       }
 
       .form-group {
-        margin-bottom: 15px;
+        position: relative;
       }
 
       .form-group label {
         display: block;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
         font-weight: 500;
-        color: #333;
+        color: #374151;
+        font-size: 14px;
+      }
+
+      .required {
+        color: #ef4444;
+        font-weight: 600;
+      }
+
+      .max-info {
+        display: block;
+        margin-top: 4px;
+        color: #6b7280;
+        font-size: 12px;
+        font-weight: 400;
       }
 
       .form-group input {
         width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
+        padding: 12px 16px;
+        border: 2px solid #d1d5db;
+        border-radius: 8px;
         font-size: 14px;
+        background: white;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
       }
 
       .form-group input:focus {
         outline: none;
-        border-color: #3498db;
-        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+
+      .edit-modal-footer {
+        background: #f8fafc;
+        padding: 20px 30px;
+        border-top: 1px solid #e2e8f0;
       }
 
       .form-actions {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         justify-content: flex-end;
-        margin-top: 20px;
       }
 
       .btn-cancel {
-        padding: 10px 20px;
-        border: none;
-        background: #7b8794;
-        color: white;
-        border-radius: 6px;
+        padding: 12px 24px;
+        border: 2px solid #d1d5db;
+        background: white;
+        color: #6b7280;
+        border-radius: 8px;
         cursor: pointer;
         font-size: 14px;
+        font-weight: 500;
         transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 100px;
+        justify-content: center;
       }
 
       .btn-cancel:hover {
-        background: #6b7a8a;
-        transform: translateY(-1px);
+        background: #f9fafb;
+        border-color: #9ca3af;
+        color: #374151;
       }
 
       .btn-save {
-        padding: 10px 20px;
+        padding: 12px 24px;
         border: none;
-        background: #7b8794;
+        background: #3b82f6;
         color: white;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
         font-size: 14px;
+        font-weight: 500;
         display: flex;
         align-items: center;
         gap: 8px;
         transition: all 0.2s ease;
+        min-width: 100px;
+        justify-content: center;
       }
 
       .btn-save:hover {
-        background: #6b7a8a;
+        background: #2563eb;
         transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .edit-modal {
+          padding: 15px;
+        }
+
+        .edit-modal-content {
+          max-width: 100%;
+        }
+
+        .edit-modal-header {
+          padding: 20px;
+        }
+
+        .edit-modal-body {
+          padding: 20px;
+        }
+
+        .edit-modal-footer {
+          padding: 20px;
+        }
+
+        .form-row {
+          grid-template-columns: 1fr;
+          gap: 15px;
+        }
+
+        .form-actions {
+          flex-direction: column;
+        }
+
+        .btn-cancel,
+        .btn-save {
+          width: 100%;
+        }
       }
 
       .btn-add {
@@ -1657,6 +1750,91 @@
       // Konfigurasi API
       const API_BASE_URL = "https://pointmap-production.up.railway.app/api";
 
+      // Helper function untuk memastikan URL gambar benar
+      function getImageUrl(pathFile) {
+        if (!pathFile) return "";
+
+        // Debug: log path asli
+        console.log("Original path:", pathFile);
+
+        // Jika sudah URL lengkap (http/https), gunakan langsung
+        if (pathFile.startsWith("http://") || pathFile.startsWith("https://")) {
+          console.log("Using full URL:", pathFile);
+          return pathFile;
+        }
+
+        // Jika path relatif, tambahkan ../
+        if (pathFile.startsWith("./") || pathFile.startsWith("../")) {
+          console.log("Using relative path:", pathFile);
+          return pathFile;
+        }
+
+        // Jika path tanpa prefix, tambahkan ../
+        const finalPath = `../${pathFile}`;
+        console.log("Using prefixed path:", finalPath);
+        return finalPath;
+      }
+
+      // Fungsi untuk memperbarui data gallery global dan re-render bangunan
+      async function refreshGlobalGalleryData(buildingId) {
+        try {
+          console.log(
+            "Refreshing global gallery data for building:",
+            buildingId
+          );
+
+          // Fetch data gallery terbaru untuk semua ruangan di bangunan ini
+          const response = await fetch(`${API_BASE_URL}/ruangan-gallery`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          });
+
+          if (response.ok) {
+            const newGalleryData = await response.json();
+            console.log("New gallery data received:", newGalleryData);
+
+            // Update data global
+            window.ruanganGalleryData = newGalleryData;
+            console.log(
+              "Updated window.ruanganGalleryData:",
+              window.ruanganGalleryData
+            );
+
+            // Re-render bangunan dengan data gallery terbaru
+            if (window.ruanganData && window.buildingData) {
+              console.log("Re-rendering building with updated gallery data");
+              console.log("Using buildingData:", window.buildingData);
+              console.log("Using ruanganData:", window.ruanganData);
+              console.log("Using newGalleryData:", newGalleryData);
+
+              renderBuilding(
+                window.buildingData,
+                window.ruanganData,
+                window.lantaiGambarData || {},
+                newGalleryData
+              );
+
+              console.log("Building re-rendered successfully");
+            } else {
+              console.error("Missing data for re-render:");
+              console.error("window.ruanganData:", window.ruanganData);
+              console.error("window.buildingData:", window.buildingData);
+            }
+
+            return true;
+          } else {
+            console.error("Failed to refresh gallery data:", response.status);
+            return false;
+          }
+        } catch (error) {
+          console.error("Error refreshing gallery data:", error);
+          return false;
+        }
+      }
+
       // Fungsi untuk mendapatkan parameter dari URL
       function getUrlParameter(name) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -1752,6 +1930,17 @@
               ruanganGalleryData = await galleryResponse.json();
               // Buat data tersedia secara global
               window.ruanganGalleryData = ruanganGalleryData;
+              window.buildingData = buildingData; // Simpan building data secara global
+              window.lantaiGambarData = lantaiGambarData; // Simpan lantai gambar data secara global
+
+              console.log("✅ Data global tersimpan:");
+              console.log("window.buildingData:", window.buildingData);
+              console.log("window.ruanganData:", window.ruanganData);
+              console.log(
+                "window.ruanganGalleryData:",
+                window.ruanganGalleryData
+              );
+              console.log("window.lantaiGambarData:", window.lantaiGambarData);
             } else {
               console.error(
                 "Failed to load gallery data:",
@@ -1763,62 +1952,8 @@
           }
 
           // Generate CSS dinamis untuk posisi pin
-          console.log(
-            "Ruangan data for 3D view:",
-            JSON.stringify(ruanganData, null, 2)
-          );
-
           // Make ruangan data globally available for debug
           window.ruanganData = ruanganData;
-
-          // Debug: Check if data is properly structured
-          console.log("=== Data Structure Check ===");
-          Object.keys(ruanganData).forEach((lantai) => {
-            console.log(
-              `Level ${lantai} has ${ruanganData[lantai].length} rooms`
-            );
-            ruanganData[lantai].forEach((ruangan, index) => {
-              console.log(
-                `  ${index + 1}. ${ruangan.nama_ruangan} (ID: ${
-                  ruangan.id_ruangan
-                })`
-              );
-              console.log(`     - pin_class: ${ruangan.pin_class}`);
-              console.log(
-                `     - posisi_x: ${
-                  ruangan.posisi_x
-                } (${typeof ruangan.posisi_x})`
-              );
-              console.log(
-                `     - posisi_y: ${
-                  ruangan.posisi_y
-                } (${typeof ruangan.posisi_y})`
-              );
-              console.log(
-                `     - pin_position: ${JSON.stringify(ruangan.pin_position)}`
-              );
-            });
-          });
-
-          // Debug: Log specific pin positions
-          Object.keys(ruanganData).forEach((lantai) => {
-            ruanganData[lantai].forEach((ruangan, index) => {
-              console.log(`Room ${index + 1}: ${ruangan.nama_ruangan}`);
-              console.log(
-                `  - posisi_x (raw):`,
-                ruangan.posisi_x,
-                `(${typeof ruangan.posisi_x})`
-              );
-              console.log(
-                `  - posisi_y (raw):`,
-                ruangan.posisi_y,
-                `(${typeof ruangan.posisi_y})`
-              );
-              console.log(`  - pin_position:`, ruangan.pin_position);
-              console.log(`  - fallback_position:`, ruangan.fallback_position);
-              console.log(`  - pin_class:`, ruangan.pin_class);
-            });
-          });
 
           generateDynamicPinCSS(ruanganData);
 
@@ -1888,21 +2023,11 @@
             const pinHeightPercent = 6; // 6vmin = 6% of viewport
 
             // Debug: Log raw data from database
-            console.log(`Raw pin data for ${pinClass}:`, {
-              pin_position: ruangan.pin_position,
-              fallback_position: ruangan.fallback_position,
-              ruangan: ruangan.nama_ruangan,
-              posisi_x_raw: ruangan.posisi_x,
-              posisi_y_raw: ruangan.posisi_y,
-            });
 
             // Gunakan posisi dinamis jika tersedia, jika tidak gunakan fallback
             if (ruangan.pin_position.top && ruangan.pin_position.left) {
               top = ruangan.pin_position.top;
               left = ruangan.pin_position.left;
-              console.log(
-                `Using dynamic position for ${pinClass}: top="${top}", left="${left}"`
-              );
             } else {
               // Gunakan fallback position dengan pin size consideration
               const fallbackTop = Math.max(
@@ -1921,9 +2046,6 @@
               );
               top = `${fallbackTop}vmin`;
               left = `${fallbackLeft}vmin`;
-              console.log(
-                `Using fallback position for ${pinClass}: top="${top}", left="${left}"`
-              );
             }
 
             // Parse coordinates - now backend sends percentage values
@@ -1932,18 +2054,14 @@
             // Extract percentage values
             if (typeof top === "string" && top.includes("%")) {
               topPercent = parseFloat(top);
-              console.log(`Top parsed as percentage: ${topPercent}%`);
             } else {
               topPercent = parseFloat(top);
-              console.log(`Top parsed as number: ${topPercent}%`);
             }
 
             if (typeof left === "string" && left.includes("%")) {
               leftPercent = parseFloat(left);
-              console.log(`Left parsed as percentage: ${leftPercent}%`);
             } else {
               leftPercent = parseFloat(left);
-              console.log(`Left parsed as number: ${leftPercent}%`);
             }
 
             // Validate coordinates
@@ -1970,17 +2088,6 @@
                 // Get the actual displayed dimensions of both level container and SVG image
                 levelRect = levelElement.getBoundingClientRect();
                 svgRect = svgImage.getBoundingClientRect();
-
-                console.log(`Level ${lantai} dimensions:`, {
-                  level: { width: levelRect.width, height: levelRect.height },
-                  svg: { width: svgRect.width, height: svgRect.height },
-                  svgOffset: {
-                    left: svgRect.left - levelRect.left,
-                    top: svgRect.top - levelRect.top,
-                  },
-                  svgAspectRatio: svgRect.width / svgRect.height,
-                  levelAspectRatio: levelRect.width / levelRect.height,
-                });
               }
             }
 
@@ -2020,46 +2127,11 @@
 
               finalTop = Math.max(0, contentTopPercent - 5);
               finalLeft = Math.max(0, contentLeftPercent - 5);
-
-              console.log(`Pin ${pinClass} content-based calculation:`, {
-                original: { top: topPercent, left: leftPercent },
-                contentDimensions: {
-                  width: actualContentWidth,
-                  height: actualContentHeight,
-                },
-                contentOffset: { x: contentOffsetX, y: contentOffsetY },
-                contentCoordinates: {
-                  top: contentTopPercent,
-                  left: contentLeftPercent,
-                },
-                final: { top: finalTop, left: finalLeft },
-              });
             } else {
               // Fallback to direct coordinates if SVG info not available
               finalTop = Math.max(0, topPercent - 5);
               finalLeft = Math.max(0, leftPercent - 5);
             }
-
-            console.log(`Pin ${pinClass} using direct coordinates:`, {
-              original: { top: topPercent, left: leftPercent },
-              final: { top: finalTop, left: finalLeft },
-              svgInfo: svgRect
-                ? {
-                    svgWidth: svgRect.width,
-                    svgHeight: svgRect.height,
-                    levelWidth: levelRect.width,
-                    levelHeight: levelRect.height,
-                    svgAspectRatio: (svgRect.width / svgRect.height).toFixed(2),
-                    levelAspectRatio: (
-                      levelRect.width / levelRect.height
-                    ).toFixed(2),
-                  }
-                : "SVG not found",
-            });
-
-            console.log(
-              `Pin ${pinClass}: Original(${topPercent}%, ${leftPercent}%) -> Adjusted(${finalTop}%, ${finalLeft}%)`
-            );
 
             // Store the coordinates for debug indicators to use
             if (!window.pinCoordinates) window.pinCoordinates = {};
@@ -2071,11 +2143,6 @@
               adjusted: { top: `${finalTop}%`, left: `${finalLeft}%` },
               shift: { top: -5, left: -5 }, // Shift values applied
             };
-
-            console.log(
-              `Stored coordinates for ${pinClass}:`,
-              window.pinCoordinates[pinClass]
-            );
 
             // Generate CSS with exact percentage positioning
             const cssRule = `
@@ -2090,8 +2157,6 @@
             `;
 
             cssRules += cssRule;
-
-            console.log(`Generated CSS for ${pinClass}:`, cssRule);
           });
         });
 
@@ -2109,7 +2174,6 @@
 
           // Add to head
           document.head.appendChild(styleElement);
-          console.log("Dynamic pin CSS applied successfully");
         }
       }
 
@@ -2263,8 +2327,6 @@
 
             pinElement.appendChild(span);
             pinsContainer.appendChild(pinElement);
-
-            console.log(`Created pin: ${spaceId} for ${ruangan.nama_ruangan}`);
           });
         });
 
@@ -2288,7 +2350,6 @@
           // Pin markers will be initialized by initializePinMarkers() function
 
           // Initialize Fancybox for gallery
-          console.log("Initializing Fancybox...");
           Fancybox.bind("[data-fancybox]", {
             loop: true,
             buttons: ["zoom", "slideShow", "fullScreen", "thumbs", "close"],
@@ -2299,21 +2360,18 @@
             },
             on: {
               initLayout: (fancybox) => {
-                console.log("Fancybox initialized for:", fancybox);
+                // Fancybox initialized
               },
             },
           });
-          console.log("Fancybox initialization complete");
 
           // Update gallery count dynamically
           updateGalleryCounts();
 
           // Initialize pin markers with original main.js approach
-          console.log("Initializing pin markers...");
           // Add longer delay to ensure all elements are created
           setTimeout(() => {
             initializePinMarkers();
-            console.log("Pin markers initialized");
           }, 200);
         }, 100);
       }
@@ -2353,15 +2411,7 @@
                             >
                               <i class="fas fa-edit"></i>
                             </button>
-                            <button 
-                              onclick="deleteRoomFromList('${
-                                item.ruangan.id_ruangan
-                              }', '${item.title}')"
-                              class="delete-room-btn"
-                              title="Hapus ruangan"
-                            >
-                              <i class="fas fa-trash"></i>
-                            </button>
+
                           </div>
                         `
                             : ""
@@ -2434,11 +2484,7 @@
                                    data-caption="${item.title} - Foto 1"
                                    class="gallery-link">
                                   <img 
-                                    src="${
-                                      firstImage.path_file.startsWith("http")
-                                        ? ""
-                                        : "../"
-                                    }${firstImage.path_file}" 
+                                    src="${getImageUrl(firstImage.path_file)}" 
                                     alt="${item.title}"
                                     class="room-thumbnail"
                                     onError="this.src='../img/default/ruangan/thumbnail.jpg'"
@@ -2457,11 +2503,7 @@
                                 .slice(1)
                                 .map(
                                   (gallery, index) => `
-                                <a href="${
-                                  gallery.path_file.startsWith("http")
-                                    ? ""
-                                    : "../"
-                                }${gallery.path_file}" 
+                                <a href="${getImageUrl(gallery.path_file)}" 
                                    data-fancybox="gallery-${item.space}"
                                    data-caption="${item.title} - Foto ${
                                     index + 2
@@ -2672,7 +2714,23 @@
             // Gunakan path berdasarkan ID ruangan
             const roomId = getRoomIdByName(roomName);
             const buildingId = getBuildingIdByName(buildingName);
-            img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${index}.jpg`;
+            // Gunakan path dari API jika tersedia, fallback ke path lokal
+            if (
+              window.ruanganGalleryData &&
+              window.ruanganGalleryData.length > 0
+            ) {
+              const roomGallery = window.ruanganGalleryData.find(
+                (gallery) =>
+                  gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+              );
+              if (roomGallery && roomGallery.path_file) {
+                img.src = getImageUrl(roomGallery.path_file);
+              } else {
+                img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${index}.jpg`;
+              }
+            } else {
+              img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${index}.jpg`;
+            }
           };
 
           checkImage(1);
@@ -2736,9 +2794,9 @@
               // Tambahkan gallery links untuk gambar 2 dan seterusnya
               roomGallery.slice(1).forEach((gallery, index) => {
                 const link = document.createElement("a");
-                link.href = `${
-                  gallery.path_file.startsWith("http") ? "" : "../"
-                }${gallery.path_file}`;
+                link.href = gallery.path_file.startsWith("http")
+                  ? gallery.path_file
+                  : `../${gallery.path_file}`;
                 link.setAttribute("data-fancybox", `gallery-${spaceId}`);
                 link.setAttribute(
                   "data-caption",
@@ -2771,7 +2829,23 @@
             };
             const roomId = getRoomIdByName(roomName);
             const buildingId = getBuildingIdByName(buildingName);
-            img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${i}.jpg`;
+            // Gunakan path dari API jika tersedia, fallback ke path lokal
+            if (
+              window.ruanganGalleryData &&
+              window.ruanganGalleryData.length > 0
+            ) {
+              const roomGallery = window.ruanganGalleryData.find(
+                (gallery) =>
+                  gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+              );
+              if (roomGallery && roomGallery.path_file) {
+                img.src = getImageUrl(roomGallery.path_file);
+              } else {
+                img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${i}.jpg`;
+              }
+            } else {
+              img.src = `../img/${buildingId}/ruangan/${roomId}/gallery${i}.jpg`;
+            }
           }
         });
       }
@@ -2807,18 +2881,10 @@
         const pins = document.querySelectorAll(".pin");
         const contentEl = document.getElementById("content-area");
 
-        console.log(`Found ${pins.length} pins to initialize`);
-
         pins.forEach(function (pin, index) {
           const spaceRef = pin.getAttribute("data-space");
           const contentItem = contentEl.querySelector(
             '.content__item[data-space="' + spaceRef + '"]'
-          );
-
-          console.log(
-            `Initializing pin ${index + 1}: ${spaceRef}, contentItem: ${
-              contentItem ? "found" : "not found"
-            }`
           );
 
           if (contentItem) {
@@ -2840,36 +2906,25 @@
               ev.preventDefault();
               ev.stopPropagation();
 
-              console.log(`Pin clicked: ${spaceRef}`);
-
               // Find and click the corresponding list item (same as original main.js)
               const listItem = document.querySelector(
                 'li[data-space="' + spaceRef + '"]'
               );
 
-              console.log(`List item found: ${listItem ? "yes" : "no"}`);
-
               if (listItem) {
                 const spaceLink = listItem.querySelector(".list__link");
-                console.log(`Space link found: ${spaceLink ? "yes" : "no"}`);
 
                 if (spaceLink) {
-                  console.log("Clicking space link from initializePinMarkers");
                   spaceLink.click();
                 } else {
-                  console.log(
-                    "Space link not found, trying to click list item directly"
-                  );
                   listItem.click();
                 }
               } else {
-                console.log("List item not found, trying alternative approach");
                 // Alternative: try to find any element with this data-space
                 const anyElement = document.querySelector(
                   '[data-space="' + spaceRef + '"]'
                 );
                 if (anyElement) {
-                  console.log("Found element with data-space, clicking...");
                   anyElement.click();
                 }
               }
@@ -2877,8 +2932,6 @@
               // Remove hover class
               contentItem.classList.remove("content__item--hover");
             });
-
-            console.log(`Pin ${spaceRef} initialized successfully`);
           } else {
             console.warn(`Content item not found for pin ${spaceRef}`);
           }
@@ -2903,65 +2956,64 @@
           <div class="edit-modal" id="editRoomModal">
             <div class="edit-modal-content">
               <div class="edit-modal-header">
-                <h3>Edit Ruangan</h3>
+                <div class="header-left">
+                  <h3>Edit Ruangan</h3>
+                  <p>Perbarui informasi ruangan</p>
+                </div>
                 <button onclick="closeEditRoomModal()" class="close-btn">
                   <i class="fas fa-times"></i>
                 </button>
               </div>
-              <div class="edit-modal-body">
-                <form id="editRoomForm">
-                  <div class="form-group">
-                    <label>Nama Ruangan *</label>
-                    <input type="text" id="editRoomName" value="${roomName}" required>
+              
+              <form id="editRoomForm">
+                <div class="edit-modal-body">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Nama Ruangan <span class="required">*</span></label>
+                      <input type="text" id="editRoomName" value="${roomName}" required>
+                    </div>
+                    <div class="form-group">
+                      <label>Lantai <span class="required">*</span></label>
+                      <input type="number" id="editRoomFloor" value="${floor}" min="1" max="${maxFloorValue}" required>
+                      <small class="max-info">Maksimal: ${maxFloorValue}</small>
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label>Lantai * (Maksimal: ${maxFloorValue})</label>
-                    <input type="number" id="editRoomFloor" value="${floor}" min="1" max="${maxFloorValue}" required>
+                  
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Jurusan</label>
+                      <input type="text" id="editRoomJurusan" value="${jurusan}">
+                    </div>
+                    <div class="form-group">
+                      <label>Program Studi</label>
+                      <input type="text" id="editRoomProdi" value="${prodi}">
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label>Jurusan</label>
-                    <input type="text" id="editRoomJurusan" value="${jurusan}">
-                  </div>
-                  <div class="form-group">
-                    <label>Program Studi</label>
-                    <input type="text" id="editRoomProdi" value="${prodi}">
-                  </div>
+                </div>
+                
+                <div class="edit-modal-footer">
                   <div class="form-actions">
-                    <button type="button" onclick="closeEditRoomModal()" class="btn-cancel">Batal</button>
-                    <button type="button" onclick="deleteRoom(${roomId}, '${roomName.replace(
-          /'/g,
-          "\\'"
-        )}')" class="btn-delete-room" style="display: inline-block !important;">
-                      <i class="fas fa-trash"></i>
-                      Hapus Ruangan
+                    <button type="button" onclick="closeEditRoomModal()" class="btn-cancel">
+                      <i class="fas fa-times"></i>
+                      Batal
                     </button>
-                    <button type="submit" class="btn-save">Simpan</button>
+                    <button type="submit" class="btn-save">
+                      <i class="fas fa-save"></i>
+                      Simpan
+                    </button>
                   </div>
-                </form>
-              </div>
+                </div>
+              </form>
             </div>
           </div>
         `;
 
         document.body.insertAdjacentHTML("beforeend", modalHTML);
 
-        // Debug: Check if modal was created properly
-        console.log(
-          "Modal created with roomId:",
-          roomId,
-          "roomName:",
-          roomName
-        );
-        const deleteButton = document.querySelector(
-          "#editRoomModal .btn-delete-room"
-        );
-        console.log("Delete button found:", deleteButton);
-
         // Check if modal HTML was inserted correctly
         const modal = document.querySelector("#editRoomModal");
-        console.log("Modal element found:", modal);
         if (modal) {
-          console.log("Modal HTML:", modal.outerHTML);
+          // Modal created successfully
         }
 
         // Handle form submission
@@ -3135,12 +3187,6 @@
 
       // Fungsi untuk menghapus ruangan
       async function deleteRoom(roomId, roomName) {
-        console.log(
-          "deleteRoom called with roomId:",
-          roomId,
-          "roomName:",
-          roomName
-        );
         showConfirmation(
           "Konfirmasi Hapus Ruangan",
           `Yakin ingin menghapus ruangan "${roomName}"? Tindakan ini tidak dapat dibatalkan.`,
@@ -3211,15 +3257,12 @@
       // Fungsi untuk melakukan penghapusan ruangan dari daftar
       async function performDeleteRoomFromList(roomId, roomName) {
         try {
-          const response = await fetch(
-            `http://localhost:3001/api/ruangan/${roomId}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/ruangan/${roomId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
 
           if (response.ok) {
             const result = await response.json();
@@ -3259,15 +3302,12 @@
       // Fungsi untuk melakukan penghapusan ruangan
       async function performDeleteRoom(roomId) {
         try {
-          const response = await fetch(
-            `http://localhost:3001/api/ruangan/${roomId}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/ruangan/${roomId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
 
           if (response.ok) {
             const result = await response.json();
@@ -3328,22 +3368,19 @@
         }
 
         try {
-          const response = await fetch(
-            `http://localhost:3001/api/ruangan/${roomId}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-              body: JSON.stringify({
-                nama_ruangan: roomName,
-                nomor_lantai: parseInt(floor),
-                nama_jurusan: jurusan,
-                nama_prodi: prodi,
-              }),
-            }
-          );
+          const response = await fetch(`${API_BASE_URL}/ruangan/${roomId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              nama_ruangan: roomName,
+              nomor_lantai: parseInt(floor),
+              nama_jurusan: jurusan,
+              nama_prodi: prodi,
+            }),
+          });
 
           if (response.ok) {
             showNotification(
@@ -3381,7 +3418,7 @@
           `;
 
           const response = await fetch(
-            `http://localhost:3001/api/ruangan-gallery/ruangan/${roomId}`,
+            `${API_BASE_URL}/ruangan-gallery/ruangan/${roomId}`,
             {
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -3392,15 +3429,28 @@
           if (response.ok) {
             const galleryData = await response.json();
 
+            // Debug: log data gallery yang diterima
+            console.log("Gallery data received:", galleryData);
+            console.log("Room ID:", roomId);
+
             if (galleryData.length > 0) {
+              // Debug: log setiap item gallery
+              galleryData.forEach((item, index) => {
+                console.log(`Gallery item ${index}:`, item);
+                console.log(`Path file: ${item.path_file}`);
+                console.log(`Final URL: ${getImageUrl(item.path_file)}`);
+              });
+
               container.innerHTML = galleryData
                 .map(
                   (item) => `
                 <div class="gallery-item" data-gallery-id="${item.id_gallery}">
-                  <button onclick="deleteGalleryImageWithLoading(${item.id_gallery}, '${roomId}', this)" class="btn-delete" title="Hapus gambar">
+                  <button onclick="deleteGalleryImageWithLoading(${
+                    item.id_gallery
+                  }, '${roomId}', this)" class="btn-delete" title="Hapus gambar">
                     <i class="fas fa-trash"></i>
                   </button>
-                  <img src="../${item.path_file}" alt="Gallery">
+                  <img src="${getImageUrl(item.path_file)}" alt="Gallery">
                 </div>
               `
                 )
@@ -3483,7 +3533,7 @@
 
             try {
               const response = await fetch(
-                `http://localhost:3001/api/ruangan-gallery/upload`,
+                `${API_BASE_URL}/ruangan-gallery/upload`,
                 {
                   method: "POST",
                   headers: {
@@ -3531,7 +3581,31 @@
             );
 
             // Auto refresh gallery images immediately
+            console.log("Refreshing modal gallery...");
             await loadCurrentGalleryImages(roomId);
+            console.log("Modal gallery refreshed successfully");
+
+            // Refresh global gallery data dan re-render bangunan
+            const buildingId = getUrlParameter("id");
+            console.log("Building ID for refresh:", buildingId);
+            if (buildingId) {
+              console.log("Calling refreshGlobalGalleryData...");
+              try {
+                const refreshResult = await refreshGlobalGalleryData(
+                  buildingId
+                );
+                console.log("Refresh result:", refreshResult);
+                if (refreshResult) {
+                  console.log("✅ Global gallery data refreshed successfully");
+                } else {
+                  console.error("❌ Failed to refresh global gallery data");
+                }
+              } catch (refreshError) {
+                console.error("❌ Error during refresh:", refreshError);
+              }
+            } else {
+              console.warn("No building ID found for refresh");
+            }
 
             // Reset file input and text
             fileInput.value = "";
@@ -3614,7 +3688,7 @@
 
         try {
           const response = await fetch(
-            `http://localhost:3001/api/ruangan-gallery/upload`,
+            `${API_BASE_URL}/ruangan-gallery/upload`,
             {
               method: "POST",
               headers: {
@@ -3626,7 +3700,39 @@
 
           if (response.ok) {
             // Reload gallery images
+            console.log("Refreshing modal gallery (legacy)...");
             loadCurrentGalleryImages(roomId);
+            console.log("Modal gallery refreshed successfully (legacy)");
+
+            // Refresh global gallery data dan re-render bangunan
+            const buildingId = getUrlParameter("id");
+            console.log("Building ID for refresh (legacy):", buildingId);
+            if (buildingId) {
+              console.log("Calling refreshGlobalGalleryData (legacy)...");
+              try {
+                const refreshResult = await refreshGlobalGalleryData(
+                  buildingId
+                );
+                console.log("Refresh result (legacy):", refreshResult);
+                if (refreshResult) {
+                  console.log(
+                    "✅ Global gallery data refreshed successfully (legacy)"
+                  );
+                } else {
+                  console.error(
+                    "❌ Failed to refresh global gallery data (legacy)"
+                  );
+                }
+              } catch (refreshError) {
+                console.error(
+                  "❌ Error during refresh (legacy):",
+                  refreshError
+                );
+              }
+            } else {
+              console.warn("No building ID found for refresh (legacy)");
+            }
+
             // Reset file input
             fileInput.value = "";
           } else {
@@ -3680,7 +3786,7 @@
       async function performDeleteGalleryImage(galleryId, roomId) {
         try {
           const response = await fetch(
-            `http://localhost:3001/api/ruangan-gallery/${galleryId}`,
+            `${API_BASE_URL}/ruangan-gallery/${galleryId}`,
             {
               method: "DELETE",
               headers: {
@@ -3697,7 +3803,38 @@
             );
 
             // Auto refresh gallery images immediately
+            console.log("Refreshing modal gallery (delete)...");
             await loadCurrentGalleryImages(roomId);
+            console.log("Modal gallery refreshed successfully (delete)");
+
+            // Refresh global gallery data dan re-render bangunan
+            const buildingId = getUrlParameter("id");
+            console.log("Building ID for refresh (delete):", buildingId);
+            if (buildingId) {
+              console.log("Calling refreshGlobalGalleryData (delete)...");
+              try {
+                const refreshResult = await refreshGlobalGalleryData(
+                  buildingId
+                );
+                console.log("Refresh result (delete):", refreshResult);
+                if (refreshResult) {
+                  console.log(
+                    "✅ Global gallery data refreshed successfully (delete)"
+                  );
+                } else {
+                  console.error(
+                    "❌ Failed to refresh global gallery data (delete)"
+                  );
+                }
+              } catch (refreshError) {
+                console.error(
+                  "❌ Error during refresh (delete):",
+                  refreshError
+                );
+              }
+            } else {
+              console.warn("No building ID found for refresh (delete)");
+            }
 
             showNotification(
               "success",
@@ -3856,14 +3993,6 @@
             // Set lebar container level agar sama dengan lebar gambar yang sudah disesuaikan
             level.style.width = newWidth + "px";
             level.style.height = newHeight + "px";
-
-            console.log(
-              `Level ${level.className}: Container adjusted to ${newWidth}x${newHeight}px (was ${levelWidth}x${levelHeight}px)`
-            );
-          } else {
-            console.log(
-              `Level ${level.className}: Image adjusted to ${newWidth}x${newHeight}px (Level: ${levelWidth}x${levelHeight}px)`
-            );
           }
         }
       }
@@ -3936,10 +4065,6 @@
                     }, 100);
                   } else {
                     // Jika level berhenti menjadi current, reset ukurannya
-                    console.log(
-                      "Level stopped being current:",
-                      target.className
-                    );
                     target.style.width = "";
                     target.style.height = "";
                   }

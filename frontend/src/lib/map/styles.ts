@@ -12,15 +12,15 @@ export const kategoriStyle: Record<string, L.PathOptions> = {
     fillOpacity: 0.8,
   },
   Trotoar: {
-    color: "#78716c",
+    color: "#374151",
     weight: 1,
-    fillColor: "#a8a29e",
+    fillColor: "#6b7280",
     fillOpacity: 0.7,
   },
   Jalan: {
     color: "#374151",
     weight: 2,
-    fillColor: "#6b7280",
+    fillColor: "#4b5563",
     fillOpacity: 0.8,
   },
   Lahan: {
@@ -30,10 +30,10 @@ export const kategoriStyle: Record<string, L.PathOptions> = {
     fillOpacity: 0.6,
   },
   Parkir: {
-    color: "#52525b",
+    color: "#6b7280",
     weight: 1,
-    fillColor: "#71717a",
-    fillOpacity: 0.7,
+    fillColor: "#ffffff",
+    fillOpacity: 0.5,
   },
   Kanopi: {
     color: "#ea580c",
@@ -48,9 +48,9 @@ export const kategoriStyle: Record<string, L.PathOptions> = {
     fillOpacity: 0.6,
   },
   Paving: {
-    color: "#57534e",
+    color: "#78716c",
     weight: 1,
-    fillColor: "#78716c",
+    fillColor: "#a8a29e",
     fillOpacity: 0.8,
   },
   Taman: {

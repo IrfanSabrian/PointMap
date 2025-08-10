@@ -36,7 +36,7 @@ export default function BuildingDetailModal(props: Props) {
   return (
     <div
       data-container="building-detail"
-      className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-[40] w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out ${
+      className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-20 w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out ${
         isContainerShaking ? "animate-shake" : ""
       }`}
       style={{ boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)" }}

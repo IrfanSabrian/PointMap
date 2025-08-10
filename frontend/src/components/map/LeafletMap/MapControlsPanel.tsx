@@ -7,7 +7,9 @@ import {
   faLocationArrow,
   faGlobe,
   faLayerGroup,
+  faChevronLeft,
 } from "@fortawesome/free-solid-svg-icons";
+import { kategoriStyle } from "../../../lib/map/styles";
 
 type SearchFeature = {
   properties?: Record<string, any>;
@@ -38,6 +40,8 @@ type Props = {
 };
 
 export default function MapControlsPanel(props: Props) {
+  const [showLegend, setShowLegend] = React.useState(false);
+
   const {
     isDark,
     isLiveTracking,
@@ -196,6 +200,25 @@ export default function MapControlsPanel(props: Props) {
 
       {/* Kontrol kanan bawah */}
       <div className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-20 flex flex-col gap-2">
+        {/* Legend Toggle Button - Posisi di atas tombol + */}
+        <button
+          data-control="legend-toggle"
+          onClick={() => setShowLegend(!showLegend)}
+          className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
+            isDark
+              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+          }`}
+          title={showLegend ? "Sembunyikan Legend" : "Tampilkan Legend"}
+        >
+          <FontAwesomeIcon
+            icon={faChevronLeft}
+            className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${
+              showLegend ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
         <div className="flex flex-col gap-1 mb-2">
           <button
             data-control="zoom-in"
@@ -221,6 +244,7 @@ export default function MapControlsPanel(props: Props) {
           >
             <FontAwesomeIcon icon={faMinus} className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
+
           <button
             data-control="reset-zoom"
             onClick={onReset}
@@ -265,6 +289,39 @@ export default function MapControlsPanel(props: Props) {
             />
           </button>
         </div>
+
+        {/* Legend Box */}
+        {showLegend && (
+          <div
+            className={`absolute right-full top-0 mr-2 p-2 sm:p-4 rounded-lg shadow-lg border min-w-[220px] sm:min-w-[240px] ${
+              isDark
+                ? "bg-gray-800 border-gray-700 text-white"
+                : "bg-white border-gray-200 text-gray-900"
+            }`}
+          >
+            <div className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">
+              Legend Peta
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-2 text-xs sm:text-sm">
+              {Object.entries(kategoriStyle).map(([kategori, style]) => (
+                <div
+                  key={kategori}
+                  className="flex items-center gap-1.5 sm:gap-2"
+                >
+                  <div
+                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-sm border border-gray-300 flex-shrink-0"
+                    style={{
+                      backgroundColor: style.fillColor as string,
+                      opacity: style.fillOpacity,
+                    }}
+                  ></div>
+                  <span className="text-xs truncate">{kategori}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kontrol kiri bawah */}

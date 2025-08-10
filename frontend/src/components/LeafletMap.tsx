@@ -3968,23 +3968,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 const gateLat = Number(
                   bestGateInfo.gate.geometry.coordinates[1]
                 );
-                if (leafletMapRef.current) {
-                  const line = addRouteLine(
-                    [
-                      [gpsLat, gpsLng],
-                      [gateLat, gateLng],
-                    ],
-                    {
-                      color: "#FF00FF",
-                      weight: 8,
-                      opacity: 0.8,
-                      dashArray: "10, 5",
-                    }
-                  );
-                  setTimeout(() => {
-                    removeRouteLine(line as any);
-                  }, 10000);
-                }
+                // HILANGKAN GARIS MAGENTA DEBUG - tidak diperlukan untuk user
+                // if (leafletMapRef.current) {
+                //   const line = addRouteLine(
+                //     [
+                //       [gpsLat, gpsLng],
+                //       [gateLat, gateLng],
+                //     ],
+                //     {
+                //       color: "#FF00FF",
+                //       weight: 8,
+                //       opacity: 0.8,
+                //       dashArray: "10, 5",
+                //     }
+                //   );
+                //   setTimeout(() => {
+                //     removeRouteLine(line as any);
+                //   }, 10000);
+                // }
                 gpsToGateSegment = {
                   type: "Feature",
                   geometry: {
@@ -4059,117 +4060,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
                 setRouteLine(mainRouteLayer);
 
-                // Tampilkan rute alternatif dengan warna abu-abu (jika ada lebih dari 1 rute)
                 if (allRoutes.length > 1) {
                   console.log(
-                    `🔄 Menampilkan ${
+                    `🔄 Ditemukan ${
                       allRoutes.length - 1
-                    } rute alternatif dengan warna abu-abu`
+                    } rute alternatif, tetapi tidak ditampilkan untuk menghindari kebingungan visual`
                   );
-
-                  // Buat pane khusus untuk rute alternatif dengan z-index lebih rendah
-                  if (leafletMapRef.current) {
-                    leafletMapRef.current.createPane("alternativeRoutePane");
-                    const alternativePane = leafletMapRef.current.getPane(
-                      "alternativeRoutePane"
-                    );
-                    if (alternativePane && alternativePane.style) {
-                      alternativePane.style.zIndex = "600"; // Di bawah routePane (650)
-                    }
-                  }
-
-                  // Tampilkan semua rute alternatif (kecuali yang terbaik)
-                  for (let i = 1; i < allRoutes.length; i++) {
-                    const alternativeRoute = allRoutes[i];
-
-                    // Buat segment GPS ke gerbang alternatif
-                    let alternativeGpsToGateSegment;
-                    let alternativeGpsToGateDistance;
-
-                    if (alternativeRoute.osrmRoute) {
-                      alternativeGpsToGateDistance =
-                        alternativeRoute.osrmRoute.distance;
-                      const latLngs = alternativeRoute.osrmRoute.coordinates;
-                      alternativeGpsToGateSegment = {
-                        type: "Feature",
-                        geometry: {
-                          type: "LineString",
-                          coordinates: latLngs.map(
-                            (coord: [number, number]) => [coord[1], coord[0]]
-                          ),
-                        },
-                        properties: {
-                          routeType: "gps-to-gate-alternative",
-                          distance: alternativeGpsToGateDistance,
-                          name: `GPS ke ${alternativeRoute.gateName} (Alternatif)`,
-                        },
-                      };
-                    } else {
-                      alternativeGpsToGateDistance = calculateDistance(
-                        startLatLng,
-                        alternativeRoute.coords
-                      );
-                      const gpsLng = Number(startLatLng[1]);
-                      const gpsLat = Number(startLatLng[0]);
-                      const gateLng = Number(
-                        alternativeRoute.gate.geometry.coordinates[0]
-                      );
-                      const gateLat = Number(
-                        alternativeRoute.gate.geometry.coordinates[1]
-                      );
-
-                      alternativeGpsToGateSegment = {
-                        type: "Feature",
-                        geometry: {
-                          type: "LineString",
-                          coordinates: [
-                            [gpsLng, gpsLat],
-                            [gateLng, gateLat],
-                          ],
-                        },
-                        properties: {
-                          routeType: "gps-to-gate-alternative",
-                          distance: alternativeGpsToGateDistance,
-                          name: `GPS ke ${alternativeRoute.gateName} (Alternatif)`,
-                        },
-                      };
-                    }
-
-                    // Gabungkan dengan rute dari gerbang ke tujuan
-                    const alternativeRouteSegments = [
-                      alternativeGpsToGateSegment,
-                      ...alternativeRoute.routeToDestination.geojsonSegments,
-                    ];
-
-                    // Tampilkan rute alternatif dengan warna abu-abu
-                    const alternativeLayer = L.geoJSON(
-                      {
-                        type: "FeatureCollection",
-                        features:
-                          alternativeRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-                      } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-                      {
-                        style: (feature) => ({
-                          color: "#6b7280", // Abu-abu untuk rute alternatif
-                          weight: 4,
-                          opacity: 0.6,
-                        }),
-                        pane: "alternativeRoutePane",
-                      }
-                    );
-                    if (leafletMapRef.current) {
-                      alternativeLayer.addTo(leafletMapRef.current);
-                      leafletMapRef.current.fitBounds(
-                        alternativeLayer.getBounds(),
-                        {
-                          padding: [60, 60],
-                          maxZoom: 17,
-                          animate: true,
-                          duration: 1.5, // Smooth animation duration
-                        }
-                      );
-                    }
-                  }
                 }
 
                 const allLatLngs: L.LatLng[] = [];
@@ -4760,21 +4656,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               const gpsLat = Number(startLatLng[0]);
               const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
               const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
-              if (leafletMapRef.current) {
-                const line = addRouteLine(
-                  [
-                    [gpsLat, gpsLng],
-                    [gateLat, gateLng],
-                  ],
-                  {
-                    color: "#FF00FF",
-                    weight: 8,
-                    opacity: 0.8,
-                    dashArray: "10, 5",
-                  }
-                );
-                setTimeout(() => removeRouteLine(line as any), 10000);
-              }
+              // HILANGKAN GARIS MAGENTA DEBUG - tidak diperlukan untuk user
+              // if (leafletMapRef.current) {
+              //   const line = addRouteLine(
+              //     [
+              //       [gpsLat, gpsLng],
+              //       [gateLat, gateLng],
+              //     ],
+              //     {
+              //       color: "#FF00FF",
+              //       weight: 8,
+              //       opacity: 0.8,
+              //       dashArray: "10, 5",
+              //     }
+              //   );
+              //   setTimeout(() => removeRouteLine(line as any), 10000);
+              // }
               gpsToGateSegment = {
                 type: "Feature",
                 geometry: {
