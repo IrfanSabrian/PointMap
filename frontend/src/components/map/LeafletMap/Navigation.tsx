@@ -47,7 +47,7 @@ export default function Navigation(props: Props) {
   return (
     <>
       {showStartButton && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-[30]">
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-[20]">
           <button
             onClick={onStart}
             aria-label="Mulai navigasi ke tujuan"
@@ -65,7 +65,7 @@ export default function Navigation(props: Props) {
 
       {routeSteps.length > 0 && (
         <div
-          className={`absolute bottom-2 left-16 right-16 sm:bottom-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-[30] w-auto sm:w-96 max-w-none sm:max-w-[90vw] ${
+          className={`absolute bottom-2 left-16 right-16 sm:bottom-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-[20] w-auto sm:w-96 max-w-none sm:max-w-[90vw] ${
             isDark
               ? "bg-gray-800 border-gray-700 text-white"
               : "bg-white border-gray-200 text-gray-900"

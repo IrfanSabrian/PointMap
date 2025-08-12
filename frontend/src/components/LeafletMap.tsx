@@ -1248,15 +1248,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Mulai live tracking GPS otomatis
       startLiveTracking();
 
-      // Tampilkan notifikasi bahwa GPS telah diaktifkan
-      setTimeout(() => {
-        showNotification(
-          "success",
-          "GPS Aktif",
-          "GPS telah diaktifkan otomatis. Lokasi Anda akan selalu terupdate setiap detik."
-        );
-      }, 1000);
-
       // Cleanup saat component unmount
       return () => {
         stopLiveTracking();
@@ -1669,18 +1660,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk membuat custom icon GPS marker seperti Google Maps
     const createUserMarkerIcon = (heading: number | null) => {
-      const size = 40;
+      const size = 32;
       return L.divIcon({
         html: `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
-                 <div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: rgba(59, 130, 246, 0.3); border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center;">
-                   <div style="width: ${size - 8}px; height: ${
-          size - 8
-        }px; border-radius: 50%; background: white; border: 1px solid #3b82f6; position: relative;">
+                 <div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: white; border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center;">
+                   <div style="width: ${size - 12}px; height: ${
+          size - 12
+        }px; border-radius: 50%; background: #3b82f6; border: 1px solid #3b82f6; position: relative;">
                      ${
                        heading !== null
-                         ? `<div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(${
+                         ? `<div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(${
                              heading + 180
-                           }deg); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 16px solid #3b82f6; opacity: 0.5; filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.3));"></div>`
+                           }deg); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 20px solid #3b82f6; opacity: 1; z-index: 1000;">
+                               <div style="position: absolute; top: -6px; left: -5px; width: 10px; height: 10px; border-radius: 50%; background: white; border: 1px solid #3b82f6;"></div>
+                             </div>`
                          : ""
                      }
                    </div>
@@ -6174,7 +6167,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Custom Notification System */}
         {notification && (
           <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] max-w-md w-full mx-4 transition-all duration-500 ${
+            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] w-[calc(100vw-2rem)] max-w-md mx-4 transition-all duration-500 ${
               notification.visible
                 ? "translate-y-0 opacity-100"
                 : "-translate-y-full opacity-0"
