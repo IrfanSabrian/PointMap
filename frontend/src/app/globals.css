@@ -347,7 +347,7 @@
 }
 
 .hero-description {
-  color: #374151 
+  color: #374151;
 }
 
 /* ===== MOBILE RESPONSIVENESS FIXES ===== */
@@ -551,4 +551,64 @@
 
 .dark .custom-text-black {
   color: rgb(243 244 246);
+}
+
+/* Fancybox Custom Styles */
+.fancybox__container {
+  @apply z-[9999];
+}
+
+.fancybox__backdrop {
+  @apply bg-black/80 backdrop-blur-sm;
+}
+
+.fancybox__content {
+  @apply rounded-lg overflow-hidden;
+}
+
+.fancybox__image {
+  @apply rounded-lg;
+}
+
+.fancybox__caption {
+  @apply text-center text-white bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg;
+}
+
+.fancybox__button {
+  @apply bg-white/20 hover:bg-white/30 text-white border-0 rounded-full transition-all duration-200;
+}
+
+.fancybox__button--close {
+  @apply top-4 right-4;
+}
+
+.fancybox__button--slideShow,
+.fancybox__button--fullScreen,
+.fancybox__button--thumbs {
+  @apply top-4;
+}
+
+.fancybox__button--slideShow {
+  @apply right-20;
+}
+
+.fancybox__button--fullScreen {
+  @apply right-36;
+}
+
+.fancybox__button--thumbs {
+  @apply right-52;
+}
+
+/* Dark mode support for Fancybox */
+.dark .fancybox__container {
+  @apply bg-gray-900/95;
+}
+
+.dark .fancybox__button {
+  @apply bg-gray-800/80 hover:bg-gray-700/90 text-gray-200;
+}
+
+.dark .fancybox__caption {
+  @apply bg-gray-800/80 text-gray-200;
 }

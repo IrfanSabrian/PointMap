@@ -44,6 +44,40 @@
         transform-style: flat !important;
       }
 
+      /* 2D View Styles - Inline for testing */
+      .building.building--2d .surroundings,
+      .building.building--2d .levels {
+        -webkit-transform: none !important;
+        transform: none !important;
+      }
+
+      .building.building--2d .level::after {
+        -webkit-transform: none !important;
+        transform: none !important;
+        color: #515158 !important;
+        font-weight: bold !important;
+        top: -1em !important;
+        left: 0 !important;
+        text-align: center !important;
+        width: 100% !important;
+      }
+
+      .building.building--2d .level--current::after {
+        -webkit-transform: none !important;
+        transform: none !important;
+        color: #2c3e50 !important;
+        font-weight: bold !important;
+        top: -1em !important;
+        width: 100% !important;
+      }
+
+      .building.building--2d .level--2,
+      .building.building--2d .level--3,
+      .building.building--2d .level--4 {
+        -webkit-transform: none !important;
+        transform: none !important;
+      }
+
       .info-content {
         background: #fff !important;
         border-radius: 18px !important;
@@ -1732,6 +1766,14 @@
             aria-label="Go down"
           >
             <i class="fas fa-angle-down"></i>
+          </button>
+          <button
+            class="boxbutton buildingnav__button--view-toggle"
+            aria-label="Toggle 2D/2.5D view"
+            id="view-toggle-btn"
+            title="Toggle 2D/2.5D view"
+          >
+            <span id="view-toggle-text">2.5D</span>
           </button>
         </nav>
 
@@ -4180,6 +4222,285 @@
         }
         return null;
       }
+
+      // 2D/2.5D View Toggle Functionality
+      function initializeViewToggle() {
+        console.log("Initializing view toggle...");
+        const viewToggleBtn = document.getElementById("view-toggle-btn");
+        const viewToggleText = document.getElementById("view-toggle-text");
+        const building = document.querySelector(".building");
+
+        console.log("View toggle elements:", {
+          viewToggleBtn,
+          viewToggleText,
+          building,
+        });
+
+        if (!viewToggleBtn || !viewToggleText || !building) {
+          console.warn("View toggle elements not found");
+          return;
+        }
+
+        // Default to 2.5D view (no localStorage check needed)
+        building.classList.remove("building--2d");
+        viewToggleText.textContent = "2.5D";
+
+        // Ensure All Levels button is enabled by default
+        const allLevelsBtn = document.querySelector(
+          ".buildingnav__button--all-levels"
+        );
+        if (allLevelsBtn) {
+          allLevelsBtn.style.opacity = "1";
+          allLevelsBtn.style.pointerEvents = "auto";
+          allLevelsBtn.style.cursor = "pointer";
+          allLevelsBtn.style.backgroundColor = "";
+          allLevelsBtn.style.color = "";
+        }
+
+        // Add click event listener
+        viewToggleBtn.addEventListener("click", function () {
+          const isCurrently2D = building.classList.contains("building--2d");
+          const allLevelsBtn = document.querySelector(
+            ".buildingnav__button--all-levels"
+          );
+
+          console.log("Current building classes:", building.className);
+          console.log("Is currently 2D:", isCurrently2D);
+
+          if (isCurrently2D) {
+            // Switch to 2.5D
+            building.classList.remove("building--2d");
+            viewToggleText.textContent = "2.5D";
+            console.log("Switched to 2.5D view");
+            console.log("Building classes after switch:", building.className);
+
+            // Re-enable All Levels button
+            if (allLevelsBtn) {
+              allLevelsBtn.style.opacity = "1";
+              allLevelsBtn.style.pointerEvents = "auto";
+              allLevelsBtn.style.cursor = "pointer";
+              allLevelsBtn.style.backgroundColor = "";
+              allLevelsBtn.style.color = "";
+              console.log("All Levels button re-enabled");
+            }
+          } else {
+            // Switch to 2D
+            building.classList.add("building--2d");
+            viewToggleText.textContent = "2D";
+            console.log("Switched to 2D view");
+            console.log("Building classes after switch:", building.className);
+
+            // Disable All Levels button
+            if (allLevelsBtn) {
+              allLevelsBtn.style.opacity = "0.5";
+              allLevelsBtn.style.pointerEvents = "none";
+              allLevelsBtn.style.cursor = "not-allowed";
+              allLevelsBtn.style.backgroundColor = "#6c757d";
+              allLevelsBtn.style.color = "#adb5bd";
+              console.log("All Levels button disabled");
+            }
+          }
+
+          // Add visual feedback
+          viewToggleBtn.style.transform = "scale(1.1)";
+          setTimeout(() => {
+            viewToggleBtn.style.transform = "scale(1)";
+          }, 150);
+        });
+      }
+
+      // Initialize view toggle when DOM is loaded
+      document.addEventListener("DOMContentLoaded", function () {
+        // Wait a bit for the building to be rendered
+        setTimeout(initializeViewToggle, 1000);
+      });
+
+      // Also initialize when building is rendered
+      if (typeof window.buildingDetailsInit === "function") {
+        const originalInit = window.buildingDetailsInit;
+        window.buildingDetailsInit = function () {
+          originalInit();
+          setTimeout(initializeViewToggle, 500);
+        };
+      }
+
+      // Try to initialize multiple times to ensure it works
+      let initAttempts = 0;
+      const maxAttempts = 10;
+
+      function tryInitializeViewToggle() {
+        if (initAttempts >= maxAttempts) {
+          console.warn(
+            "Failed to initialize view toggle after",
+            maxAttempts,
+            "attempts"
+          );
+          return;
+        }
+
+        const building = document.querySelector(".building");
+        const viewToggleBtn = document.getElementById("view-toggle-btn");
+
+        if (building && viewToggleBtn) {
+          console.log(
+            "Successfully initialized view toggle on attempt",
+            initAttempts + 1
+          );
+          initializeViewToggle();
+        } else {
+          initAttempts++;
+          setTimeout(tryInitializeViewToggle, 500);
+        }
+      }
+
+      // Start trying to initialize
+      setTimeout(tryInitializeViewToggle, 500);
+
+      // Add event listener to prevent clicks on disabled All Levels button
+      document.addEventListener("click", function (e) {
+        if (e.target.classList.contains("buildingnav__button--all-levels")) {
+          const building = document.querySelector(".building");
+          if (building && building.classList.contains("building--2d")) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Show user-friendly message
+            const message =
+              'Tombol "All Levels" hanya tersedia dalam mode 2.5D. Silakan ubah ke mode 2.5D terlebih dahulu.';
+            alert(message);
+
+            // Optionally, you could show a more elegant notification here
+            console.log(
+              "All Levels button clicked while in 2D mode - action prevented"
+            );
+          }
+        }
+      });
+
+      // Debug function - manually test 2D view
+      window.test2DView = function () {
+        const building = document.querySelector(".building");
+        if (building) {
+          console.log("Testing 2D view...");
+          building.classList.add("building--2d");
+          console.log("Building classes after adding 2D:", building.className);
+          console.log("Building element:", building);
+
+          // Check if CSS is applied
+          const levels = building.querySelectorAll(".levels");
+          const surroundings = building.querySelectorAll(".surroundings");
+          console.log("Levels found:", levels.length);
+          console.log("Surroundings found:", surroundings.length);
+
+          if (levels.length > 0) {
+            const computedStyle = window.getComputedStyle(levels[0]);
+            console.log("Levels transform:", computedStyle.transform);
+
+            // Try to manually apply inline styles as a test
+            levels.forEach((level) => {
+              level.style.transform = "none";
+              level.style.webkitTransform = "none";
+            });
+          }
+
+          if (surroundings.length > 0) {
+            surroundings.forEach((surrounding) => {
+              surrounding.style.transform = "none";
+              surrounding.style.webkitTransform = "none";
+            });
+          }
+
+          console.log("Applied inline styles for testing");
+        } else {
+          console.error("Building element not found");
+        }
+      };
+
+      // Debug function - manually test 2.5D view
+      window.test25DView = function () {
+        const building = document.querySelector(".building");
+        if (building) {
+          console.log("Testing 2.5D view...");
+          building.classList.remove("building--2d");
+          console.log(
+            "Building classes after removing 2D:",
+            building.className
+          );
+        } else {
+          console.error("Building element not found");
+        }
+      };
+
+      // Debug function - check CSS loading
+      window.checkCSS = function () {
+        console.log("Checking CSS loading...");
+
+        // Check if our CSS file is loaded
+        const styleSheets = Array.from(document.styleSheets);
+        const ourCSS = styleSheets.find(
+          (sheet) => sheet.href && sheet.href.includes("style.css")
+        );
+
+        if (ourCSS) {
+          console.log("Our CSS file is loaded:", ourCSS.href);
+
+          // Try to access CSS rules
+          try {
+            const rules = ourCSS.cssRules || ourCSS.rules;
+            console.log("CSS rules count:", rules ? rules.length : "No rules");
+
+            // Look for our 2D styles
+            if (rules) {
+              for (let i = 0; i < rules.length; i++) {
+                const rule = rules[i];
+                if (
+                  rule.selectorText &&
+                  rule.selectorText.includes("building--2d")
+                ) {
+                  console.log("Found 2D CSS rule:", rule.selectorText);
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Error accessing CSS rules:", e);
+          }
+        } else {
+          console.error("Our CSS file not found in loaded stylesheets");
+        }
+      };
+
+      // Debug function - inspect DOM structure
+      window.inspectDOM = function () {
+        console.log("Inspecting DOM structure...");
+
+        const building = document.querySelector(".building");
+        if (building) {
+          console.log("Building element:", building);
+          console.log("Building classes:", building.className);
+
+          const levels = building.querySelectorAll(".levels");
+          console.log("Levels container:", levels);
+
+          if (levels.length > 0) {
+            const levelElements = levels[0].querySelectorAll(".level");
+            console.log("Level elements found:", levelElements.length);
+
+            levelElements.forEach((level, index) => {
+              console.log(`Level ${index + 1}:`, level);
+              console.log(`Level ${index + 1} classes:`, level.className);
+              console.log(
+                `Level ${index + 1} transform:`,
+                level.style.transform
+              );
+            });
+          }
+
+          const surroundings = building.querySelectorAll(".surroundings");
+          console.log("Surroundings:", surroundings);
+        } else {
+          console.error("Building element not found");
+        }
+      };
     </script>
   </body>
 </html>

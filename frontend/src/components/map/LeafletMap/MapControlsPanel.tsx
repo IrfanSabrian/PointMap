@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
@@ -41,6 +41,8 @@ type Props = {
 
 export default function MapControlsPanel(props: Props) {
   const [showLegend, setShowLegend] = React.useState(false);
+  const legendRef = useRef<HTMLDivElement>(null);
+  const legendToggleRef = useRef<HTMLButtonElement>(null);
 
   const {
     isDark,
@@ -62,6 +64,26 @@ export default function MapControlsPanel(props: Props) {
     onSelectSearchResult,
     isHighlightActive,
   } = props;
+
+  // Handle clicking outside legend to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showLegend &&
+        legendRef.current &&
+        !legendRef.current.contains(event.target as Node) &&
+        legendToggleRef.current &&
+        !legendToggleRef.current.contains(event.target as Node)
+      ) {
+        setShowLegend(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showLegend]);
 
   return (
     <>
@@ -202,6 +224,7 @@ export default function MapControlsPanel(props: Props) {
       <div className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-20 flex flex-col gap-2">
         {/* Legend Toggle Button - Posisi di atas tombol + */}
         <button
+          ref={legendToggleRef}
           data-control="legend-toggle"
           onClick={() => setShowLegend(!showLegend)}
           className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
@@ -293,6 +316,7 @@ export default function MapControlsPanel(props: Props) {
         {/* Legend Box */}
         {showLegend && (
           <div
+            ref={legendRef}
             className={`absolute right-full top-0 mr-2 p-2 sm:p-4 rounded-lg shadow-lg border min-w-[220px] sm:min-w-[240px] ${
               isDark
                 ? "bg-gray-800 border-gray-700 text-white"
