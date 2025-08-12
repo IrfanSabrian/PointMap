@@ -4,10 +4,10 @@ import {
   faPlus,
   faMinus,
   faSyncAlt,
-  faLocationArrow,
   faGlobe,
   faLayerGroup,
   faChevronLeft,
+  faLocation,
 } from "@fortawesome/free-solid-svg-icons";
 import { kategoriStyle } from "../../../lib/map/styles";
 
@@ -17,7 +17,6 @@ type SearchFeature = {
 
 type Props = {
   isDark: boolean;
-  isLiveTracking: boolean;
   isSatellite: boolean;
   layerVisible: boolean;
   // zoom/reset/gps
@@ -46,7 +45,6 @@ export default function MapControlsPanel(props: Props) {
 
   const {
     isDark,
-    isLiveTracking,
     isSatellite,
     layerVisible,
     onZoomIn,
@@ -286,29 +284,17 @@ export default function MapControlsPanel(props: Props) {
           <button
             data-control="locate-me"
             onClick={onLocateMe}
-            aria-label={
-              isLiveTracking
-                ? "Hentikan live GPS tracking"
-                : "Aktifkan live GPS tracking dengan arah"
-            }
-            title={
-              isLiveTracking
-                ? "Hentikan live GPS tracking"
-                : "Aktifkan live GPS tracking dengan arah"
-            }
+            aria-label="Lokasi Saya"
+            title="Lokasi Saya"
             className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
-              isLiveTracking
-                ? "bg-red-500 border-red-600 hover:bg-red-600 text-white"
-                : isDark
+              isDark
                 ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
                 : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
             }`}
           >
             <FontAwesomeIcon
-              icon={faLocationArrow}
-              className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                isLiveTracking ? "animate-pulse" : ""
-              }`}
+              icon={faLocation}
+              className="w-3 h-3 sm:w-4 sm:h-4"
             />
           </button>
         </div>

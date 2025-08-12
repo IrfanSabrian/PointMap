@@ -105,7 +105,7 @@ export function useGps() {
       startDeviceOrientationListening();
     }
 
-    // Fungsi untuk update GPS secara manual setiap 3 detik
+    // Fungsi untuk update GPS secara manual setiap 1 detik
     const updateGPS = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -115,7 +115,7 @@ export function useGps() {
           (latLng as Record<string, any>).heading = headingRef.current;
           setUserLocation(latLng);
           console.log(
-            "📍 Manual GPS update (3s interval):",
+            "📍 Manual GPS update (1s interval):",
             [latitude, longitude],
             "heading:",
             headingRef.current
@@ -146,8 +146,8 @@ export function useGps() {
     // Jalankan update GPS pertama kali
     updateGPS();
 
-    // Set interval untuk update GPS setiap 3 detik
-    const gpsInterval = setInterval(updateGPS, 3000);
+    // Set interval untuk update GPS setiap 1 detik
+    const gpsInterval = setInterval(updateGPS, 1000);
 
     // Simpan interval ID untuk cleanup
     watchIdRef.current = gpsInterval as unknown as number;
@@ -308,6 +308,23 @@ export function useGps() {
     };
   }, []);
 
+  // Fungsi untuk fokus ke lokasi GPS pengguna
+  const focusToUserLocation = () => {
+    if (userLocation) {
+      // Trigger event untuk fokus ke lokasi pengguna
+      window.postMessage(
+        {
+          type: "focus-to-user-location",
+          coordinates: [userLocation.lat, userLocation.lng],
+          timestamp: Date.now(),
+        },
+        "*"
+      );
+      return true;
+    }
+    return false;
+  };
+
   return {
     userLocation,
     userHeading,
@@ -324,5 +341,6 @@ export function useGps() {
     isLiveTracking,
     startLiveTracking,
     stopLiveTracking,
+    focusToUserLocation,
   };
 }
