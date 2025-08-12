@@ -23,6 +23,7 @@ type Props = {
   onEditRuangan: (lantaiNumber: number) => void;
   onEditExistingRuangan: (ruangan: any) => void;
   onBuatRuangan: (lantaiNumber: number) => void;
+  onDeleteRuangan: (ruangan: any) => void; // Tambahan untuk hapus ruangan
   savedLantaiFiles: Record<number, boolean>;
   ruanganList: any[]; // Tambahan untuk data ruangan
   onDeleteLantai: (lantaiNumber: number) => void; // Tambahan untuk hapus lantai
@@ -47,6 +48,7 @@ export default function EditLantaiImageUploader(props: Props) {
     onEditRuangan,
     onEditExistingRuangan,
     onBuatRuangan,
+    onDeleteRuangan,
     savedLantaiFiles,
     ruanganList,
     onDeleteLantai,
@@ -404,6 +406,13 @@ export default function EditLantaiImageUploader(props: Props) {
                           >
                             <i className="fas fa-edit mr-1"></i>
                             Edit
+                          </button>
+                          <button
+                            onClick={() => onDeleteRuangan(ruangan)}
+                            className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                          >
+                            <i className="fas fa-trash mr-1"></i>
+                            Hapus
                           </button>
                         </div>
                       </div>

@@ -52,6 +52,22 @@
 }
 
 @layer utilities {
+  /* Custom colors for pin markers */
+  .text-brown-500 {
+    color: #8b4513;
+  }
+  .bg-brown-500 {
+    background-color: #8b4513;
+  }
+
+  .text-teal-500 {
+    color: #00796b;
+  }
+
+  .text-pink-500 {
+    color: #c2185b;
+  }
+
   .animate-bounceIn {
     animation: bounceIn 0.6s;
   }

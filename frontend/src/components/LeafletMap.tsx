@@ -2655,6 +2655,62 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       } catch (error) {}
     };
 
+    // Fungsi untuk hapus ruangan
+    const handleDeleteRuangan = async (ruangan: any) => {
+      if (!selectedFeature?.properties?.id) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          showNotification(
+            "error",
+            "Token Error",
+            "Token tidak ditemukan. Silakan login ulang."
+          );
+          return;
+        }
+
+        // Check if token is expired
+        if (!validateToken(token)) {
+          return;
+        }
+
+        // Konfirmasi penghapusan
+        showConfirmation(
+          "Konfirmasi Hapus Ruangan",
+          `Yakin ingin menghapus ruangan "${ruangan.nama_ruangan}"? Tindakan ini tidak dapat dibatalkan.`,
+          async () => {
+            try {
+              await deleteRuangan(ruangan.id_ruangan, token);
+
+              // Refresh data ruangan
+              await fetchRuanganByBangunan(
+                Number(selectedFeature.properties.id)
+              );
+
+              showNotification(
+                "success",
+                "Berhasil dihapus",
+                "Ruangan berhasil dihapus!"
+              );
+            } catch (error) {
+              showNotification(
+                "error",
+                "Gagal dihapus",
+                "Gagal menghapus ruangan: " + (error as Error).message
+              );
+            }
+          }
+        );
+      } catch (error) {
+        showNotification(
+          "error",
+          "Error",
+          "Terjadi kesalahan: " + (error as Error).message
+        );
+      }
+    };
+
     // Fungsi untuk update ruangan
     const handleUpdateRuangan = async () => {
       if (
@@ -5347,6 +5403,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     onAddLantai={handleAddLantai}
                     onEditRuangan={handleEditRuangan}
                     onEditExistingRuangan={handleEditExistingRuangan}
+                    onDeleteRuangan={handleDeleteRuangan}
                     onBuatRuangan={(lantaiNumber: number) => {
                       setSelectedLantaiForRuangan(lantaiNumber);
                       setRuanganForm((prev) => ({
@@ -5553,25 +5610,77 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         />
                         {ruanganForm.posisi_x && ruanganForm.posisi_y && (
                           <div
-                            className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                            className="absolute transform -translate-x-1/2 -translate-y-full pointer-events-none"
                             style={{
                               left: `${ruanganForm.posisi_x}%`,
                               top: `${ruanganForm.posisi_y}%`,
                             }}
                           >
-                            {/* Pin marker dengan animasi */}
-                            <div className="relative">
-                              <div className="w-6 h-6 bg-red-500 border-3 border-white rounded-full shadow-lg animate-pulse"></div>
-                              <div className="w-6 h-6 bg-red-500 border-3 border-white rounded-full absolute top-0 left-0 animate-ping"></div>
+                            {/* Pin marker berdasarkan style yang dipilih */}
+                            <div className="relative group">
+                              {/* Pin marker dengan style yang sesuai */}
+                              <div className="flex items-center justify-center hover:scale-110 transition-all duration-200">
+                                {(() => {
+                                  const pinStyle =
+                                    ruanganForm.pin_style || "default";
+                                  const pinConfig = {
+                                    default: {
+                                      hexColor: "#9e9e9e",
+                                    },
+                                    ruang_kelas: {
+                                      hexColor: "#d32f2f",
+                                    },
+                                    laboratorium: {
+                                      hexColor: "#1976d2",
+                                    },
+                                    kantor: {
+                                      hexColor: "#388e3c",
+                                    },
+                                    ruang_rapat: {
+                                      hexColor: "#f57c00",
+                                    },
+                                    perpustakaan: {
+                                      hexColor: "#7b1fa2",
+                                    },
+                                    kantin: {
+                                      hexColor: "#c2185b",
+                                    },
+                                    toilet: {
+                                      hexColor: "#00796b",
+                                    },
+                                    gudang: {
+                                      hexColor: "#5d4037",
+                                    },
+                                  };
+
+                                  const config =
+                                    pinConfig[
+                                      pinStyle as keyof typeof pinConfig
+                                    ] || pinConfig.default;
+
+                                  return (
+                                    <div
+                                      className="text-3xl drop-shadow-lg filter drop-shadow-md"
+                                      style={{ color: config.hexColor }}
+                                    >
+                                      <i className="fas fa-map-marker-alt"></i>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
 
                               {/* Tooltip dengan koordinat */}
-                              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap z-10">
-                                <div className="font-semibold mb-1">
-                                  📍 Pin Posisi
+                              <div className="absolute -top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-10">
+                                <div className="font-semibold mb-1 text-center text-white">
+                                  Pin Posisi
                                 </div>
-                                <div>X: {ruanganForm.posisi_x}%</div>
-                                <div>Y: {ruanganForm.posisi_y}%</div>
-                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-red-500"></div>
+                                <div className="text-center text-gray-200">
+                                  X: {ruanganForm.posisi_x}%
+                                </div>
+                                <div className="text-center text-gray-200">
+                                  Y: {ruanganForm.posisi_y}%
+                                </div>
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                               </div>
                             </div>
                           </div>
