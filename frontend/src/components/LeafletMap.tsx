@@ -1245,8 +1245,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Aktifkan GPS otomatis saat halaman pertama kali dimuat
     useEffect(() => {
-      // Mulai live tracking GPS otomatis
-      startLiveTracking();
+      // Hapus startLiveTracking otomatis - GPS hanya akan aktif saat tombol lokasi diklik
+      // startLiveTracking();
 
       // Cleanup saat component unmount
       return () => {
@@ -1605,7 +1605,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDark]);
 
-    // Fungsi untuk handle klik tombol GPS - fokus ke lokasi pengguna
+    // Fungsi untuk handle klik tombol GPS - update GPS sekali dan fokus ke lokasi
     const handleLocateMe = () => {
       if (!navigator.geolocation) {
         showNotification(
@@ -1616,46 +1616,30 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
-      if (userLocation) {
-        // Fokus ke lokasi pengguna
-        const map = leafletMapRef.current;
-        if (map) {
-          map.setView(userLocation, Math.max(map.getZoom(), 16), {
-            animate: true,
-            duration: 1,
-          });
-          showNotification(
-            "success",
-            "Lokasi Saya",
-            "Berhasil fokus ke lokasi GPS Anda."
-          );
-        }
-      } else {
-        // Jika belum ada lokasi GPS, coba ambil dulu
-        getCurrentLocation()
-          .then(([lat, lng]) => {
-            const map = leafletMapRef.current;
-            if (map) {
-              const userLatLng = L.latLng(lat, lng);
-              map.setView(userLatLng, Math.max(map.getZoom(), 16), {
-                animate: true,
-                duration: 1,
-              });
-              showNotification(
-                "success",
-                "Lokasi Saya",
-                "Berhasil fokus ke lokasi GPS Anda."
-              );
-            }
-          })
-          .catch((error) => {
+      // Update GPS sekali saja setiap kali tombol diklik
+      getCurrentLocation()
+        .then(([lat, lng]) => {
+          const map = leafletMapRef.current;
+          if (map) {
+            const userLatLng = L.latLng(lat, lng);
+            map.setView(userLatLng, Math.max(map.getZoom(), 16), {
+              animate: true,
+              duration: 1,
+            });
             showNotification(
-              "error",
-              "Error",
-              "Gagal mendapatkan lokasi GPS. Pastikan GPS aktif dan izin lokasi diberikan."
+              "success",
+              "Lokasi Saya",
+              "GPS diperbarui dan fokus ke lokasi Anda."
             );
-          });
-      }
+          }
+        })
+        .catch((error) => {
+          showNotification(
+            "error",
+            "Error",
+            "Gagal mendapatkan lokasi GPS. Pastikan GPS aktif dan izin lokasi diberikan."
+          );
+        });
     };
 
     // Fungsi untuk membuat custom icon GPS marker seperti Google Maps

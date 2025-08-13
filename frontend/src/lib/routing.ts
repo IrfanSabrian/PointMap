@@ -111,24 +111,78 @@ export async function getRealWorldRoute(
     }
 
     const url = `https://router.project-osrm.org/route/v1/driving/${startCoords[1]},${startCoords[0]};${endCoords[1]},${endCoords[0]}?overview=full&geometries=geojson`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`OSRM API error: ${response.status}`);
-    const data = await response.json();
-    if (data.code === "Ok" && data.routes && data.routes.length > 0) {
-      const route = data.routes[0];
-      const coordinates = route.geometry.coordinates.map(
-        (coord: [number, number]) => [coord[1], coord[0]]
-      );
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 detik timeout
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.warn(
+          `OSRM API error: ${response.status} - ${response.statusText}`
+        );
+        throw new Error(`OSRM API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        const coordinates = route.geometry.coordinates.map(
+          (coord: [number, number]) => [coord[1], coord[0]]
+        );
+        return {
+          coordinates,
+          distance: route.distance,
+          geometry: route.geometry,
+        };
+      }
+      return null;
+    } catch (fetchError) {
+      // Jika OSRM gagal, gunakan fallback routing sederhana
+      console.warn("OSRM API gagal, menggunakan fallback routing:", fetchError);
+
+      // Fallback: buat route lurus dari start ke end
+      const fallbackCoordinates = [startCoords, endCoords];
+      const fallbackDistance = calculateDistance(startCoords, endCoords);
+
       return {
-        coordinates,
-        distance: route.distance,
-        geometry: route.geometry,
+        coordinates: fallbackCoordinates,
+        distance: fallbackDistance,
+        geometry: {
+          type: "LineString",
+          coordinates: fallbackCoordinates.map((coord) => [coord[1], coord[0]]), // OSRM format: [lng, lat]
+        },
       };
     }
-    return null;
   } catch (error) {
-    console.error("OSRM routing error:", error);
-    return null;
+    console.error("getRealWorldRoute error:", error);
+
+    // Fallback terakhir jika semua gagal
+    try {
+      const fallbackCoordinates = [startCoords, endCoords];
+      const fallbackDistance = calculateDistance(startCoords, endCoords);
+
+      return {
+        coordinates: fallbackCoordinates,
+        distance: fallbackDistance,
+        geometry: {
+          type: "LineString",
+          coordinates: fallbackCoordinates.map((coord) => [coord[1], coord[0]]),
+        },
+      };
+    } catch (fallbackError) {
+      console.error("Fallback routing juga gagal:", fallbackError);
+      return null;
+    }
   }
 }
 
