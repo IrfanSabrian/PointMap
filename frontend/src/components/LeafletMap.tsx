@@ -6418,23 +6418,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       </div>
                     </div>
                   )}
-
-                  {/* Info */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
-                      <div>
-                        <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">
-                          Informasi
-                        </h4>
-                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                          <li>• File SVG lama akan diganti dengan yang baru</li>
-                          <li>• Gambar lantai akan diperbarui di database</li>
-                          <li>• Perubahan akan langsung terlihat di peta</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
