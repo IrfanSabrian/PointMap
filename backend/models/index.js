@@ -4,6 +4,8 @@ import Bangunan from "./Bangunan.js";
 import Ruangan from "./Ruangan.js";
 import LantaiGambar from "./LantaiGambar.js";
 import RuanganGallery from "./RuanganGallery.js";
+import Titik from "./Titik.js";
+import Jalur from "./Jalur.js";
 
 // Definisikan relasi
 Ruangan.belongsTo(Bangunan, { foreignKey: "id_bangunan", as: "bangunan" });
@@ -20,4 +22,13 @@ Bangunan.hasMany(LantaiGambar, {
 RuanganGallery.belongsTo(Ruangan, { foreignKey: "id_ruangan", as: "ruangan" });
 Ruangan.hasMany(RuanganGallery, { foreignKey: "id_ruangan", as: "gallery" });
 
-export { sequelize, Admin, Bangunan, Ruangan, LantaiGambar, RuanganGallery };
+export {
+  sequelize,
+  Admin,
+  Bangunan,
+  Ruangan,
+  LantaiGambar,
+  RuanganGallery,
+  Titik,
+  Jalur,
+};

@@ -11,6 +11,8 @@ import {
   Ruangan,
   LantaiGambar,
   RuanganGallery,
+  Titik,
+  Jalur,
 } from "./models/index.js";
 import bangunanRoutes from "./routes/bangunan.js";
 import ruanganRoutes from "./routes/ruangan.js";
@@ -18,6 +20,8 @@ import authRoutes from "./routes/auth.js";
 import lantaiGambarRoutes from "./routes/lantaiGambar.js";
 import ruanganGalleryRoutes from "./routes/ruanganGallery.js";
 import maintenanceRoutes from "./routes/maintenance.js";
+import titikRoutes from "./routes/titik.js";
+import jalurRoutes from "./routes/jalur.js";
 
 const app = express();
 
@@ -28,6 +32,7 @@ const corsOptions = {
     "https://pointmap-production.up.railway.app",
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3002",
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -63,6 +68,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/lantai-gambar", lantaiGambarRoutes);
 app.use("/api/ruangan-gallery", ruanganGalleryRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
+app.use("/api/titik", titikRoutes);
+app.use("/api/jalur", jalurRoutes);
 
 // Debug endpoints
 app.get("/api/debug/env", (req, res) => {

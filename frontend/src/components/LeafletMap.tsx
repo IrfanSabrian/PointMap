@@ -73,6 +73,8 @@ import {
   deleteRuangan,
 } from "../services/ruangan";
 import { updateBangunan, uploadBangunanThumbnail } from "../services/bangunan";
+import { getTitik } from "../services/titik";
+import { getJalur } from "../services/jalur";
 
 interface LeafletMapProps {
   isDark?: boolean;
@@ -492,38 +494,73 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
     }, []);
 
-    // Load data titik dari geojson
+    // Load data titik dari database Railway
     useEffect(() => {
-      fetch("/geojson/Titik WGS_1984.geojson")
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          return res.json();
-        })
-        .then((data) => {
-          if (!data || !Array.isArray(data.features)) {
+      const fetchTitikData = async () => {
+        try {
+          const titikData = await getTitik();
+          if (titikData && titikData.length > 0) {
+            // Convert database data to GeoJSON format for compatibility
+            const geoJsonFeatures = titikData.map((titik) => ({
+              type: "Feature",
+              id: titik.id_titik,
+              geometry: JSON.parse(titik.geometri),
+              properties: {
+                OBJECTID: titik.id_titik,
+                Nama: titik.nama,
+              },
+            }));
+            setTitikFeatures(geoJsonFeatures);
+          } else {
             setTitikFeatures([]);
-            return;
           }
-          setTitikFeatures(data.features);
-        })
-        .catch(() => setTitikFeatures([]));
+        } catch (error) {
+          console.error("Error fetching titik data:", error);
+          setTitikFeatures([]);
+        }
+      };
+
+      fetchTitikData();
     }, []);
 
-    // Load data jalur dari geojson
+    // Load data jalur dari database Railway
     useEffect(() => {
-      fetch("/geojson/Jalur WGS_1984.geojson")
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          return res.json();
-        })
-        .then((data) => {
-          if (!data || !Array.isArray(data.features)) {
+      const fetchJalurData = async () => {
+        try {
+          const jalurData = await getJalur();
+          if (jalurData && jalurData.length > 0) {
+            // Convert database data to GeoJSON format for compatibility
+            const geoJsonFeatures = jalurData.map((jalur) => ({
+              type: "Feature",
+              id: jalur.id_jalur,
+              geometry: JSON.parse(jalur.geometri),
+              properties: {
+                id: jalur.id_jalur,
+                OBJECTID: jalur.id_jalur,
+                FID: 0,
+                FID_ba_Project: 0,
+                Shape_Length: Number(jalur.panjang) || 0,
+                panjang: Number(jalur.panjang) || 0,
+                Mode: jalur.mode,
+                waktu_kaki: Number(jalur.waktu_kaki) || 0,
+                waktu_kendara: Number(jalur.waktu_kendara) || 0,
+                arah: jalur.arah,
+                nama: `Jalur ${jalur.id_jalur}`,
+                jenis: "jalur",
+                kategori: "Jalur",
+              },
+            }));
+            setJalurFeatures(geoJsonFeatures);
+          } else {
             setJalurFeatures([]);
-            return;
           }
-          setJalurFeatures(data.features);
-        })
-        .catch(() => setJalurFeatures([]));
+        } catch (error) {
+          console.error("Error fetching jalur data:", error);
+          setJalurFeatures([]);
+        }
+      };
+
+      fetchJalurData();
     }, []);
 
     // Fungsi untuk mengkonversi titik GeoJSON ke format Point
