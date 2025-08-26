@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geoman Leaflet Styles */
+@import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+
 @layer base {
   body {
     @apply bg-white text-gray-700 transition-colors duration-300 font-sans;

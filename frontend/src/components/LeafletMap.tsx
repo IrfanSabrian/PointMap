@@ -11,6 +11,8 @@ import React, {
 } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+import "@geoman-io/leaflet-geoman-free";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faInfoCircle,
@@ -46,6 +48,8 @@ import { geojsonBangunanUrl, geojsonStatisUrl } from "../lib/map/constants";
 import { kategoriStyle, defaultStyle } from "../lib/map/styles";
 import { BASEMAPS } from "../lib/map/basemaps";
 import MapControlsPanel from "./map/LeafletMap/MapControlsPanel";
+import DrawingSidebar from "./map/LeafletMap/DrawingSidebar";
+
 import { useRouteDrawing } from "@/hooks/routing/useRouteDrawing";
 import { findAllRoutesToBuilding } from "../lib/routing";
 import Navigation from "./map/LeafletMap/Navigation";
@@ -171,6 +175,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [editName, setEditName] = useState("");
     const [editThumbnail, setEditThumbnail] = useState("");
 
+    // State untuk tombol edit admin
+
     const [editInteraksi, setEditInteraksi] = useState("");
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
@@ -186,6 +192,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       [key: number]: boolean;
     }>({});
     const [showRuanganModal, setShowRuanganModal] = useState(false);
+
+    // State untuk Geoman.js drawing tools
+    const [drawingMode, setDrawingMode] = useState<string | null>(null);
+    const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
+
+    // Ref untuk mengakses state drawing yang terbaru
+    const isDrawingEnabledRef = useRef(false);
+    const drawingModeRef = useRef<string | null>(null);
+
+    // Update ref setiap kali state berubah
+    useEffect(() => {
+      isDrawingEnabledRef.current = isDrawingEnabled;
+      drawingModeRef.current = drawingMode;
+    }, [isDrawingEnabled, drawingMode]);
 
     const [showPinPositionModal, setShowPinPositionModal] = useState(false);
     const [showTambahLantaiModal, setShowTambahLantaiModal] = useState(false);
@@ -755,6 +775,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Hanya kategori Bangunan yang bisa diklik
           if (feature.properties?.id) {
             layer.on("click", function (e: L.LeafletMouseEvent) {
+              // Jika drawing mode aktif, blok interaksi klik bangunan
+              if (isDrawingEnabledRef.current) {
+                if (
+                  e &&
+                  e.originalEvent &&
+                  typeof e.originalEvent.stopPropagation === "function"
+                ) {
+                  e.originalEvent.stopPropagation();
+                }
+                return;
+              }
+
               // Jika rute sedang tampil atau highlight aktif (dan navigation tidak aktif), blok interaksi klik bangunan lain
               if (
                 routeLineRef.current ||
@@ -853,6 +885,230 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         basemapLayerRef.current = null;
       };
     }, []); // hanya sekali
+
+    // Geoman.js drawing tools setup
+    useEffect(() => {
+      const map = leafletMapRef.current;
+      if (!map || !isDashboard) return;
+
+      // Initialize Geoman.js
+      if ((map as any).pm) {
+        // Disable all drawing tools by default - only use methods that exist
+        if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+        if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+        if (map.pm.disableGlobalRemovalMode) map.pm.disableGlobalRemovalMode();
+        if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+        if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+
+        // Add event listeners for drawing events
+        map.on("pm:create", (e: any) => {
+          console.log("Shape created:", e);
+          // You can handle the created shape here
+        });
+
+        map.on("pm:edit", (e: any) => {
+          console.log("Shape edited:", e);
+          // You can handle the edited shape here
+        });
+
+        map.on("pm:remove", (e: any) => {
+          console.log("Shape removed:", e);
+          // You can handle the removed shape here
+        });
+
+        map.on("pm:cut", (e: any) => {
+          console.log("Shape cut:", e);
+          // You can handle the cut shape here
+        });
+
+        map.on("pm:rotate", (e: any) => {
+          console.log("Shape rotated:", e);
+          // You can handle the rotated shape here
+        });
+
+        map.on("pm:scale", (e: any) => {
+          console.log("Shape scaled:", e);
+          // You can handle the scaled shape here
+        });
+
+        // Add click event listener for layers when in edit mode
+        map.on("click", (e: any) => {
+          // Jika drawing mode aktif, blok semua event click pada map
+          if (isDrawingEnabledRef.current) {
+            // Stop propagation untuk mencegah event click pada layer lain
+            if (
+              e.originalEvent &&
+              typeof e.originalEvent.stopPropagation === "function"
+            ) {
+              e.originalEvent.stopPropagation();
+            }
+            return;
+          }
+
+          if (drawingModeRef.current === "edit") {
+            // Check if we clicked on a layer
+            const clickedLayer = e.target;
+            if (clickedLayer && (clickedLayer as any).pm) {
+              // Enable edit mode for this specific layer
+              try {
+                if ((clickedLayer as any).pm.enable) {
+                  (clickedLayer as any).pm.enable({ mode: "edit" });
+                  console.log("Edit mode enabled for clicked layer");
+                }
+              } catch (error) {
+                console.log("Could not enable edit mode for layer:", error);
+              }
+            }
+          }
+        });
+
+        // Add event listener for when edit mode is finished
+        map.on("pm:edit", (e: any) => {
+          if (drawingModeRef.current === "edit") {
+            // Disable edit mode for the layer after editing is done
+            try {
+              if (
+                e.target &&
+                (e.target as any).pm &&
+                (e.target as any).pm.disable
+              ) {
+                (e.target as any).pm.disable();
+                console.log("Edit mode disabled for layer after editing");
+              }
+            } catch (error) {
+              console.log("Could not disable edit mode for layer:", error);
+            }
+          }
+        });
+      }
+
+      return () => {
+        if (map && (map as any).pm) {
+          // Remove event listeners
+          map.off("pm:create");
+          map.off("pm:edit");
+          map.off("pm:remove");
+          map.off("pm:cut");
+          map.off("pm:rotate");
+          map.off("pm:scale");
+          map.off("click");
+
+          // Cleanup Geoman.js - only use methods that exist
+          if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+          if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+          if (map.pm.disableGlobalRemovalMode)
+            map.pm.disableGlobalRemovalMode();
+          if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+          if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+        }
+      };
+    }, [isDashboard]);
+
+    // Handle drawing mode changes
+    useEffect(() => {
+      const map = leafletMapRef.current;
+      if (!map || !isDashboard || !(map as any).pm) return;
+
+      // Disable all modes first - only use methods that exist
+      if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+      if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+      if (map.pm.disableGlobalRemovalMode) map.pm.disableGlobalRemovalMode();
+      if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+      if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+
+      // Disable drawing mode if available - try multiple methods
+      if ((map as any).pm.disableDraw) {
+        (map as any).pm.disableDraw();
+      } else if ((map as any).pm.disablePolygonDraw) {
+        (map as any).pm.disablePolygonDraw();
+      } else if ((map as any).pm.disableLineDraw) {
+        (map as any).pm.disableLineDraw();
+      } else if ((map as any).pm.disableCircleDraw) {
+        (map as any).pm.disableCircleDraw();
+      }
+
+      // Enable the selected mode
+      if (drawingMode) {
+        switch (drawingMode) {
+          case "polygon":
+            // Try to enable polygon drawing
+            try {
+              if ((map as any).pm.enableDraw) {
+                (map as any).pm.enableDraw("Polygon");
+              } else if ((map as any).pm.enablePolygonDraw) {
+                (map as any).pm.enablePolygonDraw();
+              } else if ((map as any).pm.setGlobalOptions) {
+                (map as any).pm.setGlobalOptions({
+                  mode: "draw",
+                  shape: "Polygon",
+                });
+              } else {
+                // Last resort: try to enable any drawing mode
+                (map as any).pm.enableDraw();
+              }
+            } catch (error) {
+              console.log("Polygon drawing not available:", error);
+            }
+            break;
+          case "polyline":
+            // Try to enable polyline drawing
+            try {
+              if ((map as any).pm.enableDraw) {
+                (map as any).pm.enableDraw("Line");
+              } else if ((map as any).pm.enableLineDraw) {
+                (map as any).pm.enableLineDraw();
+              } else if ((map as any).pm.setGlobalOptions) {
+                (map as any).pm.setGlobalOptions({
+                  mode: "draw",
+                  shape: "Line",
+                });
+              } else {
+                // Last resort: try to enable any drawing mode
+                (map as any).pm.enableDraw();
+              }
+            } catch (error) {
+              console.log("Polyline drawing not available:", error);
+            }
+            break;
+          case "circle":
+            // Try to enable circle drawing
+            try {
+              if ((map as any).pm.enableDraw) {
+                (map as any).pm.enableDraw("Circle");
+              } else if ((map as any).pm.enableCircleDraw) {
+                (map as any).pm.enableCircleDraw();
+              } else if ((map as any).pm.setGlobalOptions) {
+                (map as any).pm.setGlobalOptions({
+                  mode: "draw",
+                  shape: "Circle",
+                });
+              } else {
+                // Last resort: try to enable any drawing mode
+                (map as any).pm.enableDraw();
+              }
+            } catch (error) {
+              console.log("Circle drawing not available:", error);
+            }
+            break;
+          case "edit":
+            // Don't enable global edit mode - let user click specific layers to edit
+            // Just set a flag that we're in edit mode
+            console.log("Edit mode activated - click on a layer to edit it");
+            break;
+          case "drag":
+            if (map.pm.enableGlobalDragMode) map.pm.enableGlobalDragMode();
+            break;
+          case "remove":
+            if (map.pm.enableGlobalRemovalMode)
+              map.pm.enableGlobalRemovalMode();
+            break;
+          case "scale":
+            // Scale mode might not be available, use edit mode instead
+            if (map.pm.enableGlobalEditMode) map.pm.enableGlobalEditMode();
+            break;
+        }
+      }
+    }, [drawingMode, isDashboard]);
 
     // Control map interactions berdasarkan highlight state dan navigation state
     useEffect(() => {
@@ -1613,6 +1869,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Toggle layer
     const handleToggleLayer = () => {
       setLayerVisible((v) => !v);
+    };
+
+    // Drawing tool handlers
+    const handleDrawingModeChange = (mode: string | null) => {
+      setDrawingMode(mode);
+      setIsDrawingEnabled(!!mode);
+    };
+
+    const handleToggleDrawing = () => {
+      const newState = !isDrawingEnabled;
+      setIsDrawingEnabled(newState);
+      if (!newState) {
+        setDrawingMode(null);
+      }
     };
 
     // Reset zoom/center
@@ -5110,6 +5380,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           isDark={!!isDark}
           isSatellite={!!isSatellite}
           layerVisible={!!layerVisible}
+          isDashboard={isDashboard}
           onZoomIn={() => {
             const map = leafletMapRef.current;
             if (map) map.setZoom(Math.min(map.getZoom() + 1, 19));
@@ -5826,6 +6097,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             WebkitUserSelect: "none",
           }}
           className="w-full h-full"
+        />
+
+        {/* Geoman.js Drawing Sidebar - Only show in dashboard mode */}
+        <DrawingSidebar
+          isDark={!!isDark}
+          isDashboard={isDashboard}
+          onDrawingModeChange={handleDrawingModeChange}
         />
         {showBuildingDetailCanvas && (
           <div

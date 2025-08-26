@@ -19,6 +19,7 @@ type Props = {
   isDark: boolean;
   isSatellite: boolean;
   layerVisible: boolean;
+  isDashboard?: boolean; // Tambahan prop untuk dashboard admin
   // zoom/reset/gps
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -47,6 +48,7 @@ export default function MapControlsPanel(props: Props) {
     isDark,
     isSatellite,
     layerVisible,
+    isDashboard = false, // Default false jika tidak ada
     onZoomIn,
     onZoomOut,
     onReset,
@@ -220,7 +222,57 @@ export default function MapControlsPanel(props: Props) {
 
       {/* Kontrol kanan bawah */}
       <div className="absolute right-2 bottom-2 sm:right-4 sm:bottom-4 z-20 flex flex-col gap-2">
-        {/* Legend Toggle Button - Posisi di atas tombol + */}
+        {/* Tombol Layer Peta & Satelit - Hanya muncul di dashboard admin, posisi di atas legend */}
+        {isDashboard && (
+          <>
+            <button
+              data-control="toggle-layer"
+              onClick={onToggleLayer}
+              aria-label={
+                layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+              }
+              title={
+                layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+              }
+              className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              }`}
+            >
+              <FontAwesomeIcon
+                icon={faLayerGroup}
+                className="w-3 h-3 sm:w-4 sm:h-4"
+              />
+            </button>
+            <button
+              data-control="toggle-basemap"
+              onClick={onToggleBasemap}
+              aria-label={
+                isSatellite
+                  ? "Ganti ke tampilan peta"
+                  : "Ganti ke tampilan satelit"
+              }
+              title={
+                isSatellite
+                  ? "Ganti ke tampilan peta"
+                  : "Ganti ke tampilan satelit"
+              }
+              className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                  : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              }`}
+            >
+              <FontAwesomeIcon
+                icon={faGlobe}
+                className="w-3 h-3 sm:w-4 sm:h-4"
+              />
+            </button>
+          </>
+        )}
+
+        {/* Legend Toggle Button - Posisi di bawah tombol layer (jika ada) atau di atas tombol + */}
         <button
           ref={legendToggleRef}
           data-control="legend-toggle"
@@ -334,56 +386,62 @@ export default function MapControlsPanel(props: Props) {
         )}
       </div>
 
-      {/* Kontrol kiri bawah */}
-      <div className="absolute left-2 bottom-2 sm:left-4 sm:left-4 z-20 flex flex-col gap-2">
-        <button
-          data-control="toggle-layer"
-          onClick={onToggleLayer}
-          aria-label={
-            layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
-          }
-          title={
-            layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
-          }
-          className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3 ${
-            isDark
-              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-          }`}
-        >
-          <FontAwesomeIcon
-            icon={faLayerGroup}
-            className="w-4 h-4 sm:w-5 sm:h-5"
-          />
-        </button>
-        <button
-          data-control="toggle-basemap"
-          onClick={onToggleBasemap}
-          aria-label={
-            isSatellite ? "Ganti ke tampilan peta" : "Ganti ke tampilan satelit"
-          }
-          title={
-            isSatellite ? "Ganti ke tampilan peta" : "Ganti ke tampilan satelit"
-          }
-          className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3 ${
-            isDark
-              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-          }`}
-        >
-          <FontAwesomeIcon
-            icon={faGlobe}
-            className="w-3 h-3 sm:w-4 sm:h-4 mb-0 sm:mb-0.5"
-          />
-          <span
-            className={`text-xs font-bold hidden sm:block ${
-              isDark ? "text-white" : "text-gray-700"
+      {/* Kontrol kiri bawah - Kosong karena tombol layer dipindah ke kanan untuk dashboard admin */}
+      {!isDashboard && (
+        <div className="absolute left-2 bottom-2 sm:left-4 sm:left-4 z-20 flex flex-col gap-2">
+          <button
+            data-control="toggle-layer"
+            onClick={onToggleLayer}
+            aria-label={
+              layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+            }
+            title={
+              layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+            }
+            className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3 ${
+              isDark
+                ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
             }`}
           >
-            {isSatellite ? "Peta" : "Satelit"}
-          </span>
-        </button>
-      </div>
+            <FontAwesomeIcon
+              icon={faLayerGroup}
+              className="w-4 h-4 sm:w-5 sm:h-5"
+            />
+          </button>
+          <button
+            data-control="toggle-basemap"
+            onClick={onToggleBasemap}
+            aria-label={
+              isSatellite
+                ? "Ganti ke tampilan peta"
+                : "Ganti ke tampilan satelit"
+            }
+            title={
+              isSatellite
+                ? "Ganti ke tampilan peta"
+                : "Ganti ke tampilan satelit"
+            }
+            className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-16 sm:h-16 sm:px-4 sm:py-3 ${
+              isDark
+                ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
+                : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+            }`}
+          >
+            <FontAwesomeIcon
+              icon={faGlobe}
+              className="w-3 h-3 sm:w-4 sm:h-4 mb-0 sm:mb-0.5"
+            />
+            <span
+              className={`text-xs font-bold hidden sm:block ${
+                isDark ? "text-white" : "text-gray-700"
+              }`}
+            >
+              {isSatellite ? "Peta" : "Satelit"}
+            </span>
+          </button>
+        </div>
+      )}
     </>
   );
 }
