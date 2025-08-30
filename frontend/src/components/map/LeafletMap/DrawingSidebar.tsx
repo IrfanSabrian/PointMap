@@ -16,26 +16,53 @@ interface DrawingSidebarProps {
   isDark: boolean;
   isDashboard?: boolean;
   onDrawingModeChange?: (mode: string | null) => void;
+  externalActiveMode?: string | null;
 }
 
 export default function DrawingSidebar({
   isDark,
   isDashboard = false,
   onDrawingModeChange,
+  externalActiveMode = null,
 }: DrawingSidebarProps) {
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Sinkronkan state aktif dengan state eksternal dari map
+  React.useEffect(() => {
+    if (externalActiveMode !== activeMode) {
+      setActiveMode(externalActiveMode ?? null);
+    }
+    // Jangan otomatis tutup sidebar ketika externalActiveMode null
+    // Sidebar hanya akan tertutup jika user secara manual menekan tombol toggle
+    if (externalActiveMode) {
+      setIsDrawingEnabled(true);
+      setIsSidebarOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalActiveMode]);
+
   const handleDrawingModeChange = (mode: string | null) => {
     if (activeMode === mode) {
-      // If clicking the same mode, disable it
+      // Jika user klik tool yang sudah aktif, reset drawing mode
       setActiveMode(null);
       onDrawingModeChange?.(null);
+      // Untuk circle marker, reset mode agar tidak bisa tambah marker lagi
+      if (mode === "circle") {
+        console.log(
+          "Circle marker mode deactivated - no more markers can be added"
+        );
+      }
     } else {
-      // Enable new mode
+      // Jika user pilih tool baru, aktifkan tool tersebut
       setActiveMode(mode);
       onDrawingModeChange?.(mode);
+    }
+    // Pastikan drawing mode tetap aktif agar sidebar tetap terbuka
+    if (mode) {
+      setIsDrawingEnabled(true);
+      setIsSidebarOpen(true);
     }
   };
 
@@ -84,7 +111,7 @@ export default function DrawingSidebar({
         style={{ width: "280px" }}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h3
             className={`text-lg font-bold ${
               isDark ? "text-white" : "text-gray-800"
@@ -92,6 +119,17 @@ export default function DrawingSidebar({
           >
             Drawing Tools
           </h3>
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-lg transition-colors ${
+              isDark
+                ? "text-gray-400 hover:text-white hover:bg-gray-700"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            }`}
+            title="Tutup Sidebar"
+          >
+            <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Sidebar Content */}
@@ -111,12 +149,12 @@ export default function DrawingSidebar({
                 {/* Polygon Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("polygon")}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                     activeMode === "polygon"
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-primary bg-primary/20 text-primary ring-2 ring-primary/40 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
                       : isDark
-                      ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                      ? "border-gray-600 bg-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:text-white/90"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-primary hover:bg-primary/10"
                   }`}
                   title="Gambar Polygon"
                 >
@@ -127,12 +165,12 @@ export default function DrawingSidebar({
                 {/* Polyline Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("polyline")}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                     activeMode === "polyline"
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-primary bg-primary/20 text-primary ring-2 ring-primary/40 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
                       : isDark
-                      ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                      ? "border-gray-600 bg-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:text-white/90"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-primary hover:bg-primary/10"
                   }`}
                   title="Gambar Polyline"
                 >
@@ -140,20 +178,20 @@ export default function DrawingSidebar({
                   <span className="text-xs font-medium">Polyline</span>
                 </button>
 
-                {/* Circle Tool */}
+                {/* Circle Marker Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("circle")}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                     activeMode === "circle"
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-primary bg-primary/20 text-primary ring-2 ring-primary/40 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
                       : isDark
-                      ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                      ? "border-gray-600 bg-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:text-white/90"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-primary hover:bg-primary/10"
                   }`}
-                  title="Gambar Circle"
+                  title="Tambah Circle Marker"
                 >
                   <FontAwesomeIcon icon={faCircle} className="w-5 h-5" />
-                  <span className="text-xs font-medium">Circle</span>
+                  <span className="text-xs font-medium">Marker</span>
                 </button>
               </div>
             </div>
@@ -260,8 +298,15 @@ export default function DrawingSidebar({
                 }`}
               >
                 <li>• Pilih tool yang diinginkan</li>
-                <li>• Klik pada peta untuk menggambar</li>
-                <li>• Double-click untuk menyelesaikan</li>
+                <li>
+                  • Polygon/Line: klik untuk menggambar, double-click untuk
+                  selesai
+                </li>
+                <li>
+                  • Marker: klik pada peta untuk menambah marker, klik tool lagi
+                  untuk selesai
+                </li>
+                <li>• Setelah selesai, pilih tool lain atau tutup sidebar</li>
                 <li>• Edit: klik layer untuk mengedit</li>
               </ul>
             </div>

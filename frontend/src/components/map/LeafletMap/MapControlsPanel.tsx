@@ -8,6 +8,8 @@ import {
   faLayerGroup,
   faChevronLeft,
   faLocation,
+  faEye,
+  faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
 import { kategoriStyle } from "../../../lib/map/styles";
 
@@ -28,6 +30,13 @@ type Props = {
   // layer & basemap
   onToggleLayer: () => void;
   onToggleBasemap: () => void;
+  // layer control props
+  jalurVisible: boolean;
+  titikVisible: boolean;
+  bangunanVisible: boolean;
+  onToggleJalur: (visible: boolean) => void;
+  onToggleTitik: (visible: boolean) => void;
+  onToggleBangunan: (visible: boolean) => void;
   // search
   searchText: string;
   onSearchTextChange: (v: string) => void;
@@ -41,8 +50,11 @@ type Props = {
 
 export default function MapControlsPanel(props: Props) {
   const [showLegend, setShowLegend] = React.useState(false);
+  const [showLayerControl, setShowLayerControl] = React.useState(false);
   const legendRef = useRef<HTMLDivElement>(null);
   const legendToggleRef = useRef<HTMLButtonElement>(null);
+  const layerControlRef = useRef<HTMLDivElement>(null);
+  const layerControlToggleRef = useRef<HTMLButtonElement>(null);
 
   const {
     isDark,
@@ -55,6 +67,12 @@ export default function MapControlsPanel(props: Props) {
     onLocateMe,
     onToggleLayer,
     onToggleBasemap,
+    jalurVisible,
+    titikVisible,
+    bangunanVisible,
+    onToggleJalur,
+    onToggleTitik,
+    onToggleBangunan,
     searchText,
     onSearchTextChange,
     showSearchResults,
@@ -84,6 +102,26 @@ export default function MapControlsPanel(props: Props) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showLegend]);
+
+  // Handle clicking outside layer control to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showLayerControl &&
+        layerControlRef.current &&
+        !layerControlRef.current.contains(event.target as Node) &&
+        layerControlToggleRef.current &&
+        !layerControlToggleRef.current.contains(event.target as Node)
+      ) {
+        setShowLayerControl(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showLayerControl]);
 
   return (
     <>
@@ -226,13 +264,18 @@ export default function MapControlsPanel(props: Props) {
         {isDashboard && (
           <>
             <button
+              ref={layerControlToggleRef}
               data-control="toggle-layer"
-              onClick={onToggleLayer}
+              onClick={() => setShowLayerControl(!showLayerControl)}
               aria-label={
-                layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+                showLayerControl
+                  ? "Sembunyikan layer control"
+                  : "Tampilkan layer control"
               }
               title={
-                layerVisible ? "Sembunyikan layer peta" : "Tampilkan layer peta"
+                showLayerControl
+                  ? "Sembunyikan layer control"
+                  : "Tampilkan layer control"
               }
               className={`flex flex-col items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
                 isDark
@@ -381,6 +424,94 @@ export default function MapControlsPanel(props: Props) {
                   <span className="text-xs truncate">{kategori}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Layer Control Box */}
+        {showLayerControl && (
+          <div
+            ref={layerControlRef}
+            className={`absolute right-full top-0 mr-2 p-2 sm:p-4 rounded-lg shadow-lg border min-w-[200px] sm:min-w-[220px] ${
+              isDark
+                ? "bg-gray-800 border-gray-700 text-white"
+                : "bg-white border-gray-200 text-gray-900"
+            }`}
+          >
+            <div className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">
+              Layer Control
+            </div>
+
+            <div className="space-y-2 text-xs sm:text-sm">
+              {/* Titik Layer Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-sm"></div>
+                  <span>Titik</span>
+                </div>
+                <button
+                  onClick={() => onToggleTitik(!titikVisible)}
+                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded transition-colors flex items-center justify-center ${
+                    titikVisible
+                      ? "bg-red-500 hover:bg-red-600 text-white"
+                      : "bg-gray-400 hover:bg-gray-500 text-white"
+                  }`}
+                  title={titikVisible ? "Sembunyikan Titik" : "Tampilkan Titik"}
+                >
+                  <FontAwesomeIcon
+                    icon={titikVisible ? faEye : faEyeSlash}
+                    className="w-2.5 h-2.5 sm:w-3 sm:h-3"
+                  />
+                </button>
+              </div>
+
+              {/* Jalur Layer Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-black rounded-sm"></div>
+                  <span>Jalur</span>
+                </div>
+                <button
+                  onClick={() => onToggleJalur(!jalurVisible)}
+                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded transition-colors flex items-center justify-center ${
+                    jalurVisible
+                      ? "bg-black hover:bg-gray-800 text-white"
+                      : "bg-gray-400 hover:bg-gray-500 text-white"
+                  }`}
+                  title={jalurVisible ? "Sembunyikan Jalur" : "Tampilkan Jalur"}
+                >
+                  <FontAwesomeIcon
+                    icon={jalurVisible ? faEye : faEyeSlash}
+                    className="w-2.5 h-2.5 sm:w-3 sm:h-3"
+                  />
+                </button>
+              </div>
+
+              {/* Building Layer Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-sm"></div>
+                  <span>Bangunan</span>
+                </div>
+                <button
+                  onClick={() => onToggleBangunan(!bangunanVisible)}
+                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded transition-colors flex items-center justify-center ${
+                    bangunanVisible
+                      ? "bg-blue-500 hover:bg-blue-600 text-white"
+                      : "bg-gray-400 hover:bg-gray-500 text-white"
+                  }`}
+                  title={
+                    bangunanVisible
+                      ? "Sembunyikan Bangunan"
+                      : "Tampilkan Bangunan"
+                  }
+                >
+                  <FontAwesomeIcon
+                    icon={bangunanVisible ? faEye : faEyeSlash}
+                    className="w-2.5 h-2.5 sm:w-3 sm:h-3"
+                  />
+                </button>
+              </div>
             </div>
           </div>
         )}

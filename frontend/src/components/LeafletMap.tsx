@@ -95,6 +95,9 @@ export interface LeafletMapRef {
     featureId: number,
     featureName: string
   ) => void;
+  toggleJalurLayer: (show: boolean) => void;
+  toggleTitikLayer: (show: boolean) => void;
+  toggleBangunanLayer: (show: boolean) => void;
 }
 
 // moved constants/styles/basemaps/types to dedicated modules
@@ -165,6 +168,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [routeEndSearchResults, setRouteEndSearchResults] = useState<Point[]>(
       []
     );
+
+    // State untuk mengontrol visibility layer jalur dan titik (dashboard admin)
+    const [jalurLayerVisible, setJalurLayerVisible] = useState(true);
+    const [titikLayerVisible, setTitikLayerVisible] = useState(true);
+    const [bangunanLayerVisible, setBangunanLayerVisible] = useState(true);
+
+    // Ref untuk menyimpan reference ke layer yang dibuat
+    const jalurLayerRef = useRef<L.Layer | null>(null);
+    const titikLayerRef = useRef<L.Layer | null>(null);
 
     // State untuk edit mode
     const [isEditingName, setIsEditingName] = useState(false);
@@ -632,6 +644,197 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     }, [jalurFeatures]);
 
+    // Handle visibility layer jalur dan titik untuk dashboard admin
+    useEffect(() => {
+      if (!leafletMapRef.current || !isDashboard) return;
+
+      const map = leafletMapRef.current;
+
+      // Update visibility jalur layer menggunakan ref
+      if (jalurLayerRef.current) {
+        if (jalurLayerVisible) {
+          if (!map.hasLayer(jalurLayerRef.current)) {
+            map.addLayer(jalurLayerRef.current);
+          }
+        } else {
+          if (map.hasLayer(jalurLayerRef.current)) {
+            map.removeLayer(jalurLayerRef.current);
+          }
+          // Marker ujung jalur sudah menjadi bagian dari jalur layer, tidak perlu dikelola secara terpisah
+        }
+      }
+
+      // Update visibility titik layer menggunakan ref
+      if (titikLayerRef.current) {
+        if (titikLayerVisible) {
+          if (!map.hasLayer(titikLayerRef.current)) {
+            map.addLayer(titikLayerRef.current);
+          }
+        } else {
+          if (map.hasLayer(titikLayerRef.current)) {
+            map.removeLayer(titikLayerRef.current);
+          }
+        }
+      }
+    }, [jalurLayerVisible, titikLayerVisible, isDashboard]);
+
+    // Create layer untuk jalur dan titik ketika data tersedia
+    useEffect(() => {
+      if (!leafletMapRef.current || !isDashboard) return;
+
+      const map = leafletMapRef.current;
+
+      // Buat layer jalur jika belum ada dan data tersedia
+      if (jalurFeatures.length > 0 && !jalurLayerRef.current) {
+        // Buat layer group untuk jalur dan marker ujung
+        const jalurLayerGroup = L.layerGroup();
+
+        // Buat jalur layer
+        const jalurLineLayer = L.geoJSON(jalurFeatures as any, {
+          style: () => ({
+            color: "#000000", // Hitam
+            weight: 3,
+            opacity: 0.8,
+          }),
+          pane: "overlayPane",
+        });
+
+        // Tambahkan jalur ke layer group
+        jalurLineLayer.addTo(jalurLayerGroup);
+
+        // Tambahkan marker ujung untuk setiap jalur
+        jalurFeatures.forEach((feature) => {
+          if (
+            feature.geometry &&
+            (feature.geometry.type === "LineString" ||
+              feature.geometry.type === "MultiLineString")
+          ) {
+            let coordinates: number[][] = [];
+
+            if (feature.geometry.type === "LineString") {
+              coordinates = feature.geometry.coordinates as number[][];
+            } else if (feature.geometry.type === "MultiLineString") {
+              // Ambil semua koordinat dari MultiLineString
+              coordinates = (
+                feature.geometry.coordinates as number[][][]
+              ).flat();
+            }
+
+            if (coordinates.length >= 2) {
+              // Tambahkan marker di ujung awal jalur
+              const startCoord = coordinates[0];
+              const startMarker = L.circleMarker(
+                [startCoord[1], startCoord[0]],
+                {
+                  radius: 3,
+                  fillColor: "#ffffff",
+                  color: "#000000",
+                  weight: 1,
+                  opacity: 1,
+                  fillOpacity: 1,
+                  pane: "overlayPane",
+                }
+              );
+
+              // Tambahkan marker ke jalur layer group
+              startMarker.addTo(jalurLayerGroup);
+
+              // Tambahkan marker di ujung akhir jalur
+              const endCoord = coordinates[coordinates.length - 1];
+              const endMarker = L.circleMarker([endCoord[1], endCoord[0]], {
+                radius: 3,
+                fillColor: "#ffffff",
+                color: "#000000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 1,
+                pane: "overlayPane",
+              });
+
+              // Tambahkan marker ke jalur layer group
+              endMarker.addTo(jalurLayerGroup);
+
+              // Marker sudah menjadi bagian dari jalur layer, tidak perlu dikelola secara terpisah
+            }
+          }
+        });
+
+        // Gunakan jalurLayerGroup sebagai jalurLayer
+        const jalurLayer = jalurLayerGroup;
+        // Set z-index agar jalur berada di atas bangunan
+        (jalurLayer as any).setZIndex(150);
+
+        // Simpan jalur layer ke ref tanpa menambahkan ke map
+        jalurLayerRef.current = jalurLayer;
+        console.log("Jalur layer created and saved to ref");
+
+        // Tambahkan jalur layer ke map dengan delay untuk render terakhir
+        setTimeout(() => {
+          if (jalurLayerVisible) {
+            jalurLayer.addTo(map);
+            console.log("Jalur layer added to map");
+          }
+        }, 200);
+      }
+    }, [jalurFeatures, jalurLayerVisible, isDashboard]);
+
+    useEffect(() => {
+      if (!leafletMapRef.current || !isDashboard) return;
+
+      const map = leafletMapRef.current;
+
+      // Buat layer titik jika belum ada dan data tersedia
+      if (titikFeatures.length > 0 && !titikLayerRef.current) {
+        const titikLayer = L.geoJSON(titikFeatures as any, {
+          pointToLayer: (feature, latlng) => {
+            return L.circleMarker(latlng, {
+              radius: 6,
+              fillColor: "#ef4444",
+              color: "#dc2626",
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.8,
+            });
+          },
+          pane: "overlayPane",
+        });
+        // Set z-index agar titik berada di atas jalur
+        (titikLayer as any).setZIndex(200);
+
+        // Simpan titik layer ke ref tanpa menambahkan ke map
+        titikLayerRef.current = titikLayer;
+        console.log("Titik layer created and saved to ref");
+
+        // Tambahkan titik layer ke map dengan delay untuk render terakhir
+        setTimeout(() => {
+          if (titikLayerVisible) {
+            titikLayer.addTo(map);
+            console.log("Titik layer added to map");
+          }
+        }, 300);
+      }
+    }, [titikFeatures, titikLayerVisible, isDashboard]);
+
+    // Update visibility bangunan layer menggunakan ref
+    useEffect(() => {
+      if (!leafletMapRef.current || !isDashboard) return;
+
+      const map = leafletMapRef.current;
+
+      // Update visibility bangunan layer menggunakan ref
+      if (bangunanLayerRef.current) {
+        if (bangunanLayerVisible) {
+          if (!map.hasLayer(bangunanLayerRef.current)) {
+            map.addLayer(bangunanLayerRef.current);
+          }
+        } else {
+          if (map.hasLayer(bangunanLayerRef.current)) {
+            map.removeLayer(bangunanLayerRef.current);
+          }
+        }
+      }
+    }, [bangunanLayerVisible, isDashboard]);
+
     // Kirim data nama gedung & jumlah lantai ke iframe saat modal building-detail dibuka
     useEffect(() => {
       if (showBuildingDetailCanvas && selectedFeature) {
@@ -861,8 +1064,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         },
       });
+      // Set z-index agar bangunan berada di bawah jalur dan titik
+      (bangunanLayer as any).setZIndex(50);
       bangunanLayer.addTo(map);
       bangunanLayerRef.current = bangunanLayer;
+
+      // Pastikan bangunan layer berada di bawah semua layer lain
+      map.on("layeradd", (e: any) => {
+        if (e.layer === bangunanLayer) {
+          // Bangunan harus selalu di bawah
+          (e.layer as any).setZIndex(50);
+        }
+      });
 
       // Cleanup
       return () => {
@@ -903,7 +1116,36 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Add event listeners for drawing events
         map.on("pm:create", (e: any) => {
           console.log("Shape created:", e);
-          // You can handle the created shape here
+          // Setelah selesai menggambar, nonaktifkan mode gambar tapi jangan tutup sidebar
+          try {
+            if ((map as any).pm?.disableDraw) {
+              (map as any).pm.disableDraw();
+            }
+          } catch {}
+          // Hanya reset drawing mode, tapi jangan tutup sidebar
+          setDrawingMode(null);
+          // Jangan set isDrawingEnabled ke false agar sidebar tetap terbuka
+        });
+
+        // Event listener untuk polyline drawing - batasi hanya 1 garis lurus
+        map.on("pm:drawstart", (e: any) => {
+          console.log("Drawing started:", e);
+          // Untuk polyline, kita akan handle di pm:drawend
+        });
+
+        map.on("pm:drawend", (e: any) => {
+          console.log("Drawing ended:", e);
+          // Jika ini adalah polyline, nonaktifkan drawing mode setelah selesai
+          if (e.shape === "Line" || e.shape === "Polyline") {
+            try {
+              if ((map as any).pm?.disableDraw) {
+                (map as any).pm.disableDraw();
+              }
+            } catch {}
+            // Reset drawing mode untuk polyline
+            setDrawingMode(null);
+            console.log("Polyline drawing completed - drawing mode disabled");
+          }
         });
 
         map.on("pm:edit", (e: any) => {
@@ -986,12 +1228,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (map && (map as any).pm) {
           // Remove event listeners
           map.off("pm:create");
+          map.off("pm:drawstart");
+          map.off("pm:drawend");
           map.off("pm:edit");
           map.off("pm:remove");
           map.off("pm:cut");
           map.off("pm:rotate");
           map.off("pm:scale");
           map.off("click");
+
+          // Cleanup circle marker mode if exists
+          if ((map as any)._circleMarkerCleanup) {
+            (map as any)._circleMarkerCleanup();
+            delete (map as any)._circleMarkerCleanup;
+          }
 
           // Cleanup Geoman.js - only use methods that exist
           if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
@@ -1027,6 +1277,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         (map as any).pm.disableCircleDraw();
       }
 
+      // Cleanup circle marker mode if exists
+      if ((map as any)._circleMarkerCleanup) {
+        (map as any)._circleMarkerCleanup();
+        delete (map as any)._circleMarkerCleanup;
+      }
+
       // Enable the selected mode
       if (drawingMode) {
         switch (drawingMode) {
@@ -1051,43 +1307,83 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
             break;
           case "polyline":
-            // Try to enable polyline drawing
+            // Enable polyline drawing dengan mode 1 garis lurus saja
             try {
               if ((map as any).pm.enableDraw) {
-                (map as any).pm.enableDraw("Line");
+                // Gunakan mode Line yang hanya memerlukan 2 titik
+                (map as any).pm.enableDraw("Line", {
+                  // Konfigurasi untuk polyline 1 garis lurus
+                  continueDrawing: false, // Tidak bisa lanjut drawing
+                  finishOn: "click", // Selesai saat klik kedua
+                  maxPoints: 2, // Maksimal hanya 2 titik
+                });
               } else if ((map as any).pm.enableLineDraw) {
-                (map as any).pm.enableLineDraw();
+                (map as any).pm.enableLineDraw({
+                  continueDrawing: false,
+                  finishOn: "click",
+                  maxPoints: 2,
+                });
               } else if ((map as any).pm.setGlobalOptions) {
                 (map as any).pm.setGlobalOptions({
                   mode: "draw",
                   shape: "Line",
+                  continueDrawing: false,
+                  finishOn: "click",
+                  maxPoints: 2,
                 });
               } else {
                 // Last resort: try to enable any drawing mode
                 (map as any).pm.enableDraw();
               }
+              console.log(
+                "Polyline drawing mode activated - click 2 points to create a straight line"
+              );
             } catch (error) {
               console.log("Polyline drawing not available:", error);
             }
             break;
           case "circle":
-            // Try to enable circle drawing
+            // Enable circle marker drawing (multiple markers until tool is clicked again)
             try {
-              if ((map as any).pm.enableDraw) {
-                (map as any).pm.enableDraw("Circle");
-              } else if ((map as any).pm.enableCircleDraw) {
-                (map as any).pm.enableCircleDraw();
-              } else if ((map as any).pm.setGlobalOptions) {
-                (map as any).pm.setGlobalOptions({
-                  mode: "draw",
-                  shape: "Circle",
-                });
-              } else {
-                // Last resort: try to enable any drawing mode
-                (map as any).pm.enableDraw();
+              // Disable any existing drawing mode first
+              if ((map as any).pm.disableDraw) {
+                (map as any).pm.disableDraw();
               }
+
+              // Set up click handler untuk circle marker
+              const handleCircleMarkerClick = (e: any) => {
+                const { lat, lng } = e.latlng;
+
+                // Create circle marker
+                const circleMarker = L.circleMarker([lat, lng], {
+                  radius: 8,
+                  fillColor: "#3b82f6",
+                  color: "#1e40af",
+                  weight: 2,
+                  opacity: 1,
+                  fillOpacity: 0.8,
+                }).addTo(map);
+
+                // Add to map
+                console.log("Circle marker created at:", lat, lng);
+
+                // Jangan reset drawing mode, biarkan user bisa tambah marker lagi
+                // Drawing mode hanya akan reset ketika user klik tombol marker lagi
+              };
+
+              // Add click event listener
+              map.on("click", handleCircleMarkerClick);
+
+              // Store cleanup function
+              (map as any)._circleMarkerCleanup = () => {
+                map.off("click", handleCircleMarkerClick);
+              };
+
+              console.log(
+                "Circle marker mode activated - click on map to place markers, click tool again to finish"
+              );
             } catch (error) {
-              console.log("Circle drawing not available:", error);
+              console.log("Circle marker mode not available:", error);
             }
             break;
           case "edit":
@@ -1869,6 +2165,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Toggle layer
     const handleToggleLayer = () => {
       setLayerVisible((v) => !v);
+    };
+
+    // Toggle layer jalur dan titik untuk dashboard admin
+    const toggleJalurLayer = (show: boolean) => {
+      setJalurLayerVisible(show);
+      // Layer visibility akan dihandle oleh useEffect yang mengawasi jalurLayerVisible
+    };
+
+    const toggleTitikLayer = (show: boolean) => {
+      setTitikLayerVisible(show);
+      // Layer visibility akan dihandle oleh useEffect yang mengawasi titikLayerVisible
+    };
+
+    const toggleBangunanLayer = (show: boolean) => {
+      setBangunanLayerVisible(show);
+      // Layer visibility akan dihandle oleh useEffect yang mengawasi bangunanLayerVisible
     };
 
     // Drawing tool handlers
@@ -3401,6 +3713,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
+      // Layer visibility control functions
+      toggleJalurLayer,
+      toggleTitikLayer,
+      toggleBangunanLayer,
+
       highlightFeature: (
         featureType: string,
         featureId: number,
@@ -5393,6 +5710,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           onLocateMe={handleLocateMe}
           onToggleLayer={handleToggleLayer}
           onToggleBasemap={handleToggleBasemap}
+          jalurVisible={jalurLayerVisible}
+          titikVisible={titikLayerVisible}
+          bangunanVisible={bangunanLayerVisible}
+          onToggleJalur={toggleJalurLayer}
+          onToggleTitik={toggleTitikLayer}
+          onToggleBangunan={toggleBangunanLayer}
           searchText={searchText}
           onSearchTextChange={(value) => {
             setSearchText(value);
@@ -6104,6 +6427,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           isDark={!!isDark}
           isDashboard={isDashboard}
           onDrawingModeChange={handleDrawingModeChange}
+          externalActiveMode={drawingMode}
         />
         {showBuildingDetailCanvas && (
           <div
