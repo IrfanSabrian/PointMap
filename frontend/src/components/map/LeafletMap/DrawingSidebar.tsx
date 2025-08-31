@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faDrawPolygon,
@@ -28,6 +28,107 @@ export default function DrawingSidebar({
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Function to disable marker dragging and vertex addition
+  const disableMarkerInteractions = () => {
+    // Find only middle marker elements (not end markers)
+    const middleMarkers = document.querySelectorAll(
+      ".leaflet-marker-icon.marker-icon.marker-icon-middle"
+    );
+
+    middleMarkers.forEach((marker) => {
+      // Remove draggable attribute
+      marker.removeAttribute("draggable");
+
+      // Remove tabindex to prevent focus
+      marker.removeAttribute("tabindex");
+
+      // Remove role
+      marker.removeAttribute("role");
+
+      // Add event listeners to prevent drag
+      marker.addEventListener(
+        "mousedown",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        },
+        { passive: false }
+      );
+
+      marker.addEventListener(
+        "dragstart",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        },
+        { passive: false }
+      );
+
+      marker.addEventListener(
+        "touchstart",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        },
+        { passive: false }
+      );
+
+      // Prevent any click events that might add vertices
+      marker.addEventListener(
+        "click",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        },
+        { passive: false }
+      );
+
+      marker.addEventListener(
+        "dblclick",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        },
+        { passive: false }
+      );
+
+      // Add CSS to make it non-interactive and hide it completely
+      (marker as HTMLElement).style.pointerEvents = "none";
+      (marker as HTMLElement).style.userSelect = "none";
+      (marker as HTMLElement).style.cursor = "default";
+      (marker as HTMLElement).style.display = "none";
+      (marker as HTMLElement).style.visibility = "hidden";
+      (marker as HTMLElement).style.opacity = "0";
+      (marker as HTMLElement).style.width = "0";
+      (marker as HTMLElement).style.height = "0";
+      (marker as HTMLElement).style.overflow = "hidden";
+    });
+  };
+
+  // Run the disable function periodically to catch new markers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      disableMarkerInteractions();
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Also run when drawing mode changes
+  useEffect(() => {
+    if (activeMode) {
+      // Small delay to ensure markers are rendered
+      setTimeout(() => {
+        disableMarkerInteractions();
+      }, 200);
+    }
+  }, [activeMode]);
 
   // Sinkronkan state aktif dengan state eksternal dari map
   React.useEffect(() => {
@@ -267,10 +368,10 @@ export default function DrawingSidebar({
                       ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
                       : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
                   }`}
-                  title="Scale Layers"
+                  title="Rotate Layers"
                 >
                   <FontAwesomeIcon icon={faRuler} className="w-5 h-5" />
-                  <span className="text-xs font-medium">Scale</span>
+                  <span className="text-xs font-medium">Rotate</span>
                 </button>
               </div>
             </div>
@@ -307,7 +408,22 @@ export default function DrawingSidebar({
                   untuk selesai
                 </li>
                 <li>• Setelah selesai, pilih tool lain atau tutup sidebar</li>
-                <li>• Edit: klik layer untuk mengedit</li>
+                <li>
+                  • Edit: klik tombol edit → klik layer untuk resize
+                  polygon/polyline
+                </li>
+                <li>
+                  • Scale: klik tombol rotate → klik layer untuk memutar
+                  polygon/polyline
+                </li>
+                <li>
+                  • Drag: klik tombol drag → klik layer untuk menggeser
+                  polygon/polyline
+                </li>
+                <li>
+                  • Remove: klik tombol remove → klik layer untuk menghapus
+                  (akan ada konfirmasi)
+                </li>
               </ul>
             </div>
           )}

@@ -1175,9 +1175,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Add click event listener for layers when in edit mode
         map.on("click", (e: any) => {
-          // Jika drawing mode aktif, blok semua event click pada map
-          if (isDrawingEnabledRef.current) {
-            // Stop propagation untuk mencegah event click pada layer lain
+          // Hanya blok jika sedang dalam mode draw (menggambar shape baru)
+          if (
+            isDrawingEnabledRef.current &&
+            drawingModeRef.current === "draw"
+          ) {
             if (
               e.originalEvent &&
               typeof e.originalEvent.stopPropagation === "function"
@@ -1187,38 +1189,1063 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             return;
           }
 
+          console.log("🔍 Click detected, mode:", drawingModeRef.current);
+
+          // Debug: Check all layers for pm.enable method
+          console.log("🔍 Checking all layers for pm.enable method...");
+          let layersWithPmEnable = 0;
+          map.eachLayer((layer: any) => {
+            if (
+              layer &&
+              (layer as any).pm &&
+              typeof (layer as any).pm.enable === "function"
+            ) {
+              layersWithPmEnable++;
+              console.log("✅ Layer with pm.enable:", layer.constructor.name);
+            }
+          });
+          console.log(`🔍 Total layers with pm.enable: ${layersWithPmEnable}`);
+
           if (drawingModeRef.current === "edit") {
-            // Check if we clicked on a layer
-            const clickedLayer = e.target;
-            if (clickedLayer && (clickedLayer as any).pm) {
-              // Enable edit mode for this specific layer
+            const clickedLayer = e.target || e.layer || e.sourceTarget;
+            console.log(
+              "📝 Edit mode - clickedLayer:",
+              clickedLayer?.constructor?.name
+            );
+            console.log(
+              "🔍 Clicked layer type:",
+              clickedLayer?.constructor?.name
+            );
+            console.log(
+              "🔍 Has getBounds method:",
+              typeof clickedLayer?.getBounds === "function"
+            );
+            console.log(
+              "🔍 Has getLatLngs method:",
+              typeof clickedLayer?.getLatLngs === "function"
+            );
+            console.log("🔍 PM object:", (clickedLayer as any)?.pm);
+            console.log(
+              "🔍 PM enable method:",
+              typeof (clickedLayer as any)?.pm?.enable
+            );
+            console.log(
+              "🔍 PM object keys:",
+              clickedLayer?.pm
+                ? Object.keys((clickedLayer as any).pm)
+                : "No pm object"
+            );
+
+            if (
+              clickedLayer &&
+              (clickedLayer as any).pm &&
+              typeof (clickedLayer as any).pm.enable === "function"
+            ) {
               try {
-                if ((clickedLayer as any).pm.enable) {
-                  (clickedLayer as any).pm.enable({ mode: "edit" });
-                  console.log("Edit mode enabled for clicked layer");
-                }
+                (clickedLayer as any).pm.enable({
+                  mode: "edit",
+                  allowEditing: false,
+                  allowScaling: true,
+                });
+                console.log("✅ Edit mode enabled for layer");
               } catch (error) {
-                console.log("Could not enable edit mode for layer:", error);
+                console.log("❌ Error enabling edit mode:", error);
               }
+            } else {
+              console.log(
+                "⚠️ Layer doesn't have valid pm.enable method, trying fallback..."
+              );
+              // Fallback: find layer by click point
+              const clickPoint = map.containerPointToLatLng(e.containerPoint);
+              console.log(
+                "📍 Click point:",
+                clickPoint.lat.toFixed(4),
+                clickPoint.lng.toFixed(4)
+              );
+
+              // Look for individual shapes, not layer groups
+              map.eachLayer((layer: any) => {
+                // Skip if it's a layer group (has _layers array)
+                if (layer && (layer as any)._layers) {
+                  console.log(
+                    "🔍 Skipping layer group:",
+                    layer.constructor.name
+                  );
+                  return;
+                }
+
+                // Check if it's an individual shape with pm support
+                if (
+                  layer &&
+                  (layer as any).pm &&
+                  typeof (layer as any).pm.enable === "function" &&
+                  layer.getBounds &&
+                  !(layer as any)._layers // Ensure it's not a group
+                ) {
+                  try {
+                    const bounds = layer.getBounds();
+                    if (bounds.contains(clickPoint)) {
+                      console.log(
+                        "🎯 Found individual shape at click point:",
+                        layer.constructor.name
+                      );
+                      console.log("🔍 Shape PM object:", (layer as any).pm);
+                      console.log(
+                        "🔍 Shape PM enable method:",
+                        typeof (layer as any).pm.enable
+                      );
+
+                      console.log("🔍 Trying to enable edit mode...");
+
+                      // First, disable ALL other layers to ensure single selection
+                      map.eachLayer((otherLayer: any) => {
+                        if (
+                          otherLayer !== layer &&
+                          otherLayer.pm &&
+                          otherLayer.pm.disable
+                        ) {
+                          try {
+                            otherLayer.pm.disable();
+                            console.log(
+                              "🔒 Disabled other layer:",
+                              otherLayer.constructor.name
+                            );
+                          } catch (error) {
+                            console.log(
+                              "⚠️ Could not disable other layer:",
+                              error
+                            );
+                          }
+                        }
+                      });
+
+                      // Check if this is a real Leaflet-Geoman layer
+                      const pmObject = (layer as any).pm;
+                      const availableMethods = Object.getOwnPropertyNames(
+                        pmObject
+                      ).filter((name) => typeof pmObject[name] === "function");
+
+                      console.log("🔍 Available PM methods:", availableMethods);
+                      console.log(
+                        "🔍 PM object type:",
+                        pmObject.constructor.name
+                      );
+                      console.log("🔍 Layer type:", layer.constructor.name);
+                      console.log(
+                        "🔍 Layer instanceof L.Path:",
+                        layer instanceof (L as any).Path
+                      );
+                      console.log(
+                        "🔍 Layer instanceof L.Polygon:",
+                        layer instanceof (L as any).Polygon
+                      );
+                      console.log(
+                        "🔍 Layer instanceof L.Polyline:",
+                        layer instanceof (L as any).Polyline
+                      );
+
+                      // Check if this is a real Leaflet shape
+                      if (
+                        layer instanceof (L as any).Path ||
+                        layer instanceof (L as any).Polygon ||
+                        layer instanceof (L as any).Polyline ||
+                        layer instanceof (L as any).Circle ||
+                        layer instanceof (L as any).Rectangle
+                      ) {
+                        // Check if this is a Geoman-created layer (not from GeoJSON)
+                        const isGeomanLayer =
+                          (layer as any)._pm &&
+                          (layer as any)._pm._enabled !== undefined;
+                        const isFromGeoJSON =
+                          (layer as any).feature &&
+                          (layer as any).feature.properties;
+
+                        console.log("🔍 Is Geoman layer:", isGeomanLayer);
+                        console.log("🔍 Is from GeoJSON:", isFromGeoJSON);
+
+                        if (isFromGeoJSON) {
+                          console.log(
+                            "❌ This is a GeoJSON layer, cannot be edited"
+                          );
+                          return;
+                        }
+
+                        console.log(
+                          "✅ This is a real Leaflet shape, trying to enable..."
+                        );
+
+                        // Log the specific shape type for better debugging
+                        if (layer instanceof (L as any).Polyline) {
+                          console.log(
+                            "📏 This is a POLYLINE - will restrict vertex addition"
+                          );
+                        } else if (layer instanceof (L as any).Polygon) {
+                          console.log(
+                            "🔷 This is a POLYGON - standard editing allowed"
+                          );
+                        } else if (layer instanceof (L as any).Circle) {
+                          console.log(
+                            "⭕ This is a CIRCLE - standard editing allowed"
+                          );
+                        } else if (layer instanceof (L as any).Rectangle) {
+                          console.log(
+                            "⬜ This is a RECTANGLE - standard editing allowed"
+                          );
+                        } else {
+                          console.log(
+                            "📐 This is a generic PATH - standard editing allowed"
+                          );
+                        }
+
+                        try {
+                          // Method 1: Try pm.enable with options - ONLY EDIT MODE
+                          if (pmObject.enable) {
+                            pmObject.enable({
+                              mode: "edit",
+                              allowEditing: true,
+                              allowScaling: false, // Disable scaling in edit mode
+                              allowRotating: false, // Disable rotating in edit mode
+                              allowAddingVertices: false, // Disable adding new vertices
+                              allowRemovingVertices: false, // Disable removing vertices
+                              allowMovingVertices: true, // Allow moving existing vertices only
+                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers for vertex addition
+                            });
+                            console.log(
+                              "✅ Method 1: pm.enable with edit mode (no rotate/scale, no add/remove vertices)"
+                            );
+
+                            // For polyline, use simple approach with allowMiddleMarkers: false
+                            if (layer instanceof (L as any).Polyline) {
+                              console.log(
+                                "🔒 Adding simple polyline vertex protection..."
+                              );
+
+                              // Store original latlngs to prevent vertex addition
+                              const originalLatLngs = layer.getLatLngs();
+                              layer._originalLatLngs = originalLatLngs;
+                              layer._originalVertexCount =
+                                originalLatLngs.length;
+
+                              console.log(
+                                `💾 Stored original polyline with ${originalLatLngs.length} vertices`
+                              );
+
+                              // Simple interval to monitor vertex count
+                              const vertexProtectionInterval = setInterval(
+                                () => {
+                                  if (layer && layer._originalLatLngs) {
+                                    const currentLatLngs = layer.getLatLngs();
+
+                                    // Check if vertices were added
+                                    if (
+                                      currentLatLngs.length >
+                                      layer._originalLatLngs.length
+                                    ) {
+                                      console.log(
+                                        `🚫 VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`
+                                      );
+
+                                      // Restore original vertices
+                                      layer.setLatLngs(layer._originalLatLngs);
+                                      console.log(
+                                        "🔄 Polyline restored to original state"
+                                      );
+                                    }
+                                  }
+                                },
+                                100
+                              ); // Check every 100ms
+
+                              // Store the interval ID for cleanup
+                              layer._vertexProtectionInterval =
+                                vertexProtectionInterval;
+
+                              // Add cleanup when layer is removed or disabled
+                              layer.on("remove", () => {
+                                if (layer._vertexProtectionInterval) {
+                                  clearInterval(
+                                    layer._vertexProtectionInterval
+                                  );
+                                  console.log(
+                                    "🧹 Vertex protection interval cleaned up for polyline"
+                                  );
+                                }
+                              });
+
+                              layer.on("pm:disable", () => {
+                                if (layer._vertexProtectionInterval) {
+                                  clearInterval(
+                                    layer._vertexProtectionInterval
+                                  );
+                                  console.log(
+                                    "🧹 Vertex protection interval cleaned up when polyline disabled"
+                                  );
+                                }
+                              });
+
+                              console.log(
+                                "🔒 Simple polyline vertex protection activated!"
+                              );
+                            }
+                          }
+
+                          // Method 2: Try pm.enableEdit with specific options for polyline
+                          if (pmObject.enableEdit) {
+                            // Check if this is a polyline to apply specific restrictions
+                            if (layer instanceof (L as any).Polyline) {
+                              pmObject.enableEdit({
+                                allowAddingVertices: false, // Polyline cannot add new vertices
+                                allowRemovingVertices: false, // Polyline cannot remove vertices
+                                allowMovingVertices: true, // Polyline can only move existing vertices
+                                allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                              });
+                              console.log(
+                                "✅ Method 2: pm.enableEdit for polyline (no add/remove vertices)"
+                              );
+
+                              // Apply additional protection for polyline
+                              if (!layer._vertexProtectionInterval) {
+                                const originalLatLngs = layer.getLatLngs();
+                                layer._originalLatLngs = originalLatLngs;
+                                console.log(
+                                  `💾 Method 2: Stored original polyline with ${originalLatLngs.length} vertices`
+                                );
+
+                                const vertexProtectionInterval = setInterval(
+                                  () => {
+                                    if (layer && layer._originalLatLngs) {
+                                      const currentLatLngs = layer.getLatLngs();
+                                      if (
+                                        currentLatLngs.length >
+                                        layer._originalLatLngs.length
+                                      ) {
+                                        console.log(
+                                          `🚫 Method 2: VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`
+                                        );
+                                        layer.setLatLngs(
+                                          layer._originalLatLngs
+                                        );
+                                        console.log(
+                                          "🔄 Method 2: Polyline restored to original state"
+                                        );
+                                      }
+                                    }
+                                  },
+                                  50
+                                );
+
+                                layer._vertexProtectionInterval =
+                                  vertexProtectionInterval;
+                              }
+                            } else {
+                              pmObject.enableEdit();
+                              console.log(
+                                "✅ Method 2: pm.enableEdit for other shapes"
+                              );
+                            }
+                          }
+
+                          // Method 3: Try pm.enableScale (DISABLED for edit mode)
+                          // if (pmObject.enableScale) {
+                          //   pmObject.enableScale();
+                          //   console.log("✅ Method 3: pm.enableScale");
+                          // }
+
+                          // Method 4: Try pm.enableDrag (DISABLED for edit mode)
+                          // if (pmObject.enableDrag) {
+                          //   pmObject.enableDrag();
+                          //   console.log("✅ Method 4: pm.enableDrag");
+                          // }
+
+                          // Method 5: Try pm.enableRotate (DISABLED for edit mode)
+                          // if (pmObject.enableRotate) {
+                          //   pmObject.enableRotate();
+                          //   console.log("✅ Method 5: pm.enableRotate");
+                          // }
+
+                          // Method 6: Try pm.enable with string mode and specific options
+                          if (pmObject.enable) {
+                            // Check if this is a polyline to apply specific restrictions
+                            if (layer instanceof (L as any).Polyline) {
+                              pmObject.enable("edit", {
+                                allowAddingVertices: false, // Polyline cannot add new vertices
+                                allowRemovingVertices: false, // Polyline cannot remove vertices
+                                allowMovingVertices: true, // Polyline can only move existing vertices
+                                allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                              });
+                              console.log(
+                                "✅ Method 6: pm.enable('edit') for polyline (no add/remove vertices)"
+                              );
+
+                              // Apply additional protection for polyline
+                              if (!layer._vertexProtectionInterval) {
+                                const originalLatLngs = layer.getLatLngs();
+                                layer._originalLatLngs = originalLatLngs;
+                                console.log(
+                                  `💾 Method 6: Stored original polyline with ${originalLatLngs.length} vertices`
+                                );
+
+                                const vertexProtectionInterval = setInterval(
+                                  () => {
+                                    if (layer && layer._originalLatLngs) {
+                                      const currentLatLngs = layer.getLatLngs();
+                                      if (
+                                        currentLatLngs.length >
+                                        layer._originalLatLngs.length
+                                      ) {
+                                        console.log(
+                                          `🚫 Method 6: VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`
+                                        );
+                                        layer.setLatLngs(
+                                          layer._originalLatLngs
+                                        );
+                                        console.log(
+                                          "🔄 Method 6: Polyline restored to original state"
+                                        );
+                                      }
+                                    }
+                                  },
+                                  50
+                                );
+
+                                layer._vertexProtectionInterval =
+                                  vertexProtectionInterval;
+                              }
+                            } else {
+                              pmObject.enable("edit", {
+                                allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                              });
+                              console.log(
+                                "✅ Method 6: pm.enable('edit') for other shapes"
+                              );
+                            }
+                          }
+                        } catch (error) {
+                          console.log("❌ Error enabling edit mode:", error);
+                        }
+
+                        // Check if any method worked
+                        setTimeout(() => {
+                          console.log(
+                            "🔍 Checking if mode was actually enabled..."
+                          );
+                          console.log(
+                            "Layer PM enabled:",
+                            pmObject.enabled
+                              ? pmObject.enabled()
+                              : "No enabled method"
+                          );
+                          console.log(
+                            "Layer PM editing:",
+                            pmObject.editing
+                              ? pmObject.editing()
+                              : "No editing method"
+                          );
+                          console.log(
+                            "Layer PM scaling:",
+                            pmObject.scaling
+                              ? pmObject.scaling()
+                              : "No scaling method"
+                          );
+                          console.log(
+                            "Layer PM dragging:",
+                            pmObject.dragging
+                              ? pmObject.dragging()
+                              : "No dragging method"
+                          );
+                          console.log(
+                            "Layer PM rotating:",
+                            pmObject.rotating
+                              ? pmObject.rotating()
+                              : "No rotating method"
+                          );
+                        }, 100);
+                      } else {
+                        console.log(
+                          "❌ This is NOT a real Leaflet shape, cannot enable editing"
+                        );
+                      }
+
+                      console.log("✅ Edit mode enabled via fallback");
+                      return; // Stop after finding the first valid shape
+
+                      // Verify if mode was actually enabled
+                      setTimeout(() => {
+                        console.log(
+                          "🔍 Checking if mode was actually enabled..."
+                        );
+                        console.log(
+                          "Layer PM enabled:",
+                          (layer as any).pm.enabled()
+                        );
+                        // Check if vertices are visible
+                        console.log(
+                          "🔍 Layer element:",
+                          layer.getElement
+                            ? layer.getElement()
+                            : "No getElement method"
+                        );
+                        console.log(
+                          "🔍 Layer bounds:",
+                          layer.getBounds
+                            ? layer.getBounds()
+                            : "No getBounds method"
+                        );
+                      }, 100);
+                    }
+                  } catch (error) {
+                    console.log("❌ Error in fallback:", error);
+                  }
+                }
+              });
+            }
+          } else if (drawingModeRef.current === "scale") {
+            const clickedLayer = e.target || e.layer || e.sourceTarget;
+            console.log(
+              "🔄 Scale mode - clickedLayer:",
+              clickedLayer?.constructor?.name
+            );
+            console.log(
+              "🔍 Clicked layer type:",
+              clickedLayer?.constructor?.name
+            );
+            console.log(
+              "🔍 Has getBounds method:",
+              typeof clickedLayer?.getBounds === "function"
+            );
+            console.log(
+              "🔍 Has getLatLngs method:",
+              typeof clickedLayer?.getLatLngs === "function"
+            );
+
+            if (
+              clickedLayer &&
+              (clickedLayer as any).pm &&
+              typeof (clickedLayer as any).pm.enable === "function"
+            ) {
+              try {
+                (clickedLayer as any).pm.enable({ mode: "rotate" });
+                console.log("✅ Rotate mode enabled for layer");
+              } catch (error) {
+                console.log("❌ Error enabling rotate mode:", error);
+              }
+            } else {
+              console.log(
+                "⚠️ Layer doesn't have valid pm.enable method, trying fallback..."
+              );
+              // Fallback: find layer by click point
+              const clickPoint = map.containerPointToLatLng(e.containerPoint);
+              map.eachLayer((layer: any) => {
+                if (
+                  layer &&
+                  (layer as any).pm &&
+                  typeof (layer as any).pm.enable === "function" &&
+                  layer.getBounds
+                ) {
+                  try {
+                    const bounds = layer.getBounds();
+                    if (bounds.contains(clickPoint)) {
+                      console.log(
+                        "🎯 Found layer at click point:",
+                        layer.constructor.name
+                      );
+                      console.log(
+                        "🔍 Fallback layer PM object:",
+                        (layer as any).pm
+                      );
+                      console.log(
+                        "🔍 Fallback layer PM enable method:",
+                        typeof (layer as any).pm.enable
+                      );
+
+                      console.log("🔍 Trying to enable rotate mode...");
+
+                      // First, disable ALL other layers to ensure single selection
+                      map.eachLayer((otherLayer: any) => {
+                        if (
+                          otherLayer !== layer &&
+                          otherLayer.pm &&
+                          otherLayer.pm.disable
+                        ) {
+                          try {
+                            otherLayer.pm.disable();
+                            console.log(
+                              "🔒 Disabled other layer:",
+                              otherLayer.constructor.name
+                            );
+                          } catch (error) {
+                            console.log(
+                              "⚠️ Could not disable other layer:",
+                              error
+                            );
+                          }
+                        }
+                      });
+
+                      // Check if this is a real Leaflet-Geoman layer
+                      const pmObject = (layer as any).pm;
+                      const availableMethods = Object.getOwnPropertyNames(
+                        pmObject
+                      ).filter((name) => typeof pmObject[name] === "function");
+
+                      console.log("🔍 Available PM methods:", availableMethods);
+                      console.log(
+                        "🔍 PM object type:",
+                        pmObject.constructor.name
+                      );
+                      console.log("🔍 Layer type:", layer.constructor.name);
+                      console.log(
+                        "🔍 Layer instanceof L.Path:",
+                        layer instanceof (L as any).Path
+                      );
+
+                      // Check if this is a real Leaflet shape
+                      if (
+                        layer instanceof (L as any).Path ||
+                        layer instanceof (L as any).Polygon ||
+                        layer instanceof (L as any).Polyline ||
+                        layer instanceof (L as any).Circle ||
+                        layer instanceof (L as any).Rectangle
+                      ) {
+                        // Check if this is a Geoman-created layer (not from GeoJSON)
+                        const isGeomanLayer =
+                          (layer as any)._pm &&
+                          (layer as any)._pm._enabled !== undefined;
+                        const isFromGeoJSON =
+                          (layer as any).feature &&
+                          (layer as any).feature.properties;
+
+                        console.log("🔍 Is Geoman layer:", isGeomanLayer);
+                        console.log("🔍 Is from GeoJSON:", isFromGeoJSON);
+
+                        if (isFromGeoJSON) {
+                          console.log(
+                            "❌ This is a GeoJSON layer, cannot be rotated"
+                          );
+                          return;
+                        }
+
+                        console.log(
+                          "✅ This is a real Leaflet shape, trying to enable rotate..."
+                        );
+
+                        try {
+                          // Method 1: Try pm.enable with options - ONLY ROTATE MODE
+                          if (pmObject.enable) {
+                            pmObject.enable({
+                              mode: "rotate",
+                              allowEditing: false, // Disable editing in rotate mode
+                              allowScaling: false, // Disable scaling in rotate mode
+                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                            });
+                            console.log(
+                              "✅ Method 1: pm.enable with rotate mode (no edit/scale)"
+                            );
+                          }
+
+                          // Method 2: Try pm.enableRotate
+                          if (pmObject.enableRotate) {
+                            pmObject.enableRotate();
+                            console.log("✅ Method 2: pm.enableRotate");
+                          }
+
+                          // Method 3: Try pm.enable with string mode
+                          if (pmObject.enable) {
+                            pmObject.enable("rotate", {
+                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                            });
+                            console.log("✅ Method 3: pm.enable('rotate')");
+                          }
+                        } catch (error) {
+                          console.log("❌ Error enabling rotate mode:", error);
+                        }
+
+                        // Check if any method worked
+                        setTimeout(() => {
+                          console.log(
+                            "🔍 Checking if rotate mode was actually enabled..."
+                          );
+                          console.log(
+                            "Layer PM enabled:",
+                            pmObject.enabled
+                              ? pmObject.enabled()
+                              : "No enabled method"
+                          );
+                          console.log(
+                            "Layer PM rotating:",
+                            pmObject.rotating
+                              ? pmObject.rotating()
+                              : "No rotating method"
+                          );
+                        }, 100);
+                      } else {
+                        console.log(
+                          "❌ This is NOT a real Leaflet shape, cannot enable rotating"
+                        );
+                      }
+
+                      console.log("✅ Rotate mode enabled via fallback");
+                      return; // Stop after finding the first valid shape
+
+                      // Verify if mode was actually enabled
+                      setTimeout(() => {
+                        console.log(
+                          "🔍 Checking if rotate mode was actually enabled..."
+                        );
+                        console.log(
+                          "Layer PM enabled:",
+                          (layer as any).pm.enabled()
+                        );
+                        // Check if vertices are visible
+                        console.log(
+                          "🔍 Layer element:",
+                          layer.getElement
+                            ? layer.getElement()
+                            : "No getElement method"
+                        );
+                        console.log(
+                          "🔍 Layer bounds:",
+                          layer.getBounds
+                            ? layer.getBounds()
+                            : "No getBounds method"
+                        );
+                      }, 100);
+                    }
+                  } catch (error) {
+                    console.log("❌ Error in fallback:", error);
+                  }
+                }
+              });
+            }
+          } else if (drawingModeRef.current === "drag") {
+            const clickedLayer = e.target || e.layer || e.sourceTarget;
+            console.log(
+              "🚚 Drag mode - clickedLayer:",
+              clickedLayer?.constructor?.name
+            );
+            console.log(
+              "🔍 Clicked layer type:",
+              clickedLayer?.constructor?.name
+            );
+            console.log(
+              "🔍 Has getBounds method:",
+              typeof clickedLayer?.getBounds === "function"
+            );
+            console.log(
+              "🔍 Has getLatLngs method:",
+              typeof clickedLayer?.getLatLngs === "function"
+            );
+            console.log("🔍 PM object:", (clickedLayer as any)?.pm);
+            console.log(
+              "🔍 PM enable method:",
+              typeof (clickedLayer as any)?.pm?.enable
+            );
+
+            if (
+              clickedLayer &&
+              (clickedLayer as any).pm &&
+              typeof (clickedLayer as any).pm.enable === "function"
+            ) {
+              try {
+                (clickedLayer as any).pm.enable({ mode: "drag" });
+                console.log("✅ Drag mode enabled for layer");
+              } catch (error) {
+                console.log("❌ Error enabling drag mode:", error);
+              }
+            } else {
+              console.log(
+                "⚠️ Layer doesn't have valid pm.enable method, trying fallback..."
+              );
+              // Fallback: find layer by click point
+              const clickPoint = map.containerPointToLatLng(e.containerPoint);
+              map.eachLayer((layer: any) => {
+                if (
+                  layer &&
+                  (layer as any).pm &&
+                  typeof (layer as any).pm.enable === "function" &&
+                  layer.getBounds
+                ) {
+                  try {
+                    const bounds = layer.getBounds();
+                    if (bounds.contains(clickPoint)) {
+                      console.log(
+                        "🎯 Found layer at click point:",
+                        layer.constructor.name
+                      );
+                      console.log(
+                        "🔍 Fallback layer PM object:",
+                        (layer as any).pm
+                      );
+                      console.log(
+                        "🔍 Fallback layer PM enable method:",
+                        typeof (layer as any).pm.enable
+                      );
+
+                      console.log("🔍 Trying to enable drag mode...");
+
+                      // First, disable ALL other layers to ensure single selection
+                      map.eachLayer((otherLayer: any) => {
+                        if (
+                          otherLayer !== layer &&
+                          otherLayer.pm &&
+                          otherLayer.pm.disable
+                        ) {
+                          try {
+                            otherLayer.pm.disable();
+                            console.log(
+                              "🔒 Disabled other layer:",
+                              otherLayer.constructor.name
+                            );
+                          } catch (error) {
+                            console.log(
+                              "⚠️ Could not disable other layer:",
+                              error
+                            );
+                          }
+                        }
+                      });
+
+                      // Check if this is a real Leaflet-Geoman layer
+                      const pmObject = (layer as any).pm;
+                      const availableMethods = Object.getOwnPropertyNames(
+                        pmObject
+                      ).filter((name) => typeof pmObject[name] === "function");
+
+                      console.log("🔍 Available PM methods:", availableMethods);
+                      console.log(
+                        "🔍 PM object type:",
+                        pmObject.constructor.name
+                      );
+                      console.log("🔍 Layer type:", layer.constructor.name);
+                      console.log(
+                        "🔍 Layer instanceof L.Path:",
+                        layer instanceof (L as any).Path
+                      );
+
+                      // Check if this is a real Leaflet shape
+                      if (
+                        layer instanceof (L as any).Path ||
+                        layer instanceof (L as any).Polygon ||
+                        layer instanceof (L as any).Polyline ||
+                        layer instanceof (L as any).Circle ||
+                        layer instanceof (L as any).Rectangle
+                      ) {
+                        // Check if this is a Geoman-created layer (not from GeoJSON)
+                        const isGeomanLayer =
+                          (layer as any)._pm &&
+                          (layer as any)._pm._enabled !== undefined;
+                        const isFromGeoJSON =
+                          (layer as any).feature &&
+                          (layer as any).feature.properties;
+
+                        console.log("🔍 Is Geoman layer:", isGeomanLayer);
+                        console.log("🔍 Is from GeoJSON:", isFromGeoJSON);
+
+                        if (isFromGeoJSON) {
+                          console.log(
+                            "❌ This is a GeoJSON layer, cannot be dragged"
+                          );
+                          return;
+                        }
+
+                        console.log(
+                          "✅ This is a real Leaflet shape, trying to enable drag..."
+                        );
+
+                        try {
+                          // Method 1: Try pm.enable with options - ONLY DRAG MODE
+                          if (pmObject.enable) {
+                            pmObject.enable({
+                              mode: "drag",
+                              allowEditing: false, // Disable editing in drag mode
+                              allowScaling: false, // Disable scaling in drag mode
+                              allowRotating: false, // Disable rotating in drag mode
+                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                            });
+                            console.log(
+                              "✅ Method 1: pm.enable with drag mode (no edit/scale/rotate)"
+                            );
+                          }
+
+                          // Method 2: Try pm.enableDrag
+                          if (pmObject.enableDrag) {
+                            pmObject.enableDrag();
+                            console.log("✅ Method 2: pm.enableDrag");
+                          }
+
+                          // Method 3: Try pm.enable with string mode
+                          if (pmObject.enable) {
+                            pmObject.enable("drag", {
+                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
+                            });
+                            console.log("✅ Method 3: pm.enable('drag')");
+                          }
+                        } catch (error) {
+                          console.log("❌ Error enabling drag mode:", error);
+                        }
+
+                        // Check if any method worked
+                        setTimeout(() => {
+                          console.log(
+                            "🔍 Checking if drag mode was actually enabled..."
+                          );
+                          console.log(
+                            "Layer PM enabled:",
+                            pmObject.enabled
+                              ? pmObject.enabled()
+                              : "No enabled method"
+                          );
+                          console.log(
+                            "Layer PM dragging:",
+                            pmObject.dragging
+                              ? pmObject.dragging()
+                              : "No dragging method"
+                          );
+                        }, 100);
+                      } else {
+                        console.log(
+                          "❌ This is NOT a real Leaflet shape, cannot enable dragging"
+                        );
+                      }
+
+                      console.log("✅ Drag mode enabled via fallback");
+                      return; // Stop after finding the first valid shape
+
+                      // Verify if mode was actually enabled
+                      setTimeout(() => {
+                        console.log(
+                          "🔍 Checking if drag mode was actually enabled..."
+                        );
+                        console.log(
+                          "Layer PM enabled:",
+                          (layer as any).pm.enabled()
+                        );
+                        // Check if vertices are visible
+                        console.log(
+                          "🔍 Layer element:",
+                          layer.getElement
+                            ? layer.getElement()
+                            : "No getElement method"
+                        );
+                        console.log(
+                          "🔍 Layer bounds:",
+                          layer.getBounds
+                            ? layer.getBounds()
+                            : "No getBounds method"
+                        );
+                      }, 100);
+                    }
+                  } catch (error) {
+                    console.log("❌ Error in fallback:", error);
+                  }
+                }
+              });
+            }
+          } else if (drawingModeRef.current === "remove") {
+            const clickedLayer = e.target || e.layer || e.sourceTarget;
+            console.log(
+              "🗑️ Remove mode - clickedLayer:",
+              clickedLayer?.constructor?.name
+            );
+
+            if (clickedLayer && (clickedLayer as any).pm) {
+              showConfirmation(
+                "Konfirmasi Hapus",
+                "Apakah yakin ingin menghapus layer ini?",
+                () => {
+                  try {
+                    if ((clickedLayer as any).pm.remove) {
+                      (clickedLayer as any).pm.remove();
+                      console.log("✅ Layer removed successfully");
+                    } else if ((clickedLayer as any).remove) {
+                      clickedLayer.remove();
+                      console.log("✅ Layer removed using fallback");
+                    }
+                  } catch (error) {
+                    console.log("❌ Error removing layer:", error);
+                  }
+                }
+              );
+            } else {
+              console.log("❌ No layer clicked for removal");
             }
           }
         });
 
-        // Add event listener for when edit mode is finished
+        // Use pm:click event for better layer detection
+        map.on("pm:click", (e: any) => {
+          console.log("🎯 PM click event - mode:", drawingModeRef.current);
+
+          if (drawingModeRef.current === "edit") {
+            try {
+              (e.target as any).pm.enable({
+                mode: "edit",
+                allowEditing: false,
+                allowScaling: true,
+              });
+              console.log("✅ Edit mode enabled via PM click");
+            } catch (error) {
+              console.log("❌ Error in PM click edit:", error);
+            }
+          } else if (drawingModeRef.current === "scale") {
+            try {
+              (e.target as any).pm.enable({ mode: "rotate" });
+              console.log("✅ Rotate mode enabled via PM click");
+            } catch (error) {
+              console.log("❌ Error in PM click rotate:", error);
+            }
+          } else if (drawingModeRef.current === "drag") {
+            try {
+              (e.target as any).pm.enable({ mode: "drag" });
+              console.log("✅ Drag mode enabled via PM click");
+            } catch (error) {
+              console.log("❌ Error in PM click drag:", error);
+            }
+          }
+        });
+
+        // Monitor layer additions
+        map.on("layeradd", (e: any) => {
+          if (e.layer && (e.layer as any).pm) {
+            console.log(
+              "➕ New layer added with pm:",
+              e.layer.constructor.name
+            );
+          }
+        });
+
+        // Removed individual layer click handlers to avoid conflicts
+
+        // Auto-disable modes after operations complete
         map.on("pm:edit", (e: any) => {
           if (drawingModeRef.current === "edit") {
-            // Disable edit mode for the layer after editing is done
             try {
-              if (
-                e.target &&
-                (e.target as any).pm &&
-                (e.target as any).pm.disable
-              ) {
-                (e.target as any).pm.disable();
-                console.log("Edit mode disabled for layer after editing");
-              }
+              (e.target as any).pm.disable();
+              console.log("🔄 Edit mode auto-disabled");
             } catch (error) {
-              console.log("Could not disable edit mode for layer:", error);
+              console.log("❌ Error disabling edit mode:", error);
+            }
+          }
+        });
+
+        map.on("pm:rotate", (e: any) => {
+          if (drawingModeRef.current === "scale") {
+            try {
+              (e.target as any).pm.disable();
+              console.log("🔄 Rotate mode auto-disabled");
+            } catch (error) {
+              console.log("❌ Error disabling rotate mode:", error);
+            }
+          }
+        });
+
+        map.on("pm:drag", (e: any) => {
+          if (drawingModeRef.current === "drag") {
+            try {
+              (e.target as any).pm.disable();
+              console.log("🔄 Drag mode auto-disabled");
+            } catch (error) {
+              console.log("❌ Error disabling drag mode:", error);
             }
           }
         });
@@ -1235,7 +2262,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           map.off("pm:cut");
           map.off("pm:rotate");
           map.off("pm:scale");
+          map.off("pm:drag");
           map.off("click");
+          map.off("pm:click");
+          map.off("layeradd");
+
+          // Remove click events from individual layers
+          map.eachLayer((layer: any) => {
+            if (layer && (layer as any).pm) {
+              try {
+                layer.off("click");
+              } catch (error) {
+                console.log("Error removing click event from layer:", error);
+              }
+            }
+          });
 
           // Cleanup circle marker mode if exists
           if ((map as any)._circleMarkerCleanup) {
@@ -1244,12 +2285,33 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
 
           // Cleanup Geoman.js - only use methods that exist
-          if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
-          if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
-          if (map.pm.disableGlobalRemovalMode)
-            map.pm.disableGlobalRemovalMode();
-          if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
-          if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+          try {
+            if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+          } catch (error) {
+            console.log("Could not disable global edit mode:", error);
+          }
+          try {
+            if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+          } catch (error) {
+            console.log("Could not disable global drag mode:", error);
+          }
+          try {
+            if (map.pm.disableGlobalRemovalMode)
+              map.pm.disableGlobalRemovalMode();
+          } catch (error) {
+            console.log("Could not disable global removal mode:", error);
+          }
+          try {
+            if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+          } catch (error) {
+            console.log("Could not disable global cut mode:", error);
+          }
+          try {
+            if (map.pm.disableGlobalRotateMode)
+              map.pm.disableGlobalRotateMode();
+          } catch (error) {
+            console.log("Could not disable global rotate mode:", error);
+          }
         }
       };
     }, [isDashboard]);
@@ -1260,11 +2322,31 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (!map || !isDashboard || !(map as any).pm) return;
 
       // Disable all modes first - only use methods that exist
-      if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
-      if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
-      if (map.pm.disableGlobalRemovalMode) map.pm.disableGlobalRemovalMode();
-      if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
-      if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+      try {
+        if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+      } catch (error) {
+        console.log("Could not disable global edit mode:", error);
+      }
+      try {
+        if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+      } catch (error) {
+        console.log("Could not disable global drag mode:", error);
+      }
+      try {
+        if (map.pm.disableGlobalRemovalMode) map.pm.disableGlobalRemovalMode();
+      } catch (error) {
+        console.log("Could not disable global removal mode:", error);
+      }
+      try {
+        if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+      } catch (error) {
+        console.log("Could not disable global cut mode:", error);
+      }
+      try {
+        if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+      } catch (error) {
+        console.log("Could not disable global rotate mode:", error);
+      }
 
       // Disable drawing mode if available - try multiple methods
       if ((map as any).pm.disableDraw) {
@@ -1387,20 +2469,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
             break;
           case "edit":
-            // Don't enable global edit mode - let user click specific layers to edit
-            // Just set a flag that we're in edit mode
-            console.log("Edit mode activated - click on a layer to edit it");
+            // Don't enable global edit mode - just set flag for click handler
+            console.log("Edit mode activated - click on a layer to resize it");
             break;
           case "drag":
-            if (map.pm.enableGlobalDragMode) map.pm.enableGlobalDragMode();
+            // Don't enable global drag mode - just set flag for click handler
+            console.log("Drag mode activated - click on a layer to drag it");
             break;
           case "remove":
-            if (map.pm.enableGlobalRemovalMode)
-              map.pm.enableGlobalRemovalMode();
+            // Don't enable global removal mode - just set flag for click handler
+            console.log(
+              "Remove mode activated - click on a layer to remove it"
+            );
             break;
           case "scale":
-            // Scale mode might not be available, use edit mode instead
-            if (map.pm.enableGlobalEditMode) map.pm.enableGlobalEditMode();
+            // Don't enable global rotate mode - just set flag for click handler
+            console.log("Scale mode activated - click on a layer to rotate it");
             break;
         }
       }
