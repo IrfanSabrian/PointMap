@@ -37,77 +37,148 @@ export default function DrawingSidebar({
     );
 
     middleMarkers.forEach((marker) => {
-      // Remove draggable attribute
-      marker.removeAttribute("draggable");
+      // Check if this marker belongs to a polyline (not polygon)
+      const markerElement = marker as HTMLElement;
 
-      // Remove tabindex to prevent focus
-      marker.removeAttribute("tabindex");
+      // Try to find the parent polyline layer to determine if this is a polyline marker
+      // We'll look for the closest polyline element in the DOM
+      let isPolylineMarker = false;
 
-      // Remove role
-      marker.removeAttribute("role");
+      // Look for the parent polyline by checking if there's a polyline element nearby
+      // This is a heuristic approach - middle markers for polylines are the ones we want to disable
+      const parentContainer = markerElement.closest(".leaflet-overlay-pane");
+      if (parentContainer) {
+        // Check if there are polyline elements in the same container
+        const polylines = parentContainer.querySelectorAll(
+          "path.leaflet-interactive"
+        );
+        polylines.forEach((path) => {
+          // If this path is part of a polyline (not polygon), we can identify it
+          // For now, let's assume all middle markers are for polylines since that's the main use case
+          // You can refine this logic later if needed
+          isPolylineMarker = true;
+        });
+      }
 
-      // Add event listeners to prevent drag
-      marker.addEventListener(
-        "mousedown",
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        },
-        { passive: false }
-      );
+      // IMPORTANT: Only disable middle markers for POLYLINES, not POLYGONS
+      // We need to be more specific about which markers to disable
 
-      marker.addEventListener(
-        "dragstart",
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        },
-        { passive: false }
-      );
+      // For now, let's try a different approach - only disable markers that are clearly polyline markers
+      // We'll check if the marker is positioned on a polyline path
 
-      marker.addEventListener(
-        "touchstart",
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        },
-        { passive: false }
-      );
+      // Get the marker position
+      const markerRect = markerElement.getBoundingClientRect();
+      const markerCenterX = markerRect.left + markerRect.width / 2;
+      const markerCenterY = markerRect.top + markerRect.height / 2;
 
-      // Prevent any click events that might add vertices
-      marker.addEventListener(
-        "click",
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        },
-        { passive: false }
-      );
+      // Look for nearby polyline paths
+      const nearbyPaths = document.querySelectorAll("path.leaflet-interactive");
+      let isNearPolyline = false;
 
-      marker.addEventListener(
-        "dblclick",
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        },
-        { passive: false }
-      );
+      nearbyPaths.forEach((path) => {
+        const pathElement = path as SVGPathElement;
+        const pathRect = pathElement.getBoundingClientRect();
 
-      // Add CSS to make it non-interactive and hide it completely
-      (marker as HTMLElement).style.pointerEvents = "none";
-      (marker as HTMLElement).style.userSelect = "none";
-      (marker as HTMLElement).style.cursor = "default";
-      (marker as HTMLElement).style.display = "none";
-      (marker as HTMLElement).style.visibility = "hidden";
-      (marker as HTMLElement).style.opacity = "0";
-      (marker as HTMLElement).style.width = "0";
-      (marker as HTMLElement).style.height = "0";
-      (marker as HTMLElement).style.overflow = "hidden";
+        // Check if marker is near this path
+        if (
+          Math.abs(markerCenterX - (pathRect.left + pathRect.width / 2)) < 50 &&
+          Math.abs(markerCenterY - (pathRect.top + pathRect.height / 2)) < 50
+        ) {
+          // Check if this path is a polyline (not polygon)
+          // Polygons typically have fill, polylines don't
+          const computedStyle = window.getComputedStyle(pathElement);
+          const fill = computedStyle.fill;
+
+          // If fill is 'none' or transparent, it's likely a polyline
+          if (
+            fill === "none" ||
+            fill === "transparent" ||
+            fill === "rgba(0, 0, 0, 0)"
+          ) {
+            isNearPolyline = true;
+          }
+        }
+      });
+
+      // Only disable if it's a polyline marker
+      if (isNearPolyline) {
+        console.log("🚫 Disabling polyline middle marker");
+
+        // Remove draggable attribute
+        marker.removeAttribute("draggable");
+
+        // Remove tabindex to prevent focus
+        marker.removeAttribute("tabindex");
+
+        // Remove role
+        marker.removeAttribute("role");
+
+        // Add event listeners to prevent drag
+        marker.addEventListener(
+          "mousedown",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          },
+          { passive: false }
+        );
+
+        marker.addEventListener(
+          "dragstart",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          },
+          { passive: false }
+        );
+
+        marker.addEventListener(
+          "touchstart",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          },
+          { passive: false }
+        );
+
+        // Prevent any click events that might add vertices
+        marker.addEventListener(
+          "click",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          },
+          { passive: false }
+        );
+
+        marker.addEventListener(
+          "dblclick",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          },
+          { passive: false }
+        );
+
+        // Add CSS to make it non-interactive and hide it completely
+        (marker as HTMLElement).style.pointerEvents = "none";
+        (marker as HTMLElement).style.userSelect = "none";
+        (marker as HTMLElement).style.cursor = "default";
+        (marker as HTMLElement).style.display = "none";
+        (marker as HTMLElement).style.visibility = "hidden";
+        (marker as HTMLElement).style.opacity = "0";
+        (marker as HTMLElement).style.width = "0";
+        (marker as HTMLElement).style.height = "0";
+        (marker as HTMLElement).style.overflow = "hidden";
+      } else {
+        console.log("✅ Keeping polygon middle marker enabled");
+        // Don't disable polygon middle markers - let them work normally
+      }
     });
   };
 
