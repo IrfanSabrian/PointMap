@@ -211,6 +211,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [drawingMode, setDrawingMode] = useState<string | null>(null);
     const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
 
+    // State untuk edit confirmation system
+    const [isEditingShape, setIsEditingShape] = useState(false);
+    const [editingShape, setEditingShape] = useState<any>(null);
+    const [originalShapeData, setOriginalShapeData] = useState<any>(null);
+
     // State untuk drag confirmation system
     const [draggedShape, setDraggedShape] = useState<any>(null);
     const [originalShapePosition, setOriginalShapePosition] =
@@ -731,6 +736,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   return;
                 }
 
+                // If there's already a shape being edited, disable it first
+                if (isEditingShape && editingShape && editingShape !== layer) {
+                  console.log("🔄 Disabling previous editing shape");
+                  if ((editingShape as any).pm) {
+                    (editingShape as any).pm.disable();
+                  }
+                  setIsEditingShape(false);
+                  setEditingShape(null);
+                  setOriginalShapeData(null);
+                }
+
                 // Reset all other layers to disabled state
                 if (bangunanLayerRef.current) {
                   (bangunanLayerRef.current as any).eachLayer(
@@ -772,6 +788,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 // Enable PM for this specific layer based on drawing mode
                 try {
                   if (drawingModeRef.current === "edit") {
+                    // Save original shape data
+                    const originalData = {
+                      latLngs: (layer as any).getLatLngs(),
+                      type: layer.constructor.name,
+                    };
+                    setOriginalShapeData(originalData);
+                    setEditingShape(layer);
+                    setIsEditingShape(true);
+
                     (layer as any).pm.enable({ allowEditing: true });
                     console.log(
                       "✅ Edit enabled for jalur layer:",
@@ -935,6 +960,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   return;
                 }
 
+                // If there's already a shape being edited, disable it first
+                if (isEditingShape && editingShape && editingShape !== layer) {
+                  console.log("🔄 Disabling previous editing shape");
+                  if ((editingShape as any).pm) {
+                    (editingShape as any).pm.disable();
+                  }
+                  setIsEditingShape(false);
+                  setEditingShape(null);
+                  setOriginalShapeData(null);
+                }
+
                 // Reset all other layers to disabled state
                 if (bangunanLayerRef.current) {
                   (bangunanLayerRef.current as any).eachLayer(
@@ -976,6 +1012,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 // Enable PM for this specific layer based on drawing mode
                 try {
                   if (drawingModeRef.current === "edit") {
+                    // Save original shape data
+                    const originalData = {
+                      latLng: (layer as any).getLatLng(),
+                      radius: (layer as any).getRadius
+                        ? (layer as any).getRadius()
+                        : null,
+                      type: layer.constructor.name,
+                    };
+                    setOriginalShapeData(originalData);
+                    setEditingShape(layer);
+                    setIsEditingShape(true);
+
                     (layer as any).pm.enable({ allowEditing: true });
                     console.log(
                       "✅ Edit enabled for point layer:",
@@ -1219,6 +1267,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Enable PM for this specific layer based on drawing mode
               try {
                 if (drawingModeRef.current === "edit") {
+                  // Save original shape data
+                  const originalData = {
+                    latLngs: (layer as any).getLatLngs(),
+                    type: layer.constructor.name,
+                  };
+                  setOriginalShapeData(originalData);
+                  setEditingShape(layer);
+                  setIsEditingShape(true);
+
                   (layer as any).pm.enable({ allowEditing: true });
                   console.log(
                     "✅ Edit enabled for Polnep geojson layer:",
@@ -1346,6 +1403,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Enable PM for this specific layer based on drawing mode
               try {
                 if (drawingModeRef.current === "edit") {
+                  // Save original shape data
+                  const originalData = {
+                    latLngs: (layer as any).getLatLngs(),
+                    type: layer.constructor.name,
+                  };
+                  setOriginalShapeData(originalData);
+                  setEditingShape(layer);
+                  setIsEditingShape(true);
+
                   (layer as any).pm.enable({ allowEditing: true });
                   console.log(
                     "✅ Edit enabled for building layer:",
@@ -1616,6 +1682,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 );
               }
 
+              // If there's already a shape being edited, disable it first
+              if (isEditingShape && editingShape && editingShape !== newLayer) {
+                console.log("🔄 Disabling previous editing shape");
+                if ((editingShape as any).pm) {
+                  (editingShape as any).pm.disable();
+                }
+                setIsEditingShape(false);
+                setEditingShape(null);
+                setOriginalShapeData(null);
+              }
+
               // Also disable PM on all other layers in the map
               map.eachLayer((otherLayer: any) => {
                 if (
@@ -1630,6 +1707,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Enable PM for this specific layer based on drawing mode
               try {
                 if (drawingModeRef.current === "edit") {
+                  // Save original shape data
+                  const originalData = {
+                    latLngs: newLayer.getLatLngs ? newLayer.getLatLngs() : null,
+                    latLng: newLayer.getLatLng ? newLayer.getLatLng() : null,
+                    radius: newLayer.getRadius ? newLayer.getRadius() : null,
+                    type: newLayer.constructor.name,
+                  };
+                  setOriginalShapeData(originalData);
+                  setEditingShape(newLayer);
+                  setIsEditingShape(true);
+
                   (newLayer as any).pm.enable({ allowEditing: true });
                   console.log("✅ Edit enabled for new shape");
                 } else if (drawingModeRef.current === "scale") {
@@ -2892,7 +2980,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Auto-disable modes after operations complete
         map.on("pm:edit", (e: any) => {
-          if (drawingModeRef.current === "edit") {
+          if (drawingModeRef.current === "edit" && !isEditingShape) {
             try {
               (e.target as any).pm.disable();
               console.log("🔄 Edit disabled");
@@ -2905,6 +2993,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             } catch (error) {
               console.log("❌ Error disabling edit mode:", error);
             }
+          } else if (isEditingShape) {
+            console.log("🔄 Edit completed - waiting for user confirmation");
           }
         });
 
@@ -3224,6 +3314,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       );
                     }
 
+                    // If there's already a shape being edited, disable it first
+                    if (
+                      isEditingShape &&
+                      editingShape &&
+                      editingShape !== circleMarker
+                    ) {
+                      console.log("🔄 Disabling previous editing shape");
+                      if ((editingShape as any).pm) {
+                        (editingShape as any).pm.disable();
+                      }
+                      setIsEditingShape(false);
+                      setEditingShape(null);
+                      setOriginalShapeData(null);
+                    }
+
                     // Also disable PM on all other layers in the map
                     map.eachLayer((otherLayer: any) => {
                       if (
@@ -3238,6 +3343,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     // Enable PM for this specific layer based on drawing mode
                     try {
                       if (drawingModeRef.current === "edit") {
+                        // Save original shape data
+                        const originalData = {
+                          latLng: circleMarker.getLatLng(),
+                          radius: circleMarker.getRadius(),
+                          type: circleMarker.constructor.name,
+                        };
+                        setOriginalShapeData(originalData);
+                        setEditingShape(circleMarker);
+                        setIsEditingShape(true);
+
                         (circleMarker as any).pm.enable({ allowEditing: true });
                         console.log("✅ Edit enabled for circle marker");
                       } else if (drawingModeRef.current === "scale") {
@@ -4398,8 +4513,83 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Drawing tool handlers
     const handleDrawingModeChange = (mode: string | null) => {
+      // If there's already a shape being edited, disable it first
+      if (isEditingShape && editingShape) {
+        console.log(
+          "🔄 Disabling previous editing shape when changing drawing mode"
+        );
+        if ((editingShape as any).pm) {
+          (editingShape as any).pm.disable();
+        }
+        setIsEditingShape(false);
+        setEditingShape(null);
+        setOriginalShapeData(null);
+      }
+
       setDrawingMode(mode);
       setIsDrawingEnabled(!!mode);
+    };
+
+    // Edit confirmation handlers
+    const handleSaveEditConfirmation = () => {
+      if (editingShape) {
+        console.log("✅ Edit changes saved");
+        // Disable PM on the edited shape
+        if ((editingShape as any).pm) {
+          (editingShape as any).pm.disable();
+        }
+        // Reset editing state
+        setIsEditingShape(false);
+        setEditingShape(null);
+        setOriginalShapeData(null);
+        // Reset drawing mode
+        setDrawingMode(null);
+        setIsDrawingEnabled(false);
+        drawingModeRef.current = null;
+        isDrawingEnabledRef.current = false;
+      }
+    };
+
+    const handleCancelEditConfirmation = () => {
+      if (editingShape && originalShapeData) {
+        console.log("❌ Edit changes cancelled - restoring original shape");
+        try {
+          // Restore original shape data
+          if (
+            editingShape instanceof (L as any).Polygon ||
+            editingShape instanceof (L as any).Polyline
+          ) {
+            editingShape.setLatLngs(originalShapeData.latLngs);
+          } else if (
+            editingShape instanceof (L as any).Circle ||
+            editingShape instanceof (L as any).CircleMarker
+          ) {
+            editingShape.setLatLng(originalShapeData.latLng);
+            if (originalShapeData.radius) {
+              editingShape.setRadius(originalShapeData.radius);
+            }
+          }
+
+          // Disable PM on the shape
+          if ((editingShape as any).pm) {
+            (editingShape as any).pm.disable();
+          }
+
+          console.log("✅ Shape restored to original state");
+        } catch (error) {
+          console.log("❌ Error restoring shape:", error);
+        }
+
+        // Reset editing state
+        setIsEditingShape(false);
+        setEditingShape(null);
+        setOriginalShapeData(null);
+        // Reset drawing mode
+        setDrawingMode(null);
+        setIsDrawingEnabled(false);
+        drawingModeRef.current = null;
+        isDrawingEnabledRef.current = false;
+      }
     };
 
     // Drag confirmation handlers
@@ -8700,6 +8890,52 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           onDrawingModeChange={handleDrawingModeChange}
           externalActiveMode={drawingMode}
         />
+
+        {/* Edit Confirmation Buttons - Only show when editing a shape */}
+        {isEditingShape && (
+          <div className="absolute top-4 right-4 z-30 flex gap-2">
+            <button
+              onClick={handleSaveEditConfirmation}
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-colors duration-200 text-sm font-medium"
+              title="Simpan perubahan"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Simpan
+            </button>
+            <button
+              onClick={handleCancelEditConfirmation}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-colors duration-200 text-sm font-medium"
+              title="Batalkan perubahan"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              Batal
+            </button>
+          </div>
+        )}
         {showBuildingDetailCanvas && (
           <div
             className={`absolute inset-0 w-full h-full flex flex-col z-[20] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
