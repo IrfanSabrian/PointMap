@@ -10,6 +10,7 @@ type Props = {
   isLoggedIn: boolean;
   selectedFeature: any;
   isContainerShaking: boolean;
+  drawingMode: string | null;
   onClose: () => void;
   onOpenDetail: () => void;
   onEditThumbnail: () => void;
@@ -25,6 +26,7 @@ export default function BuildingDetailModal(props: Props) {
     isLoggedIn,
     selectedFeature,
     isContainerShaking,
+    drawingMode,
     onClose,
     onOpenDetail,
     onEditThumbnail,
@@ -167,8 +169,13 @@ export default function BuildingDetailModal(props: Props) {
             {selectedFeature.properties?.interaksi?.toLowerCase() ===
               "interaktif" && (
               <button
-                className="flex-1 py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark touch-manipulation"
-                onClick={onOpenDetail}
+                className={`flex-1 py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 dark:focus:ring-accent-dark touch-manipulation ${
+                  drawingMode
+                    ? "bg-gray-400 text-gray-200 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
+                    : "bg-primary text-white hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80"
+                }`}
+                onClick={drawingMode ? undefined : onOpenDetail}
+                disabled={!!drawingMode}
               >
                 <FontAwesomeIcon
                   icon={faInfoCircle}
@@ -183,8 +190,13 @@ export default function BuildingDetailModal(props: Props) {
               selectedFeature.properties?.interaksi?.toLowerCase() ===
                 "interaktif" && (
                 <button
-                  className="px-2 sm:px-3 py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 touch-manipulation"
-                  onClick={onEditLantai}
+                  className={`px-2 sm:px-3 py-2 rounded-lg font-bold text-xs sm:text-sm shadow transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 touch-manipulation ${
+                    drawingMode
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
+                      : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+                  }`}
+                  onClick={drawingMode ? undefined : onEditLantai}
+                  disabled={!!drawingMode}
                   title="Edit Lantai"
                 >
                   <i className="fas fa-layer-group text-xs sm:text-sm"></i>
@@ -194,8 +206,13 @@ export default function BuildingDetailModal(props: Props) {
 
           {selectedFeature?.properties?.id && (
             <button
-              className="w-full py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80 transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark touch-manipulation"
-              onClick={onSetRouteToBuilding}
+              className={`w-full py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark touch-manipulation ${
+                drawingMode
+                  ? "bg-gray-400 text-gray-200 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
+                  : "bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80"
+              }`}
+              onClick={drawingMode ? undefined : onSetRouteToBuilding}
+              disabled={!!drawingMode}
             >
               <FontAwesomeIcon
                 icon={faRoute}

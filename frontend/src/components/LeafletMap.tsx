@@ -139,6 +139,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const isNavigationActiveRef = useRef(false);
     const isGpsRecalcRef = useRef(false);
     const isZoomingRef = useRef(false);
+    const isBuildingClickedRef = useRef(false);
     const [showRouteModal, setShowRouteModal] = useState(false);
     const [routeEndType, setRouteEndType] = useState("bangunan");
     const [routeEndId, setRouteEndId] = useState("");
@@ -148,6 +149,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [cardVisible, setCardVisible] = useState(false);
     const [showBuildingDetailCanvas, setShowBuildingDetailCanvas] =
       useState(false);
+
     const nonBangunanLayerRef = useRef<L.GeoJSON<FeatureType> | null>(null);
     const bangunanLayerRef = useRef<L.GeoJSON<FeatureType> | null>(null);
     const [nonBangunanFeatures, setNonBangunanFeatures] = useState<
@@ -208,6 +210,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // State untuk Geoman.js drawing tools
     const [drawingMode, setDrawingMode] = useState<string | null>(null);
     const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
+
+    // State untuk drag confirmation system
+    const [draggedShape, setDraggedShape] = useState<any>(null);
+    const [originalShapePosition, setOriginalShapePosition] =
+      useState<any>(null);
+    const [showDragConfirmation, setShowDragConfirmation] = useState(false);
+    const [pendingDragShape, setPendingDragShape] = useState<any>(null);
 
     // Ref untuk mengakses state drawing yang terbaru
     const isDrawingEnabledRef = useRef(false);
@@ -697,6 +706,110 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             opacity: 0.8,
           }),
           pane: "overlayPane",
+          onEachFeature: (feature, layer) => {
+            // Enable PM for existing jalur shapes but keep it disabled by default
+            if ((layer as any).pm) {
+              (layer as any).pm.enable({
+                allowEditing: true,
+                allowScaling: true,
+                allowRotating: true,
+                allowDrag: true,
+                allowRemoval: true,
+                allowCutting: true,
+                allowAddingVertices: true,
+                allowRemovingVertices: true,
+                allowMovingVertices: true,
+                allowMiddleMarkers: true,
+              });
+              // Disable PM by default - it will be enabled selectively
+              (layer as any).pm.disable();
+
+              // Add click handler for selective editing
+              layer.on("click", function (e: L.LeafletMouseEvent) {
+                // Check if drawing mode is active
+                if (!drawingModeRef.current) {
+                  return;
+                }
+
+                // Reset all other layers to disabled state
+                if (bangunanLayerRef.current) {
+                  (bangunanLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+                if (jalurLayerRef.current) {
+                  (jalurLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+                if (titikLayerRef.current) {
+                  (titikLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+                if (nonBangunanLayerRef.current) {
+                  (nonBangunanLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+
+                // Enable PM for this specific layer based on drawing mode
+                try {
+                  if (drawingModeRef.current === "edit") {
+                    (layer as any).pm.enable({ allowEditing: true });
+                    console.log(
+                      "✅ Edit enabled for jalur layer:",
+                      feature.properties?.nama || feature.properties?.id
+                    );
+                  } else if (drawingModeRef.current === "scale") {
+                    (layer as any).pm.enable({
+                      allowScaling: true,
+                      allowRotating: true,
+                    });
+                    console.log(
+                      "✅ Scale enabled for jalur layer:",
+                      feature.properties?.nama || feature.properties?.id
+                    );
+                  } else if (drawingModeRef.current === "drag") {
+                    (layer as any).pm.enable({ allowDrag: true });
+                    console.log(
+                      "✅ Drag enabled for jalur layer:",
+                      feature.properties?.nama || feature.properties?.id
+                    );
+                  } else if (drawingModeRef.current === "remove") {
+                    (layer as any).pm.enable({ allowRemoval: true });
+                    console.log(
+                      "✅ Remove enabled for jalur layer:",
+                      feature.properties?.nama || feature.properties?.id
+                    );
+                  }
+                } catch (error) {
+                  console.log("❌ Error enabling PM for jalur layer:", error);
+                }
+              });
+
+              console.log(
+                "✅ PM enabled for jalur layer:",
+                feature.properties?.nama || feature.properties?.id
+              );
+            }
+          },
         });
 
         // Tambahkan jalur ke layer group
@@ -797,6 +910,110 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             });
           },
           pane: "overlayPane",
+          onEachFeature: (feature, layer) => {
+            // Enable PM for existing point shapes but keep it disabled by default
+            if ((layer as any).pm) {
+              (layer as any).pm.enable({
+                allowEditing: true,
+                allowScaling: true,
+                allowRotating: true,
+                allowDrag: true,
+                allowRemoval: true,
+                allowCutting: true,
+                allowAddingVertices: true,
+                allowRemovingVertices: true,
+                allowMovingVertices: true,
+                allowMiddleMarkers: true,
+              });
+              // Disable PM by default - it will be enabled selectively
+              (layer as any).pm.disable();
+
+              // Add click handler for selective editing
+              layer.on("click", function (e: L.LeafletMouseEvent) {
+                // Check if drawing mode is active
+                if (!drawingModeRef.current) {
+                  return;
+                }
+
+                // Reset all other layers to disabled state
+                if (bangunanLayerRef.current) {
+                  (bangunanLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+                if (jalurLayerRef.current) {
+                  (jalurLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+                if (titikLayerRef.current) {
+                  (titikLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+                if (nonBangunanLayerRef.current) {
+                  (nonBangunanLayerRef.current as any).eachLayer(
+                    (otherLayer: any) => {
+                      if (otherLayer.pm && otherLayer !== layer) {
+                        otherLayer.pm.disable();
+                      }
+                    }
+                  );
+                }
+
+                // Enable PM for this specific layer based on drawing mode
+                try {
+                  if (drawingModeRef.current === "edit") {
+                    (layer as any).pm.enable({ allowEditing: true });
+                    console.log(
+                      "✅ Edit enabled for point layer:",
+                      feature.properties?.Nama || feature.properties?.id
+                    );
+                  } else if (drawingModeRef.current === "scale") {
+                    (layer as any).pm.enable({
+                      allowScaling: true,
+                      allowRotating: true,
+                    });
+                    console.log(
+                      "✅ Scale enabled for point layer:",
+                      feature.properties?.Nama || feature.properties?.id
+                    );
+                  } else if (drawingModeRef.current === "drag") {
+                    (layer as any).pm.enable({ allowDrag: true });
+                    console.log(
+                      "✅ Drag enabled for point layer:",
+                      feature.properties?.Nama || feature.properties?.id
+                    );
+                  } else if (drawingModeRef.current === "remove") {
+                    (layer as any).pm.enable({ allowRemoval: true });
+                    console.log(
+                      "✅ Remove enabled for point layer:",
+                      feature.properties?.Nama || feature.properties?.id
+                    );
+                  }
+                } catch (error) {
+                  console.log("❌ Error enabling PM for point layer:", error);
+                }
+              });
+
+              console.log(
+                "✅ PM enabled for point layer:",
+                feature.properties?.Nama || feature.properties?.id
+              );
+            }
+          },
         });
         // Set z-index agar titik berada di atas jalur
         (titikLayer as any).setZIndex(200);
@@ -941,6 +1158,108 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return kategoriStyle[kategori as string] || defaultStyle;
         },
         onEachFeature: (feature, layer) => {
+          // Enable PM for existing Polnep geojson shapes but keep it disabled by default
+          if ((layer as any).pm) {
+            (layer as any).pm.enable({
+              allowEditing: true,
+              allowScaling: true,
+              allowRotating: true,
+              allowDrag: true,
+              allowRemoval: true,
+              allowCutting: true,
+              allowAddingVertices: true,
+              allowRemovingVertices: true,
+              allowMovingVertices: true,
+              allowMiddleMarkers: true,
+            });
+            // Disable PM by default - it will be enabled selectively
+            (layer as any).pm.disable();
+
+            // Add click handler for selective editing
+            layer.on("click", function (e: L.LeafletMouseEvent) {
+              // Check if drawing mode is active
+              if (!drawingModeRef.current) {
+                return;
+              }
+
+              // Reset all other layers to disabled state
+              if (bangunanLayerRef.current) {
+                (bangunanLayerRef.current as any).eachLayer(
+                  (otherLayer: any) => {
+                    if (otherLayer.pm && otherLayer !== layer) {
+                      otherLayer.pm.disable();
+                    }
+                  }
+                );
+              }
+              if (jalurLayerRef.current) {
+                (jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
+                  if (otherLayer.pm && otherLayer !== layer) {
+                    otherLayer.pm.disable();
+                  }
+                });
+              }
+              if (titikLayerRef.current) {
+                (titikLayerRef.current as any).eachLayer((otherLayer: any) => {
+                  if (otherLayer.pm && otherLayer !== layer) {
+                    otherLayer.pm.disable();
+                  }
+                });
+              }
+              if (nonBangunanLayerRef.current) {
+                (nonBangunanLayerRef.current as any).eachLayer(
+                  (otherLayer: any) => {
+                    if (otherLayer.pm && otherLayer !== layer) {
+                      otherLayer.pm.disable();
+                    }
+                  }
+                );
+              }
+
+              // Enable PM for this specific layer based on drawing mode
+              try {
+                if (drawingModeRef.current === "edit") {
+                  (layer as any).pm.enable({ allowEditing: true });
+                  console.log(
+                    "✅ Edit enabled for Polnep geojson layer:",
+                    feature.properties?.id || "unknown"
+                  );
+                } else if (drawingModeRef.current === "scale") {
+                  (layer as any).pm.enable({
+                    allowScaling: true,
+                    allowRotating: true,
+                  });
+                  console.log(
+                    "✅ Scale enabled for Polnep geojson layer:",
+                    feature.properties?.id || "unknown"
+                  );
+                } else if (drawingModeRef.current === "drag") {
+                  (layer as any).pm.enable({ allowDrag: true });
+                  console.log(
+                    "✅ Drag enabled for Polnep geojson layer:",
+                    feature.properties?.id || "unknown"
+                  );
+                } else if (drawingModeRef.current === "remove") {
+                  (layer as any).pm.enable({ allowRemoval: true });
+                  console.log(
+                    "✅ Remove enabled for Polnep geojson layer:",
+                    feature.properties?.id || "unknown"
+                  );
+                }
+              } catch (error) {
+                console.log(
+                  "❌ Error enabling PM for Polnep geojson layer:",
+                  error
+                );
+              }
+            });
+
+            console.log(
+              "✅ PM enabled for Polnep geojson layer:",
+              feature.properties?.id || "unknown"
+            );
+          }
+
           // Pastikan cursor menjadi 'grab' untuk semua tipe geometry
           const setGrabCursor = () => {
             if (
@@ -966,6 +1285,105 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const bangunanLayer = L.geoJSON(undefined, {
         style: () => kategoriStyle["Bangunan"] || defaultStyle,
         onEachFeature: (feature, layer) => {
+          // Enable PM for existing building shapes but keep it disabled by default
+          if ((layer as any).pm) {
+            (layer as any).pm.enable({
+              allowEditing: true,
+              allowScaling: true,
+              allowRotating: true,
+              allowDrag: true,
+              allowRemoval: true,
+              allowCutting: true,
+              allowAddingVertices: true,
+              allowRemovingVertices: true,
+              allowMovingVertices: true,
+              allowMiddleMarkers: true,
+            });
+            // Disable PM by default - it will be enabled selectively
+            (layer as any).pm.disable();
+
+            // Add click handler for selective editing
+            layer.on("click", function (e: L.LeafletMouseEvent) {
+              // Check if drawing mode is active
+              if (!drawingModeRef.current) {
+                return;
+              }
+
+              // Reset all other layers to disabled state
+              if (bangunanLayerRef.current) {
+                (bangunanLayerRef.current as any).eachLayer(
+                  (otherLayer: any) => {
+                    if (otherLayer.pm && otherLayer !== layer) {
+                      otherLayer.pm.disable();
+                    }
+                  }
+                );
+              }
+              if (jalurLayerRef.current) {
+                (jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
+                  if (otherLayer.pm && otherLayer !== layer) {
+                    otherLayer.pm.disable();
+                  }
+                });
+              }
+              if (titikLayerRef.current) {
+                (titikLayerRef.current as any).eachLayer((otherLayer: any) => {
+                  if (otherLayer.pm && otherLayer !== layer) {
+                    otherLayer.pm.disable();
+                  }
+                });
+              }
+              if (nonBangunanLayerRef.current) {
+                (nonBangunanLayerRef.current as any).eachLayer(
+                  (otherLayer: any) => {
+                    if (otherLayer.pm && otherLayer !== layer) {
+                      otherLayer.pm.disable();
+                    }
+                  }
+                );
+              }
+
+              // Enable PM for this specific layer based on drawing mode
+              try {
+                if (drawingModeRef.current === "edit") {
+                  (layer as any).pm.enable({ allowEditing: true });
+                  console.log(
+                    "✅ Edit enabled for building layer:",
+                    feature.properties?.nama || feature.properties?.id
+                  );
+                } else if (drawingModeRef.current === "scale") {
+                  (layer as any).pm.enable({
+                    allowScaling: true,
+                    allowRotating: true,
+                  });
+                  console.log(
+                    "✅ Scale enabled for building layer:",
+                    feature.properties?.nama || feature.properties?.id
+                  );
+                } else if (drawingModeRef.current === "drag") {
+                  (layer as any).pm.enable({ allowDrag: true });
+                  console.log(
+                    "✅ Drag enabled for building layer:",
+                    feature.properties?.nama || feature.properties?.id
+                  );
+                } else if (drawingModeRef.current === "remove") {
+                  (layer as any).pm.enable({ allowRemoval: true });
+                  console.log(
+                    "✅ Remove enabled for building layer:",
+                    feature.properties?.nama || feature.properties?.id
+                  );
+                }
+              } catch (error) {
+                console.log("❌ Error enabling PM for building layer:", error);
+              }
+            });
+
+            console.log(
+              "✅ PM enabled for building layer:",
+              feature.properties?.nama || feature.properties?.id
+            );
+          }
+
           layer.on("mouseover", function (e: L.LeafletMouseEvent) {
             // setTooltipPosition({ // Removed as per new_code
             //   x: e.originalEvent.clientX,
@@ -978,15 +1396,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Hanya kategori Bangunan yang bisa diklik
           if (feature.properties?.id) {
             layer.on("click", function (e: L.LeafletMouseEvent) {
-              // Jika drawing mode aktif, blok interaksi klik bangunan
-              if (isDrawingEnabledRef.current) {
-                if (
-                  e &&
-                  e.originalEvent &&
-                  typeof e.originalEvent.stopPropagation === "function"
-                ) {
-                  e.originalEvent.stopPropagation();
-                }
+              console.log("🏢 Building clicked");
+
+              // Blok klik bangunan jika drawing mode aktif
+              if (drawingModeRef.current) {
+                console.log(
+                  "🚫 Building click blocked - drawing mode active:",
+                  drawingModeRef.current
+                );
                 return;
               }
 
@@ -1015,9 +1432,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   kategori: "Bangunan",
                 },
               } as FeatureFixed;
+              // Set flag untuk mencegah canvas click handler terpicu
+              isBuildingClickedRef.current = true;
               setSelectedFeature(featureWithKategori);
               setCardVisible(true);
               setIsHighlightActive(true);
+
+              // Reset flag setelah delay singkat
+              setTimeout(() => {
+                isBuildingClickedRef.current = false;
+              }, 100);
               // Kirim pesan ke dashboard untuk update sidebar
               window.postMessage(
                 {
@@ -1113,49 +1537,224 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
         if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
 
+        // Set cursor untuk drawing mode
+        const setDrawingCursor = () => {
+          const mapContainer = map.getContainer();
+          if (mapContainer) {
+            mapContainer.style.cursor = "crosshair";
+          }
+        };
+
+        const resetCursor = () => {
+          const mapContainer = map.getContainer();
+          if (mapContainer) {
+            mapContainer.style.cursor = "";
+          }
+        };
+
         // Add event listeners for drawing events
         map.on("pm:create", (e: any) => {
-          console.log("Shape created:", e);
+          console.log("🔄 Shape created:", e.shape);
+
+          // Add selective editing functionality to the newly created shape
+          const newLayer = e.layer;
+          if (newLayer && (newLayer as any).pm) {
+            // Enable PM for the new shape but keep it disabled by default
+            (newLayer as any).pm.enable({
+              allowEditing: true,
+              allowScaling: true,
+              allowRotating: true,
+              allowDrag: true,
+              allowRemoval: true,
+              allowCutting: true,
+              allowAddingVertices: true,
+              allowRemovingVertices: true,
+              allowMovingVertices: true,
+              allowMiddleMarkers: true,
+            });
+            // Disable PM by default - it will be enabled selectively
+            (newLayer as any).pm.disable();
+
+            // Add click handler for selective editing
+            newLayer.on("click", function (e: L.LeafletMouseEvent) {
+              // Check if drawing mode is active
+              if (!drawingModeRef.current) {
+                return;
+              }
+
+              // Reset all other layers to disabled state
+              if (bangunanLayerRef.current) {
+                (bangunanLayerRef.current as any).eachLayer(
+                  (otherLayer: any) => {
+                    if (otherLayer.pm && otherLayer !== newLayer) {
+                      otherLayer.pm.disable();
+                    }
+                  }
+                );
+              }
+              if (jalurLayerRef.current) {
+                (jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
+                  if (otherLayer.pm && otherLayer !== newLayer) {
+                    otherLayer.pm.disable();
+                  }
+                });
+              }
+              if (titikLayerRef.current) {
+                (titikLayerRef.current as any).eachLayer((otherLayer: any) => {
+                  if (otherLayer.pm && otherLayer !== newLayer) {
+                    otherLayer.pm.disable();
+                  }
+                });
+              }
+              if (nonBangunanLayerRef.current) {
+                (nonBangunanLayerRef.current as any).eachLayer(
+                  (otherLayer: any) => {
+                    if (otherLayer.pm && otherLayer !== newLayer) {
+                      otherLayer.pm.disable();
+                    }
+                  }
+                );
+              }
+
+              // Also disable PM on all other layers in the map
+              map.eachLayer((otherLayer: any) => {
+                if (
+                  otherLayer.pm &&
+                  otherLayer !== newLayer &&
+                  otherLayer !== map
+                ) {
+                  otherLayer.pm.disable();
+                }
+              });
+
+              // Enable PM for this specific layer based on drawing mode
+              try {
+                if (drawingModeRef.current === "edit") {
+                  (newLayer as any).pm.enable({ allowEditing: true });
+                  console.log("✅ Edit enabled for new shape");
+                } else if (drawingModeRef.current === "scale") {
+                  (newLayer as any).pm.enable({
+                    allowScaling: true,
+                    allowRotating: true,
+                  });
+                  console.log("✅ Scale enabled for new shape");
+                } else if (drawingModeRef.current === "drag") {
+                  (newLayer as any).pm.enable({ allowDrag: true });
+                  console.log("✅ Drag enabled for new shape");
+                } else if (drawingModeRef.current === "remove") {
+                  (newLayer as any).pm.enable({ allowRemoval: true });
+                  console.log("✅ Remove enabled for new shape");
+                }
+              } catch (error) {
+                console.log("❌ Error enabling PM for new shape:", error);
+              }
+            });
+
+            console.log("✅ PM enabled for new shape");
+          }
+
           // Setelah selesai menggambar, nonaktifkan mode gambar tapi jangan tutup sidebar
           try {
             if ((map as any).pm?.disableDraw) {
               (map as any).pm.disableDraw();
             }
           } catch {}
-          // Hanya reset drawing mode, tapi jangan tutup sidebar
+          // Reset drawing mode dan state
           setDrawingMode(null);
-          // Jangan set isDrawingEnabled ke false agar sidebar tetap terbuka
+          setIsDrawingEnabled(false);
+          // Update ref langsung untuk memastikan state ter-update
+          isDrawingEnabledRef.current = false;
+          drawingModeRef.current = null;
+          console.log("✅ State reset");
+          // Reset cursor setelah selesai menggambar
+          resetCursor();
         });
 
         // Event listener untuk polyline drawing - batasi hanya 1 garis lurus
         map.on("pm:drawstart", (e: any) => {
-          console.log("Drawing started:", e);
-          // Untuk polyline, kita akan handle di pm:drawend
+          console.log("🔄 Drawing started:", e.shape);
+          // Set cursor crosshair saat mulai menggambar
+          setDrawingCursor();
         });
 
         map.on("pm:drawend", (e: any) => {
-          console.log("Drawing ended:", e);
-          // Jika ini adalah polyline, nonaktifkan drawing mode setelah selesai
-          if (e.shape === "Line" || e.shape === "Polyline") {
+          console.log("🔄 Drawing ended:", e.shape);
+          // Jika ini adalah polyline atau polygon, nonaktifkan drawing mode setelah selesai
+          if (
+            e.shape === "Line" ||
+            e.shape === "Polyline" ||
+            e.shape === "Polygon"
+          ) {
             try {
               if ((map as any).pm?.disableDraw) {
                 (map as any).pm.disableDraw();
               }
             } catch {}
-            // Reset drawing mode untuk polyline
+            // Reset drawing mode dan state untuk polyline dan polygon
             setDrawingMode(null);
-            console.log("Polyline drawing completed - drawing mode disabled");
+            setIsDrawingEnabled(false);
+            // Update ref langsung untuk memastikan state ter-update
+            isDrawingEnabledRef.current = false;
+            drawingModeRef.current = null;
+            console.log("✅ State reset");
+            // Reset cursor setelah selesai menggambar
+            resetCursor();
           }
         });
 
         map.on("pm:edit", (e: any) => {
-          console.log("Shape edited:", e);
           // You can handle the edited shape here
         });
 
+        map.on("pm:editstart", (e: any) => {
+          // Set cursor crosshair saat mulai edit
+          setDrawingCursor();
+        });
+
+        map.on("pm:editend", (e: any) => {
+          // Reset cursor setelah selesai edit
+          resetCursor();
+        });
+
         map.on("pm:remove", (e: any) => {
-          console.log("Shape removed:", e);
           // You can handle the removed shape here
+        });
+
+        map.on("pm:removestart", (e: any) => {
+          // Set cursor crosshair saat mulai remove
+          setDrawingCursor();
+        });
+
+        map.on("pm:removeend", (e: any) => {
+          // Reset cursor setelah selesai remove
+          resetCursor();
+          // Reset drawing state setelah remove selesai
+          if (drawingModeRef.current === "remove") {
+            console.log("🔄 pm:removeend - Resetting drawing state");
+            setDrawingMode(null);
+            setIsDrawingEnabled(false);
+            // Update ref langsung untuk memastikan state ter-update
+            isDrawingEnabledRef.current = false;
+            drawingModeRef.current = null;
+            console.log("✅ pm:removeend - Drawing state reset complete");
+          }
+        });
+
+        map.on("pm:dragstart", (e: any) => {
+          // Set cursor crosshair saat mulai drag
+          setDrawingCursor();
+        });
+
+        map.on("pm:dragend", (e: any) => {
+          // If this is the currently dragged shape, keep it in drag state
+          // until user confirms or cancels
+          if (draggedShape === e.target) {
+            // Don't reset cursor yet, keep drag state active
+            return;
+          }
+
+          // Reset cursor setelah selesai drag
+          resetCursor();
         });
 
         map.on("pm:cut", (e: any) => {
@@ -1163,9 +1762,33 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // You can handle the cut shape here
         });
 
+        map.on("pm:cutstart", (e: any) => {
+          console.log("Cut started:", e);
+          // Set cursor crosshair saat mulai cut
+          setDrawingCursor();
+        });
+
+        map.on("pm:cutend", (e: any) => {
+          console.log("Cut ended:", e);
+          // Reset cursor setelah selesai cut
+          resetCursor();
+        });
+
         map.on("pm:rotate", (e: any) => {
           console.log("Shape rotated:", e);
           // You can handle the rotated shape here
+        });
+
+        map.on("pm:rotatestart", (e: any) => {
+          console.log("Rotate started:", e);
+          // Set cursor crosshair saat mulai rotate
+          setDrawingCursor();
+        });
+
+        map.on("pm:rotateend", (e: any) => {
+          console.log("Rotate ended:", e);
+          // Reset cursor setelah selesai rotate
+          resetCursor();
         });
 
         map.on("pm:scale", (e: any) => {
@@ -1173,38 +1796,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // You can handle the scaled shape here
         });
 
+        map.on("pm:scalestart", (e: any) => {
+          console.log("Scale started:", e);
+          // Set cursor crosshair saat mulai scale
+          setDrawingCursor();
+        });
+
+        map.on("pm:scaleend", (e: any) => {
+          console.log("Scale ended:", e);
+          // Reset cursor setelah selesai scale
+          resetCursor();
+        });
+
         // Add click event listener for layers when in edit mode
         map.on("click", (e: any) => {
-          // Hanya blok jika sedang dalam mode draw (menggambar shape baru)
-          if (
-            isDrawingEnabledRef.current &&
-            drawingModeRef.current === "draw"
-          ) {
-            if (
-              e.originalEvent &&
-              typeof e.originalEvent.stopPropagation === "function"
-            ) {
-              e.originalEvent.stopPropagation();
-            }
+          // Skip jika bangunan sedang diklik
+          if (isBuildingClickedRef.current) {
+            console.log("🚫 Canvas click blocked");
             return;
           }
 
-          console.log("🔍 Click detected, mode:", drawingModeRef.current);
-
-          // Debug: Check all layers for pm.enable method
-          console.log("🔍 Checking all layers for pm.enable method...");
-          let layersWithPmEnable = 0;
-          map.eachLayer((layer: any) => {
-            if (
-              layer &&
-              (layer as any).pm &&
-              typeof (layer as any).pm.enable === "function"
-            ) {
-              layersWithPmEnable++;
-              console.log("✅ Layer with pm.enable:", layer.constructor.name);
-            }
-          });
-          console.log(`🔍 Total layers with pm.enable: ${layersWithPmEnable}`);
+          console.log("🔍 Canvas clicked");
 
           if (drawingModeRef.current === "edit") {
             const clickedLayer = e.target || e.layer || e.sourceTarget;
@@ -1212,29 +1824,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               "📝 Edit mode - clickedLayer:",
               clickedLayer?.constructor?.name
             );
-            console.log(
-              "🔍 Clicked layer type:",
-              clickedLayer?.constructor?.name
-            );
-            console.log(
-              "🔍 Has getBounds method:",
-              typeof clickedLayer?.getBounds === "function"
-            );
-            console.log(
-              "🔍 Has getLatLngs method:",
-              typeof clickedLayer?.getLatLngs === "function"
-            );
-            console.log("🔍 PM object:", (clickedLayer as any)?.pm);
-            console.log(
-              "🔍 PM enable method:",
-              typeof (clickedLayer as any)?.pm?.enable
-            );
-            console.log(
-              "🔍 PM object keys:",
-              clickedLayer?.pm
-                ? Object.keys((clickedLayer as any).pm)
-                : "No pm object"
-            );
+
+            // Check if this layer has our selective editing click handler
+            // If it does, let the selective editing handle it instead
+            const hasSelectiveEditing =
+              (clickedLayer as any)._events &&
+              (clickedLayer as any)._events.click &&
+              (clickedLayer as any)._events.click.some(
+                (handler: any) =>
+                  handler.fn &&
+                  handler.fn.toString().includes("drawingModeRef.current")
+              );
+
+            if (hasSelectiveEditing) {
+              console.log(
+                "✅ Layer has selective editing - letting selective editing handle it"
+              );
+              return; // Let the selective editing click handler take over
+            }
 
             if (
               clickedLayer &&
@@ -1247,7 +1854,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   allowEditing: false,
                   allowScaling: true,
                 });
-                console.log("✅ Edit mode enabled for layer");
+                console.log("✅ Edit enabled");
               } catch (error) {
                 console.log("❌ Error enabling edit mode:", error);
               }
@@ -1350,6 +1957,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         layer instanceof (L as any).Polygon ||
                         layer instanceof (L as any).Polyline ||
                         layer instanceof (L as any).Circle ||
+                        layer instanceof (L as any).CircleMarker ||
                         layer instanceof (L as any).Rectangle
                       ) {
                         // Check if this is a Geoman-created layer (not from GeoJSON)
@@ -1365,9 +1973,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                         if (isFromGeoJSON) {
                           console.log(
-                            "❌ This is a GeoJSON layer, cannot be edited"
+                            "✅ This is a GeoJSON layer, allowing selective editing"
                           );
-                          return;
+                          // Don't return - allow GeoJSON layers to be edited through selective editing
                         }
 
                         console.log(
@@ -1386,6 +1994,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         } else if (layer instanceof (L as any).Circle) {
                           console.log(
                             "⭕ This is a CIRCLE - standard editing allowed"
+                          );
+                        } else if (layer instanceof (L as any).CircleMarker) {
+                          console.log(
+                            "🔵 This is a CIRCLE MARKER - standard editing allowed"
                           );
                         } else if (layer instanceof (L as any).Rectangle) {
                           console.log(
@@ -1666,7 +2278,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         );
                       }
 
-                      console.log("✅ Edit mode enabled via fallback");
+                      console.log("✅ Edit enabled");
                       return; // Stop after finding the first valid shape
 
                       // Verify if mode was actually enabled
@@ -1717,6 +2329,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               "🔍 Has getLatLngs method:",
               typeof clickedLayer?.getLatLngs === "function"
             );
+
+            // Check if this layer has our selective editing click handler
+            const hasSelectiveEditing =
+              (clickedLayer as any)._events &&
+              (clickedLayer as any)._events.click &&
+              (clickedLayer as any)._events.click.some(
+                (handler: any) =>
+                  handler.fn &&
+                  handler.fn.toString().includes("drawingModeRef.current")
+              );
+
+            if (hasSelectiveEditing) {
+              console.log(
+                "✅ Layer has selective editing - letting selective editing handle it"
+              );
+              return; // Let the selective editing click handler take over
+            }
 
             if (
               clickedLayer &&
@@ -1805,6 +2434,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         layer instanceof (L as any).Polygon ||
                         layer instanceof (L as any).Polyline ||
                         layer instanceof (L as any).Circle ||
+                        layer instanceof (L as any).CircleMarker ||
                         layer instanceof (L as any).Rectangle
                       ) {
                         // Check if this is a Geoman-created layer (not from GeoJSON)
@@ -1923,32 +2553,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               "🚚 Drag mode - clickedLayer:",
               clickedLayer?.constructor?.name
             );
-            console.log(
-              "🔍 Clicked layer type:",
-              clickedLayer?.constructor?.name
-            );
-            console.log(
-              "🔍 Has getBounds method:",
-              typeof clickedLayer?.getBounds === "function"
-            );
-            console.log(
-              "🔍 Has getLatLngs method:",
-              typeof clickedLayer?.getLatLngs === "function"
-            );
-            console.log("🔍 PM object:", (clickedLayer as any)?.pm);
-            console.log(
-              "🔍 PM enable method:",
-              typeof (clickedLayer as any)?.pm?.enable
-            );
 
+            // Check if this layer has our selective editing click handler
+            const hasSelectiveEditing =
+              (clickedLayer as any)._events &&
+              (clickedLayer as any)._events.click &&
+              (clickedLayer as any)._events.click.some(
+                (handler: any) =>
+                  handler.fn &&
+                  handler.fn.toString().includes("drawingModeRef.current")
+              );
+
+            if (hasSelectiveEditing) {
+              console.log(
+                "✅ Layer has selective editing - letting selective editing handle it"
+              );
+              return; // Let the selective editing click handler take over
+            }
+
+            // Check if there's already a shape being dragged
+            if (draggedShape && draggedShape !== clickedLayer) {
+              // Show confirmation modal for saving the previous shape
+              setPendingDragShape(clickedLayer);
+              setShowDragConfirmation(true);
+              console.log(
+                "⚠️ Another shape is being dragged, showing confirmation"
+              );
+              return;
+            }
+
+            // If no shape is being dragged or same shape clicked, enable drag
             if (
               clickedLayer &&
               (clickedLayer as any).pm &&
               typeof (clickedLayer as any).pm.enable === "function"
             ) {
               try {
+                // Store original position before enabling drag
+                const originalPosition = clickedLayer.getLatLngs
+                  ? clickedLayer.getLatLngs()
+                  : null;
+
                 (clickedLayer as any).pm.enable({ mode: "drag" });
                 console.log("✅ Drag mode enabled for layer");
+
+                // Store the dragged shape and its original position
+                setDraggedShape(clickedLayer);
+                setOriginalShapePosition(originalPosition);
               } catch (error) {
                 console.log("❌ Error enabling drag mode:", error);
               }
@@ -2028,6 +2679,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         layer instanceof (L as any).Polygon ||
                         layer instanceof (L as any).Polyline ||
                         layer instanceof (L as any).Circle ||
+                        layer instanceof (L as any).CircleMarker ||
                         layer instanceof (L as any).Rectangle
                       ) {
                         // Check if this is a Geoman-created layer (not from GeoJSON)
@@ -2148,6 +2800,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               clickedLayer?.constructor?.name
             );
 
+            // Check if this layer has our selective editing click handler
+            const hasSelectiveEditing =
+              (clickedLayer as any)._events &&
+              (clickedLayer as any)._events.click &&
+              (clickedLayer as any)._events.click.some(
+                (handler: any) =>
+                  handler.fn &&
+                  handler.fn.toString().includes("drawingModeRef.current")
+              );
+
+            if (hasSelectiveEditing) {
+              console.log(
+                "✅ Layer has selective editing - letting selective editing handle it"
+              );
+              return; // Let the selective editing click handler take over
+            }
+
             if (clickedLayer && (clickedLayer as any).pm) {
               showConfirmation(
                 "Konfirmasi Hapus",
@@ -2174,6 +2843,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Use pm:click event for better layer detection
         map.on("pm:click", (e: any) => {
+          // Skip jika bangunan sedang diklik
+          if (isBuildingClickedRef.current) {
+            return;
+          }
+
           console.log("🎯 PM click event - mode:", drawingModeRef.current);
 
           if (drawingModeRef.current === "edit") {
@@ -2183,7 +2857,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 allowEditing: false,
                 allowScaling: true,
               });
-              console.log("✅ Edit mode enabled via PM click");
+              console.log("✅ Edit enabled");
             } catch (error) {
               console.log("❌ Error in PM click edit:", error);
             }
@@ -2221,7 +2895,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           if (drawingModeRef.current === "edit") {
             try {
               (e.target as any).pm.disable();
-              console.log("🔄 Edit mode auto-disabled");
+              console.log("🔄 Edit disabled");
+              // Reset drawing state setelah edit selesai
+              setDrawingMode(null);
+              setIsDrawingEnabled(false);
+              // Update ref langsung untuk memastikan state ter-update
+              isDrawingEnabledRef.current = false;
+              drawingModeRef.current = null;
             } catch (error) {
               console.log("❌ Error disabling edit mode:", error);
             }
@@ -2233,6 +2913,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             try {
               (e.target as any).pm.disable();
               console.log("🔄 Rotate mode auto-disabled");
+              // Reset drawing state setelah rotate selesai
+              setDrawingMode(null);
+              setIsDrawingEnabled(false);
+              // Update ref langsung untuk memastikan state ter-update
+              isDrawingEnabledRef.current = false;
+              drawingModeRef.current = null;
             } catch (error) {
               console.log("❌ Error disabling rotate mode:", error);
             }
@@ -2244,6 +2930,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             try {
               (e.target as any).pm.disable();
               console.log("🔄 Drag mode auto-disabled");
+              // Reset drawing state setelah drag selesai
+              setDrawingMode(null);
+              setIsDrawingEnabled(false);
+              // Update ref langsung untuk memastikan state ter-update
+              isDrawingEnabledRef.current = false;
+              drawingModeRef.current = null;
             } catch (error) {
               console.log("❌ Error disabling drag mode:", error);
             }
@@ -2321,6 +3013,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const map = leafletMapRef.current;
       if (!map || !isDashboard || !(map as any).pm) return;
 
+      // Fungsi untuk mengatur cursor
+      const setDrawingCursor = () => {
+        const mapContainer = map.getContainer();
+        if (mapContainer) {
+          mapContainer.style.cursor = "crosshair";
+        }
+      };
+
+      const resetCursor = () => {
+        const mapContainer = map.getContainer();
+        if (mapContainer) {
+          mapContainer.style.cursor = "";
+        }
+      };
+
       // Disable all modes first - only use methods that exist
       try {
         if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
@@ -2367,6 +3074,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Enable the selected mode
       if (drawingMode) {
+        // Set cursor crosshair untuk semua drawing modes
+        setDrawingCursor();
+
         switch (drawingMode) {
           case "polygon":
             // Try to enable polygon drawing
@@ -2434,6 +3144,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               // Set up click handler untuk circle marker
               const handleCircleMarkerClick = (e: any) => {
+                // Skip jika bangunan sedang diklik
+                if (isBuildingClickedRef.current) {
+                  return;
+                }
+
                 const { lat, lng } = e.latlng;
 
                 // Create circle marker
@@ -2445,6 +3160,109 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   opacity: 1,
                   fillOpacity: 0.8,
                 }).addTo(map);
+
+                // Add selective editing functionality to the circle marker
+                if ((circleMarker as any).pm) {
+                  // Enable PM for the circle marker but keep it disabled by default
+                  (circleMarker as any).pm.enable({
+                    allowEditing: true,
+                    allowScaling: true,
+                    allowRotating: true,
+                    allowDrag: true,
+                    allowRemoval: true,
+                    allowCutting: true,
+                    allowAddingVertices: true,
+                    allowRemovingVertices: true,
+                    allowMovingVertices: true,
+                    allowMiddleMarkers: true,
+                  });
+                  // Disable PM by default - it will be enabled selectively
+                  (circleMarker as any).pm.disable();
+
+                  // Add click handler for selective editing
+                  circleMarker.on("click", function (e: L.LeafletMouseEvent) {
+                    // Check if drawing mode is active
+                    if (!drawingModeRef.current) {
+                      return;
+                    }
+
+                    // Reset all other layers to disabled state
+                    if (bangunanLayerRef.current) {
+                      (bangunanLayerRef.current as any).eachLayer(
+                        (otherLayer: any) => {
+                          if (otherLayer.pm && otherLayer !== circleMarker) {
+                            otherLayer.pm.disable();
+                          }
+                        }
+                      );
+                    }
+                    if (jalurLayerRef.current) {
+                      (jalurLayerRef.current as any).eachLayer(
+                        (otherLayer: any) => {
+                          if (otherLayer.pm && otherLayer !== circleMarker) {
+                            otherLayer.pm.disable();
+                          }
+                        }
+                      );
+                    }
+                    if (titikLayerRef.current) {
+                      (titikLayerRef.current as any).eachLayer(
+                        (otherLayer: any) => {
+                          if (otherLayer.pm && otherLayer !== circleMarker) {
+                            otherLayer.pm.disable();
+                          }
+                        }
+                      );
+                    }
+                    if (nonBangunanLayerRef.current) {
+                      (nonBangunanLayerRef.current as any).eachLayer(
+                        (otherLayer: any) => {
+                          if (otherLayer.pm && otherLayer !== circleMarker) {
+                            otherLayer.pm.disable();
+                          }
+                        }
+                      );
+                    }
+
+                    // Also disable PM on all other layers in the map
+                    map.eachLayer((otherLayer: any) => {
+                      if (
+                        otherLayer.pm &&
+                        otherLayer !== circleMarker &&
+                        otherLayer !== map
+                      ) {
+                        otherLayer.pm.disable();
+                      }
+                    });
+
+                    // Enable PM for this specific layer based on drawing mode
+                    try {
+                      if (drawingModeRef.current === "edit") {
+                        (circleMarker as any).pm.enable({ allowEditing: true });
+                        console.log("✅ Edit enabled for circle marker");
+                      } else if (drawingModeRef.current === "scale") {
+                        (circleMarker as any).pm.enable({
+                          allowScaling: true,
+                          allowRotating: true,
+                        });
+                        console.log("✅ Scale enabled for circle marker");
+                      } else if (drawingModeRef.current === "drag") {
+                        (circleMarker as any).pm.enable({ allowDrag: true });
+                        console.log("✅ Drag enabled for circle marker");
+                      } else if (drawingModeRef.current === "remove") {
+                        (circleMarker as any).pm.enable({ allowRemoval: true });
+                        console.log("✅ Remove enabled for circle marker");
+                      }
+                    } catch (error) {
+                      console.log(
+                        "❌ Error enabling PM for circle marker:",
+                        error
+                      );
+                    }
+                  });
+
+                  console.log("✅ PM enabled for circle marker");
+                }
 
                 // Add to map
                 console.log("Circle marker created at:", lat, lng);
@@ -2469,28 +3287,149 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
             break;
           case "edit":
+            // Disable drag mode on all layers when switching to edit mode
+            try {
+              if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+              map.eachLayer((layer: any) => {
+                if (
+                  layer &&
+                  layer.pm &&
+                  typeof layer.pm.disableDrag === "function"
+                ) {
+                  try {
+                    layer.pm.disableDrag();
+                  } catch (error) {
+                    // Ignore errors
+                  }
+                }
+              });
+            } catch (error) {
+              // Ignore errors
+            }
             // Don't enable global edit mode - just set flag for click handler
-            console.log("Edit mode activated - click on a layer to resize it");
+            console.log("Edit mode activated");
+            // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
           case "drag":
-            // Don't enable global drag mode - just set flag for click handler
-            console.log("Drag mode activated - click on a layer to drag it");
+            // Enable global drag mode for better drag functionality
+            try {
+              if (map.pm.enableGlobalDragMode) {
+                map.pm.enableGlobalDragMode();
+                console.log("✅ Global drag mode enabled");
+              } else {
+                console.log(
+                  "⚠️ Global drag mode not available, using click handler"
+                );
+              }
+            } catch (error) {
+              console.log("❌ Error enabling global drag mode:", error);
+            }
+            console.log(
+              "Drag mode activated - click on a layer to drag it (one at a time)"
+            );
+            // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
           case "remove":
+            // Disable drag mode on all layers when switching to remove mode
+            try {
+              if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+              map.eachLayer((layer: any) => {
+                if (
+                  layer &&
+                  layer.pm &&
+                  typeof layer.pm.disableDrag === "function"
+                ) {
+                  try {
+                    layer.pm.disableDrag();
+                  } catch (error) {
+                    // Ignore errors
+                  }
+                }
+              });
+            } catch (error) {
+              // Ignore errors
+            }
             // Don't enable global removal mode - just set flag for click handler
             console.log(
               "Remove mode activated - click on a layer to remove it"
             );
+            // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
           case "scale":
+            // Disable drag mode on all layers when switching to scale mode
+            try {
+              if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+              map.eachLayer((layer: any) => {
+                if (
+                  layer &&
+                  layer.pm &&
+                  typeof layer.pm.disableDrag === "function"
+                ) {
+                  try {
+                    layer.pm.disableDrag();
+                  } catch (error) {
+                    // Ignore errors
+                  }
+                }
+              });
+            } catch (error) {
+              // Ignore errors
+            }
             // Don't enable global rotate mode - just set flag for click handler
             console.log("Scale mode activated - click on a layer to rotate it");
+            // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
         }
+      } else {
+        // Disable all PM modes when drawing is disabled
+        try {
+          // Disable all global modes
+          if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+          if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
+          if (map.pm.disableGlobalRemovalMode)
+            map.pm.disableGlobalRemovalMode();
+          if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+          if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
+
+          // Disable drawing modes
+          if (map.pm.disableDraw) map.pm.disableDraw();
+
+          // Disable all layer-specific modes
+          map.eachLayer((layer: any) => {
+            if (layer && layer.pm) {
+              try {
+                if (typeof layer.pm.disable === "function") layer.pm.disable();
+                if (typeof layer.pm.disableDrag === "function")
+                  layer.pm.disableDrag();
+                if (typeof layer.pm.disableEdit === "function")
+                  layer.pm.disableEdit();
+                if (typeof layer.pm.disableRotate === "function")
+                  layer.pm.disableRotate();
+                if (typeof layer.pm.disableScale === "function")
+                  layer.pm.disableScale();
+                if (typeof layer.pm.disableRemoval === "function")
+                  layer.pm.disableRemoval();
+              } catch (error) {
+                // Ignore errors
+              }
+            }
+          });
+        } catch (error) {
+          // Ignore errors
+        }
+
+        // Reset drag state when drawing is disabled
+        setDraggedShape(null);
+        setOriginalShapePosition(null);
+        setShowDragConfirmation(false);
+        setPendingDragShape(null);
+
+        // Reset cursor jika tidak ada drawing mode aktif
+        resetCursor();
       }
     }, [drawingMode, isDashboard]);
 
-    // Control map interactions berdasarkan highlight state dan navigation state
+    // Control map interactions berdasarkan highlight state, navigation state, dan drawing state
     useEffect(() => {
       const map = leafletMapRef.current;
       if (!map) return;
@@ -2514,7 +3453,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           delete (map as any)._canvasClickCleanup;
         }
       }
-      // Jika highlight aktif tapi navigation tidak aktif, disable map interactions
+      // Jika drawing mode aktif (terutama drag mode), enable map interactions
+      else if (isDrawingEnabled && drawingMode) {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+
+        // Cleanup canvas click handler jika ada
+        if ((map as any)._canvasClickCleanup) {
+          (map as any)._canvasClickCleanup();
+          delete (map as any)._canvasClickCleanup;
+        }
+      }
+      // Jika highlight aktif tapi navigation dan drawing tidak aktif, disable map interactions
       else if (isHighlightActive) {
         // Disable map interactions
         map.dragging.disable();
@@ -2526,7 +3480,182 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Add click handler untuk canvas area dengan delay (hanya jika navigation tidak aktif)
         setTimeout(() => {
-          const handleCanvasClick = (e: MouseEvent) => {
+          const handleCanvasClick = (e: Event) => {
+            // Cek apakah klik di luar container
+            const container = document.querySelector(
+              '[data-container="building-detail"]'
+            );
+            // Cek apakah modal route sedang terbuka
+            const routeModal = document.querySelector(
+              '[data-modal="route-modal"]'
+            );
+
+            // Cek apakah klik terjadi di dalam area peta (canvas peta)
+            const mapContainer = document.querySelector(".leaflet-container");
+            const isClickInsideMap =
+              mapContainer && mapContainer.contains(e.target as Node);
+
+            // Cek apakah klik pada kontrol peta (zoom in/out, reset, layer toggle, basemap toggle, GPS)
+            const target = e.target as Element;
+            const isMapControl =
+              target.closest(".leaflet-control-zoom") || // Zoom in/out buttons
+              target.closest(".leaflet-control-layers") || // Layer control
+              target.closest('[data-control="reset-zoom"]') || // Reset zoom button
+              target.closest('[data-control="toggle-layer"]') || // Toggle layer button
+              target.closest('[data-control="toggle-basemap"]') || // Toggle basemap button
+              target.closest('[data-control="zoom-in"]') || // Zoom in button
+              target.closest('[data-control="zoom-out"]') || // Zoom out button
+              target.closest('[data-control="locate-me"]') || // GPS button
+              target.closest(".leaflet-control-attribution") || // Attribution
+              target.closest(".leaflet-control-scale"); // Scale control
+
+            // Cek apakah klik terjadi pada bangunan (polygon) atau elemen SVG lainnya
+            const pathElement = target.closest("path");
+            const svgElement = target.closest("svg");
+            const isClickOnBuilding =
+              (pathElement &&
+                pathElement.getAttribute("fill") !== "none" &&
+                pathElement.getAttribute("stroke") !== "none") ||
+              (svgElement && svgElement.closest(".leaflet-zoom-animated"));
+            console.log("🔍 isClickOnBuilding:", isClickOnBuilding);
+
+            if (
+              container &&
+              !container.contains(e.target as Node) &&
+              !routeModal &&
+              !isMapControl &&
+              isClickInsideMap &&
+              !isClickOnBuilding &&
+              !isBuildingClickedRef.current
+            ) {
+              // Klik di luar container tapi di dalam area peta, tutup detail
+              console.log("🖱️ Canvas clicked - closing building detail");
+              setCardVisible(false);
+              setIsHighlightActive(false);
+
+              // Tambahkan efek shake pada container sebelum ditutup untuk memberikan feedback visual
+              if (container) {
+                setIsContainerShaking(true);
+                setTimeout(() => {
+                  setIsContainerShaking(false);
+                  setTimeout(() => setSelectedFeature(null), 350);
+                }, 600);
+              } else {
+                setTimeout(() => setSelectedFeature(null), 350);
+              }
+            }
+          };
+
+          // Cleanup function untuk dijalankan saat highlight nonaktif
+          const cleanup = () => {
+            document.removeEventListener("click", handleCanvasClick);
+            const mapContainer = document.querySelector(".leaflet-container");
+            if (mapContainer) {
+              mapContainer.removeEventListener("click", handleCanvasClick);
+            }
+          };
+
+          document.addEventListener("click", handleCanvasClick);
+          const mapContainer = document.querySelector(".leaflet-container");
+          if (mapContainer) {
+            mapContainer.addEventListener("click", handleCanvasClick);
+          }
+
+          // Simpan cleanup function untuk dijalankan nanti
+          if (map) {
+            (map as any)._canvasClickCleanup = cleanup;
+          }
+        }, 100); // Delay 100ms untuk memastikan container sudah terbuka
+      }
+      // Jika keduanya tidak aktif, enable map interactions
+      else {
+        // Enable map interactions
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+
+        // Cleanup canvas click handler jika ada
+        if ((map as any)._canvasClickCleanup) {
+          (map as any)._canvasClickCleanup();
+          delete (map as any)._canvasClickCleanup;
+        }
+      }
+    }, [isHighlightActive, isNavigationActive, isDrawingEnabled, drawingMode]);
+
+    // Helper functions for cursor management
+    const setDrawingCursor = () => {
+      const map = leafletMapRef.current;
+      if (!map) return;
+      const mapContainer = map.getContainer();
+      if (mapContainer) {
+        mapContainer.style.cursor = "crosshair";
+      }
+    };
+
+    const resetCursor = () => {
+      const map = leafletMapRef.current;
+      if (!map) return;
+      const mapContainer = map.getContainer();
+      if (mapContainer) {
+        mapContainer.style.cursor = "";
+      }
+    };
+
+    // Control map interactions berdasarkan highlight state, navigation state, dan drawing state
+    useEffect(() => {
+      const map = leafletMapRef.current;
+      if (!map) return;
+
+      // Update refs untuk digunakan di event handler Leaflet
+      isHighlightActiveRef.current = isHighlightActive;
+      isNavigationActiveRef.current = isNavigationActive;
+
+      // Jika navigation aktif, enable map interactions (bisa di-geser)
+      if (isNavigationActive) {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+
+        // Cleanup canvas click handler jika ada
+        if ((map as any)._canvasClickCleanup) {
+          (map as any)._canvasClickCleanup();
+          delete (map as any)._canvasClickCleanup;
+        }
+      }
+      // Jika drawing mode aktif (terutama drag mode), enable map interactions
+      else if (isDrawingEnabled && drawingMode) {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+
+        // Cleanup canvas click handler jika ada
+        if ((map as any)._canvasClickCleanup) {
+          (map as any)._canvasClickCleanup();
+          delete (map as any)._canvasClickCleanup;
+        }
+      }
+      // Jika highlight aktif tapi navigation dan drawing tidak aktif, disable map interactions
+      else if (isHighlightActive) {
+        // Disable map interactions
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+
+        // Add click handler untuk canvas area dengan delay (hanya jika navigation tidak aktif)
+        setTimeout(() => {
+          const handleCanvasClick = (e: Event) => {
             // Cek apakah klik di luar container
             const container = document.querySelector(
               '[data-container="building-detail"]'
@@ -2753,7 +3882,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           delete (map as any)._canvasClickCleanup;
         }
       }
-    }, [isHighlightActive, isNavigationActive]);
+    }, [isHighlightActive, isNavigationActive, isDrawingEnabled, drawingMode]);
 
     // Sync routeLine state dengan routeLineRef
     useEffect(() => {
@@ -3271,6 +4400,51 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleDrawingModeChange = (mode: string | null) => {
       setDrawingMode(mode);
       setIsDrawingEnabled(!!mode);
+    };
+
+    // Drag confirmation handlers
+    const handleConfirmDrag = () => {
+      console.log("✅ User confirmed drag - saving shape position");
+
+      // Start dragging the pending shape
+      if (pendingDragShape) {
+        try {
+          const originalPosition = pendingDragShape.getLatLngs
+            ? pendingDragShape.getLatLngs()
+            : null;
+          (pendingDragShape as any).pm.enable({ mode: "drag" });
+          setDraggedShape(pendingDragShape);
+          setOriginalShapePosition(originalPosition);
+          console.log("✅ Started dragging new shape");
+        } catch (error) {
+          console.log("❌ Error enabling drag for new shape:", error);
+        }
+      }
+
+      setShowDragConfirmation(false);
+      setPendingDragShape(null);
+    };
+
+    const handleCancelDrag = () => {
+      console.log("❌ User cancelled drag - reverting shape position");
+
+      // Revert the shape to its original position
+      if (draggedShape && originalShapePosition) {
+        try {
+          if (draggedShape.setLatLngs) {
+            draggedShape.setLatLngs(originalShapePosition);
+            console.log("✅ Shape reverted to original position");
+          }
+        } catch (error) {
+          console.log("❌ Error reverting shape position:", error);
+        }
+      }
+
+      setDraggedShape(null);
+      setOriginalShapePosition(null);
+      setShowDragConfirmation(false);
+      setPendingDragShape(null);
+      resetCursor();
     };
 
     const handleToggleDrawing = () => {
@@ -6775,6 +7949,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         style={{
           minHeight: 350,
           touchAction: "none", // Prevent default touch behaviors
+          cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
         }}
       >
         <MapControlsPanel
@@ -6905,13 +8080,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Kontrol peta disatukan dalam MapControlsPanel */}
 
         {/* Sidebar Gedung (floating card kanan atas) - Mobile Responsive */}
-        {selectedFeature && cardVisible && !showBuildingDetailCanvas && (
+        {selectedFeature && cardVisible && (
           <BuildingDetailModal
             isDark={!!isDark}
             isDashboard={!!isDashboard}
             isLoggedIn={isLoggedIn}
             selectedFeature={selectedFeature}
             isContainerShaking={isContainerShaking}
+            drawingMode={drawingMode}
             onClose={() => {
               setCardVisible(false);
               setIsHighlightActive(false);
@@ -6976,7 +8152,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           isEditingThumbnail ||
           isEditingLantai ||
           isEditingInteraksi) && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[50]">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[50]"
+            style={{
+              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            }}
+          >
             <div
               className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
               data-modal="edit-modal"
@@ -7260,7 +8441,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* Modal Pilih Posisi Pin */}
         {showPinPositionModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+            style={{
+              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            }}
+          >
             <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
               {/* Header - Fixed */}
               <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
@@ -7409,7 +8595,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                                   return (
                                     <div
-                                      className="text-3xl drop-shadow-lg filter drop-shadow-md"
+                                      className="text-3xl drop-shadow-lg filter"
                                       style={{ color: config.hexColor }}
                                     >
                                       <i className="fas fa-map-marker-alt"></i>
@@ -7497,6 +8683,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             height: "100%",
             minHeight: 300,
             zIndex: 1,
+            cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             display: showBuildingDetailCanvas ? "none" : "block",
             touchAction: "none",
             WebkitTouchCallout: "none",
@@ -7522,6 +8709,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 ? "opacity-0 animate-fade-in"
                 : "opacity-100"
             }`}
+            style={{
+              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            }}
           >
             <iframe
               src={`/building-details/index.html?id=${
@@ -7529,8 +8719,69 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }`}
               title="Building Detail"
               className="w-full h-full border-0"
-              style={{ minHeight: "300px" }}
+              style={{
+                minHeight: "300px",
+                cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              }}
             />
+          </div>
+        )}
+
+        {/* MODAL KONFIRMASI DRAG */}
+        {showDragConfirmation && (
+          <div className="absolute inset-0 w-full h-full flex items-center justify-center z-[30] bg-black/50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-yellow-600 dark:text-yellow-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Konfirmasi Drag Shape
+                  </h3>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Anda sedang menggeser shape lain. Apakah Anda yakin ingin
+                  menyimpan perubahan pada shape yang sedang digeser?
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  • <strong>Ya</strong>: Simpan posisi shape yang sedang digeser
+                  dan lanjutkan drag shape baru
+                  <br />• <strong>Tidak</strong>: Kembalikan shape ke posisi
+                  semula
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleConfirmDrag}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Ya, Simpan
+                </button>
+                <button
+                  onClick={handleCancelDrag}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Tidak, Kembalikan
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -7539,6 +8790,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           <div
             data-modal="route-modal"
             className="absolute inset-0 z-[25] flex items-center justify-center"
+            style={{
+              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            }}
           >
             {/* Overlay */}
             <div
@@ -7924,7 +9178,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* Modal Tambah Lantai */}
         {showTambahLantaiModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+            style={{
+              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            }}
+          >
             <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
               {/* Header */}
               <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
@@ -8073,7 +9332,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* Modal Edit Lantai */}
         {showEditLantaiModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
+            style={{
+              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            }}
+          >
             <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">

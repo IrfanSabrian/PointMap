@@ -519,7 +519,7 @@ export default function MapControlsPanel(props: Props) {
 
       {/* Kontrol kiri bawah - Kosong karena tombol layer dipindah ke kanan untuk dashboard admin */}
       {!isDashboard && (
-        <div className="absolute left-2 bottom-2 sm:left-4 sm:left-4 z-20 flex flex-col gap-2">
+        <div className="absolute left-2 bottom-2 sm:left-4 z-20 flex flex-col gap-2">
           <button
             data-control="toggle-layer"
             onClick={onToggleLayer}
