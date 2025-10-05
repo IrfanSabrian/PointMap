@@ -17,6 +17,7 @@ interface DrawingSidebarProps {
   isDashboard?: boolean;
   onDrawingModeChange?: (mode: string | null) => void;
   externalActiveMode?: string | null;
+  isConfirmationActive?: boolean; // New prop to control button disable state
 }
 
 export default function DrawingSidebar({
@@ -24,6 +25,7 @@ export default function DrawingSidebar({
   isDashboard = false,
   onDrawingModeChange,
   externalActiveMode = null,
+  isConfirmationActive = false,
 }: DrawingSidebarProps) {
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
@@ -216,6 +218,12 @@ export default function DrawingSidebar({
   }, [externalActiveMode]);
 
   const handleDrawingModeChange = (mode: string | null) => {
+    // Prevent mode change if confirmation is active
+    if (isConfirmationActive) {
+      console.log("🚫 Mode change blocked - confirmation is active");
+      return;
+    }
+
     if (activeMode === mode) {
       // Jika user klik tool yang sudah aktif, reset drawing mode
       setActiveMode(null);
@@ -321,14 +329,21 @@ export default function DrawingSidebar({
                 {/* Polygon Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("polygon")}
+                  disabled={isConfirmationActive}
                   className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                    activeMode === "polygon"
+                    isConfirmationActive
+                      ? "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                      : activeMode === "polygon"
                       ? "border-primary bg-primary/20 text-primary ring-2 ring-primary/40 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
                       : isDark
                       ? "border-gray-600 bg-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:text-white/90"
                       : "border-gray-300 bg-white text-gray-700 hover:border-primary hover:bg-primary/10"
                   }`}
-                  title="Gambar Polygon"
+                  title={
+                    isConfirmationActive
+                      ? "Tidak tersedia saat konfirmasi aktif"
+                      : "Gambar Polygon"
+                  }
                 >
                   <FontAwesomeIcon icon={faDrawPolygon} className="w-5 h-5" />
                   <span className="text-xs font-medium">Polygon</span>
@@ -337,14 +352,21 @@ export default function DrawingSidebar({
                 {/* Polyline Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("polyline")}
+                  disabled={isConfirmationActive}
                   className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                    activeMode === "polyline"
+                    isConfirmationActive
+                      ? "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                      : activeMode === "polyline"
                       ? "border-primary bg-primary/20 text-primary ring-2 ring-primary/40 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
                       : isDark
                       ? "border-gray-600 bg-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:text-white/90"
                       : "border-gray-300 bg-white text-gray-700 hover:border-primary hover:bg-primary/10"
                   }`}
-                  title="Gambar Polyline"
+                  title={
+                    isConfirmationActive
+                      ? "Tidak tersedia saat konfirmasi aktif"
+                      : "Gambar Polyline"
+                  }
                 >
                   <FontAwesomeIcon icon={faMinus} className="w-5 h-5" />
                   <span className="text-xs font-medium">Polyline</span>
@@ -353,14 +375,21 @@ export default function DrawingSidebar({
                 {/* Circle Marker Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("circle")}
+                  disabled={isConfirmationActive}
                   className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                    activeMode === "circle"
+                    isConfirmationActive
+                      ? "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                      : activeMode === "circle"
                       ? "border-primary bg-primary/20 text-primary ring-2 ring-primary/40 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]"
                       : isDark
                       ? "border-gray-600 bg-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:text-white/90"
                       : "border-gray-300 bg-white text-gray-700 hover:border-primary hover:bg-primary/10"
                   }`}
-                  title="Tambah Circle Marker"
+                  title={
+                    isConfirmationActive
+                      ? "Tidak tersedia saat konfirmasi aktif"
+                      : "Tambah Circle Marker"
+                  }
                 >
                   <FontAwesomeIcon icon={faCircle} className="w-5 h-5" />
                   <span className="text-xs font-medium">Marker</span>
@@ -384,14 +413,21 @@ export default function DrawingSidebar({
                 {/* Edit Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("edit")}
+                  disabled={isConfirmationActive}
                   className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                    activeMode === "edit"
+                    isConfirmationActive
+                      ? "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                      : activeMode === "edit"
                       ? "border-primary bg-primary/10 text-primary"
                       : isDark
                       ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
                       : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
                   }`}
-                  title="Edit Layers"
+                  title={
+                    isConfirmationActive
+                      ? "Tidak tersedia saat konfirmasi aktif"
+                      : "Edit Layers"
+                  }
                 >
                   <FontAwesomeIcon icon={faEdit} className="w-5 h-5" />
                   <span className="text-xs font-medium">Edit</span>
@@ -400,14 +436,21 @@ export default function DrawingSidebar({
                 {/* Drag Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("drag")}
+                  disabled={isConfirmationActive}
                   className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                    activeMode === "drag"
+                    isConfirmationActive
+                      ? "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                      : activeMode === "drag"
                       ? "border-primary bg-primary/10 text-primary"
                       : isDark
                       ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
                       : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
                   }`}
-                  title="Drag Layers"
+                  title={
+                    isConfirmationActive
+                      ? "Tidak tersedia saat konfirmasi aktif"
+                      : "Drag Layers"
+                  }
                 >
                   <FontAwesomeIcon icon={faArrowsAlt} className="w-5 h-5" />
                   <span className="text-xs font-medium">Drag</span>
@@ -416,33 +459,24 @@ export default function DrawingSidebar({
                 {/* Remove Tool */}
                 <button
                   onClick={() => handleDrawingModeChange("remove")}
+                  disabled={isConfirmationActive}
                   className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/30 ${
-                    activeMode === "remove"
+                    isConfirmationActive
+                      ? "border-gray-400 bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                      : activeMode === "remove"
                       ? "border-red-500 bg-red-500/10 text-red-500"
                       : isDark
                       ? "border-gray-600 bg-gray-700 text-white hover:border-red-500 hover:bg-red-500/10 hover:text-red-500"
                       : "border-gray-300 bg-white text-gray-700 hover:border-red-500 hover:bg-red-50 hover:text-red-500"
                   }`}
-                  title="Remove Layers"
+                  title={
+                    isConfirmationActive
+                      ? "Tidak tersedia saat konfirmasi aktif"
+                      : "Remove Layers"
+                  }
                 >
                   <FontAwesomeIcon icon={faTrash} className="w-5 h-5" />
                   <span className="text-xs font-medium">Remove</span>
-                </button>
-
-                {/* Scale Tool */}
-                <button
-                  onClick={() => handleDrawingModeChange("scale")}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${
-                    activeMode === "scale"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : isDark
-                      ? "border-gray-600 bg-gray-700 text-white hover:border-gray-500 hover:bg-gray-600"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
-                  }`}
-                  title="Rotate Layers"
-                >
-                  <FontAwesomeIcon icon={faRuler} className="w-5 h-5" />
-                  <span className="text-xs font-medium">Rotate</span>
                 </button>
               </div>
             </div>
@@ -481,10 +515,6 @@ export default function DrawingSidebar({
                 <li>• Setelah selesai, pilih tool lain atau tutup sidebar</li>
                 <li>
                   • Edit: klik tombol edit → klik layer untuk resize
-                  polygon/polyline
-                </li>
-                <li>
-                  • Scale: klik tombol rotate → klik layer untuk memutar
                   polygon/polyline
                 </li>
                 <li>

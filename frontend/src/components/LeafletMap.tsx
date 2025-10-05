@@ -223,6 +223,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const [showDragConfirmation, setShowDragConfirmation] = useState(false);
     const [pendingDragShape, setPendingDragShape] = useState<any>(null);
 
+    // State untuk melacak shape yang sedang aktif
+    const [activeShape, setActiveShape] = useState<any>(null);
+    const [pendingNewShape, setPendingNewShape] = useState<any>(null);
+    const [showShapeSwitchModal, setShowShapeSwitchModal] = useState(false);
+
     // Ref untuk mengakses state drawing yang terbaru
     const isDrawingEnabledRef = useRef(false);
     const drawingModeRef = useRef<string | null>(null);
@@ -788,6 +793,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 // Enable PM for this specific layer based on drawing mode
                 try {
                   if (drawingModeRef.current === "edit") {
+                    console.log(
+                      "🔍 Selective editing: Edit mode - checking PM state"
+                    );
+                    console.log(
+                      "🔍 PM enabled state:",
+                      (layer as any).pm?.enabled()
+                    );
+
                     // Save original shape data
                     const originalData = {
                       latLngs: (layer as any).getLatLngs(),
@@ -799,26 +812,79 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                     (layer as any).pm.enable({ allowEditing: true });
                     console.log(
+                      "🔍 PM enabled state after enable:",
+                      (layer as any).pm?.enabled()
+                    );
+
+                    // Apply visual feedback for edit mode
+                    applyVisualFeedback(layer, "edit");
+
+                    console.log(
                       "✅ Edit enabled for jalur layer:",
                       feature.properties?.nama || feature.properties?.id
                     );
                   } else if (drawingModeRef.current === "scale") {
                     (layer as any).pm.enable({
                       allowScaling: true,
-                      allowRotating: true,
                     });
                     console.log(
                       "✅ Scale enabled for jalur layer:",
                       feature.properties?.nama || feature.properties?.id
                     );
                   } else if (drawingModeRef.current === "drag") {
-                    (layer as any).pm.enable({ allowDrag: true });
+                    console.log(
+                      "🔍 Selective editing: Drag mode - checking PM state"
+                    );
+                    console.log(
+                      "🔍 PM enabled state:",
+                      (layer as any).pm?.enabled()
+                    );
+
+                    // First, disable drag on all other layers
+                    map.eachLayer((otherLayer: any) => {
+                      if (otherLayer && otherLayer !== layer && otherLayer.pm) {
+                        try {
+                          if (typeof otherLayer.pm.disableDrag === "function") {
+                            otherLayer.pm.disableDrag();
+                          } else if (
+                            typeof otherLayer.pm.disable === "function"
+                          ) {
+                            otherLayer.pm.disable();
+                          }
+                        } catch (error) {
+                          // Ignore errors
+                        }
+                      }
+                    });
+
+                    (layer as any).pm.enableLayerDrag();
+                    console.log(
+                      "🔍 PM enabled state after enableLayerDrag:",
+                      (layer as any).pm?.enabled()
+                    );
+
+                    // Apply visual feedback for drag mode
+                    applyVisualFeedback(layer, "drag");
+
                     console.log(
                       "✅ Drag enabled for jalur layer:",
                       feature.properties?.nama || feature.properties?.id
                     );
+
+                    // Store the dragged shape and show confirmation
+                    setDraggedShape(layer);
+                    setOriginalShapePosition(
+                      (layer as any).getLatLngs
+                        ? (layer as any).getLatLngs()
+                        : null
+                    );
+                    setShowDragConfirmation(true);
                   } else if (drawingModeRef.current === "remove") {
                     (layer as any).pm.enable({ allowRemoval: true });
+
+                    // Apply visual feedback for remove mode
+                    applyVisualFeedback(layer, "remove");
+
                     console.log(
                       "✅ Remove enabled for jalur layer:",
                       feature.properties?.nama || feature.properties?.id
@@ -1025,6 +1091,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     setIsEditingShape(true);
 
                     (layer as any).pm.enable({ allowEditing: true });
+
+                    // Apply visual feedback for edit mode
+                    applyVisualFeedback(layer, "edit");
+
                     console.log(
                       "✅ Edit enabled for point layer:",
                       feature.properties?.Nama || feature.properties?.id
@@ -1032,20 +1102,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   } else if (drawingModeRef.current === "scale") {
                     (layer as any).pm.enable({
                       allowScaling: true,
-                      allowRotating: true,
                     });
                     console.log(
                       "✅ Scale enabled for point layer:",
                       feature.properties?.Nama || feature.properties?.id
                     );
                   } else if (drawingModeRef.current === "drag") {
-                    (layer as any).pm.enable({ allowDrag: true });
+                    // First, disable drag on all other layers
+                    map.eachLayer((otherLayer: any) => {
+                      if (otherLayer && otherLayer !== layer && otherLayer.pm) {
+                        try {
+                          if (typeof otherLayer.pm.disableDrag === "function") {
+                            otherLayer.pm.disableDrag();
+                          } else if (
+                            typeof otherLayer.pm.disable === "function"
+                          ) {
+                            otherLayer.pm.disable();
+                          }
+                        } catch (error) {
+                          // Ignore errors
+                        }
+                      }
+                    });
+
+                    (layer as any).pm.enableLayerDrag();
+
+                    // Apply visual feedback for drag mode
+                    applyVisualFeedback(layer, "drag");
+
                     console.log(
                       "✅ Drag enabled for point layer:",
                       feature.properties?.Nama || feature.properties?.id
                     );
+
+                    // Store the dragged shape and show confirmation
+                    setDraggedShape(layer);
+                    setOriginalShapePosition(
+                      (layer as any).getLatLng
+                        ? (layer as any).getLatLng()
+                        : null
+                    );
+                    setShowDragConfirmation(true);
                   } else if (drawingModeRef.current === "remove") {
                     (layer as any).pm.enable({ allowRemoval: true });
+
+                    // Apply visual feedback for remove mode
+                    applyVisualFeedback(layer, "remove");
+
                     console.log(
                       "✅ Remove enabled for point layer:",
                       feature.properties?.Nama || feature.properties?.id
@@ -1277,6 +1380,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   setIsEditingShape(true);
 
                   (layer as any).pm.enable({ allowEditing: true });
+
+                  // Apply visual feedback for edit mode
+                  applyVisualFeedback(layer, "edit");
+
                   console.log(
                     "✅ Edit enabled for Polnep geojson layer:",
                     feature.properties?.id || "unknown"
@@ -1284,20 +1391,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 } else if (drawingModeRef.current === "scale") {
                   (layer as any).pm.enable({
                     allowScaling: true,
-                    allowRotating: true,
                   });
                   console.log(
                     "✅ Scale enabled for Polnep geojson layer:",
                     feature.properties?.id || "unknown"
                   );
                 } else if (drawingModeRef.current === "drag") {
-                  (layer as any).pm.enable({ allowDrag: true });
+                  // First, disable drag on all other layers
+                  map.eachLayer((otherLayer: any) => {
+                    if (otherLayer && otherLayer !== layer && otherLayer.pm) {
+                      try {
+                        if (typeof otherLayer.pm.disableDrag === "function") {
+                          otherLayer.pm.disableDrag();
+                        } else if (
+                          typeof otherLayer.pm.disable === "function"
+                        ) {
+                          otherLayer.pm.disable();
+                        }
+                      } catch (error) {
+                        // Ignore errors
+                      }
+                    }
+                  });
+
+                  (layer as any).pm.enableLayerDrag();
+
+                  // Apply visual feedback for drag mode
+                  applyVisualFeedback(layer, "drag");
+
                   console.log(
                     "✅ Drag enabled for Polnep geojson layer:",
                     feature.properties?.id || "unknown"
                   );
+
+                  // Store the dragged shape and show confirmation
+                  setDraggedShape(layer);
+                  setOriginalShapePosition(
+                    (layer as any).getLatLngs
+                      ? (layer as any).getLatLngs()
+                      : null
+                  );
+                  setShowDragConfirmation(true);
                 } else if (drawingModeRef.current === "remove") {
                   (layer as any).pm.enable({ allowRemoval: true });
+
+                  // Apply visual feedback for remove mode
+                  applyVisualFeedback(layer, "remove");
+
                   console.log(
                     "✅ Remove enabled for Polnep geojson layer:",
                     feature.properties?.id || "unknown"
@@ -1413,6 +1553,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   setIsEditingShape(true);
 
                   (layer as any).pm.enable({ allowEditing: true });
+
+                  // Apply visual feedback for edit mode
+                  applyVisualFeedback(layer, "edit");
+
                   console.log(
                     "✅ Edit enabled for building layer:",
                     feature.properties?.nama || feature.properties?.id
@@ -1420,20 +1564,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 } else if (drawingModeRef.current === "scale") {
                   (layer as any).pm.enable({
                     allowScaling: true,
-                    allowRotating: true,
                   });
                   console.log(
                     "✅ Scale enabled for building layer:",
                     feature.properties?.nama || feature.properties?.id
                   );
                 } else if (drawingModeRef.current === "drag") {
-                  (layer as any).pm.enable({ allowDrag: true });
+                  // First, disable drag on all other layers
+                  map.eachLayer((otherLayer: any) => {
+                    if (otherLayer && otherLayer !== layer && otherLayer.pm) {
+                      try {
+                        if (typeof otherLayer.pm.disableDrag === "function") {
+                          otherLayer.pm.disableDrag();
+                        } else if (
+                          typeof otherLayer.pm.disable === "function"
+                        ) {
+                          otherLayer.pm.disable();
+                        }
+                      } catch (error) {
+                        // Ignore errors
+                      }
+                    }
+                  });
+
+                  (layer as any).pm.enableLayerDrag();
+
+                  // Apply visual feedback for drag mode
+                  applyVisualFeedback(layer, "drag");
+
                   console.log(
                     "✅ Drag enabled for building layer:",
                     feature.properties?.nama || feature.properties?.id
                   );
+
+                  // Store the dragged shape and show confirmation
+                  setDraggedShape(layer);
+                  setOriginalShapePosition(
+                    (layer as any).getLatLngs
+                      ? (layer as any).getLatLngs()
+                      : null
+                  );
+                  setShowDragConfirmation(true);
                 } else if (drawingModeRef.current === "remove") {
                   (layer as any).pm.enable({ allowRemoval: true });
+
+                  // Apply visual feedback for remove mode
+                  applyVisualFeedback(layer, "remove");
+
                   console.log(
                     "✅ Remove enabled for building layer:",
                     feature.properties?.nama || feature.properties?.id
@@ -1464,10 +1641,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             layer.on("click", function (e: L.LeafletMouseEvent) {
               console.log("🏢 Building clicked");
 
-              // Blok klik bangunan jika drawing mode aktif
-              if (drawingModeRef.current) {
+              // Blok klik bangunan jika drawing mode aktif DAN ada activeShape
+              if (drawingModeRef.current && activeShape) {
                 console.log(
-                  "🚫 Building click blocked - drawing mode active:",
+                  "🚫 Building click blocked - drawing mode active with active shape:",
                   drawingModeRef.current
                 );
                 return;
@@ -1601,7 +1778,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (map.pm.disableGlobalDragMode) map.pm.disableGlobalDragMode();
         if (map.pm.disableGlobalRemovalMode) map.pm.disableGlobalRemovalMode();
         if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
-        if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
 
         // Set cursor untuk drawing mode
         const setDrawingCursor = () => {
@@ -1719,18 +1895,75 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   setIsEditingShape(true);
 
                   (newLayer as any).pm.enable({ allowEditing: true });
+
+                  // Add visual feedback for selected shape
+                  newLayer.setStyle({
+                    weight: 4,
+                    opacity: 0.8,
+                    color: "#4CAF50",
+                    fillOpacity: 0.3,
+                    fillColor: "#4CAF50",
+                  });
+
                   console.log("✅ Edit enabled for new shape");
                 } else if (drawingModeRef.current === "scale") {
                   (newLayer as any).pm.enable({
                     allowScaling: true,
-                    allowRotating: true,
                   });
                   console.log("✅ Scale enabled for new shape");
                 } else if (drawingModeRef.current === "drag") {
-                  (newLayer as any).pm.enable({ allowDrag: true });
+                  // First, disable drag on all other layers
+                  map.eachLayer((otherLayer: any) => {
+                    if (
+                      otherLayer &&
+                      otherLayer !== newLayer &&
+                      otherLayer.pm
+                    ) {
+                      try {
+                        if (typeof otherLayer.pm.disableDrag === "function") {
+                          otherLayer.pm.disableDrag();
+                        } else if (
+                          typeof otherLayer.pm.disable === "function"
+                        ) {
+                          otherLayer.pm.disable();
+                        }
+                      } catch (error) {
+                        // Ignore errors
+                      }
+                    }
+                  });
+
+                  (newLayer as any).pm.enableLayerDrag();
+
+                  // Add visual feedback for selected shape
+                  newLayer.setStyle({
+                    weight: 4,
+                    opacity: 0.8,
+                    color: "#ff6b6b",
+                    fillOpacity: 0.3,
+                    fillColor: "#ff6b6b",
+                  });
+
                   console.log("✅ Drag enabled for new shape");
+
+                  // Store the dragged shape and show confirmation
+                  setDraggedShape(newLayer);
+                  setOriginalShapePosition(
+                    newLayer.getLatLngs ? newLayer.getLatLngs() : null
+                  );
+                  setShowDragConfirmation(true);
                 } else if (drawingModeRef.current === "remove") {
                   (newLayer as any).pm.enable({ allowRemoval: true });
+
+                  // Add visual feedback for selected shape
+                  newLayer.setStyle({
+                    weight: 4,
+                    opacity: 0.8,
+                    color: "#f44336",
+                    fillOpacity: 0.3,
+                    fillColor: "#f44336",
+                  });
+
                   console.log("✅ Remove enabled for new shape");
                 }
               } catch (error) {
@@ -1859,23 +2092,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         map.on("pm:cutend", (e: any) => {
           console.log("Cut ended:", e);
           // Reset cursor setelah selesai cut
-          resetCursor();
-        });
-
-        map.on("pm:rotate", (e: any) => {
-          console.log("Shape rotated:", e);
-          // You can handle the rotated shape here
-        });
-
-        map.on("pm:rotatestart", (e: any) => {
-          console.log("Rotate started:", e);
-          // Set cursor crosshair saat mulai rotate
-          setDrawingCursor();
-        });
-
-        map.on("pm:rotateend", (e: any) => {
-          console.log("Rotate ended:", e);
-          // Reset cursor setelah selesai rotate
           resetCursor();
         });
 
@@ -2441,10 +2657,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               typeof (clickedLayer as any).pm.enable === "function"
             ) {
               try {
-                (clickedLayer as any).pm.enable({ mode: "rotate" });
-                console.log("✅ Rotate mode enabled for layer");
+                (clickedLayer as any).pm.enable({ mode: "scale" });
+                console.log("✅ Scale mode enabled for layer");
               } catch (error) {
-                console.log("❌ Error enabling rotate mode:", error);
+                console.log("❌ Error enabling scale mode:", error);
               }
             } else {
               console.log(
@@ -2548,86 +2764,30 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         );
 
                         try {
-                          // Method 1: Try pm.enable with options - ONLY ROTATE MODE
-                          if (pmObject.enable) {
-                            pmObject.enable({
-                              mode: "rotate",
-                              allowEditing: false, // Disable editing in rotate mode
-                              allowScaling: false, // Disable scaling in rotate mode
-                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
-                            });
-                            console.log(
-                              "✅ Method 1: pm.enable with rotate mode (no edit/scale)"
-                            );
+                          // First disable any existing modes
+                          if (pmObject.disable) {
+                            pmObject.disable();
                           }
 
-                          // Method 2: Try pm.enableRotate
-                          if (pmObject.enableRotate) {
-                            pmObject.enableRotate();
-                            console.log("✅ Method 2: pm.enableRotate");
-                          }
+                          // Enable rotate mode with proper options
+                          pmObject.enable({
+                            mode: "rotate",
+                            allowEditing: false,
+                            allowScaling: false,
+                            allowMiddleMarkers: false,
+                            allowSelfIntersection: false,
+                            allowSelfIntersectionEdit: false,
+                          });
 
-                          // Method 3: Try pm.enable with string mode
-                          if (pmObject.enable) {
-                            pmObject.enable("rotate", {
-                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
-                            });
-                            console.log("✅ Method 3: pm.enable('rotate')");
-                          }
+                          console.log("✅ Rotate mode enabled successfully");
                         } catch (error) {
                           console.log("❌ Error enabling rotate mode:", error);
                         }
-
-                        // Check if any method worked
-                        setTimeout(() => {
-                          console.log(
-                            "🔍 Checking if rotate mode was actually enabled..."
-                          );
-                          console.log(
-                            "Layer PM enabled:",
-                            pmObject.enabled
-                              ? pmObject.enabled()
-                              : "No enabled method"
-                          );
-                          console.log(
-                            "Layer PM rotating:",
-                            pmObject.rotating
-                              ? pmObject.rotating()
-                              : "No rotating method"
-                          );
-                        }, 100);
                       } else {
                         console.log(
                           "❌ This is NOT a real Leaflet shape, cannot enable rotating"
                         );
                       }
-
-                      console.log("✅ Rotate mode enabled via fallback");
-                      return; // Stop after finding the first valid shape
-
-                      // Verify if mode was actually enabled
-                      setTimeout(() => {
-                        console.log(
-                          "🔍 Checking if rotate mode was actually enabled..."
-                        );
-                        console.log(
-                          "Layer PM enabled:",
-                          (layer as any).pm.enabled()
-                        );
-                        // Check if vertices are visible
-                        console.log(
-                          "🔍 Layer element:",
-                          layer.getElement
-                            ? layer.getElement()
-                            : "No getElement method"
-                        );
-                        console.log(
-                          "🔍 Layer bounds:",
-                          layer.getBounds
-                            ? layer.getBounds()
-                            : "No getBounds method"
-                        );
-                      }, 100);
                     }
                   } catch (error) {
                     console.log("❌ Error in fallback:", error);
@@ -2661,13 +2821,25 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             // Check if there's already a shape being dragged
             if (draggedShape && draggedShape !== clickedLayer) {
-              // Show confirmation modal for saving the previous shape
-              setPendingDragShape(clickedLayer);
-              setShowDragConfirmation(true);
-              console.log(
-                "⚠️ Another shape is being dragged, showing confirmation"
-              );
-              return;
+              // Disable drag on the previous shape
+              try {
+                if (
+                  (draggedShape as any).pm &&
+                  typeof (draggedShape as any).pm.disable === "function"
+                ) {
+                  (draggedShape as any).pm.disable();
+                }
+              } catch (error) {
+                console.log("❌ Error disabling previous drag:", error);
+              }
+
+              // Reset drag state
+              setDraggedShape(null);
+              setOriginalShapePosition(null);
+              setShowDragConfirmation(false);
+              setPendingDragShape(null);
+
+              console.log("🔄 Switched to new shape for dragging");
             }
 
             // If no shape is being dragged or same shape clicked, enable drag
@@ -2677,17 +2849,54 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               typeof (clickedLayer as any).pm.enable === "function"
             ) {
               try {
+                // First, disable drag on all other layers
+                map.eachLayer((layer: any) => {
+                  if (layer && layer !== clickedLayer && layer.pm) {
+                    try {
+                      if (typeof layer.pm.disableDrag === "function") {
+                        layer.pm.disableDrag();
+                      } else if (typeof layer.pm.disable === "function") {
+                        layer.pm.disable();
+                      }
+                    } catch (error) {
+                      // Ignore errors
+                    }
+                  }
+                });
+
                 // Store original position before enabling drag
                 const originalPosition = clickedLayer.getLatLngs
                   ? clickedLayer.getLatLngs()
                   : null;
 
-                (clickedLayer as any).pm.enable({ mode: "drag" });
+                (clickedLayer as any).pm.enableLayerDrag();
+
+                // Add visual feedback for selected shape
+                if (clickedLayer.setStyle) {
+                  clickedLayer.setStyle({
+                    weight: 4,
+                    opacity: 0.8,
+                    color: "#ff6b6b",
+                    fillOpacity: 0.3,
+                    fillColor: "#ff6b6b",
+                  });
+                } else if (clickedLayer.setIcon) {
+                  // For markers
+                  const selectedIcon = (L as any).divIcon({
+                    html: '<div style="background-color: #ff6b6b; border: 3px solid #ffffff; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);"></div>',
+                    className: "selected-marker",
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10],
+                  });
+                  clickedLayer.setIcon(selectedIcon);
+                }
+
                 console.log("✅ Drag mode enabled for layer");
 
                 // Store the dragged shape and its original position
                 setDraggedShape(clickedLayer);
                 setOriginalShapePosition(originalPosition);
+                setShowDragConfirmation(true);
               } catch (error) {
                 console.log("❌ Error enabling drag mode:", error);
               }
@@ -2795,16 +3004,38 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         try {
                           // Method 1: Try pm.enable with options - ONLY DRAG MODE
                           if (pmObject.enable) {
-                            pmObject.enable({
-                              mode: "drag",
-                              allowEditing: false, // Disable editing in drag mode
-                              allowScaling: false, // Disable scaling in drag mode
-                              allowRotating: false, // Disable rotating in drag mode
-                              allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
-                            });
+                            pmObject.enableLayerDrag();
+
+                            // Add visual feedback for selected shape
+                            if (clickedLayer.setStyle) {
+                              clickedLayer.setStyle({
+                                weight: 4,
+                                opacity: 0.8,
+                                color: "#ff6b6b",
+                                fillOpacity: 0.3,
+                                fillColor: "#ff6b6b",
+                              });
+                            } else if (clickedLayer.setIcon) {
+                              // For markers
+                              const selectedIcon = (L as any).divIcon({
+                                html: '<div style="background-color: #ff6b6b; border: 3px solid #ffffff; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);"></div>',
+                                className: "selected-marker",
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10],
+                              });
+                              clickedLayer.setIcon(selectedIcon);
+                            }
+
                             console.log(
                               "✅ Method 1: pm.enable with drag mode (no edit/scale/rotate)"
                             );
+
+                            // Store the dragged shape and show confirmation
+                            setDraggedShape(layer);
+                            setOriginalShapePosition(
+                              layer.getLatLngs ? layer.getLatLngs() : null
+                            );
+                            setShowDragConfirmation(true);
                           }
 
                           // Method 2: Try pm.enableDrag
@@ -2951,15 +3182,58 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           } else if (drawingModeRef.current === "scale") {
             try {
-              (e.target as any).pm.enable({ mode: "rotate" });
-              console.log("✅ Rotate mode enabled via PM click");
+              (e.target as any).pm.enable({ mode: "scale" });
+              console.log("✅ Scale mode enabled via PM click");
             } catch (error) {
-              console.log("❌ Error in PM click rotate:", error);
+              console.log("❌ Error in PM click scale:", error);
             }
           } else if (drawingModeRef.current === "drag") {
             try {
-              (e.target as any).pm.enable({ mode: "drag" });
+              // First, disable drag on all other layers
+              map.eachLayer((layer: any) => {
+                if (layer && layer !== e.target && layer.pm) {
+                  try {
+                    if (typeof layer.pm.disableDrag === "function") {
+                      layer.pm.disableDrag();
+                    } else if (typeof layer.pm.disable === "function") {
+                      layer.pm.disable();
+                    }
+                  } catch (error) {
+                    // Ignore errors
+                  }
+                }
+              });
+
+              (e.target as any).pm.enableLayerDrag();
+
+              // Add visual feedback for selected shape
+              if (e.target.setStyle) {
+                e.target.setStyle({
+                  weight: 4,
+                  opacity: 0.8,
+                  color: "#ff6b6b",
+                  fillOpacity: 0.3,
+                  fillColor: "#ff6b6b",
+                });
+              } else if (e.target.setIcon) {
+                // For markers
+                const selectedIcon = (L as any).divIcon({
+                  html: '<div style="background-color: #ff6b6b; border: 3px solid #ffffff; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);"></div>',
+                  className: "selected-marker",
+                  iconSize: [20, 20],
+                  iconAnchor: [10, 10],
+                });
+                e.target.setIcon(selectedIcon);
+              }
+
               console.log("✅ Drag mode enabled via PM click");
+
+              // Store the dragged shape and show confirmation
+              setDraggedShape(e.target);
+              setOriginalShapePosition(
+                e.target.getLatLngs ? e.target.getLatLngs() : null
+              );
+              setShowDragConfirmation(true);
             } catch (error) {
               console.log("❌ Error in PM click drag:", error);
             }
@@ -2998,23 +3272,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         });
 
-        map.on("pm:rotate", (e: any) => {
-          if (drawingModeRef.current === "scale") {
-            try {
-              (e.target as any).pm.disable();
-              console.log("🔄 Rotate mode auto-disabled");
-              // Reset drawing state setelah rotate selesai
-              setDrawingMode(null);
-              setIsDrawingEnabled(false);
-              // Update ref langsung untuk memastikan state ter-update
-              isDrawingEnabledRef.current = false;
-              drawingModeRef.current = null;
-            } catch (error) {
-              console.log("❌ Error disabling rotate mode:", error);
-            }
-          }
-        });
-
         map.on("pm:drag", (e: any) => {
           if (drawingModeRef.current === "drag") {
             try {
@@ -3042,7 +3299,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           map.off("pm:edit");
           map.off("pm:remove");
           map.off("pm:cut");
-          map.off("pm:rotate");
           map.off("pm:scale");
           map.off("pm:drag");
           map.off("click");
@@ -3088,12 +3344,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           } catch (error) {
             console.log("Could not disable global cut mode:", error);
           }
-          try {
-            if (map.pm.disableGlobalRotateMode)
-              map.pm.disableGlobalRotateMode();
-          } catch (error) {
-            console.log("Could not disable global rotate mode:", error);
-          }
         }
       };
     }, [isDashboard]);
@@ -3138,11 +3388,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
       } catch (error) {
         console.log("Could not disable global cut mode:", error);
-      }
-      try {
-        if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
-      } catch (error) {
-        console.log("Could not disable global rotate mode:", error);
       }
 
       // Disable drawing mode if available - try multiple methods
@@ -3354,18 +3599,79 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         setIsEditingShape(true);
 
                         (circleMarker as any).pm.enable({ allowEditing: true });
+
+                        // Add visual feedback for selected circle marker
+                        circleMarker.setStyle({
+                          weight: 4,
+                          opacity: 0.8,
+                          color: "#4CAF50",
+                          fillOpacity: 0.3,
+                          fillColor: "#4CAF50",
+                        });
+
                         console.log("✅ Edit enabled for circle marker");
                       } else if (drawingModeRef.current === "scale") {
                         (circleMarker as any).pm.enable({
                           allowScaling: true,
-                          allowRotating: true,
                         });
                         console.log("✅ Scale enabled for circle marker");
                       } else if (drawingModeRef.current === "drag") {
-                        (circleMarker as any).pm.enable({ allowDrag: true });
+                        // First, disable drag on all other layers
+                        map.eachLayer((otherLayer: any) => {
+                          if (
+                            otherLayer &&
+                            otherLayer !== circleMarker &&
+                            otherLayer.pm
+                          ) {
+                            try {
+                              if (
+                                typeof otherLayer.pm.disableDrag === "function"
+                              ) {
+                                otherLayer.pm.disableDrag();
+                              } else if (
+                                typeof otherLayer.pm.disable === "function"
+                              ) {
+                                otherLayer.pm.disable();
+                              }
+                            } catch (error) {
+                              // Ignore errors
+                            }
+                          }
+                        });
+
+                        (circleMarker as any).pm.enableLayerDrag();
+
+                        // Add visual feedback for selected circle marker
+                        circleMarker.setStyle({
+                          weight: 4,
+                          opacity: 0.8,
+                          color: "#ff6b6b",
+                          fillOpacity: 0.3,
+                          fillColor: "#ff6b6b",
+                        });
+
                         console.log("✅ Drag enabled for circle marker");
+
+                        // Store the dragged shape and show confirmation
+                        setDraggedShape(circleMarker);
+                        setOriginalShapePosition(
+                          circleMarker.getLatLng
+                            ? circleMarker.getLatLng()
+                            : null
+                        );
+                        setShowDragConfirmation(true);
                       } else if (drawingModeRef.current === "remove") {
                         (circleMarker as any).pm.enable({ allowRemoval: true });
+
+                        // Add visual feedback for selected circle marker
+                        circleMarker.setStyle({
+                          weight: 4,
+                          opacity: 0.8,
+                          color: "#f44336",
+                          fillOpacity: 0.3,
+                          fillColor: "#f44336",
+                        });
+
                         console.log("✅ Remove enabled for circle marker");
                       }
                     } catch (error) {
@@ -3426,22 +3732,28 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
           case "drag":
-            // Enable global drag mode for better drag functionality
+            // Disable other modes when switching to drag mode
             try {
-              if (map.pm.enableGlobalDragMode) {
-                map.pm.enableGlobalDragMode();
-                console.log("✅ Global drag mode enabled");
-              } else {
-                console.log(
-                  "⚠️ Global drag mode not available, using click handler"
-                );
-              }
+              if (map.pm.disableGlobalEditMode) map.pm.disableGlobalEditMode();
+              if (map.pm.disableGlobalRemovalMode)
+                map.pm.disableGlobalRemovalMode();
+              if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
+
+              // Disable layer-specific modes
+              map.eachLayer((layer: any) => {
+                if (layer && layer.pm) {
+                  try {
+                    if (typeof layer.pm.disable === "function")
+                      layer.pm.disable();
+                  } catch (error) {
+                    // Ignore errors
+                  }
+                }
+              });
             } catch (error) {
-              console.log("❌ Error enabling global drag mode:", error);
+              // Ignore errors
             }
-            console.log(
-              "Drag mode activated - click on a layer to drag it (one at a time)"
-            );
+            console.log("Drag mode activated - click on a layer to drag it");
             // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
           case "remove":
@@ -3490,8 +3802,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             } catch (error) {
               // Ignore errors
             }
-            // Don't enable global rotate mode - just set flag for click handler
-            console.log("Scale mode activated - click on a layer to rotate it");
+            // Don't enable global scale mode - just set flag for click handler
+            console.log("Scale mode activated - click on a layer to scale it");
             // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
         }
@@ -3504,7 +3816,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           if (map.pm.disableGlobalRemovalMode)
             map.pm.disableGlobalRemovalMode();
           if (map.pm.disableGlobalCutMode) map.pm.disableGlobalCutMode();
-          if (map.pm.disableGlobalRotateMode) map.pm.disableGlobalRotateMode();
 
           // Disable drawing modes
           if (map.pm.disableDraw) map.pm.disableDraw();
@@ -4511,19 +4822,232 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Layer visibility akan dihandle oleh useEffect yang mengawasi bangunanLayerVisible
     };
 
+    // Function to reset visual feedback for a specific shape only
+    const resetShapeVisualFeedback = (layer: any) => {
+      if (!layer) return;
+
+      console.log("🔄 Resetting visual feedback for layer:", layer);
+
+      // Don't change any colors - just remove the border
+      // Shape should keep its original appearance
+
+      // Remove rectangle border
+      removeRectangleBorder(layer);
+
+      console.log("✅ Visual feedback reset completed");
+    };
+
+    // Function to disable/enable shape interactions
+    const setShapeInteractions = (enabled: boolean) => {
+      if (!leafletMapRef.current) return;
+
+      leafletMapRef.current.eachLayer((layer: any) => {
+        if (layer && layer !== activeShape) {
+          // Disable/enable click events on other shapes
+          if (enabled) {
+            // Re-enable click events
+            if (layer._originalClickHandler) {
+              layer.on("click", layer._originalClickHandler);
+            }
+          } else {
+            // Store original click handler and disable
+            if (layer._events?.click) {
+              layer._originalClickHandler = layer._events.click[0]?.fn;
+              layer.off("click");
+            }
+          }
+        }
+      });
+    };
+
+    // Function to add rectangle border like photo editing apps
+    const addRectangleBorder = (layer: any, mode: string) => {
+      if (!layer) return;
+
+      // Remove existing border first
+      removeRectangleBorder(layer);
+
+      // Get layer bounds
+      const bounds = layer.getBounds();
+
+      // Create rectangle border using polygon
+      const rectangleBorder = (L as any).polygon(
+        [
+          bounds.getNorthWest(),
+          bounds.getNorthEast(),
+          bounds.getSouthEast(),
+          bounds.getSouthWest(),
+        ],
+        {
+          color: "#808080", // Gray border
+          weight: 2,
+          opacity: 1,
+          fillColor: "transparent",
+          fillOpacity: 0,
+          className: "rectangle-border",
+          interactive: false,
+        }
+      );
+
+      rectangleBorder.addTo(leafletMapRef.current);
+
+      // Add event listeners to update border when shape changes
+      const updateBorder = () => {
+        if (layer._rectangleBorder && layer.getBounds) {
+          const bounds = layer.getBounds();
+          const newBorder = (L as any).polygon(
+            [
+              bounds.getNorthWest(),
+              bounds.getNorthEast(),
+              bounds.getSouthEast(),
+              bounds.getSouthWest(),
+            ],
+            {
+              color: "#808080", // Gray border
+              weight: 2,
+              opacity: 1,
+              fillColor: "transparent",
+              fillOpacity: 0,
+              className: "rectangle-border",
+              interactive: false,
+            }
+          );
+
+          // Remove old border and add new one
+          if (leafletMapRef.current) {
+            leafletMapRef.current.removeLayer(layer._rectangleBorder);
+            newBorder.addTo(leafletMapRef.current);
+            layer._rectangleBorder = newBorder;
+          }
+        }
+      };
+
+      // Store update function on layer
+      layer._updateBorder = updateBorder;
+
+      // Add event listeners for shape changes
+      layer.on("pm:edit", updateBorder);
+      layer.on("pm:drag", updateBorder);
+      layer.on("pm:rotate", updateBorder);
+      layer.on("pm:scale", updateBorder);
+
+      // Store border on layer
+      layer._rectangleBorder = rectangleBorder;
+    };
+
+    // Function to remove rectangle border
+    const removeRectangleBorder = (layer: any) => {
+      console.log("🔄 Removing rectangle border for layer:", layer);
+
+      if (layer._rectangleBorder) {
+        console.log("📍 Found rectangle border, removing...");
+        if (leafletMapRef.current) {
+          leafletMapRef.current.removeLayer(layer._rectangleBorder);
+        }
+        delete layer._rectangleBorder;
+        console.log("✅ Rectangle border removed from map");
+      } else {
+        console.log("⚠️ No rectangle border found on layer");
+      }
+
+      // Remove event listeners
+      if (layer._updateBorder) {
+        console.log("🔄 Removing event listeners...");
+        layer.off("pm:edit", layer._updateBorder);
+        layer.off("pm:drag", layer._updateBorder);
+        layer.off("pm:rotate", layer._updateBorder);
+        layer.off("pm:scale", layer._updateBorder);
+        delete layer._updateBorder;
+        console.log("✅ Event listeners removed");
+      }
+
+      console.log("✅ Rectangle border removal completed");
+    };
+
+    // Function to apply visual feedback to a specific shape
+    const applyVisualFeedback = (layer: any, mode: string) => {
+      if (!layer) return;
+
+      // Check if there's already an active shape
+      if (activeShape && activeShape !== layer) {
+        // Show confirmation modal to switch to new shape
+        setPendingNewShape({ layer, mode });
+        setShowShapeSwitchModal(true);
+        return;
+      }
+
+      // Set new active shape
+      setActiveShape(layer);
+
+      // Disable interactions on other shapes
+      setShapeInteractions(false);
+
+      // Add rectangle border like photo editing apps
+      addRectangleBorder(layer, mode);
+    };
+
+    // Function to handle shape switch confirmation
+    const handleConfirmShapeSwitch = () => {
+      if (pendingNewShape) {
+        // Reset current active shape
+        if (activeShape) {
+          resetShapeVisualFeedback(activeShape);
+        }
+
+        // Enable interactions on all shapes temporarily
+        setShapeInteractions(true);
+
+        // Set new active shape
+        setActiveShape(pendingNewShape.layer);
+
+        // Disable interactions on other shapes again
+        setShapeInteractions(false);
+
+        // Apply visual feedback to new shape
+        const { layer, mode } = pendingNewShape;
+        addRectangleBorder(layer, mode);
+
+        // Reset pending state
+        setPendingNewShape(null);
+        setShowShapeSwitchModal(false);
+      }
+    };
+
+    const handleCancelShapeSwitch = () => {
+      setPendingNewShape(null);
+      setShowShapeSwitchModal(false);
+    };
+
     // Drawing tool handlers
     const handleDrawingModeChange = (mode: string | null) => {
-      // If there's already a shape being edited, disable it first
+      // Reset editing state when changing drawing mode
       if (isEditingShape && editingShape) {
         console.log(
-          "🔄 Disabling previous editing shape when changing drawing mode"
+          "🔄 Resetting previous editing shape when changing drawing mode"
         );
-        if ((editingShape as any).pm) {
-          (editingShape as any).pm.disable();
-        }
+        // Don't disable PM - just reset state
         setIsEditingShape(false);
         setEditingShape(null);
         setOriginalShapeData(null);
+      }
+
+      // Reset drag state when changing drawing mode
+      if (draggedShape) {
+        console.log(
+          "🔄 Resetting previous dragged shape when changing drawing mode"
+        );
+        // Don't disable PM - just reset state
+        setDraggedShape(null);
+        setOriginalShapePosition(null);
+        setShowDragConfirmation(false);
+        setPendingDragShape(null);
+      }
+
+      // Reset active shape when changing drawing mode
+      if (activeShape) {
+        resetShapeVisualFeedback(activeShape);
+        setActiveShape(null);
+        setShapeInteractions(true);
       }
 
       setDrawingMode(mode);
@@ -4534,19 +5058,50 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleSaveEditConfirmation = () => {
       if (editingShape) {
         console.log("✅ Edit changes saved");
-        // Disable PM on the edited shape
-        if ((editingShape as any).pm) {
-          (editingShape as any).pm.disable();
+
+        // Reset visual feedback and active shape
+        if (activeShape) {
+          console.log("🔄 Resetting activeShape after edit save:", activeShape);
+          resetShapeVisualFeedback(activeShape);
+          setActiveShape(null);
+          console.log("✅ activeShape reset to null");
         }
+
+        // Re-enable interactions on all shapes
+        setShapeInteractions(true);
+
+        // Disable PM to allow re-enabling for future operations
+        if ((editingShape as any).pm) {
+          try {
+            (editingShape as any).pm.disable();
+            console.log("✅ PM disabled after edit save");
+
+            // Verify PM is actually disabled
+            setTimeout(() => {
+              if (
+                (editingShape as any).pm &&
+                (editingShape as any).pm.enabled()
+              ) {
+                console.log("⚠️ PM is still enabled after disable!");
+              } else {
+                console.log("✅ PM is properly disabled");
+              }
+            }, 100);
+          } catch (error) {
+            console.log("❌ Error disabling PM after edit save:", error);
+          }
+        }
+
         // Reset editing state
         setIsEditingShape(false);
         setEditingShape(null);
         setOriginalShapeData(null);
-        // Reset drawing mode
-        setDrawingMode(null);
-        setIsDrawingEnabled(false);
-        drawingModeRef.current = null;
-        isDrawingEnabledRef.current = false;
+        // Don't reset drawing mode completely - keep it available for next use
+        // Just clear the active shape so buildings can be clicked
+        // setDrawingMode(null);
+        // setIsDrawingEnabled(false);
+        // drawingModeRef.current = null;
+        // isDrawingEnabledRef.current = false;
       }
     };
 
@@ -4570,12 +5125,45 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           }
 
-          // Disable PM on the shape
+          // Don't change any colors - shape should keep its original appearance
+
+          // Disable PM to allow re-enabling for future operations
           if ((editingShape as any).pm) {
-            (editingShape as any).pm.disable();
+            try {
+              (editingShape as any).pm.disable();
+              console.log("✅ PM disabled after edit cancel");
+
+              // Verify PM is actually disabled
+              setTimeout(() => {
+                if (
+                  (editingShape as any).pm &&
+                  (editingShape as any).pm.enabled()
+                ) {
+                  console.log("⚠️ PM is still enabled after disable!");
+                } else {
+                  console.log("✅ PM is properly disabled");
+                }
+              }, 100);
+            } catch (error) {
+              console.log("❌ Error disabling PM after edit cancel:", error);
+            }
           }
 
           console.log("✅ Shape restored to original state");
+
+          // Reset visual feedback and active shape
+          if (activeShape) {
+            console.log(
+              "🔄 Resetting activeShape after edit cancel:",
+              activeShape
+            );
+            resetShapeVisualFeedback(activeShape);
+            setActiveShape(null);
+            console.log("✅ activeShape reset to null");
+          }
+
+          // Re-enable interactions on all shapes
+          setShapeInteractions(true);
         } catch (error) {
           console.log("❌ Error restoring shape:", error);
         }
@@ -4584,11 +5172,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         setIsEditingShape(false);
         setEditingShape(null);
         setOriginalShapeData(null);
-        // Reset drawing mode
-        setDrawingMode(null);
-        setIsDrawingEnabled(false);
-        drawingModeRef.current = null;
-        isDrawingEnabledRef.current = false;
+        // Don't reset drawing mode completely - keep it available for next use
+        // Just clear the active shape so buildings can be clicked
+        // setDrawingMode(null);
+        // setIsDrawingEnabled(false);
+        // drawingModeRef.current = null;
+        // isDrawingEnabledRef.current = false;
       }
     };
 
@@ -4596,23 +5185,51 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleConfirmDrag = () => {
       console.log("✅ User confirmed drag - saving shape position");
 
-      // Start dragging the pending shape
-      if (pendingDragShape) {
+      // Reset visual feedback and active shape
+      if (activeShape) {
+        resetShapeVisualFeedback(activeShape);
+        setActiveShape(null);
+      }
+
+      // Re-enable interactions on all shapes
+      setShapeInteractions(true);
+
+      // Disable PM to allow re-enabling for future operations
+      if (draggedShape && (draggedShape as any).pm) {
         try {
-          const originalPosition = pendingDragShape.getLatLngs
-            ? pendingDragShape.getLatLngs()
-            : null;
-          (pendingDragShape as any).pm.enable({ mode: "drag" });
-          setDraggedShape(pendingDragShape);
-          setOriginalShapePosition(originalPosition);
-          console.log("✅ Started dragging new shape");
+          (draggedShape as any).pm.disable();
+          console.log("✅ PM disabled after drag save");
+
+          // Verify PM is actually disabled
+          setTimeout(() => {
+            if (
+              (draggedShape as any).pm &&
+              (draggedShape as any).pm.enabled()
+            ) {
+              console.log("⚠️ PM is still enabled after disable!");
+            } else {
+              console.log("✅ PM is properly disabled");
+            }
+          }, 100);
         } catch (error) {
-          console.log("❌ Error enabling drag for new shape:", error);
+          console.log("❌ Error disabling PM after drag save:", error);
         }
       }
 
+      // Reset drag state
+      setDraggedShape(null);
+      setOriginalShapePosition(null);
       setShowDragConfirmation(false);
       setPendingDragShape(null);
+
+      // Don't reset drawing mode completely - keep it available for next use
+      // Just clear the active shape so buildings can be clicked
+      // setDrawingMode(null);
+      // setIsDrawingEnabled(false);
+      // drawingModeRef.current = null;
+      // isDrawingEnabledRef.current = false;
+
+      console.log("✅ Drag completed and saved - buildings can now be clicked");
     };
 
     const handleCancelDrag = () => {
@@ -4621,20 +5238,73 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Revert the shape to its original position
       if (draggedShape && originalShapePosition) {
         try {
-          if (draggedShape.setLatLngs) {
+          if (
+            draggedShape instanceof (L as any).Polygon ||
+            draggedShape instanceof (L as any).Polyline
+          ) {
             draggedShape.setLatLngs(originalShapePosition);
-            console.log("✅ Shape reverted to original position");
+          } else if (
+            draggedShape instanceof (L as any).Circle ||
+            draggedShape instanceof (L as any).CircleMarker
+          ) {
+            draggedShape.setLatLng(originalShapePosition);
           }
+
+          // Don't change any colors - shape should keep its original appearance
+
+          // Disable PM to allow re-enabling for future operations
+          if ((draggedShape as any).pm) {
+            try {
+              (draggedShape as any).pm.disable();
+              console.log("✅ PM disabled after drag cancel");
+
+              // Verify PM is actually disabled
+              setTimeout(() => {
+                if (
+                  (draggedShape as any).pm &&
+                  (draggedShape as any).pm.enabled()
+                ) {
+                  console.log("⚠️ PM is still enabled after disable!");
+                } else {
+                  console.log("✅ PM is properly disabled");
+                }
+              }, 100);
+            } catch (error) {
+              console.log("❌ Error disabling PM after drag cancel:", error);
+            }
+          }
+
+          console.log("✅ Shape reverted to original position");
         } catch (error) {
-          console.log("❌ Error reverting shape position:", error);
+          console.log("❌ Error reverting shape:", error);
         }
       }
 
+      // Reset visual feedback and active shape
+      if (activeShape) {
+        resetShapeVisualFeedback(activeShape);
+        setActiveShape(null);
+      }
+
+      // Re-enable interactions on all shapes
+      setShapeInteractions(true);
+
+      // Reset drag state
       setDraggedShape(null);
       setOriginalShapePosition(null);
       setShowDragConfirmation(false);
       setPendingDragShape(null);
-      resetCursor();
+
+      // Don't reset drawing mode completely - keep it available for next use
+      // Just clear the active shape so buildings can be clicked
+      // setDrawingMode(null);
+      // setIsDrawingEnabled(false);
+      // drawingModeRef.current = null;
+      // isDrawingEnabledRef.current = false;
+
+      console.log(
+        "✅ Drag cancelled and reverted - buildings can now be clicked"
+      );
     };
 
     const handleToggleDrawing = () => {
@@ -8889,6 +9559,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           isDashboard={isDashboard}
           onDrawingModeChange={handleDrawingModeChange}
           externalActiveMode={drawingMode}
+          isConfirmationActive={
+            isEditingShape || showDragConfirmation || showShapeSwitchModal
+          }
         />
 
         {/* Edit Confirmation Buttons - Only show when editing a shape */}
@@ -8936,6 +9609,108 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             </button>
           </div>
         )}
+
+        {/* Shape Switch Confirmation Modal */}
+        {showShapeSwitchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4 shadow-xl">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="w-6 h-6 text-yellow-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Konfirmasi Ganti Shape
+                  </h3>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Anda sedang mengedit shape lain. Apakah Anda yakin ingin
+                  beralih ke shape baru?
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Shape yang sedang aktif akan dikembalikan ke warna aslinya.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCancelShapeSwitch}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmShapeSwitch}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors duration-200"
+                >
+                  Ya, Ganti Shape
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Drag Confirmation Buttons - Only show when dragging a shape */}
+        {showDragConfirmation && (
+          <div className="absolute top-4 right-4 z-30 flex gap-2">
+            <button
+              onClick={handleConfirmDrag}
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-colors duration-200 text-sm font-medium"
+              title="Simpan posisi"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Simpan
+            </button>
+            <button
+              onClick={handleCancelDrag}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 transition-colors duration-200 text-sm font-medium"
+              title="Batalkan perpindahan"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+              Batal
+            </button>
+          </div>
+        )}
+
         {showBuildingDetailCanvas && (
           <div
             className={`absolute inset-0 w-full h-full flex flex-col z-[20] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
@@ -8960,64 +9735,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
               }}
             />
-          </div>
-        )}
-
-        {/* MODAL KONFIRMASI DRAG */}
-        {showDragConfirmation && (
-          <div className="absolute inset-0 w-full h-full flex items-center justify-center z-[30] bg-black/50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-yellow-600 dark:text-yellow-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Konfirmasi Drag Shape
-                  </h3>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Anda sedang menggeser shape lain. Apakah Anda yakin ingin
-                  menyimpan perubahan pada shape yang sedang digeser?
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  • <strong>Ya</strong>: Simpan posisi shape yang sedang digeser
-                  dan lanjutkan drag shape baru
-                  <br />• <strong>Tidak</strong>: Kembalikan shape ke posisi
-                  semula
-                </p>
-              </div>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleConfirmDrag}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Ya, Simpan
-                </button>
-                <button
-                  onClick={handleCancelDrag}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Tidak, Kembalikan
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
