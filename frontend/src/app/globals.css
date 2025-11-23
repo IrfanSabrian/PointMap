@@ -5,6 +5,43 @@
 /* Geoman Leaflet Styles */
 @import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
+/* Google Translate customization - Hide the banner */
+.goog-te-banner-frame {
+  display: none !important;
+}
+
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0 !important;
+}
+
+.goog-te-gadget .goog-te-combo {
+  display: none !important;
+}
+
+/* Hide the floating banner iframe */
+iframe.goog-te-banner-frame {
+  display: none !important;
+}
+
+/* Ensure body is not pushed down */
+body.VIpgJd-ZVi9od-ORHb {
+  top: 0 !important;
+}
+
+/* Hide all Google Translate UI elements except the translation itself */
+.skiptranslate {
+  display: none !important;
+}
+
+/* Keep only the translated content visible */
+html > body > .skiptranslate {
+  display: none !important;
+}
+
 @layer base {
   body {
     @apply bg-white text-gray-700 transition-colors duration-300 font-sans;

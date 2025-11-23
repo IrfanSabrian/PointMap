@@ -1,6 +1,4 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://pointmap-production.up.railway.app";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export interface Jalur {
   id_jalur: number;

@@ -1790,7 +1790,11 @@
 
     <script>
       // Konfigurasi API
-      const API_BASE_URL = "https://pointmap-production.up.railway.app/api";
+      const urlParams = new URLSearchParams(window.location.search);
+      const rawApiUrl = urlParams.get('apiUrl');
+      // Remove trailing slash if present
+      const cleanApiUrl = rawApiUrl.replace(/\/$/, "");
+      const API_BASE_URL = `${cleanApiUrl}/api`;
 
       // Helper function untuk memastikan URL gambar benar
       function getImageUrl(pathFile) {

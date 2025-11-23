@@ -12,37 +12,37 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#1d3557", // biru navy
-          dark: "#3a86ff", // biru terang untuk dark mode
+          DEFAULT: "#1e3a8a", // blue-900 (lebih biru tua dari sebelumnya)
+          dark: "#60a5fa", // blue-400 (tetap terang tapi tidak terlalu putih)
         },
         accent: {
-          DEFAULT: "#a8dadc", // biru muda
-          dark: "#f6c177", // gold soft accent
+          DEFAULT: "#3b82f6", // blue-500 (biru standar yang jelas)
+          dark: "#93c5fd", // blue-300 (biru muda soft)
         },
         background: {
-          DEFAULT: "#f1faee", // abu muda
-          dark: "#181926", // biru navy gelap
+          DEFAULT: "#f8fafc", // slate-50 (putih tulang/abu sangat muda, bukan putih murni)
+          dark: "#0f172a", // slate-900 (biru gelap pekat)
         },
-        "background-dark": "#181926", // alias untuk dark mode
+        "background-dark": "#0f172a",
         surface: {
-          DEFAULT: "#ffffff",
-          dark: "#232946",
+          DEFAULT: "#e2e8f0", // slate-200 (abu muda, jelas beda dari putih)
+          dark: "#1e293b", // slate-800 (abu tua kebiruan)
         },
-        "surface-dark": "#232946", // alias untuk dark mode
+        "surface-dark": "#1e293b",
         muted: {
-          DEFAULT: "#6c757d",
-          dark: "#b8c1ec",
+          DEFAULT: "#64748b", // slate-500
+          dark: "#94a3b8", // slate-400
         },
-        "muted-dark": "#b8c1ec", // alias untuk dark mode
+        "muted-dark": "#94a3b8",
         error: {
-          DEFAULT: "#e63946",
-          dark: "#ff6b6b",
+          DEFAULT: "#ef4444", // red-500
+          dark: "#f87171", // red-400
         },
         // legacy/kompatibilitas
-        secondary: "#6CB1DA",
-        tosca: "#6EC1D1",
-        toscaLight: "#C8EAEC",
-        dark: "#1E5470",
+        secondary: "#3b82f6", // blue-500
+        tosca: "#0ea5e9", // sky-500
+        toscaLight: "#e0f2fe", // sky-100
+        dark: "#0f172a", // slate-900
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FiSun, FiMoon } from "react-icons/fi";
+import { FaBuilding, FaDoorOpen, FaLayerGroup, FaImages } from "react-icons/fa";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -20,40 +21,19 @@ export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [isDark, setIsDark] = useState<boolean | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showNavbar, setShowNavbar] = useState(true);
-  const [isInHeroSection, setIsInHeroSection] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [scrollDirection, setScrollDirection] = useState<"up" | "down">("up");
-  const navbarTimeout = useRef<NodeJS.Timeout | null>(null);
-  const lastScrollTime = useRef<number>(Date.now());
   const [cuaca, setCuaca] = useState<string | null>(null);
   const [hari, setHari] = useState("");
   const [tanggal, setTanggal] = useState("");
   const mapArea = useRef<HTMLDivElement>(null);
+  const [isEnglish, setIsEnglish] = useState(false);
+  const [stats, setStats] = useState({
+    bangunan: 0,
+    ruangan: 0,
+    lantai: 0,
+    gallery: 0,
+  });
 
-  // Konfigurasi slider
-  const sliderSettings = {
-    dots: true,
-    infinite: true,
-    speed: 800,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 3500,
-    fade: true,
-    arrows: false,
-    pauseOnHover: true,
-    dotsClass: "slick-dots hero-dots",
-    responsive: [
-      {
-        breakpoint: 768,
-        settings: {
-          autoplaySpeed: 4000,
-          speed: 1000,
-        },
-      },
-    ],
-  };
+
 
   const { theme, setTheme } = useTheme();
   const [weatherDesc, setWeatherDesc] = useState("");
@@ -97,9 +77,17 @@ export default function Home() {
         console.log("Light mode aktif");
       }
     }
+
+    // Check Google Translate cookie to sync toggle state
+    const cookies = document.cookie.split(';');
+    const googtransCookie = cookies.find(c => c.trim().startsWith('googtrans='));
+    if (googtransCookie) {
+      const value = googtransCookie.split('=')[1];
+      // Cookie format is /id/en for translation to English
+      setIsEnglish(value === '/id/en');
+    }
   }, [theme]);
 
-  // Cuaca Pontianak dengan OpenWeatherMap
   const fetchCuaca = async () => {
     const apiKeys = [
       "3de9464f7cd6c93edc45ca3b8f2188fd",
@@ -132,6 +120,25 @@ export default function Home() {
     setCuaca(temp || "N/A");
     setWeatherDesc(desc);
     setWeatherIcon(icon);
+  };
+
+  const fetchStats = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+      if (!apiUrl) return;
+      const res = await fetch(`${apiUrl}/`);
+      const data = await res.json();
+      if (data.status === "API aktif & koneksi DB OK") {
+        setStats({
+          bangunan: data.jumlah_bangunan,
+          ruangan: data.jumlah_ruangan,
+          lantai: data.jumlah_lantai_gambar,
+          gallery: data.jumlah_ruangan_gallery,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch stats", error);
+    }
   };
 
   const getTanggal = () => {
@@ -167,117 +174,65 @@ export default function Home() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  const toggleLanguage = () => {
+    const newLang = !isEnglish;
+    setIsEnglish(newLang);
+    
+    // Give Google Translate time to initialize
+    setTimeout(() => {
+      // Method 1: Try to find and trigger the dropdown
+      const selectElement = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+      if (selectElement) {
+        selectElement.value = newLang ? 'en' : 'id';
+        // Trigger change event
+        const event = new Event('change', { bubbles: true });
+        selectElement.dispatchEvent(event);
+        return;
+      }
+
+      // Method 2: Try to manipulate Google Translate cookie directly
+      const domain = window.location.hostname;
+      
+      if (newLang) {
+        // Set cookie to translate to English
+        document.cookie = `googtrans=/id/en; path=/`;
+        document.cookie = `googtrans=/id/en; path=/; domain=${domain}`;
+      } else {
+        // Remove translation cookie to restore Indonesian
+        document.cookie = `googtrans=; path=/; max-age=0`;
+        document.cookie = `googtrans=; path=/; domain=${domain}; max-age=0`;
+        // Also try the /auto/auto format which resets translation
+        document.cookie = `googtrans=/auto/auto; path=/`;
+        document.cookie = `googtrans=/auto/auto; path=/; domain=${domain}`;
+      }
+      
+      // Reload page to apply translation
+      window.location.reload();
+    }, 100);
+  };
+
   const scrollToMap = () => {
     mapArea.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Fungsi untuk mendapatkan semua gambar dari folder Slider secara dinamis
-  const getAllSliderImages = () => {
-    const images = [
-      "/Slider/Background1.jpg",
-      "/Slider/Background2.jpg",
-      "/Slider/Background3.jpg",
-      "/Slider/Background4.jpg",
-    ];
-    return images;
-  };
 
-  const sliderImages = getAllSliderImages();
-
-  const handleMouseEnter = () => {
-    if (navbarTimeout.current) {
-      clearTimeout(navbarTimeout.current);
-    }
-    setShowNavbar(true);
-  };
-
-  const handleMouseLeave = () => {
-    if (!isInHeroSection && scrollDirection === "down") {
-      navbarTimeout.current = setTimeout(() => {
-        setShowNavbar(false);
-      }, 5000);
-    }
-  };
 
   useEffect(() => {
     fetchCuaca();
+    fetchStats();
     getTanggal();
 
     const handleScroll = () => {
-      const currentTime = Date.now();
       const scrollY = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const threshold = windowHeight * 0.75;
-
-      // Menentukan arah scroll
-      const newScrollDirection = scrollY > lastScrollY ? "down" : "up";
-      setScrollDirection(newScrollDirection);
-      setLastScrollY(scrollY);
-
       setIsScrolled(scrollY > 50);
-      setIsInHeroSection(scrollY < windowHeight * 0.8);
-
-      // Reset timeout setiap kali scroll
-      if (navbarTimeout.current) {
-        clearTimeout(navbarTimeout.current);
-      }
-
-      // Jika di hero section, navbar selalu tampil
-      if (scrollY < threshold) {
-        setShowNavbar(true);
-        return;
-      }
-
-      // Update tampilan navbar berdasarkan arah scroll
-      if (newScrollDirection === "up") {
-        setShowNavbar(true);
-        lastScrollTime.current = currentTime;
-      } else {
-        // Jika scroll ke bawah, sembunyikan navbar setelah 100ms
-        if (currentTime - lastScrollTime.current > 100) {
-          setShowNavbar(false);
-        }
-      }
-
-      // Set timeout untuk menyembunyikan navbar setelah 5 detik tidak ada aktivitas scroll
-      navbarTimeout.current = setTimeout(() => {
-        if (scrollY > threshold && !isInHeroSection) {
-          setShowNavbar(false);
-        }
-      }, 5000);
     };
 
-    // Throttle scroll event untuk performa
-    let ticking = false;
-    const scrollHandler = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          handleScroll();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener("scroll", scrollHandler, { passive: true });
-    const navbar = document.getElementById("navbar-main");
-    if (navbar) {
-      navbar.addEventListener("mouseenter", handleMouseEnter);
-      navbar.addEventListener("mouseleave", handleMouseLeave);
-    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", scrollHandler);
-      const navbar = document.getElementById("navbar-main");
-      if (navbar) {
-        navbar.removeEventListener("mouseenter", handleMouseEnter);
-        navbar.removeEventListener("mouseleave", handleMouseLeave);
-      }
-      if (navbarTimeout.current) {
-        clearTimeout(navbarTimeout.current);
-      }
+      window.removeEventListener("scroll", handleScroll);
     };
-  }, [lastScrollY, scrollDirection, isInHeroSection]);
+  }, []);
 
   return (
     <div
@@ -288,41 +243,26 @@ export default function Home() {
       } ${isDark ?? false ? "dark" : ""}`}
     >
       {/* Area hover atas untuk munculkan navbar - hanya aktif di luar hero section */}
-      {!isInHeroSection && (
-        <div
-          className="fixed top-0 left-0 w-full h-8 z-40"
-          style={{ pointerEvents: "auto" }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
-      )}
+
 
       {/* NAVBAR */}
       <nav
         id="navbar-main"
         className={`navbar ${
           isScrolled ? "navbar-scrolled" : "navbar-transparent"
-        } flex items-center justify-between px-4 lg:px-10 py-4 fixed top-0 left-0 right-0 z-50 transition-all duration-300 group/navbar ${
+        } flex items-center justify-between px-4 lg:px-10 py-2 fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
             ? isDark
-              ? "bg-gray-900/90 backdrop-blur-md shadow-lg"
-              : "bg-white/90 backdrop-blur-md shadow-lg"
+              ? "bg-gray-900/70 backdrop-blur-md shadow-lg"
+              : "bg-white/70 backdrop-blur-md shadow-lg"
             : "bg-transparent"
-        } ${
-          showNavbar
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-full opacity-0 pointer-events-none"
-        } ${
-          !isInHeroSection
-            ? "group-hover/navbar:translate-y-0 group-hover/navbar:opacity-100 group-hover/navbar:pointer-events-auto"
-            : ""
-        } hover:shadow-2xl hover:scale-[1.01] focus-within:shadow-2xl focus-within:scale-[1.01] transition-all duration-300`}
+        }`}
         style={{ willChange: "transform, opacity" }}
       >
         {/* Logo kiri */}
         <div className="flex items-center gap-3">
           <div
-            className="w-auto h-12 lg:h-16 cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
+            className="w-auto h-10 lg:h-12 cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
             onClick={() => {
               const logo = document.getElementById("logo-navbar");
               if (logo) {
@@ -360,14 +300,19 @@ export default function Home() {
                     src={weatherIcon}
                     alt="icon cuaca"
                     className="w-7 h-7"
-                    style={{ filter: theme === "dark" ? "invert(1)" : "none" }}
+                    style={{
+                      filter:
+                        isDark || !isScrolled
+                          ? "brightness(0) invert(1)"
+                          : "none",
+                    }}
                   />
                 </span>
                 <div className="flex flex-col items-start">
                   <span
                     className="text-xl font-bold leading-none text-primary dark:text-primary-dark"
                     style={{
-                      color: isDark ? "#60a5fa" : "#1d3557", // Navy blue for light mode
+                      color: isDark || !isScrolled ? "#ffffff" : "#1d3557",
                     }}
                   >
                     {cuaca}
@@ -375,7 +320,7 @@ export default function Home() {
                   <span
                     className="text-xs font-medium capitalize text-gray-600 dark:text-gray-400 leading-none"
                     style={{
-                      color: isDark ? "#9ca3af" : "#4b5563", // Explicit color based on theme
+                      color: isDark || !isScrolled ? "#e5e7eb" : "#4b5563",
                     }}
                   >
                     {weatherDescID(weatherDesc)}
@@ -386,7 +331,7 @@ export default function Home() {
               <span
                 className="text-base lg:text-lg font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap"
                 style={{
-                  color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+                  color: isDark || !isScrolled ? "#f3f4f6" : "#374151",
                 }}
               >
                 {hari}, {tanggal}
@@ -404,13 +349,16 @@ export default function Home() {
                   src={weatherIcon}
                   alt="icon cuaca"
                   className="w-5 h-5"
-                  style={{ filter: theme === "dark" ? "invert(1)" : "none" }}
+                  style={{
+                    filter:
+                      isDark || !isScrolled ? "brightness(0) invert(1)" : "none",
+                  }}
                 />
               </span>
               <span
                 className="text-sm font-bold text-primary dark:text-primary-dark"
                 style={{
-                  color: isDark ? "#60a5fa" : "#1d3557", // Navy blue for light mode
+                  color: isDark || !isScrolled ? "#ffffff" : "#1d3557",
                 }}
               >
                 {cuaca}
@@ -440,140 +388,129 @@ export default function Home() {
               <FiMoon
                 id="icon-darkmode"
                 className="w-5 h-5"
-                style={{ color: "#60a5fa" }} // Explicit color for dark mode
+                style={{ color: isDark || !isScrolled ? "#ffffff" : "#60a5fa" }}
               />
             ) : (
               <FiSun
                 id="icon-darkmode"
                 className="w-5 h-5"
-                style={{ color: "#1d3557" }} // Navy blue for light mode
+                style={{ color: !isScrolled ? "#ffffff" : "#1d3557" }}
               />
             )}
           </button>
 
-          {/* Tombol Login - tablet dan desktop dengan teks, mobile hanya icon */}
-          <Link
-            href="/login"
-            className="rounded-lg bg-primary text-white font-semibold text-sm shadow-lg hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-200 hover:scale-110 hover:shadow-2xl flex items-center gap-2 focus:scale-105 focus:shadow-2xl px-2 py-2 lg:px-4 lg:py-2"
-            title="Login"
+          {/* Language Toggle Switch */}
+          <div
+            className="relative w-14 h-7 bg-gray-200 rounded-full cursor-pointer flex items-center px-1 transition-colors duration-300"
+            onClick={toggleLanguage}
+            style={{
+              backgroundColor: isDark || !isScrolled ? "rgba(255,255,255,0.2)" : "#e5e7eb",
+            }}
+            title={isEnglish ? "Switch to Indonesia" : "Switch to English"}
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            {/* Flag Circle */}
+            <div
+              className={`absolute w-5 h-5 rounded-full shadow-md transform transition-transform duration-300 flex items-center justify-center overflow-hidden bg-white ${
+                isEnglish ? "translate-x-7" : "translate-x-0"
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+              <img
+                src={
+                  isEnglish
+                    ? "/flags/usa.svg"
+                    : "/flags/indonesia.svg"
+                }
+                alt={isEnglish ? "English" : "Indonesia"}
+                className="w-full h-full object-cover"
               />
-            </svg>
-            <span className="hidden lg:inline">Login</span>
-          </Link>
+            </div>
+          </div>
+
+          {/* Hidden Google Translate Element */}
+          <div id="google_translate_element" style={{ position: 'absolute', left: '-9999px' }}></div>
+
         </div>
       </nav>
 
       {/* HERO SECTION */}
       <section className="hero-section relative flex flex-col lg:flex-row items-center justify-between min-h-screen w-full pt-24 sm:pt-28 lg:pt-32 pb-8 lg:pb-0 px-4 sm:px-6 lg:px-16 overflow-hidden gap-8 lg:gap-12">
-        <div className="w-full max-w-screen-sm lg:max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12">
-          {/* Partikel Custom Polkadot/Bintang */}
-          <ParticlesCustom isDark={isDark ?? false} />
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/Slider/Background1.jpg"
+            alt="Background"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/60" />
+        </div>
 
-          {/* Kiri: Text Content */}
-          <div className="hero-content flex-1 z-10 flex flex-col items-center lg:items-start justify-center max-w-2xl text-center lg:text-left animate-fadeInUp order-2 lg:order-1 mt-8 lg:mt-0">
-            <h1 className="hero-title text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-heading font-semibold leading-tight mb-4 lg:mb-6 text-gray-900 dark:text-white animate-slideInLeft cursor-default flex flex-wrap gap-1 justify-center lg:justify-start">
-              {"PointMap".split("").map((char, i) => (
-                <span
-                  key={i}
-                  className="inline-block transition-all duration-300 hover:scale-125 hover:text-primary dark:hover:text-primary-dark hover:drop-shadow-lg hover:animate-bounce"
-                  style={{
-                    transitionDelay: `${i * 40}ms`,
-                    color: isDark ? "#ffffff" : "#111827", // Explicit color based on theme
-                  }}
-                >
-                  {char}
-                </span>
-              ))}
-            </h1>
-            <p
-              className="hero-subtitle text-base sm:text-lg lg:text-xl xl:text-2xl text-primary/80 dark:text-primary-dark/80 my-4 lg:my-4 font-heading font-medium animate-fadeInUp animation-delay-200 hover:text-primary dark:hover:text-primary-dark transition-all duration-300 hover:scale-105 cursor-pointer"
-              style={{
-                color: isDark
-                  ? "rgba(96, 165, 250, 0.8)"
-                  : "rgba(29, 53, 87, 0.8)", // Navy blue for light mode
-              }}
-            >
-              Polnep Interactive Map
-            </p>
-            <p
-              className="hero-description max-w-xl text-sm sm:text-base lg:text-lg xl:text-xl text-gray-700 dark:text-gray-300 mb-8 lg:mb-8 animate-fadeInUp animation-delay-400 leading-relaxed hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-300 px-2 lg:px-0"
-              style={{
-                color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
-              }}
-            >
-              Sarana pemetaan digital interaktif yang mendukung kegiatan
-              eksplorasi dan navigasi kawasan kampus Politeknik Negeri Pontianak
-              secara informatif dan terarah.
-            </p>
-            <button
-              onClick={scrollToMap}
-              className="hero-button group px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 bg-primary text-white font-bold text-sm sm:text-base lg:text-lg rounded-xl shadow-lg hover:bg-gradient-to-r hover:from-primary hover:to-accent dark:bg-primary-dark dark:hover:bg-primary/80 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl animate-bounceIn animation-delay-600 relative overflow-hidden hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-accent/40"
-              style={{ position: "relative" }}
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                Jelajahi Peta
-                <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:rotate-12"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-              </span>
-              <span className="absolute left-0 top-0 w-full h-full pointer-events-none ripple-effect"></span>
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-            </button>
-          </div>
+        <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col items-center justify-center text-center px-4 h-full">
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 drop-shadow-lg">
+            PointMap
+          </h1>
+          <p className="text-xl md:text-2xl text-blue-300 mb-6 font-medium drop-shadow-md">
+            Polnep Interactive Map
+          </p>
+          <p className="text-gray-200 text-lg max-w-2xl mb-12 leading-relaxed drop-shadow-sm">
+            Sarana pemetaan digital interaktif yang mendukung kegiatan eksplorasi
+            dan navigasi kawasan kampus Politeknik Negeri Pontianak secara
+            informatif dan terarah.
+          </p>
 
-          {/* Kanan: Image Slider */}
-          <div className="hero-slider flex-1 flex items-center justify-center relative w-full aspect-[16/9] max-w-xs sm:max-w-md lg:max-w-2xl animate-fadeInRight order-1 lg:order-2 mb-4 lg:mb-0">
-            <div className="relative w-full h-full overflow-hidden rounded-2xl lg:rounded-3xl shadow-[0_8px_32px_0_rgba(30,41,59,0.25)] lg:shadow-[0_16px_64px_0_rgba(30,41,59,0.35)] bg-white/80 dark:bg-surface-dark/80 backdrop-blur-md z-20 -translate-y-2 lg:-translate-y-8 transition-all duration-500 floating-anim">
-              <Slider {...sliderSettings} className="w-full h-full">
-                {sliderImages.map((image, index) => (
-                  <div
-                    key={index}
-                    className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800"
-                    style={{ minHeight: "100%" }}
-                  >
-                    <img
-                      src={image}
-                      alt={`Background ${index + 1}`}
-                      className="h-full w-full object-cover transition-all duration-700 rounded-xl lg:rounded-2xl shadow-lg lg:shadow-xl hover:scale-105 hover:-translate-y-1 group-hover:scale-105 group-hover:-translate-y-1"
-                      style={{ maxHeight: "100%", maxWidth: "100%" }}
-                      onError={(e) => {
-                        console.error(`Error loading image: ${image}`);
-                        e.currentTarget.style.display = "none";
-                      }}
-                      onLoad={() => {
-                        console.log(`Image loaded successfully: ${image}`);
-                      }}
-                    />
-                  </div>
-                ))}
-              </Slider>
-              <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent pointer-events-none group-hover:from-black/10 transition-all duration-300" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-5xl">
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
+              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
+                <FaBuilding />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-bold text-white">
+                  {stats.bangunan}
+                </h3>
+                <p className="text-xs text-gray-300 uppercase tracking-wider">
+                  Bangunan
+                </p>
+              </div>
+            </div>
 
-              {/* Floating elements untuk interaktivitas */}
-              <div className="absolute top-3 left-3 lg:top-4 lg:left-4 w-2 h-2 lg:w-3 lg:h-3 bg-white/30 rounded-full animate-pulse group-hover:bg-white/50 transition-colors duration-300"></div>
-              <div className="absolute bottom-3 right-3 lg:bottom-4 lg:right-4 w-1.5 h-1.5 lg:w-2 lg:h-2 bg-white/40 rounded-full animate-ping group-hover:bg-white/60 transition-colors duration-300"></div>
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
+              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
+                <FaDoorOpen />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-bold text-white">
+                  {stats.ruangan}
+                </h3>
+                <p className="text-xs text-gray-300 uppercase tracking-wider">
+                  Ruangan
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
+              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
+                <FaLayerGroup />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-bold text-white">
+                  {stats.lantai}
+                </h3>
+                <p className="text-xs text-gray-300 uppercase tracking-wider">
+                  Lantai
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
+              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
+                <FaImages />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-bold text-white">
+                  {stats.gallery}
+                </h3>
+                <p className="text-xs text-gray-300 uppercase tracking-wider">
+                  Galeri
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -588,7 +525,7 @@ export default function Home() {
           <span
             className="text-xs lg:text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark font-medium transition-colors"
             style={{
-              color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+              color: isDark ? "#d1d5db" : "#374151",
             }}
           >
             Scroll
@@ -599,7 +536,7 @@ export default function Home() {
             stroke="currentColor"
             viewBox="0 0 24 24"
             style={{
-              color: isDark ? "#d1d5db" : "#374151", // Explicit color based on theme
+              color: isDark ? "#d1d5db" : "#374151",
             }}
           >
             <path
@@ -615,7 +552,7 @@ export default function Home() {
       {/* MAP / CANVAS AREA */}
       <section
         ref={mapArea}
-        className="w-full h-screen min-h-0 min-w-0 py-2 md:py-4 lg:py-6 px-4 md:px-8 lg:px-12 flex flex-col items-center justify-center overflow-hidden bg-primary/10 dark:bg-primary/20 border-none rounded-none shadow-none relative"
+        className="w-full h-[90vh] min-h-0 min-w-0 py-2 md:py-4 lg:py-6 px-4 md:px-8 lg:px-12 flex flex-col items-center justify-center overflow-hidden bg-primary/10 dark:bg-primary/20 border-none rounded-none shadow-none relative"
         style={{ position: "relative", zIndex: 1 }}
       >
         <div className="w-full">
@@ -625,8 +562,8 @@ export default function Home() {
         </div>
 
         <div
-          className={`w-full h-[320px] md:h-[540px] lg:h-[700px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
-          style={{ minHeight: 320, height: "100%", maxHeight: 700 }}
+          className={`w-full h-[300px] md:h-[500px] lg:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
+          style={{ minHeight: 300, height: "100%", maxHeight: 600 }}
         >
           <LeafletMap
             initialLat={-0.0545}
@@ -669,7 +606,7 @@ export default function Home() {
             <span
               className="text-xs text-muted dark:text-muted-dark text-center md:text-left max-w-xs"
               style={{
-                color: isDark ? "#b8c1ec" : "#1d3557", // Navy blue for light mode
+                color: isDark ? "#b8c1ec" : "#1d3557",
               }}
             >
               Polnep Interactive Map - Navigasi digital kampus Politeknik Negeri

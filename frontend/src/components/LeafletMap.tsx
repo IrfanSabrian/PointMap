@@ -9727,7 +9727,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             <iframe
               src={`/building-details/index.html?id=${
                 selectedFeature?.properties?.id || "45"
-              }`}
+              }&apiUrl=${encodeURIComponent(
+                process.env.NEXT_PUBLIC_API_BASE_URL as string
+              )}`}
               title="Building Detail"
               className="w-full h-full border-0"
               style={{
