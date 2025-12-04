@@ -19,7 +19,7 @@ type Props = {
   onChooseFile: (lantaiNumber: number, file: File) => void;
   onSave: (lantaiNumber: number) => void;
   onDelete: (lantaiGambarId: number) => void;
-  onAddLantai: () => void;
+  onAddLantai?: () => void;
   onEditRuangan: (lantaiNumber: number) => void;
   onEditExistingRuangan: (ruangan: any) => void;
   onBuatRuangan: (lantaiNumber: number) => void;
@@ -131,14 +131,16 @@ export default function EditLantaiImageUploader(props: Props) {
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={onAddLantai}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            title="Tambah Lantai Baru"
-          >
-            <i className="fas fa-plus text-sm"></i>
-            Tambah Lantai
-          </button>
+          {onAddLantai && (
+            <button
+              onClick={onAddLantai}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              title="Tambah Lantai Baru"
+            >
+              <i className="fas fa-plus text-sm"></i>
+              Tambah Lantai
+            </button>
+          )}
         </div>
       </div>
 
@@ -261,12 +263,14 @@ export default function EditLantaiImageUploader(props: Props) {
           <p className="text-gray-500 dark:text-gray-400 mb-3">
             Belum ada lantai yang ditambahkan
           </p>
-          <button
-            onClick={onAddLantai}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            Tambah Lantai Pertama
-          </button>
+          {onAddLantai && (
+            <button
+              onClick={onAddLantai}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Tambah Lantai Pertama
+            </button>
+          )}
         </div>
       )}
 

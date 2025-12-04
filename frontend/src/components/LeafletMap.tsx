@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, {
@@ -5417,7 +5417,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         lantai.setLantaiPreviewUrls({});
         lantai.setSavedLantaiFiles({});
         lantai.setLantaiGambarData([]);
-        ui.setShowTambahLantaiModal(false);
         lantai.setTambahLantaiFile(null);
         lantai.setTambahLantaiPreviewUrl(null);
       }, 300); // durasi animasi fade
@@ -5881,169 +5880,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     };
 
-    // Fungsi untuk tambah lantai baru
-    const handleAddLantai = () => {
-      if (!features.selectedFeature?.properties?.id) return;
-
-      const token = localStorage.getItem("token");
-      if (!token) {
-        showNotification(
-          "error",
-          "Akses Ditolak",
-          "Anda harus login terlebih dahulu untuk menambah lantai."
-        );
-        return;
-      }
-
-      // Reset state untuk modal tambah lantai
-      lantai.setTambahLantaiFile(null);
-      lantai.setTambahLantaiPreviewUrl(null);
-      ui.setShowTambahLantaiModal(true);
-    };
-
-    // Fungsi untuk handle file selection saat tambah lantai
-    const handleTambahLantaiFileChange = (
-      event: React.ChangeEvent<HTMLInputElement>
-    ) => {
-      const file = event.target.files?.[0];
-      if (file) {
-        if (file.type !== "image/svg+xml") {
-          showNotification(
-            "error",
-            "Format File Salah",
-            "Hanya file SVG yang diperbolehkan untuk lantai."
-          );
-          return;
-        }
-
-        // Validasi ukuran file (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          showNotification(
-            "error",
-            "Ukuran File Terlalu Besar",
-            "Ukuran file SVG maksimal 5MB."
-          );
-          return;
-        }
-
-        lantai.setTambahLantaiFile(file);
-        const url = URL.createObjectURL(file);
-        lantai.setTambahLantaiPreviewUrl(url);
-      }
-    };
-
-    // Fungsi untuk save lantai baru dengan SVG
-    const handleSaveTambahLantai = async () => {
-      if (!features.selectedFeature?.properties?.id || !lantai.tambahLantaiFile) {
-        showNotification(
-          "error",
-          "Data Tidak Lengkap",
-          "Pilih file SVG terlebih dahulu."
-        );
-        return;
-      }
-
-      const token = localStorage.getItem("token");
-      if (!token) {
-        showNotification(
-          "error",
-          "Akses Ditolak",
-          "Token tidak ditemukan. Silakan login ulang."
-        );
-        return;
-      }
-
-      try {
-        loading.setIsSaving(true);
-        const newLantaiCount = (features.selectedFeature.properties.lantai || 0) + 1;
-
-        // Upload SVG untuk lantai baru TERLEBIH DAHULU menggunakan service
-        const bangunanId = Number(features.selectedFeature.properties.id);
-        await createLantaiGambar(
-          {
-            file: lantai.tambahLantaiFile,
-            lantaiNumber: newLantaiCount,
-            bangunanId: bangunanId,
-          },
-          token
-        );
-
-        // Hanya jika upload SVG berhasil, baru update field lantai di database
-        await updateBangunan(
-          features.selectedFeature.properties.id,
-          {
-            lantai: newLantaiCount,
-          },
-          token
-        );
-
-        // Update features.selectedFeature properties
-        if (features.selectedFeature && features.selectedFeature.properties) {
-          features.selectedFeature.properties.lantai = newLantaiCount;
-        }
-
-        // Reset state
-        lantai.setTambahLantaiFile(null);
-        lantai.setTambahLantaiPreviewUrl(null);
-        ui.setShowTambahLantaiModal(false);
-        lantai.setLantaiFiles({});
-        lantai.setLantaiPreviewUrls({});
-        lantai.setSavedLantaiFiles({});
-        lantai.setSelectedLantaiFilter(newLantaiCount);
-
-        // Refresh data lantai gambar
-        const data = await getLantaiGambarByBangunan(
-          Number(features.selectedFeature.properties.id),
-          token
-        );
-        lantai.setLantaiGambarData(data || []);
-
-        // Update lantai.savedLantaiFiles
-        const savedFiles: { [key: number]: boolean } = {};
-        if (data && data.length > 0) {
-          data.forEach((lantai: any) => {
-            const match = lantai.nama_file.match(/Lt(\d+)\.svg/i);
-            if (match) {
-              const lantaiNumber = parseInt(match[1]);
-              savedFiles[lantaiNumber] = true;
-            }
-          });
-        }
-        lantai.setSavedLantaiFiles(savedFiles);
-
-        // Refresh modal jika sedang terbuka
-        if (ui.showBuildingDetailCanvas) {
-          await openBuildingDetailModal();
-        }
-
-        showNotification(
-          "success",
-          "Berhasil ditambahkan",
-          `Lantai baru dengan SVG berhasil ditambahkan! Total lantai sekarang: ${newLantaiCount}`
-        );
-      } catch (error) {
-        console.error("Error saat menambah lantai:", error);
-
-        // Jika upload SVG gagal, field lantai tidak akan bertambah
-        // User bisa coba lagi tanpa perlu khawatir data tidak konsisten
-        showNotification(
-          "error",
-          "Gagal ditambahkan",
-          "Gagal menambah lantai: " +
-            (error as Error).message +
-            ". Silakan coba lagi."
-        );
-      } finally {
-        loading.setIsSaving(false);
-      }
-    };
-
-    // Fungsi untuk cancel tambah lantai
-    const handleCancelTambahLantai = () => {
-      lantai.setTambahLantaiFile(null);
-      lantai.setTambahLantaiPreviewUrl(null);
-      ui.setShowTambahLantaiModal(false);
-    };
+    // REMOVED: Unused Tambah Lantai modal handlers (handleAddLantai, handleTambahLantaiFileChange, handleSaveTambahLantai, handleCancelTambahLantai)
 
     // Fungsi untuk force refresh data lantai
     const refreshLantaiData = async () => {
@@ -6199,7 +6036,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_x: null,
           posisi_y: null,
         });
-        ui.setShowRuanganModal(false);
+        // REMOVED: ui.setShowRuanganModal(false) - modal no longer exists
 
         showNotification(
           "success",
@@ -6271,7 +6108,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_x: null,
           posisi_y: null,
         });
-        ui.setShowRuanganModal(true);
+        // REMOVED: ui.setShowRuanganModal(true) - modal no longer exists
       } catch (error) {}
     };
 
@@ -6289,7 +6126,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
       lantai.setSelectedLantaiForRuangan(ruangan.nomor_lantai);
 
-      ui.setShowRuanganModal(true);
+      // REMOVED: ui.setShowRuanganModal(true) - modal no longer exists
     };
 
     // Fungsi untuk edit ruangan yang sudah ada
@@ -6312,7 +6149,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
         lantai.setSelectedLantaiForRuangan(ruangan.nomor_lantai);
 
-        ui.setShowRuanganModal(true);
+        // REMOVED: ui.setShowRuanganModal(true) - modal no longer exists
       } catch (error) {}
     };
 
@@ -6424,7 +6261,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_y: null,
         });
         ruangan.setSelectedRuanganForEdit(null);
-        ui.setShowRuanganModal(false);
+        // REMOVED: ui.setShowRuanganModal(false) - modal no longer exists
 
         showNotification(
           "success",
@@ -6584,7 +6421,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       edit.setSelectedFile(null);
       lantai.setLantaiFiles({});
       lantai.setSavedLantaiFiles({});
-      ui.setShowTambahLantaiModal(false);
+      // REMOVED: ui.setShowTambahLantaiModal(false) - modal no longer exists
       lantai.setTambahLantaiFile(null);
       lantai.setTambahLantaiPreviewUrl(null);
       // Clean up file preview URL
@@ -9079,7 +8916,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }}
                     onSave={handleSaveLantaiImage}
                     onDelete={handleDeleteLantaiImage}
-                    onAddLantai={handleAddLantai}
                     onEditRuangan={handleEditRuangan}
                     onEditExistingRuangan={handleEditExistingRuangan}
                     onDeleteRuangan={handleDeleteRuangan}
@@ -9091,15 +8927,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         posisi_x: null,
                         posisi_y: null,
                       }));
-                      ui.setShowRuanganModal(true);
+                      // REMOVED: ui.setShowRuanganModal(true) - modal no longer exists
                     }}
                     savedLantaiFiles={lantai.savedLantaiFiles}
                     ruanganList={ruangan.ruanganList}
                     onDeleteLantai={handleDeleteLantai}
                     onEditLantai={(lantaiNumber) => {
-                      // Buka modal edit lantai dengan file picker
+                      // REMOVED: Modal edit lantai no longer exists
+                      // Just set the lantai for potential future use
                       lantai.setSelectedLantaiForEdit(lantaiNumber);
-                      ui.setShowEditLantaiModal(true);
                     }}
                   />
                 )}
@@ -9165,257 +9001,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </span>
                   untuk batal
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal Buat/Edit Ruangan */}
-        <EditRuanganForm
-          visible={ui.showRuanganModal}
-          isDark={!!isDark}
-          selectedRuanganForEdit={ruangan.selectedRuanganForEdit}
-          selectedLantaiForRuangan={lantai.selectedLantaiForRuangan}
-          ruanganForm={ruangan.ruanganForm as any}
-          maxLantai={features.selectedFeature?.properties?.lantai || 1}
-          isSaving={loading.isSaving}
-          onChange={(partial) =>
-            ruangan.setRuanganForm((prev) => ({ ...prev, ...partial }))
-          }
-          onSave={handleSaveRuangan}
-          onUpdate={handleUpdateRuangan}
-          onClose={() => ui.setShowRuanganModal(false)}
-          onOpenPinPicker={() => ui.setShowPinPositionModal(true)}
-        />
-
-        {/* Modal Pilih Posisi Pin */}
-        {ui.showPinPositionModal && (
-          <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
-            style={{
-              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
-            }}
-          >
-            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
-              {/* Header - Fixed */}
-              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Pilih Posisi Pin - Lantai {lantai.selectedLantaiForRuangan}
-                </h3>
-                <button
-                  onClick={() => ui.setShowPinPositionModal(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <i className="fas fa-times text-lg"></i>
-                </button>
-              </div>
-
-              {/* Content - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {/* Instructions - Fixed at top of scrollable area */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-                  <div className="flex items-start">
-                    <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
-                    <div>
-                      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">
-                        Cara Menentukan Posisi Pin
-                      </h4>
-                      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                        <li>
-                          • Klik pada gambar lantai di bawah untuk menentukan
-                          posisi pin
-                        </li>
-                        <li>
-                          • Pin akan muncul sebagai titik merah dengan koordinat
-                        </li>
-                        <li>
-                          • Posisi ini akan digunakan untuk menampilkan pin di
-                          tampilan 3D
-                        </li>
-                        <li>
-                          • Anda dapat mengklik ulang untuk mengubah posisi
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SVG Container dengan click handler */}
-                <div className="relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-700">
-                  {(() => {
-                    const existingLantai = lantai.lantaiGambarData.find((l) => {
-                      const match = l.nama_file.match(/Lt(\d+)\.svg/i);
-                      const extractedNumber = match ? parseInt(match[1]) : null;
-                      return extractedNumber === lantai.selectedLantaiForRuangan;
-                    });
-
-                    if (!existingLantai) {
-                      return (
-                        <div className="w-full h-64 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                          <div className="text-center">
-                            <i className="fas fa-exclamation-triangle text-gray-400 text-3xl mb-2"></i>
-                            <p className="text-gray-500 dark:text-gray-400">
-                              Gambar SVG untuk lantai {lantai.selectedLantaiForRuangan}{" "}
-                              tidak ditemukan
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="relative">
-                        <img
-                          src={`${
-                            existingLantai.path_file.startsWith("http")
-                              ? ""
-                              : "/"
-                          }${existingLantai.path_file}?v=${Date.now()}`}
-                          alt={`Lantai ${lantai.selectedLantaiForRuangan}`}
-                          className="w-full h-auto cursor-crosshair"
-                          onClick={(e) => {
-                            const rect =
-                              e.currentTarget.getBoundingClientRect();
-                            const x = (
-                              ((e.clientX - rect.left) / rect.width) *
-                              100
-                            ).toFixed(2);
-                            const y = (
-                              ((e.clientY - rect.top) / rect.height) *
-                              100
-                            ).toFixed(2);
-
-                            ruangan.setRuanganForm((prev) => ({
-                              ...prev,
-                              posisi_x: parseFloat(x),
-                              posisi_y: parseFloat(y),
-                            }));
-                          }}
-                        />
-                        {ruangan.ruanganForm.posisi_x && ruangan.ruanganForm.posisi_y && (
-                          <div
-                            className="absolute transform -translate-x-1/2 -translate-y-full pointer-events-none"
-                            style={{
-                              left: `${ruangan.ruanganForm.posisi_x}%`,
-                              top: `${ruangan.ruanganForm.posisi_y}%`,
-                            }}
-                          >
-                            {/* Pin marker berdasarkan style yang dipilih */}
-                            <div className="relative group">
-                              {/* Pin marker dengan style yang sesuai */}
-                              <div className="flex items-center justify-center hover:scale-110 transition-all duration-200">
-                                {(() => {
-                                  const pinStyle =
-                                    ruangan.ruanganForm.pin_style || "default";
-                                  const pinConfig = {
-                                    default: {
-                                      hexColor: "#9e9e9e",
-                                    },
-                                    ruang_kelas: {
-                                      hexColor: "#d32f2f",
-                                    },
-                                    laboratorium: {
-                                      hexColor: "#1976d2",
-                                    },
-                                    kantor: {
-                                      hexColor: "#388e3c",
-                                    },
-                                    ruang_rapat: {
-                                      hexColor: "#f57c00",
-                                    },
-                                    perpustakaan: {
-                                      hexColor: "#7b1fa2",
-                                    },
-                                    kantin: {
-                                      hexColor: "#c2185b",
-                                    },
-                                    toilet: {
-                                      hexColor: "#00796b",
-                                    },
-                                    gudang: {
-                                      hexColor: "#5d4037",
-                                    },
-                                  };
-
-                                  const config =
-                                    pinConfig[
-                                      pinStyle as keyof typeof pinConfig
-                                    ] || pinConfig.default;
-
-                                  return (
-                                    <div
-                                      className="text-3xl drop-shadow-lg filter"
-                                      style={{ color: config.hexColor }}
-                                    >
-                                      <i className="fas fa-map-marker-alt"></i>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-
-                              {/* Tooltip dengan koordinat */}
-                              <div className="absolute -top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-10">
-                                <div className="font-semibold mb-1 text-center text-white">
-                                  Pin Posisi
-                                </div>
-                                <div className="text-center text-gray-200">
-                                  X: {ruangan.ruanganForm.posisi_x}%
-                                </div>
-                                <div className="text-center text-gray-200">
-                                  Y: {ruangan.ruanganForm.posisi_y}%
-                                </div>
-                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {ruangan.ruanganForm.posisi_x && ruangan.ruanganForm.posisi_y && (
-                  <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <div className="flex items-start">
-                      <i className="fas fa-check-circle text-green-600 dark:text-green-400 mr-3 text-lg mt-0.5"></i>
-                      <div>
-                        <h4 className="font-semibold text-green-800 dark:text-green-200 mb-1">
-                          ✅ Posisi Pin Berhasil Ditentukan!
-                        </h4>
-                        <p className="text-sm text-green-700 dark:text-green-300">
-                          Koordinat pin telah disimpan:{" "}
-                          <strong>
-                            X = {ruangan.ruanganForm.posisi_x}%, Y =&nbsp;
-                            {ruangan.ruanganForm.posisi_y}%
-                          </strong>
-                        </p>
-                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                          Klik "Konfirmasi Posisi" untuk melanjutkan atau klik
-                          ulang pada gambar untuk mengubah posisi.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer - Fixed */}
-              <div className="flex gap-2 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => ui.setShowPinPositionModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Tutup
-                </button>
-                {ruangan.ruanganForm.posisi_x && ruangan.ruanganForm.posisi_y && (
-                  <button
-                    onClick={() => ui.setShowPinPositionModal(false)}
-                    className="flex-1 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    <i className="fas fa-check mr-2"></i>
-                    Konfirmasi Posisi
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -10020,355 +9605,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {/* Modal Tambah Lantai */}
-        {ui.showTambahLantaiModal && (
-          <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
-            style={{
-              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
-            }}
-          >
-            <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
-              {/* Header */}
-              <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Tambah Lantai Baru
-                </h3>
-                <button
-                  onClick={handleCancelTambahLantai}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <i className="fas fa-times text-lg"></i>
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="mb-6">
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    Untuk menambah lantai baru, Anda harus mengupload file SVG
-                    lantai terlebih dahulu.
-                  </p>
-
-                  {/* File Upload */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Upload File SVG Lantai *
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
-                      {!lantai.tambahLantaiFile ? (
-                        <div>
-                          <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
-                          <p className="text-gray-600 dark:text-gray-400 mb-2">
-                            Klik untuk memilih file SVG
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-500">
-                            Hanya file SVG yang diperbolehkan
-                          </p>
-                          <input
-                            type="file"
-                            accept=".svg"
-                            onChange={handleTambahLantaiFileChange}
-                            className="hidden"
-                            id="tambah-lantai-file"
-                          />
-                          <label
-                            htmlFor="tambah-lantai-file"
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors"
-                          >
-                            <i className="fas fa-folder-open mr-2"></i>
-                            Pilih File
-                          </label>
-                        </div>
-                      ) : (
-                        <div>
-                          <i className="fas fa-check-circle text-4xl text-green-500 mb-4"></i>
-                          <p className="text-gray-600 dark:text-gray-400 mb-2">
-                            File dipilih: {lantai.tambahLantaiFile.name}
-                          </p>
-                          <button
-                            onClick={() => {
-                              lantai.setTambahLantaiFile(null);
-                              lantai.setTambahLantaiPreviewUrl(null);
-                            }}
-                            className="text-red-600 hover:text-red-700 text-sm"
-                          >
-                            <i className="fas fa-times mr-1"></i>
-                            Ganti File
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  {lantai.tambahLantaiPreviewUrl && (
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Preview SVG
-                      </label>
-                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
-                        <img
-                          src={lantai.tambahLantaiPreviewUrl}
-                          alt="Preview SVG"
-                          className="w-full h-48 object-contain"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Info */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <i className="fas fa-info-circle text-blue-600 dark:text-blue-400 mt-0.5 mr-3 text-lg"></i>
-                      <div>
-                        <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-1">
-                          Informasi
-                        </h4>
-                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                          <li>
-                            • Lantai baru akan otomatis ditambahkan ke database
-                          </li>
-                          <li>
-                            • File SVG akan disimpan dan dapat digunakan untuk
-                            mengatur ruangan
-                          </li>
-                          <li>
-                            • Setelah lantai ditambahkan, Anda dapat langsung
-                            membuat ruangan di lantai tersebut
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={handleCancelTambahLantai}
-                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleSaveTambahLantai}
-                  disabled={!lantai.tambahLantaiFile || loading.isSaving}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  {loading.isSaving ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-1"></i>
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-plus mr-1"></i>
-                      Tambah Lantai
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal Edit Lantai */}
-        {ui.showEditLantaiModal && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
-            style={{
-              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
-            }}
-          >
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Edit Gambar Lantai {lantai.selectedLantaiForEdit}
-                </h3>
-                <button
-                  onClick={() => ui.setShowEditLantaiModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <i className="fas fa-times text-xl"></i>
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="p-6">
-                <div className="space-y-4">
-                  {/* File Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Pilih File SVG Baru
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
-                      <input
-                        type="file"
-                        accept=".svg"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            lantai.setTambahLantaiFile(file);
-                            const url = URL.createObjectURL(file);
-                            lantai.setTambahLantaiPreviewUrl(url);
-                          }
-                        }}
-                        className="hidden"
-                        id="edit-lantai-file"
-                      />
-                      <label
-                        htmlFor="edit-lantai-file"
-                        className="cursor-pointer block"
-                      >
-                        <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 dark:text-gray-500 mb-4"></i>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Klik untuk memilih file SVG
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          Format yang didukung: SVG
-                        </p>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  {lantai.tambahLantaiPreviewUrl && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Preview
-                      </label>
-                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
-                        <img
-                          src={lantai.tambahLantaiPreviewUrl}
-                          alt="Preview SVG"
-                          className="w-full h-32 object-contain"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => {
-                    ui.setShowEditLantaiModal(false);
-                    lantai.setTambahLantaiFile(null);
-                    lantai.setTambahLantaiPreviewUrl(null);
-                  }}
-                  className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={async () => {
-                    if (lantai.tambahLantaiFile && lantai.selectedLantaiForEdit) {
-                      try {
-                        // Set loading state
-                        loading.setIsSaving(true);
-
-                        // Update gambar lantai dengan file baru
-                        const token = localStorage.getItem("token");
-                        if (!token) {
-                          showNotification(
-                            "error",
-                            "Token Error",
-                            "Token tidak ditemukan. Silakan login ulang."
-                          );
-                          return;
-                        }
-
-                        // Hapus gambar lama dari database dan Cloudinary
-                        if (features.selectedFeature?.properties?.id) {
-                          const lantaiData = lantai.lantaiGambarData.find(
-                            (lantai: any) =>
-                              lantai.nomor_lantai === lantai.selectedLantaiForEdit
-                          );
-
-                          if (lantaiData) {
-                            // Hapus dari database
-                            await fetch(
-                              `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/${lantaiData.id_lantai_gambar}`,
-                              {
-                                method: "DELETE",
-                                headers: {
-                                  Authorization: `Bearer ${token}`,
-                                },
-                              }
-                            );
-                          }
-                        }
-
-                        // Tambah gambar baru
-                        const formData = new FormData();
-                        formData.append("gambar_lantai", lantai.tambahLantaiFile);
-                        formData.append(
-                          "nomor_lantai",
-                          lantai.selectedLantaiForEdit.toString()
-                        );
-                        formData.append(
-                          "id_bangunan",
-                          String(features.selectedFeature?.properties?.id)
-                        );
-
-                        await createLantaiGambar(
-                          {
-                            file: lantai.tambahLantaiFile,
-                            lantaiNumber: lantai.selectedLantaiForEdit,
-                            bangunanId: Number(features.selectedFeature?.properties?.id),
-                          },
-                          token
-                        );
-
-                        // Refresh data lantai gambar agar langsung terlihat
-                        if (features.selectedFeature?.properties?.id) {
-                          await refreshLantaiData();
-                        }
-
-                        ui.setShowEditLantaiModal(false);
-                        lantai.setTambahLantaiFile(null);
-                        lantai.setTambahLantaiPreviewUrl(null);
-
-                        showNotification(
-                          "success",
-                          "Berhasil",
-                          `Gambar lantai ${lantai.selectedLantaiForEdit} berhasil diperbarui!`
-                        );
-                      } catch (error) {
-                        showNotification(
-                          "error",
-                          "Gagal",
-                          "Gagal memperbarui gambar lantai. Silakan coba lagi."
-                        );
-                      } finally {
-                        // Reset loading state
-                        loading.setIsSaving(false);
-                      }
-                    }
-                  }}
-                  disabled={!lantai.tambahLantaiFile || loading.isSaving}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  {loading.isSaving ? (
-                    <>
-                      <i className="fas fa-spinner fa-spin mr-1"></i>
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-save mr-1"></i>
-                      Update Gambar
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Custom Confirmation Dialog */}
         {confirmationDialog && (
@@ -10418,3 +9654,4 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 LeafletMap.displayName = "LeafletMap";
 
 export default LeafletMap;
+

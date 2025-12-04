@@ -51,18 +51,6 @@ export interface UIState {
   showRouteModal: boolean;
   setShowRouteModal: Dispatch<SetStateAction<boolean>>;
   
-  showRuanganModal: boolean;
-  setShowRuanganModal: Dispatch<SetStateAction<boolean>>;
-  
-  showPinPositionModal: boolean;
-  setShowPinPositionModal: Dispatch<SetStateAction<boolean>>;
-  
-  showTambahLantaiModal: boolean;
-  setShowTambahLantaiModal: Dispatch<SetStateAction<boolean>>;
-  
-  showEditLantaiModal: boolean;
-  setShowEditLantaiModal: Dispatch<SetStateAction<boolean>>;
-  
   showShapeSwitchModal: boolean;
   setShowShapeSwitchModal: Dispatch<SetStateAction<boolean>>;
 }
@@ -333,11 +321,8 @@ export function useMapState(isDark: boolean = false): MapState {
   const [cardVisible, setCardVisible] = useState(false);
   const [showBuildingDetailCanvas, setShowBuildingDetailCanvas] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
-  const [showRuanganModal, setShowRuanganModal] = useState(false);
-  const [showPinPositionModal, setShowPinPositionModal] = useState(false);
-  const [showTambahLantaiModal, setShowTambahLantaiModal] = useState(false);
-  const [showEditLantaiModal, setShowEditLantaiModal] = useState(false);
   const [showShapeSwitchModal, setShowShapeSwitchModal] = useState(false);
+
 
   // ==================== ANIMATION STATES ====================
   const [isContainerShaking, setIsContainerShaking] = useState(false);
@@ -445,14 +430,6 @@ export function useMapState(isDark: boolean = false): MapState {
       setShowBuildingDetailCanvas,
       showRouteModal,
       setShowRouteModal,
-      showRuanganModal,
-      setShowRuanganModal,
-      showPinPositionModal,
-      setShowPinPositionModal,
-      showTambahLantaiModal,
-      setShowTambahLantaiModal,
-      showEditLantaiModal,
-      setShowEditLantaiModal,
       showShapeSwitchModal,
       setShowShapeSwitchModal,
     },
