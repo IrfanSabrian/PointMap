@@ -26,14 +26,16 @@ import jalurRoutes from "./routes/jalur.js";
 const app = express();
 
 // CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [
+      "http://localhost:3000", // Default frontend dev URL
+      "http://localhost:3001", // Default backend dev URL  
+      "http://localhost:3002", // Alternative port
+    ];
+
 const corsOptions = {
-  origin: [
-    "https://pointmap.vercel.app",
-    "https://pointmap-production.up.railway.app",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-  ],
+  origin: allowedOrigins,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: [

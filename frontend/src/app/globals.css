@@ -668,3 +668,49 @@ html > body > .skiptranslate {
 .dark .fancybox__caption {
   @apply bg-gray-800/80 text-gray-200;
 }
+
+/* Custom Leaflet Zoom Control Styles for Canvas Map */
+.leaflet-canvas-map .leaflet-control-zoom {
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.leaflet-canvas-map .leaflet-control-zoom a {
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  background-color: white;
+  color: #374151;
+  font-size: 20px;
+  font-weight: bold;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.leaflet-canvas-map .leaflet-control-zoom a:hover {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.leaflet-canvas-map .leaflet-control-zoom a:last-child {
+  border-bottom: none;
+}
+
+/* Dark mode support for zoom control */
+.dark .leaflet-canvas-map .leaflet-control-zoom {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark .leaflet-canvas-map .leaflet-control-zoom a {
+  background-color: #374151;
+  color: #e5e7eb;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .leaflet-canvas-map .leaflet-control-zoom a:hover {
+  background-color: #4b5563;
+  color: #f9fafb;
+}
+

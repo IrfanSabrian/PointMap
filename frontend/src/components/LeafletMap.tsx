@@ -80,6 +80,10 @@ import { updateBangunan, uploadBangunanThumbnail } from "../services/bangunan";
 import { getTitik } from "../services/titik";
 import { getJalur } from "../services/jalur";
 
+// Import custom hooks for state & refs management
+import { useMapState } from "@/hooks/map/useMapState";
+import { useMapRefs } from "@/hooks/map/useMapRefs";
+
 interface LeafletMapProps {
   isDark?: boolean;
   initialLat?: number;
@@ -114,163 +118,53 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     },
     ref
   ) => {
-    const mapRef = useRef<HTMLDivElement>(null);
-    const leafletMapRef = useRef<L.Map | null>(null);
-    // FeatureType imported from ../types/map
-    const basemapLayerRef = useRef<L.TileLayer | null>(null);
-    const [basemap, setBasemap] = useState<string>(
-      isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
-    );
-    const [layerVisible, setLayerVisible] = useState(true);
-    // inisialisasi setelah features dideklarasikan
-    const [isSatellite, setIsSatellite] = useState(
-      basemap === "esri_satellite"
-    );
-    const [isLoadingData, setIsLoadingData] = useState(true);
-    const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
-    const [isHighlightActive, setIsHighlightActive] = useState(false);
-    const [isContainerShaking, setIsContainerShaking] = useState(false);
-    const [isNavigationActive, setIsNavigationActive] = useState(false);
-    const [isStartDropdownOpen, setIsStartDropdownOpen] = useState(false);
-    const [searchHighlightedId, setSearchHighlightedId] = useState<
-      number | null
-    >(null);
-    const isHighlightActiveRef = useRef(false);
-    const isNavigationActiveRef = useRef(false);
-    const isGpsRecalcRef = useRef(false);
-    const isZoomingRef = useRef(false);
-    const isBuildingClickedRef = useRef(false);
-    const [showRouteModal, setShowRouteModal] = useState(false);
-    const [routeEndType, setRouteEndType] = useState("bangunan");
-    const [routeEndId, setRouteEndId] = useState("");
-    const [selectedFeature, setSelectedFeature] = useState<FeatureType | null>(
-      null
-    );
-    const [cardVisible, setCardVisible] = useState(false);
-    const [showBuildingDetailCanvas, setShowBuildingDetailCanvas] =
-      useState(false);
+    // ==================== INITIALIZE CUSTOM HOOKS ====================
+    // Map State Management (75 states organized in 11 categories)
+    const mapState = useMapState(isDark);
+    const {
+      config,
+      loading,
+      ui,
+      animation,
+      features,
+      routing,
+      drawing,
+      edit,
+      lantai,
+      ruangan,
+      layerVisibility,
+      highlight,
+    } = mapState;
 
-    const nonBangunanLayerRef = useRef<L.GeoJSON<FeatureType> | null>(null);
-    const bangunanLayerRef = useRef<L.GeoJSON<FeatureType> | null>(null);
-    const [nonBangunanFeatures, setNonBangunanFeatures] = useState<
-      FeatureType[]
-    >([]);
-    const [bangunanFeatures, setBangunanFeatures] = useState<FeatureType[]>([]);
-    const [ruanganFeatures, setRuanganFeatures] = useState<FeatureType[]>([]);
-    const [isBuildingDetailFadingOut, setIsBuildingDetailFadingOut] =
-      useState(false);
-    const [isBuildingDetailFadingIn, setIsBuildingDetailFadingIn] =
-      useState(false);
-    const [cardAnimation, setCardAnimation] = useState(false);
-    const [routeStartType, setRouteStartType] = useState<string>("my-location");
-    const [routeStartId, setRouteStartId] = useState<string>("");
-    const [titikFeatures, setTitikFeatures] = useState<any[]>([]); // Titik geojson
-    const [jalurFeatures, setJalurFeatures] = useState<any[]>([]); // Jalur geojson
-    const [routeEndSearchText, setRouteEndSearchText] = useState("");
-    const [routeEndSearchResults, setRouteEndSearchResults] = useState<Point[]>(
-      []
-    );
+    // Map Refs Management (14 refs organized in 4 categories)
+    const mapRefs = useMapRefs();
 
-    // State untuk mengontrol visibility layer jalur dan titik (dashboard admin)
-    const [jalurLayerVisible, setJalurLayerVisible] = useState(true);
-    const [titikLayerVisible, setTitikLayerVisible] = useState(true);
-    const [bangunanLayerVisible, setBangunanLayerVisible] = useState(true);
-
-    // Ref untuk menyimpan reference ke layer yang dibuat
-    const jalurLayerRef = useRef<L.Layer | null>(null);
-    const titikLayerRef = useRef<L.Layer | null>(null);
-
-    // State untuk edit mode
-    const [isEditingName, setIsEditingName] = useState(false);
-    const [isEditingThumbnail, setIsEditingThumbnail] = useState(false);
-    const [isEditingLantai, setIsEditingLantai] = useState(false);
-
-    const [isEditingInteraksi, setIsEditingInteraksi] = useState(false);
-    const [editName, setEditName] = useState("");
-    const [editThumbnail, setEditThumbnail] = useState("");
-
-    // State untuk tombol edit admin
-
-    const [editInteraksi, setEditInteraksi] = useState("");
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
-    const [lantaiFiles, setLantaiFiles] = useState<{
-      [key: number]: File | null;
-    }>({});
-    const [lantaiPreviewUrls, setLantaiPreviewUrls] = useState<{
-      [key: number]: string | null;
-    }>({});
-    const [lantaiGambarData, setLantaiGambarData] = useState<any[]>([]);
-    const [selectedLantaiFilter, setSelectedLantaiFilter] = useState(1);
-    const [savedLantaiFiles, setSavedLantaiFiles] = useState<{
-      [key: number]: boolean;
-    }>({});
-    const [showRuanganModal, setShowRuanganModal] = useState(false);
-
-    // State untuk Geoman.js drawing tools
-    const [drawingMode, setDrawingMode] = useState<string | null>(null);
-    const [isDrawingEnabled, setIsDrawingEnabled] = useState(false);
-
-    // State untuk edit confirmation system
-    const [isEditingShape, setIsEditingShape] = useState(false);
-    const [editingShape, setEditingShape] = useState<any>(null);
-    const [originalShapeData, setOriginalShapeData] = useState<any>(null);
-
-    // State untuk drag confirmation system
-    const [draggedShape, setDraggedShape] = useState<any>(null);
-    const [originalShapePosition, setOriginalShapePosition] =
-      useState<any>(null);
-    const [showDragConfirmation, setShowDragConfirmation] = useState(false);
-    const [pendingDragShape, setPendingDragShape] = useState<any>(null);
-
-    // State untuk melacak shape yang sedang aktif
-    const [activeShape, setActiveShape] = useState<any>(null);
-    const [pendingNewShape, setPendingNewShape] = useState<any>(null);
-    const [showShapeSwitchModal, setShowShapeSwitchModal] = useState(false);
-
-    // Ref untuk mengakses state drawing yang terbaru
-    const isDrawingEnabledRef = useRef(false);
-    const drawingModeRef = useRef<string | null>(null);
-
-    // Update ref setiap kali state berubah
+    // ==================== SYNC DRAWING REFS WITH STATE ====================
+    // Update refs setiap kali state berubah (for performance optimization)
     useEffect(() => {
-      isDrawingEnabledRef.current = isDrawingEnabled;
-      drawingModeRef.current = drawingMode;
-    }, [isDrawingEnabled, drawingMode]);
+      mapRefs.isDrawingEnabledRef.current = drawing.isDrawingEnabled;
+      mapRefs.drawingModeRef.current = drawing.drawingMode;
+    }, [drawing.isDrawingEnabled, drawing.drawingMode, mapRefs]);
 
-    const [showPinPositionModal, setShowPinPositionModal] = useState(false);
-    const [showTambahLantaiModal, setShowTambahLantaiModal] = useState(false);
-    const [showEditLantaiModal, setShowEditLantaiModal] = useState(false);
-    const [tambahLantaiFile, setTambahLantaiFile] = useState<File | null>(null);
-    const [tambahLantaiPreviewUrl, setTambahLantaiPreviewUrl] = useState<
-      string | null
-    >(null);
-    const [selectedLantaiForRuangan, setSelectedLantaiForRuangan] = useState<
-      number | null
-    >(null);
-    const [selectedLantaiForEdit, setSelectedLantaiForEdit] = useState<
-      number | null
-    >(null);
-    const [selectedRuanganForEdit, setSelectedRuanganForEdit] =
-      useState<any>(null);
-    const [ruanganList, setRuanganList] = useState<any[]>([]);
-    const [ruanganForm, setRuanganForm] = useState({
-      nama_ruangan: "",
-      nomor_lantai: 1,
-      nama_jurusan: "",
-      nama_prodi: "",
-      pin_style: "default",
-      posisi_x: null as number | null,
-      posisi_y: null as number | null,
-    });
-    const [isSaving, setIsSaving] = useState(false);
+    useEffect(() => {
+      mapRefs.isHighlightActiveRef.current = highlight.isHighlightActive;
+    }, [highlight.isHighlightActive, mapRefs]);
+
+    useEffect(() => {
+      mapRefs.isNavigationActiveRef.current = routing.isNavigationActive;
+    }, [routing.isNavigationActive, mapRefs]);
+
+    // ==================== OTHER HOOKS ====================
     const {
       searchText,
       setSearchText,
       showSearchResults,
       setShowSearchResults,
       searchResults,
-    } = useFeatureSearch({ bangunanFeatures, ruanganFeatures });
+    } = useFeatureSearch({ 
+      bangunanFeatures: features.bangunanFeatures, 
+      ruanganFeatures: features.ruanganFeatures 
+    });
     const {
       isLoggedIn,
       isAdmin,
@@ -389,20 +283,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (confirmationDialog?.onConfirm) {
         confirmationDialog.onConfirm();
       }
-      hideConfirmation();
+      hideConfirmation()
     }, [confirmationDialog]);
-
-    // Add missing useRef declarations at the top of the component
-    const userMarkerRef = useRef<L.Marker | null>(null);
-    const routeLineRef = useRef<L.Polyline | null>(null);
-    const navigationMarkerRef = useRef<L.Marker | null>(null);
 
     // Fungsi untuk membuka modal dengan animasi fade-in
     const openBuildingDetailModal = (selectedRuangan?: FeatureType) => {
-      setIsBuildingDetailFadingIn(true);
-      setShowBuildingDetailCanvas(true);
+      animation.setIsBuildingDetailFadingIn(true);
+      ui.setShowBuildingDetailCanvas(true);
       setTimeout(() => {
-        setIsBuildingDetailFadingIn(false);
+        animation.setIsBuildingDetailFadingIn(false);
       }, 300); // durasi animasi fade
 
       // Refresh data lantai setiap kali modal dibuka
@@ -453,22 +342,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         })
         .then((data) => {
           if (!data || !Array.isArray(data.features)) {
-            setNonBangunanFeatures([]);
+            features.setNonBangunanFeatures([]);
             return;
           }
           const nonBangunan = (data.features || []).filter(
             (f: FeatureType) => f.properties?.kategori !== "Bangunan"
           );
-          setNonBangunanFeatures(nonBangunan);
+          features.setNonBangunanFeatures(nonBangunan);
         })
         .catch((error) => {
-          setNonBangunanFeatures([]);
+          features.setNonBangunanFeatures([]);
         });
     }, []);
 
     // Load data bangunan dari API
     useEffect(() => {
-      setIsLoadingData(true);
+      loading.setIsLoadingData(true);
       fetch(geojsonBangunanUrl, {
         headers: { "ngrok-skip-browser-warning": "true" },
       })
@@ -481,16 +370,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         .then((data) => {
           if (!data || !Array.isArray(data.features)) {
             // Hapus data dummy, set kosong saja
-            setBangunanFeatures([]);
+            features.setBangunanFeatures([]);
             return;
           }
-          setBangunanFeatures(data.features || []);
+          features.setBangunanFeatures(data.features || []);
         })
         .catch((error) => {
           // Hapus data dummy, set kosong saja
-          setBangunanFeatures([]);
+          features.setBangunanFeatures([]);
         })
-        .finally(() => setIsLoadingData(false));
+        .finally(() => loading.setIsLoadingData(false));
     }, []);
 
     // Load data ruangan dari API
@@ -507,7 +396,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         .then((data) => {
           // Pastikan data adalah array
           if (!Array.isArray(data)) {
-            setRuanganFeatures([]);
+            features.setRuanganFeatures([]);
             return;
           }
           // Perbaiki mapping agar support dua struktur
@@ -537,11 +426,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               },
             };
           }) as FeatureFixed[];
-          setRuanganFeatures(ruanganForSearch);
+          features.setRuanganFeatures(ruanganForSearch);
         })
         .catch((error) => {
           // Hapus data dummy, set kosong saja
-          setRuanganFeatures([]);
+          features.setRuanganFeatures([]);
         });
     }, []);
 
@@ -561,13 +450,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 Nama: titik.nama,
               },
             }));
-            setTitikFeatures(geoJsonFeatures);
+            features.setTitikFeatures(geoJsonFeatures);
           } else {
-            setTitikFeatures([]);
+            features.setTitikFeatures([]);
           }
         } catch (error) {
           console.error("Error fetching titik data:", error);
-          setTitikFeatures([]);
+          features.setTitikFeatures([]);
         }
       };
 
@@ -601,13 +490,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 kategori: "Jalur",
               },
             }));
-            setJalurFeatures(geoJsonFeatures);
+            features.setJalurFeatures(geoJsonFeatures);
           } else {
-            setJalurFeatures([]);
+            features.setJalurFeatures([]);
           }
         } catch (error) {
           console.error("Error fetching jalur data:", error);
-          setJalurFeatures([]);
+          features.setJalurFeatures([]);
         }
       };
 
@@ -616,7 +505,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk mengkonversi titik GeoJSON ke format Point
     const convertTitikToPoints = (): Point[] => {
-      return titikFeatures
+      return features.titikFeatures
         .map((titik: any) => {
           const coords = titik.geometry?.coordinates;
           if (coords && Array.isArray(coords) && coords.length > 0) {
@@ -657,59 +546,59 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Debug: log jalur yang tersedia
     useEffect(() => {
-      if (jalurFeatures.length > 0) {
-        console.log("Jalur yang tersedia:", jalurFeatures.length);
-        console.log("Contoh jalur:", jalurFeatures[0]);
+      if (features.jalurFeatures.length > 0) {
+        console.log("Jalur yang tersedia:", features.jalurFeatures.length);
+        console.log("Contoh jalur:", features.jalurFeatures[0]);
       }
-    }, [jalurFeatures]);
+    }, [features.jalurFeatures]);
 
     // Handle visibility layer jalur dan titik untuk dashboard admin
     useEffect(() => {
-      if (!leafletMapRef.current || !isDashboard) return;
+      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
 
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
 
       // Update visibility jalur layer menggunakan ref
-      if (jalurLayerRef.current) {
-        if (jalurLayerVisible) {
-          if (!map.hasLayer(jalurLayerRef.current)) {
-            map.addLayer(jalurLayerRef.current);
+      if (mapRefs.jalurLayerRef.current) {
+        if (layerVisibility.jalurLayerVisible) {
+          if (!map.hasLayer(mapRefs.jalurLayerRef.current)) {
+            map.addLayer(mapRefs.jalurLayerRef.current);
           }
         } else {
-          if (map.hasLayer(jalurLayerRef.current)) {
-            map.removeLayer(jalurLayerRef.current);
+          if (map.hasLayer(mapRefs.jalurLayerRef.current)) {
+            map.removeLayer(mapRefs.jalurLayerRef.current);
           }
           // Marker ujung jalur sudah menjadi bagian dari jalur layer, tidak perlu dikelola secara terpisah
         }
       }
 
       // Update visibility titik layer menggunakan ref
-      if (titikLayerRef.current) {
-        if (titikLayerVisible) {
-          if (!map.hasLayer(titikLayerRef.current)) {
-            map.addLayer(titikLayerRef.current);
+      if (mapRefs.titikLayerRef.current) {
+        if (layerVisibility.titikLayerVisible) {
+          if (!map.hasLayer(mapRefs.titikLayerRef.current)) {
+            map.addLayer(mapRefs.titikLayerRef.current);
           }
         } else {
-          if (map.hasLayer(titikLayerRef.current)) {
-            map.removeLayer(titikLayerRef.current);
+          if (map.hasLayer(mapRefs.titikLayerRef.current)) {
+            map.removeLayer(mapRefs.titikLayerRef.current);
           }
         }
       }
-    }, [jalurLayerVisible, titikLayerVisible, isDashboard]);
+    }, [layerVisibility.jalurLayerVisible, layerVisibility.titikLayerVisible, isDashboard]);
 
     // Create layer untuk jalur dan titik ketika data tersedia
     useEffect(() => {
-      if (!leafletMapRef.current || !isDashboard) return;
+      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
 
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
 
       // Buat layer jalur jika belum ada dan data tersedia
-      if (jalurFeatures.length > 0 && !jalurLayerRef.current) {
+      if (features.jalurFeatures.length > 0 && !mapRefs.jalurLayerRef.current) {
         // Buat layer group untuk jalur dan marker ujung
         const jalurLayerGroup = L.layerGroup();
 
         // Buat jalur layer
-        const jalurLineLayer = L.geoJSON(jalurFeatures as any, {
+        const jalurLineLayer = L.geoJSON(features.jalurFeatures as any, {
           style: () => ({
             color: "#000000", // Hitam
             weight: 3,
@@ -737,24 +626,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Add click handler for selective editing
               layer.on("click", function (e: L.LeafletMouseEvent) {
                 // Check if drawing mode is active
-                if (!drawingModeRef.current) {
+                if (!mapRefs.drawingModeRef.current) {
                   return;
                 }
 
                 // If there's already a shape being edited, disable it first
-                if (isEditingShape && editingShape && editingShape !== layer) {
+                if (drawing.isEditingShape && drawing.editingShape && drawing.editingShape !== layer) {
                   console.log("🔄 Disabling previous editing shape");
-                  if ((editingShape as any).pm) {
-                    (editingShape as any).pm.disable();
+                  if ((drawing.editingShape as any).pm) {
+                    (drawing.editingShape as any).pm.disable();
                   }
-                  setIsEditingShape(false);
-                  setEditingShape(null);
-                  setOriginalShapeData(null);
+                  drawing.setIsEditingShape(false);
+                  drawing.setEditingShape(null);
+                  drawing.setOriginalShapeData(null);
                 }
 
                 // Reset all other layers to disabled state
-                if (bangunanLayerRef.current) {
-                  (bangunanLayerRef.current as any).eachLayer(
+                if (mapRefs.bangunanLayerRef.current) {
+                  (mapRefs.bangunanLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -762,8 +651,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   );
                 }
-                if (jalurLayerRef.current) {
-                  (jalurLayerRef.current as any).eachLayer(
+                if (mapRefs.jalurLayerRef.current) {
+                  (mapRefs.jalurLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -771,8 +660,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   );
                 }
-                if (titikLayerRef.current) {
-                  (titikLayerRef.current as any).eachLayer(
+                if (mapRefs.titikLayerRef.current) {
+                  (mapRefs.titikLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -780,8 +669,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   );
                 }
-                if (nonBangunanLayerRef.current) {
-                  (nonBangunanLayerRef.current as any).eachLayer(
+                if (mapRefs.nonBangunanLayerRef.current) {
+                  (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -792,7 +681,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                 // Enable PM for this specific layer based on drawing mode
                 try {
-                  if (drawingModeRef.current === "edit") {
+                  if (mapRefs.drawingModeRef.current === "edit") {
                     console.log(
                       "🔍 Selective editing: Edit mode - checking PM state"
                     );
@@ -806,9 +695,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       latLngs: (layer as any).getLatLngs(),
                       type: layer.constructor.name,
                     };
-                    setOriginalShapeData(originalData);
-                    setEditingShape(layer);
-                    setIsEditingShape(true);
+                    drawing.setOriginalShapeData(originalData);
+                    drawing.setEditingShape(layer);
+                    drawing.setIsEditingShape(true);
 
                     (layer as any).pm.enable({ allowEditing: true });
                     console.log(
@@ -823,7 +712,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       "✅ Edit enabled for jalur layer:",
                       feature.properties?.nama || feature.properties?.id
                     );
-                  } else if (drawingModeRef.current === "scale") {
+                  } else if (mapRefs.drawingModeRef.current === "scale") {
                     (layer as any).pm.enable({
                       allowScaling: true,
                     });
@@ -831,7 +720,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       "✅ Scale enabled for jalur layer:",
                       feature.properties?.nama || feature.properties?.id
                     );
-                  } else if (drawingModeRef.current === "drag") {
+                  } else if (mapRefs.drawingModeRef.current === "drag") {
                     console.log(
                       "🔍 Selective editing: Drag mode - checking PM state"
                     );
@@ -872,14 +761,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     );
 
                     // Store the dragged shape and show confirmation
-                    setDraggedShape(layer);
-                    setOriginalShapePosition(
+                    drawing.setDraggedShape(layer);
+                    drawing.setOriginalShapePosition(
                       (layer as any).getLatLngs
                         ? (layer as any).getLatLngs()
                         : null
                     );
-                    setShowDragConfirmation(true);
-                  } else if (drawingModeRef.current === "remove") {
+                    drawing.setShowDragConfirmation(true);
+                  } else if (mapRefs.drawingModeRef.current === "remove") {
                     (layer as any).pm.enable({ allowRemoval: true });
 
                     // Apply visual feedback for remove mode
@@ -907,7 +796,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         jalurLineLayer.addTo(jalurLayerGroup);
 
         // Tambahkan marker ujung untuk setiap jalur
-        jalurFeatures.forEach((feature) => {
+        features.jalurFeatures.forEach((feature) => {
           if (
             feature.geometry &&
             (feature.geometry.type === "LineString" ||
@@ -969,27 +858,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         (jalurLayer as any).setZIndex(150);
 
         // Simpan jalur layer ke ref tanpa menambahkan ke map
-        jalurLayerRef.current = jalurLayer;
+        mapRefs.jalurLayerRef.current = jalurLayer;
         console.log("Jalur layer created and saved to ref");
 
         // Tambahkan jalur layer ke map dengan delay untuk render terakhir
         setTimeout(() => {
-          if (jalurLayerVisible) {
+          if (layerVisibility.jalurLayerVisible) {
             jalurLayer.addTo(map);
             console.log("Jalur layer added to map");
           }
         }, 200);
       }
-    }, [jalurFeatures, jalurLayerVisible, isDashboard]);
+    }, [features.jalurFeatures, layerVisibility.jalurLayerVisible, isDashboard]);
 
     useEffect(() => {
-      if (!leafletMapRef.current || !isDashboard) return;
+      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
 
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
 
       // Buat layer titik jika belum ada dan data tersedia
-      if (titikFeatures.length > 0 && !titikLayerRef.current) {
-        const titikLayer = L.geoJSON(titikFeatures as any, {
+      if (features.titikFeatures.length > 0 && !mapRefs.titikLayerRef.current) {
+        const titikLayer = L.geoJSON(features.titikFeatures as any, {
           pointToLayer: (feature, latlng) => {
             return L.circleMarker(latlng, {
               radius: 6,
@@ -1022,24 +911,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Add click handler for selective editing
               layer.on("click", function (e: L.LeafletMouseEvent) {
                 // Check if drawing mode is active
-                if (!drawingModeRef.current) {
+                if (!mapRefs.drawingModeRef.current) {
                   return;
                 }
 
                 // If there's already a shape being edited, disable it first
-                if (isEditingShape && editingShape && editingShape !== layer) {
+                if (drawing.isEditingShape && drawing.editingShape && drawing.editingShape !== layer) {
                   console.log("🔄 Disabling previous editing shape");
-                  if ((editingShape as any).pm) {
-                    (editingShape as any).pm.disable();
+                  if ((drawing.editingShape as any).pm) {
+                    (drawing.editingShape as any).pm.disable();
                   }
-                  setIsEditingShape(false);
-                  setEditingShape(null);
-                  setOriginalShapeData(null);
+                  drawing.setIsEditingShape(false);
+                  drawing.setEditingShape(null);
+                  drawing.setOriginalShapeData(null);
                 }
 
                 // Reset all other layers to disabled state
-                if (bangunanLayerRef.current) {
-                  (bangunanLayerRef.current as any).eachLayer(
+                if (mapRefs.bangunanLayerRef.current) {
+                  (mapRefs.bangunanLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -1047,8 +936,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   );
                 }
-                if (jalurLayerRef.current) {
-                  (jalurLayerRef.current as any).eachLayer(
+                if (mapRefs.jalurLayerRef.current) {
+                  (mapRefs.jalurLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -1056,8 +945,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   );
                 }
-                if (titikLayerRef.current) {
-                  (titikLayerRef.current as any).eachLayer(
+                if (mapRefs.titikLayerRef.current) {
+                  (mapRefs.titikLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -1065,8 +954,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     }
                   );
                 }
-                if (nonBangunanLayerRef.current) {
-                  (nonBangunanLayerRef.current as any).eachLayer(
+                if (mapRefs.nonBangunanLayerRef.current) {
+                  (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                     (otherLayer: any) => {
                       if (otherLayer.pm && otherLayer !== layer) {
                         otherLayer.pm.disable();
@@ -1077,7 +966,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                 // Enable PM for this specific layer based on drawing mode
                 try {
-                  if (drawingModeRef.current === "edit") {
+                  if (mapRefs.drawingModeRef.current === "edit") {
                     // Save original shape data
                     const originalData = {
                       latLng: (layer as any).getLatLng(),
@@ -1086,9 +975,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         : null,
                       type: layer.constructor.name,
                     };
-                    setOriginalShapeData(originalData);
-                    setEditingShape(layer);
-                    setIsEditingShape(true);
+                    drawing.setOriginalShapeData(originalData);
+                    drawing.setEditingShape(layer);
+                    drawing.setIsEditingShape(true);
 
                     (layer as any).pm.enable({ allowEditing: true });
 
@@ -1099,7 +988,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       "✅ Edit enabled for point layer:",
                       feature.properties?.Nama || feature.properties?.id
                     );
-                  } else if (drawingModeRef.current === "scale") {
+                  } else if (mapRefs.drawingModeRef.current === "scale") {
                     (layer as any).pm.enable({
                       allowScaling: true,
                     });
@@ -1107,7 +996,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       "✅ Scale enabled for point layer:",
                       feature.properties?.Nama || feature.properties?.id
                     );
-                  } else if (drawingModeRef.current === "drag") {
+                  } else if (mapRefs.drawingModeRef.current === "drag") {
                     // First, disable drag on all other layers
                     map.eachLayer((otherLayer: any) => {
                       if (otherLayer && otherLayer !== layer && otherLayer.pm) {
@@ -1136,14 +1025,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     );
 
                     // Store the dragged shape and show confirmation
-                    setDraggedShape(layer);
-                    setOriginalShapePosition(
+                    drawing.setDraggedShape(layer);
+                    drawing.setOriginalShapePosition(
                       (layer as any).getLatLng
                         ? (layer as any).getLatLng()
                         : null
                     );
-                    setShowDragConfirmation(true);
-                  } else if (drawingModeRef.current === "remove") {
+                    drawing.setShowDragConfirmation(true);
+                  } else if (mapRefs.drawingModeRef.current === "remove") {
                     (layer as any).pm.enable({ allowRemoval: true });
 
                     // Apply visual feedback for remove mode
@@ -1170,44 +1059,44 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         (titikLayer as any).setZIndex(200);
 
         // Simpan titik layer ke ref tanpa menambahkan ke map
-        titikLayerRef.current = titikLayer;
+        mapRefs.titikLayerRef.current = titikLayer;
         console.log("Titik layer created and saved to ref");
 
         // Tambahkan titik layer ke map dengan delay untuk render terakhir
         setTimeout(() => {
-          if (titikLayerVisible) {
+          if (layerVisibility.titikLayerVisible) {
             titikLayer.addTo(map);
             console.log("Titik layer added to map");
           }
         }, 300);
       }
-    }, [titikFeatures, titikLayerVisible, isDashboard]);
+    }, [features.titikFeatures, layerVisibility.titikLayerVisible, isDashboard]);
 
     // Update visibility bangunan layer menggunakan ref
     useEffect(() => {
-      if (!leafletMapRef.current || !isDashboard) return;
+      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
 
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
 
       // Update visibility bangunan layer menggunakan ref
-      if (bangunanLayerRef.current) {
-        if (bangunanLayerVisible) {
-          if (!map.hasLayer(bangunanLayerRef.current)) {
-            map.addLayer(bangunanLayerRef.current);
+      if (mapRefs.bangunanLayerRef.current) {
+        if (layerVisibility.bangunanLayerVisible) {
+          if (!map.hasLayer(mapRefs.bangunanLayerRef.current)) {
+            map.addLayer(mapRefs.bangunanLayerRef.current);
           }
         } else {
-          if (map.hasLayer(bangunanLayerRef.current)) {
-            map.removeLayer(bangunanLayerRef.current);
+          if (map.hasLayer(mapRefs.bangunanLayerRef.current)) {
+            map.removeLayer(mapRefs.bangunanLayerRef.current);
           }
         }
       }
-    }, [bangunanLayerVisible, isDashboard]);
+    }, [layerVisibility.bangunanLayerVisible, isDashboard]);
 
     // Kirim data nama gedung & jumlah lantai ke iframe saat modal building-detail dibuka
     useEffect(() => {
-      if (showBuildingDetailCanvas && selectedFeature) {
-        const namaGedung = selectedFeature.properties?.nama;
-        const jumlahLantai = Number(selectedFeature.properties?.lantai) || 0;
+      if (ui.showBuildingDetailCanvas && features.selectedFeature) {
+        const namaGedung = features.selectedFeature.properties?.nama;
+        const jumlahLantai = Number(features.selectedFeature.properties?.lantai) || 0;
         const iframe = document.querySelector(
           'iframe[title="Building Detail"]'
         ) as HTMLIFrameElement | null;
@@ -1231,17 +1120,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           setTimeout(() => clearInterval(interval), 2500);
         }
       }
-    }, [showBuildingDetailCanvas, selectedFeature]);
+    }, [ui.showBuildingDetailCanvas, features.selectedFeature]);
 
     // Gabungkan data bangunan dan ruangan untuk pencarian (hanya yang bisa dicari)
     useEffect(() => {
-      // setAllFeatures([...bangunanFeatures, ...ruanganFeatures]); // Removed as per new_code
-    }, [bangunanFeatures, ruanganFeatures]);
+      // setAllFeatures([...features.bangunanFeatures, ...features.ruanganFeatures]); // Removed as per new_code
+    }, [features.bangunanFeatures, features.ruanganFeatures]);
 
     // Inisialisasi map hanya sekali
     useEffect(() => {
-      if (!mapRef.current || leafletMapRef.current) return;
-      const map = L.map(mapRef.current, {
+      if (!mapRefs.mapRef.current || mapRefs.leafletMapRef.current) return;
+      const map = L.map(mapRefs.mapRef.current, {
         center: [initialLat, initialLng],
         zoom: initialZoom,
         zoomControl: false,
@@ -1258,18 +1147,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         dragging: true,
         trackResize: true,
       });
-      leafletMapRef.current = map;
+      mapRefs.leafletMapRef.current = map;
       // Set posisi awal sama dengan tombol reset
       map.setView([initialLat, initialLng], initialZoom, { animate: false });
 
       // Basemap awal
-      const bm = BASEMAPS.find((b) => b.key === basemap) || BASEMAPS[1];
+      const bm = BASEMAPS.find((b) => b.key === config.basemap) || BASEMAPS[1];
       const tileLayer = L.tileLayer(bm.url, {
         attribution: bm.attribution,
         maxZoom: 19,
       });
       tileLayer.addTo(map);
-      basemapLayerRef.current = tileLayer;
+      mapRefs.basemapLayerRef.current = tileLayer;
 
       // Configure touch handling to prevent console warnings on mobile
       const mapContainer = map.getContainer();
@@ -1329,13 +1218,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // Add click handler for selective editing
             layer.on("click", function (e: L.LeafletMouseEvent) {
               // Check if drawing mode is active
-              if (!drawingModeRef.current) {
+              if (!mapRefs.drawingModeRef.current) {
                 return;
               }
 
               // Reset all other layers to disabled state
-              if (bangunanLayerRef.current) {
-                (bangunanLayerRef.current as any).eachLayer(
+              if (mapRefs.bangunanLayerRef.current) {
+                (mapRefs.bangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
@@ -1343,22 +1232,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
               }
-              if (jalurLayerRef.current) {
-                (jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
+              if (mapRefs.jalurLayerRef.current) {
+                (mapRefs.jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
                   if (otherLayer.pm && otherLayer !== layer) {
                     otherLayer.pm.disable();
                   }
                 });
               }
-              if (titikLayerRef.current) {
-                (titikLayerRef.current as any).eachLayer((otherLayer: any) => {
+              if (mapRefs.titikLayerRef.current) {
+                (mapRefs.titikLayerRef.current as any).eachLayer((otherLayer: any) => {
                   if (otherLayer.pm && otherLayer !== layer) {
                     otherLayer.pm.disable();
                   }
                 });
               }
-              if (nonBangunanLayerRef.current) {
-                (nonBangunanLayerRef.current as any).eachLayer(
+              if (mapRefs.nonBangunanLayerRef.current) {
+                (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
@@ -1369,15 +1258,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               // Enable PM for this specific layer based on drawing mode
               try {
-                if (drawingModeRef.current === "edit") {
+                if (mapRefs.drawingModeRef.current === "edit") {
                   // Save original shape data
                   const originalData = {
                     latLngs: (layer as any).getLatLngs(),
                     type: layer.constructor.name,
                   };
-                  setOriginalShapeData(originalData);
-                  setEditingShape(layer);
-                  setIsEditingShape(true);
+                  drawing.setOriginalShapeData(originalData);
+                  drawing.setEditingShape(layer);
+                  drawing.setIsEditingShape(true);
 
                   (layer as any).pm.enable({ allowEditing: true });
 
@@ -1388,7 +1277,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     "✅ Edit enabled for Polnep geojson layer:",
                     feature.properties?.id || "unknown"
                   );
-                } else if (drawingModeRef.current === "scale") {
+                } else if (mapRefs.drawingModeRef.current === "scale") {
                   (layer as any).pm.enable({
                     allowScaling: true,
                   });
@@ -1396,7 +1285,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     "✅ Scale enabled for Polnep geojson layer:",
                     feature.properties?.id || "unknown"
                   );
-                } else if (drawingModeRef.current === "drag") {
+                } else if (mapRefs.drawingModeRef.current === "drag") {
                   // First, disable drag on all other layers
                   map.eachLayer((otherLayer: any) => {
                     if (otherLayer && otherLayer !== layer && otherLayer.pm) {
@@ -1425,14 +1314,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   );
 
                   // Store the dragged shape and show confirmation
-                  setDraggedShape(layer);
-                  setOriginalShapePosition(
+                  drawing.setDraggedShape(layer);
+                  drawing.setOriginalShapePosition(
                     (layer as any).getLatLngs
                       ? (layer as any).getLatLngs()
                       : null
                   );
-                  setShowDragConfirmation(true);
-                } else if (drawingModeRef.current === "remove") {
+                  drawing.setShowDragConfirmation(true);
+                } else if (mapRefs.drawingModeRef.current === "remove") {
                   (layer as any).pm.enable({ allowRemoval: true });
 
                   // Apply visual feedback for remove mode
@@ -1476,7 +1365,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         },
       }) as L.GeoJSON<FeatureFixed>;
       nonBangunanLayer.addTo(map);
-      nonBangunanLayerRef.current = nonBangunanLayer;
+      mapRefs.nonBangunanLayerRef.current = nonBangunanLayer;
 
       // Layer bangunan (di atas non-bangunan)
       const bangunanLayer = L.geoJSON(undefined, {
@@ -1502,13 +1391,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // Add click handler for selective editing
             layer.on("click", function (e: L.LeafletMouseEvent) {
               // Check if drawing mode is active
-              if (!drawingModeRef.current) {
+              if (!mapRefs.drawingModeRef.current) {
                 return;
               }
 
               // Reset all other layers to disabled state
-              if (bangunanLayerRef.current) {
-                (bangunanLayerRef.current as any).eachLayer(
+              if (mapRefs.bangunanLayerRef.current) {
+                (mapRefs.bangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
@@ -1516,22 +1405,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
               }
-              if (jalurLayerRef.current) {
-                (jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
+              if (mapRefs.jalurLayerRef.current) {
+                (mapRefs.jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
                   if (otherLayer.pm && otherLayer !== layer) {
                     otherLayer.pm.disable();
                   }
                 });
               }
-              if (titikLayerRef.current) {
-                (titikLayerRef.current as any).eachLayer((otherLayer: any) => {
+              if (mapRefs.titikLayerRef.current) {
+                (mapRefs.titikLayerRef.current as any).eachLayer((otherLayer: any) => {
                   if (otherLayer.pm && otherLayer !== layer) {
                     otherLayer.pm.disable();
                   }
                 });
               }
-              if (nonBangunanLayerRef.current) {
-                (nonBangunanLayerRef.current as any).eachLayer(
+              if (mapRefs.nonBangunanLayerRef.current) {
+                (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
@@ -1542,15 +1431,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               // Enable PM for this specific layer based on drawing mode
               try {
-                if (drawingModeRef.current === "edit") {
+                if (mapRefs.drawingModeRef.current === "edit") {
                   // Save original shape data
                   const originalData = {
                     latLngs: (layer as any).getLatLngs(),
                     type: layer.constructor.name,
                   };
-                  setOriginalShapeData(originalData);
-                  setEditingShape(layer);
-                  setIsEditingShape(true);
+                  drawing.setOriginalShapeData(originalData);
+                  drawing.setEditingShape(layer);
+                  drawing.setIsEditingShape(true);
 
                   (layer as any).pm.enable({ allowEditing: true });
 
@@ -1561,7 +1450,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     "✅ Edit enabled for building layer:",
                     feature.properties?.nama || feature.properties?.id
                   );
-                } else if (drawingModeRef.current === "scale") {
+                } else if (mapRefs.drawingModeRef.current === "scale") {
                   (layer as any).pm.enable({
                     allowScaling: true,
                   });
@@ -1569,7 +1458,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     "✅ Scale enabled for building layer:",
                     feature.properties?.nama || feature.properties?.id
                   );
-                } else if (drawingModeRef.current === "drag") {
+                } else if (mapRefs.drawingModeRef.current === "drag") {
                   // First, disable drag on all other layers
                   map.eachLayer((otherLayer: any) => {
                     if (otherLayer && otherLayer !== layer && otherLayer.pm) {
@@ -1598,14 +1487,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   );
 
                   // Store the dragged shape and show confirmation
-                  setDraggedShape(layer);
-                  setOriginalShapePosition(
+                  drawing.setDraggedShape(layer);
+                  drawing.setOriginalShapePosition(
                     (layer as any).getLatLngs
                       ? (layer as any).getLatLngs()
                       : null
                   );
-                  setShowDragConfirmation(true);
-                } else if (drawingModeRef.current === "remove") {
+                  drawing.setShowDragConfirmation(true);
+                } else if (mapRefs.drawingModeRef.current === "remove") {
                   (layer as any).pm.enable({ allowRemoval: true });
 
                   // Apply visual feedback for remove mode
@@ -1641,19 +1530,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             layer.on("click", function (e: L.LeafletMouseEvent) {
               console.log("🏢 Building clicked");
 
-              // Blok klik bangunan jika drawing mode aktif DAN ada activeShape
-              if (drawingModeRef.current && activeShape) {
+              // Blok klik bangunan jika drawing mode aktif DAN ada drawing.activeShape
+              if (mapRefs.drawingModeRef.current && drawing.activeShape) {
                 console.log(
                   "🚫 Building click blocked - drawing mode active with active shape:",
-                  drawingModeRef.current
+                  mapRefs.drawingModeRef.current
                 );
                 return;
               }
 
               // Jika rute sedang tampil atau highlight aktif (dan navigation tidak aktif), blok interaksi klik bangunan lain
               if (
-                routeLineRef.current ||
-                (isHighlightActiveRef.current && !isNavigationActiveRef.current)
+                mapRefs.routeLineRef.current ||
+                (mapRefs.isHighlightActiveRef.current && !mapRefs.isNavigationActiveRef.current)
               ) {
                 if (
                   e &&
@@ -1663,8 +1552,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   e.originalEvent.stopPropagation();
                 }
                 // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-                setIsContainerShaking(true);
-                setTimeout(() => setIsContainerShaking(false), 600);
+                animation.setIsContainerShaking(true);
+                setTimeout(() => animation.setIsContainerShaking(false), 600);
                 return;
               }
               // Pastikan kategori diset dengan benar
@@ -1676,14 +1565,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 },
               } as FeatureFixed;
               // Set flag untuk mencegah canvas click handler terpicu
-              isBuildingClickedRef.current = true;
-              setSelectedFeature(featureWithKategori);
-              setCardVisible(true);
-              setIsHighlightActive(true);
+              mapRefs.isBuildingClickedRef.current = true;
+              features.setSelectedFeature(featureWithKategori);
+              ui.setCardVisible(true);
+              highlight.setIsHighlightActive(true);
 
               // Reset flag setelah delay singkat
               setTimeout(() => {
-                isBuildingClickedRef.current = false;
+                mapRefs.isBuildingClickedRef.current = false;
               }, 100);
               // Kirim pesan ke dashboard untuk update sidebar
               window.postMessage(
@@ -1734,7 +1623,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Set z-index agar bangunan berada di bawah jalur dan titik
       (bangunanLayer as any).setZIndex(50);
       bangunanLayer.addTo(map);
-      bangunanLayerRef.current = bangunanLayer;
+      mapRefs.bangunanLayerRef.current = bangunanLayer;
 
       // Pastikan bangunan layer berada di bawah semua layer lain
       map.on("layeradd", (e: any) => {
@@ -1759,16 +1648,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           });
           map.remove();
         } catch {}
-        leafletMapRef.current = null;
-        nonBangunanLayerRef.current = null;
-        bangunanLayerRef.current = null;
-        basemapLayerRef.current = null;
+        mapRefs.leafletMapRef.current = null;
+        mapRefs.nonBangunanLayerRef.current = null;
+        mapRefs.bangunanLayerRef.current = null;
+        mapRefs.basemapLayerRef.current = null;
       };
     }, []); // hanya sekali
 
     // Geoman.js drawing tools setup
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map || !isDashboard) return;
 
       // Initialize Geoman.js
@@ -1820,13 +1709,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // Add click handler for selective editing
             newLayer.on("click", function (e: L.LeafletMouseEvent) {
               // Check if drawing mode is active
-              if (!drawingModeRef.current) {
+              if (!mapRefs.drawingModeRef.current) {
                 return;
               }
 
               // Reset all other layers to disabled state
-              if (bangunanLayerRef.current) {
-                (bangunanLayerRef.current as any).eachLayer(
+              if (mapRefs.bangunanLayerRef.current) {
+                (mapRefs.bangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
                     if (otherLayer.pm && otherLayer !== newLayer) {
                       otherLayer.pm.disable();
@@ -1834,22 +1723,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
               }
-              if (jalurLayerRef.current) {
-                (jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
+              if (mapRefs.jalurLayerRef.current) {
+                (mapRefs.jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
                   if (otherLayer.pm && otherLayer !== newLayer) {
                     otherLayer.pm.disable();
                   }
                 });
               }
-              if (titikLayerRef.current) {
-                (titikLayerRef.current as any).eachLayer((otherLayer: any) => {
+              if (mapRefs.titikLayerRef.current) {
+                (mapRefs.titikLayerRef.current as any).eachLayer((otherLayer: any) => {
                   if (otherLayer.pm && otherLayer !== newLayer) {
                     otherLayer.pm.disable();
                   }
                 });
               }
-              if (nonBangunanLayerRef.current) {
-                (nonBangunanLayerRef.current as any).eachLayer(
+              if (mapRefs.nonBangunanLayerRef.current) {
+                (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
                     if (otherLayer.pm && otherLayer !== newLayer) {
                       otherLayer.pm.disable();
@@ -1859,14 +1748,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
 
               // If there's already a shape being edited, disable it first
-              if (isEditingShape && editingShape && editingShape !== newLayer) {
+              if (drawing.isEditingShape && drawing.editingShape && drawing.editingShape !== newLayer) {
                 console.log("🔄 Disabling previous editing shape");
-                if ((editingShape as any).pm) {
-                  (editingShape as any).pm.disable();
+                if ((drawing.editingShape as any).pm) {
+                  (drawing.editingShape as any).pm.disable();
                 }
-                setIsEditingShape(false);
-                setEditingShape(null);
-                setOriginalShapeData(null);
+                drawing.setIsEditingShape(false);
+                drawing.setEditingShape(null);
+                drawing.setOriginalShapeData(null);
               }
 
               // Also disable PM on all other layers in the map
@@ -1882,7 +1771,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               // Enable PM for this specific layer based on drawing mode
               try {
-                if (drawingModeRef.current === "edit") {
+                if (mapRefs.drawingModeRef.current === "edit") {
                   // Save original shape data
                   const originalData = {
                     latLngs: newLayer.getLatLngs ? newLayer.getLatLngs() : null,
@@ -1890,9 +1779,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     radius: newLayer.getRadius ? newLayer.getRadius() : null,
                     type: newLayer.constructor.name,
                   };
-                  setOriginalShapeData(originalData);
-                  setEditingShape(newLayer);
-                  setIsEditingShape(true);
+                  drawing.setOriginalShapeData(originalData);
+                  drawing.setEditingShape(newLayer);
+                  drawing.setIsEditingShape(true);
 
                   (newLayer as any).pm.enable({ allowEditing: true });
 
@@ -1906,12 +1795,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   });
 
                   console.log("✅ Edit enabled for new shape");
-                } else if (drawingModeRef.current === "scale") {
+                } else if (mapRefs.drawingModeRef.current === "scale") {
                   (newLayer as any).pm.enable({
                     allowScaling: true,
                   });
                   console.log("✅ Scale enabled for new shape");
-                } else if (drawingModeRef.current === "drag") {
+                } else if (mapRefs.drawingModeRef.current === "drag") {
                   // First, disable drag on all other layers
                   map.eachLayer((otherLayer: any) => {
                     if (
@@ -1947,12 +1836,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   console.log("✅ Drag enabled for new shape");
 
                   // Store the dragged shape and show confirmation
-                  setDraggedShape(newLayer);
-                  setOriginalShapePosition(
+                  drawing.setDraggedShape(newLayer);
+                  drawing.setOriginalShapePosition(
                     newLayer.getLatLngs ? newLayer.getLatLngs() : null
                   );
-                  setShowDragConfirmation(true);
-                } else if (drawingModeRef.current === "remove") {
+                  drawing.setShowDragConfirmation(true);
+                } else if (mapRefs.drawingModeRef.current === "remove") {
                   (newLayer as any).pm.enable({ allowRemoval: true });
 
                   // Add visual feedback for selected shape
@@ -1981,11 +1870,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           } catch {}
           // Reset drawing mode dan state
-          setDrawingMode(null);
-          setIsDrawingEnabled(false);
+          drawing.setDrawingMode(null);
+          drawing.setIsDrawingEnabled(false);
           // Update ref langsung untuk memastikan state ter-update
-          isDrawingEnabledRef.current = false;
-          drawingModeRef.current = null;
+          mapRefs.isDrawingEnabledRef.current = false;
+          mapRefs.drawingModeRef.current = null;
           console.log("✅ State reset");
           // Reset cursor setelah selesai menggambar
           resetCursor();
@@ -2012,11 +1901,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             } catch {}
             // Reset drawing mode dan state untuk polyline dan polygon
-            setDrawingMode(null);
-            setIsDrawingEnabled(false);
+            drawing.setDrawingMode(null);
+            drawing.setIsDrawingEnabled(false);
             // Update ref langsung untuk memastikan state ter-update
-            isDrawingEnabledRef.current = false;
-            drawingModeRef.current = null;
+            mapRefs.isDrawingEnabledRef.current = false;
+            mapRefs.drawingModeRef.current = null;
             console.log("✅ State reset");
             // Reset cursor setelah selesai menggambar
             resetCursor();
@@ -2050,13 +1939,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Reset cursor setelah selesai remove
           resetCursor();
           // Reset drawing state setelah remove selesai
-          if (drawingModeRef.current === "remove") {
+          if (mapRefs.drawingModeRef.current === "remove") {
             console.log("🔄 pm:removeend - Resetting drawing state");
-            setDrawingMode(null);
-            setIsDrawingEnabled(false);
+            drawing.setDrawingMode(null);
+            drawing.setIsDrawingEnabled(false);
             // Update ref langsung untuk memastikan state ter-update
-            isDrawingEnabledRef.current = false;
-            drawingModeRef.current = null;
+            mapRefs.isDrawingEnabledRef.current = false;
+            mapRefs.drawingModeRef.current = null;
             console.log("✅ pm:removeend - Drawing state reset complete");
           }
         });
@@ -2069,7 +1958,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         map.on("pm:dragend", (e: any) => {
           // If this is the currently dragged shape, keep it in drag state
           // until user confirms or cancels
-          if (draggedShape === e.target) {
+          if (drawing.draggedShape === e.target) {
             // Don't reset cursor yet, keep drag state active
             return;
           }
@@ -2115,14 +2004,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Add click event listener for layers when in edit mode
         map.on("click", (e: any) => {
           // Skip jika bangunan sedang diklik
-          if (isBuildingClickedRef.current) {
+          if (mapRefs.isBuildingClickedRef.current) {
             console.log("🚫 Canvas click blocked");
             return;
           }
 
           console.log("🔍 Canvas clicked");
 
-          if (drawingModeRef.current === "edit") {
+          if (mapRefs.drawingModeRef.current === "edit") {
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "📝 Edit mode - clickedLayer:",
@@ -2137,7 +2026,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("drawingModeRef.current")
+                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -2615,7 +2504,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
               });
             }
-          } else if (drawingModeRef.current === "scale") {
+          } else if (mapRefs.drawingModeRef.current === "scale") {
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "🔄 Scale mode - clickedLayer:",
@@ -2641,7 +2530,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("drawingModeRef.current")
+                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -2795,7 +2684,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
               });
             }
-          } else if (drawingModeRef.current === "drag") {
+          } else if (mapRefs.drawingModeRef.current === "drag") {
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "🚚 Drag mode - clickedLayer:",
@@ -2809,7 +2698,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("drawingModeRef.current")
+                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -2820,24 +2709,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
 
             // Check if there's already a shape being dragged
-            if (draggedShape && draggedShape !== clickedLayer) {
+            if (drawing.draggedShape && drawing.draggedShape !== clickedLayer) {
               // Disable drag on the previous shape
               try {
                 if (
-                  (draggedShape as any).pm &&
-                  typeof (draggedShape as any).pm.disable === "function"
+                  (drawing.draggedShape as any).pm &&
+                  typeof (drawing.draggedShape as any).pm.disable === "function"
                 ) {
-                  (draggedShape as any).pm.disable();
+                  (drawing.draggedShape as any).pm.disable();
                 }
               } catch (error) {
                 console.log("❌ Error disabling previous drag:", error);
               }
 
               // Reset drag state
-              setDraggedShape(null);
-              setOriginalShapePosition(null);
-              setShowDragConfirmation(false);
-              setPendingDragShape(null);
+              drawing.setDraggedShape(null);
+              drawing.setOriginalShapePosition(null);
+              drawing.setShowDragConfirmation(false);
+              drawing.setPendingDragShape(null);
 
               console.log("🔄 Switched to new shape for dragging");
             }
@@ -2894,9 +2783,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 console.log("✅ Drag mode enabled for layer");
 
                 // Store the dragged shape and its original position
-                setDraggedShape(clickedLayer);
-                setOriginalShapePosition(originalPosition);
-                setShowDragConfirmation(true);
+                drawing.setDraggedShape(clickedLayer);
+                drawing.setOriginalShapePosition(originalPosition);
+                drawing.setShowDragConfirmation(true);
               } catch (error) {
                 console.log("❌ Error enabling drag mode:", error);
               }
@@ -3031,11 +2920,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             );
 
                             // Store the dragged shape and show confirmation
-                            setDraggedShape(layer);
-                            setOriginalShapePosition(
+                            drawing.setDraggedShape(layer);
+                            drawing.setOriginalShapePosition(
                               layer.getLatLngs ? layer.getLatLngs() : null
                             );
-                            setShowDragConfirmation(true);
+                            drawing.setShowDragConfirmation(true);
                           }
 
                           // Method 2: Try pm.enableDrag
@@ -3112,7 +3001,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
               });
             }
-          } else if (drawingModeRef.current === "remove") {
+          } else if (mapRefs.drawingModeRef.current === "remove") {
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "🗑️ Remove mode - clickedLayer:",
@@ -3126,7 +3015,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("drawingModeRef.current")
+                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -3163,13 +3052,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Use pm:click event for better layer detection
         map.on("pm:click", (e: any) => {
           // Skip jika bangunan sedang diklik
-          if (isBuildingClickedRef.current) {
+          if (mapRefs.isBuildingClickedRef.current) {
             return;
           }
 
-          console.log("🎯 PM click event - mode:", drawingModeRef.current);
+          console.log("🎯 PM click event - mode:", mapRefs.drawingModeRef.current);
 
-          if (drawingModeRef.current === "edit") {
+          if (mapRefs.drawingModeRef.current === "edit") {
             try {
               (e.target as any).pm.enable({
                 mode: "edit",
@@ -3180,14 +3069,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             } catch (error) {
               console.log("❌ Error in PM click edit:", error);
             }
-          } else if (drawingModeRef.current === "scale") {
+          } else if (mapRefs.drawingModeRef.current === "scale") {
             try {
               (e.target as any).pm.enable({ mode: "scale" });
               console.log("✅ Scale mode enabled via PM click");
             } catch (error) {
               console.log("❌ Error in PM click scale:", error);
             }
-          } else if (drawingModeRef.current === "drag") {
+          } else if (mapRefs.drawingModeRef.current === "drag") {
             try {
               // First, disable drag on all other layers
               map.eachLayer((layer: any) => {
@@ -3229,11 +3118,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               console.log("✅ Drag mode enabled via PM click");
 
               // Store the dragged shape and show confirmation
-              setDraggedShape(e.target);
-              setOriginalShapePosition(
+              drawing.setDraggedShape(e.target);
+              drawing.setOriginalShapePosition(
                 e.target.getLatLngs ? e.target.getLatLngs() : null
               );
-              setShowDragConfirmation(true);
+              drawing.setShowDragConfirmation(true);
             } catch (error) {
               console.log("❌ Error in PM click drag:", error);
             }
@@ -3254,35 +3143,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Auto-disable modes after operations complete
         map.on("pm:edit", (e: any) => {
-          if (drawingModeRef.current === "edit" && !isEditingShape) {
+          if (mapRefs.drawingModeRef.current === "edit" && !drawing.isEditingShape) {
             try {
               (e.target as any).pm.disable();
               console.log("🔄 Edit disabled");
               // Reset drawing state setelah edit selesai
-              setDrawingMode(null);
-              setIsDrawingEnabled(false);
+              drawing.setDrawingMode(null);
+              drawing.setIsDrawingEnabled(false);
               // Update ref langsung untuk memastikan state ter-update
-              isDrawingEnabledRef.current = false;
-              drawingModeRef.current = null;
+              mapRefs.isDrawingEnabledRef.current = false;
+              mapRefs.drawingModeRef.current = null;
             } catch (error) {
               console.log("❌ Error disabling edit mode:", error);
             }
-          } else if (isEditingShape) {
+          } else if (drawing.isEditingShape) {
             console.log("🔄 Edit completed - waiting for user confirmation");
           }
         });
 
         map.on("pm:drag", (e: any) => {
-          if (drawingModeRef.current === "drag") {
+          if (mapRefs.drawingModeRef.current === "drag") {
             try {
               (e.target as any).pm.disable();
               console.log("🔄 Drag mode auto-disabled");
               // Reset drawing state setelah drag selesai
-              setDrawingMode(null);
-              setIsDrawingEnabled(false);
+              drawing.setDrawingMode(null);
+              drawing.setIsDrawingEnabled(false);
               // Update ref langsung untuk memastikan state ter-update
-              isDrawingEnabledRef.current = false;
-              drawingModeRef.current = null;
+              mapRefs.isDrawingEnabledRef.current = false;
+              mapRefs.drawingModeRef.current = null;
             } catch (error) {
               console.log("❌ Error disabling drag mode:", error);
             }
@@ -3350,7 +3239,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Handle drawing mode changes
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map || !isDashboard || !(map as any).pm) return;
 
       // Fungsi untuk mengatur cursor
@@ -3408,11 +3297,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       // Enable the selected mode
-      if (drawingMode) {
+      if (drawing.drawingMode) {
         // Set cursor crosshair untuk semua drawing modes
         setDrawingCursor();
 
-        switch (drawingMode) {
+        switch (drawing.drawingMode) {
           case "polygon":
             // Try to enable polygon drawing
             try {
@@ -3480,7 +3369,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Set up click handler untuk circle marker
               const handleCircleMarkerClick = (e: any) => {
                 // Skip jika bangunan sedang diklik
-                if (isBuildingClickedRef.current) {
+                if (mapRefs.isBuildingClickedRef.current) {
                   return;
                 }
 
@@ -3517,13 +3406,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   // Add click handler for selective editing
                   circleMarker.on("click", function (e: L.LeafletMouseEvent) {
                     // Check if drawing mode is active
-                    if (!drawingModeRef.current) {
+                    if (!mapRefs.drawingModeRef.current) {
                       return;
                     }
 
                     // Reset all other layers to disabled state
-                    if (bangunanLayerRef.current) {
-                      (bangunanLayerRef.current as any).eachLayer(
+                    if (mapRefs.bangunanLayerRef.current) {
+                      (mapRefs.bangunanLayerRef.current as any).eachLayer(
                         (otherLayer: any) => {
                           if (otherLayer.pm && otherLayer !== circleMarker) {
                             otherLayer.pm.disable();
@@ -3531,8 +3420,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         }
                       );
                     }
-                    if (jalurLayerRef.current) {
-                      (jalurLayerRef.current as any).eachLayer(
+                    if (mapRefs.jalurLayerRef.current) {
+                      (mapRefs.jalurLayerRef.current as any).eachLayer(
                         (otherLayer: any) => {
                           if (otherLayer.pm && otherLayer !== circleMarker) {
                             otherLayer.pm.disable();
@@ -3540,8 +3429,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         }
                       );
                     }
-                    if (titikLayerRef.current) {
-                      (titikLayerRef.current as any).eachLayer(
+                    if (mapRefs.titikLayerRef.current) {
+                      (mapRefs.titikLayerRef.current as any).eachLayer(
                         (otherLayer: any) => {
                           if (otherLayer.pm && otherLayer !== circleMarker) {
                             otherLayer.pm.disable();
@@ -3549,8 +3438,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         }
                       );
                     }
-                    if (nonBangunanLayerRef.current) {
-                      (nonBangunanLayerRef.current as any).eachLayer(
+                    if (mapRefs.nonBangunanLayerRef.current) {
+                      (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                         (otherLayer: any) => {
                           if (otherLayer.pm && otherLayer !== circleMarker) {
                             otherLayer.pm.disable();
@@ -3561,17 +3450,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                     // If there's already a shape being edited, disable it first
                     if (
-                      isEditingShape &&
-                      editingShape &&
-                      editingShape !== circleMarker
+                      drawing.isEditingShape &&
+                      drawing.editingShape &&
+                      drawing.editingShape !== circleMarker
                     ) {
                       console.log("🔄 Disabling previous editing shape");
-                      if ((editingShape as any).pm) {
-                        (editingShape as any).pm.disable();
+                      if ((drawing.editingShape as any).pm) {
+                        (drawing.editingShape as any).pm.disable();
                       }
-                      setIsEditingShape(false);
-                      setEditingShape(null);
-                      setOriginalShapeData(null);
+                      drawing.setIsEditingShape(false);
+                      drawing.setEditingShape(null);
+                      drawing.setOriginalShapeData(null);
                     }
 
                     // Also disable PM on all other layers in the map
@@ -3587,16 +3476,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                     // Enable PM for this specific layer based on drawing mode
                     try {
-                      if (drawingModeRef.current === "edit") {
+                      if (mapRefs.drawingModeRef.current === "edit") {
                         // Save original shape data
                         const originalData = {
                           latLng: circleMarker.getLatLng(),
                           radius: circleMarker.getRadius(),
                           type: circleMarker.constructor.name,
                         };
-                        setOriginalShapeData(originalData);
-                        setEditingShape(circleMarker);
-                        setIsEditingShape(true);
+                        drawing.setOriginalShapeData(originalData);
+                        drawing.setEditingShape(circleMarker);
+                        drawing.setIsEditingShape(true);
 
                         (circleMarker as any).pm.enable({ allowEditing: true });
 
@@ -3610,12 +3499,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         });
 
                         console.log("✅ Edit enabled for circle marker");
-                      } else if (drawingModeRef.current === "scale") {
+                      } else if (mapRefs.drawingModeRef.current === "scale") {
                         (circleMarker as any).pm.enable({
                           allowScaling: true,
                         });
                         console.log("✅ Scale enabled for circle marker");
-                      } else if (drawingModeRef.current === "drag") {
+                      } else if (mapRefs.drawingModeRef.current === "drag") {
                         // First, disable drag on all other layers
                         map.eachLayer((otherLayer: any) => {
                           if (
@@ -3653,14 +3542,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         console.log("✅ Drag enabled for circle marker");
 
                         // Store the dragged shape and show confirmation
-                        setDraggedShape(circleMarker);
-                        setOriginalShapePosition(
+                        drawing.setDraggedShape(circleMarker);
+                        drawing.setOriginalShapePosition(
                           circleMarker.getLatLng
                             ? circleMarker.getLatLng()
                             : null
                         );
-                        setShowDragConfirmation(true);
-                      } else if (drawingModeRef.current === "remove") {
+                        drawing.setShowDragConfirmation(true);
+                      } else if (mapRefs.drawingModeRef.current === "remove") {
                         (circleMarker as any).pm.enable({ allowRemoval: true });
 
                         // Add visual feedback for selected circle marker
@@ -3845,27 +3734,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Reset drag state when drawing is disabled
-        setDraggedShape(null);
-        setOriginalShapePosition(null);
-        setShowDragConfirmation(false);
-        setPendingDragShape(null);
+        drawing.setDraggedShape(null);
+        drawing.setOriginalShapePosition(null);
+        drawing.setShowDragConfirmation(false);
+        drawing.setPendingDragShape(null);
 
         // Reset cursor jika tidak ada drawing mode aktif
         resetCursor();
       }
-    }, [drawingMode, isDashboard]);
+    }, [drawing.drawingMode, isDashboard]);
 
     // Control map interactions berdasarkan highlight state, navigation state, dan drawing state
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
 
       // Update refs untuk digunakan di event handler Leaflet
-      isHighlightActiveRef.current = isHighlightActive;
-      isNavigationActiveRef.current = isNavigationActive;
+      mapRefs.isHighlightActiveRef.current = highlight.isHighlightActive;
+      mapRefs.isNavigationActiveRef.current = routing.isNavigationActive;
 
       // Jika navigation aktif, enable map interactions (bisa di-geser)
-      if (isNavigationActive) {
+      if (routing.isNavigationActive) {
         map.dragging.enable();
         map.touchZoom.enable();
         map.doubleClickZoom.enable();
@@ -3880,7 +3769,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
       // Jika drawing mode aktif (terutama drag mode), enable map interactions
-      else if (isDrawingEnabled && drawingMode) {
+      else if (drawing.isDrawingEnabled && drawing.drawingMode) {
         map.dragging.enable();
         map.touchZoom.enable();
         map.doubleClickZoom.enable();
@@ -3895,7 +3784,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
       // Jika highlight aktif tapi navigation dan drawing tidak aktif, disable map interactions
-      else if (isHighlightActive) {
+      else if (highlight.isHighlightActive) {
         // Disable map interactions
         map.dragging.disable();
         map.touchZoom.disable();
@@ -3921,14 +3810,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const isClickInsideMap =
               mapContainer && mapContainer.contains(e.target as Node);
 
-            // Cek apakah klik pada kontrol peta (zoom in/out, reset, layer toggle, basemap toggle, GPS)
+            // Cek apakah klik pada kontrol peta (zoom in/out, reset, layer toggle, config.basemap toggle, GPS)
             const target = e.target as Element;
             const isMapControl =
               target.closest(".leaflet-control-zoom") || // Zoom in/out buttons
               target.closest(".leaflet-control-layers") || // Layer control
               target.closest('[data-control="reset-zoom"]') || // Reset zoom button
               target.closest('[data-control="toggle-layer"]') || // Toggle layer button
-              target.closest('[data-control="toggle-basemap"]') || // Toggle basemap button
+              target.closest('[data-control="toggle-config.basemap"]') || // Toggle config.basemap button
               target.closest('[data-control="zoom-in"]') || // Zoom in button
               target.closest('[data-control="zoom-out"]') || // Zoom out button
               target.closest('[data-control="locate-me"]') || // GPS button
@@ -3952,22 +3841,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               !isMapControl &&
               isClickInsideMap &&
               !isClickOnBuilding &&
-              !isBuildingClickedRef.current
+              !mapRefs.isBuildingClickedRef.current
             ) {
               // Klik di luar container tapi di dalam area peta, tutup detail
               console.log("🖱️ Canvas clicked - closing building detail");
-              setCardVisible(false);
-              setIsHighlightActive(false);
+              ui.setCardVisible(false);
+              highlight.setIsHighlightActive(false);
 
               // Tambahkan efek shake pada container sebelum ditutup untuk memberikan feedback visual
               if (container) {
-                setIsContainerShaking(true);
+                animation.setIsContainerShaking(true);
                 setTimeout(() => {
-                  setIsContainerShaking(false);
-                  setTimeout(() => setSelectedFeature(null), 350);
+                  animation.setIsContainerShaking(false);
+                  setTimeout(() => features.setSelectedFeature(null), 350);
                 }, 600);
               } else {
-                setTimeout(() => setSelectedFeature(null), 350);
+                setTimeout(() => features.setSelectedFeature(null), 350);
               }
             }
           };
@@ -4009,11 +3898,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           delete (map as any)._canvasClickCleanup;
         }
       }
-    }, [isHighlightActive, isNavigationActive, isDrawingEnabled, drawingMode]);
+    }, [highlight.isHighlightActive, routing.isNavigationActive, drawing.isDrawingEnabled, drawing.drawingMode]);
 
     // Helper functions for cursor management
     const setDrawingCursor = () => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
       const mapContainer = map.getContainer();
       if (mapContainer) {
@@ -4022,7 +3911,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     const resetCursor = () => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
       const mapContainer = map.getContainer();
       if (mapContainer) {
@@ -4032,15 +3921,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Control map interactions berdasarkan highlight state, navigation state, dan drawing state
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
 
       // Update refs untuk digunakan di event handler Leaflet
-      isHighlightActiveRef.current = isHighlightActive;
-      isNavigationActiveRef.current = isNavigationActive;
+      mapRefs.isHighlightActiveRef.current = highlight.isHighlightActive;
+      mapRefs.isNavigationActiveRef.current = routing.isNavigationActive;
 
       // Jika navigation aktif, enable map interactions (bisa di-geser)
-      if (isNavigationActive) {
+      if (routing.isNavigationActive) {
         map.dragging.enable();
         map.touchZoom.enable();
         map.doubleClickZoom.enable();
@@ -4055,7 +3944,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
       // Jika drawing mode aktif (terutama drag mode), enable map interactions
-      else if (isDrawingEnabled && drawingMode) {
+      else if (drawing.isDrawingEnabled && drawing.drawingMode) {
         map.dragging.enable();
         map.touchZoom.enable();
         map.doubleClickZoom.enable();
@@ -4070,7 +3959,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
       // Jika highlight aktif tapi navigation dan drawing tidak aktif, disable map interactions
-      else if (isHighlightActive) {
+      else if (highlight.isHighlightActive) {
         // Disable map interactions
         map.dragging.disable();
         map.touchZoom.disable();
@@ -4096,14 +3985,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const isClickInsideMap =
               mapContainer && mapContainer.contains(e.target as Node);
 
-            // Cek apakah klik pada kontrol peta (zoom in/out, reset, layer toggle, basemap toggle, GPS)
+            // Cek apakah klik pada kontrol peta (zoom in/out, reset, layer toggle, config.basemap toggle, GPS)
             const target = e.target as Element;
             const isMapControl =
               target.closest(".leaflet-control-zoom") || // Zoom in/out buttons
               target.closest(".leaflet-control-layers") || // Layer control
               target.closest('[data-control="reset-zoom"]') || // Reset zoom button
               target.closest('[data-control="toggle-layer"]') || // Toggle layer button
-              target.closest('[data-control="toggle-basemap"]') || // Toggle basemap button
+              target.closest('[data-control="toggle-config.basemap"]') || // Toggle config.basemap button
               target.closest('[data-control="zoom-in"]') || // Zoom in button
               target.closest('[data-control="zoom-out"]') || // Zoom out button
               target.closest('[data-control="locate-me"]') || // GPS button
@@ -4118,8 +4007,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               isClickInsideMap // Hanya trigger shake jika klik di dalam area peta
             ) {
               // Trigger shake effect (hanya jika modal route tidak terbuka, bukan kontrol peta, dan klik di dalam peta)
-              setIsContainerShaking(true);
-              setTimeout(() => setIsContainerShaking(false), 600);
+              animation.setIsContainerShaking(true);
+              setTimeout(() => animation.setIsContainerShaking(false), 600);
             }
           };
 
@@ -4141,7 +4030,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               target.closest(".leaflet-control-layers") ||
               target.closest('[data-control="reset-zoom"]') ||
               target.closest('[data-control="toggle-layer"]') ||
-              target.closest('[data-control="toggle-basemap"]') ||
+              target.closest('[data-control="toggle-config.basemap"]') ||
               target.closest('[data-control="zoom-in"]') ||
               target.closest('[data-control="zoom-out"]') ||
               target.closest('[data-control="locate-me"]') ||
@@ -4159,10 +4048,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
             const isMapControl = isTargetMapControl(target as Element);
             if (container && !routeModal && !isMapControl && !shakeCooldown) {
-              setIsContainerShaking(true);
+              animation.setIsContainerShaking(true);
               shakeCooldown = true;
               setTimeout(() => {
-                setIsContainerShaking(false);
+                animation.setIsContainerShaking(false);
                 shakeCooldown = false;
               }, 600);
             }
@@ -4308,11 +4197,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           delete (map as any)._canvasClickCleanup;
         }
       }
-    }, [isHighlightActive, isNavigationActive, isDrawingEnabled, drawingMode]);
+    }, [highlight.isHighlightActive, routing.isNavigationActive, drawing.isDrawingEnabled, drawing.drawingMode]);
 
-    // Sync routeLine state dengan routeLineRef
+    // Sync routeLine state dengan mapRefs.routeLineRef
     useEffect(() => {
-      routeLineRef.current = routeLine as L.Polyline | null;
+      mapRefs.routeLineRef.current = routeLine as L.Polyline | null;
     }, [routeLine]);
 
     // Close dropdown when clicking outside
@@ -4320,66 +4209,66 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const handleClickOutside = (event: MouseEvent) => {
         const target = event.target as Element;
         if (!target.closest(".route-modal-select")) {
-          setIsStartDropdownOpen(false);
+          routing.setIsStartDropdownOpen(false);
         }
       };
 
-      if (isStartDropdownOpen) {
+      if (routing.isStartDropdownOpen) {
         document.addEventListener("click", handleClickOutside);
       }
 
       return () => {
         document.removeEventListener("click", handleClickOutside);
       };
-    }, [isStartDropdownOpen]);
+    }, [routing.isStartDropdownOpen]);
 
-    // Update basemap layer
+    // Update config.basemap layer
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
-      if (basemapLayerRef.current) {
+      if (mapRefs.basemapLayerRef.current) {
         try {
-          if (map.hasLayer(basemapLayerRef.current)) {
-            map.removeLayer(basemapLayerRef.current);
+          if (map.hasLayer(mapRefs.basemapLayerRef.current)) {
+            map.removeLayer(mapRefs.basemapLayerRef.current);
           }
         } catch {}
-        basemapLayerRef.current = null;
+        mapRefs.basemapLayerRef.current = null;
       }
-      const bm = BASEMAPS.find((b) => b.key === basemap) || BASEMAPS[1];
+      const bm = BASEMAPS.find((b) => b.key === config.basemap) || BASEMAPS[1];
       const tileLayer = L.tileLayer(bm.url, {
         attribution: bm.attribution,
         maxZoom: 19,
       });
       tileLayer.addTo(map);
-      basemapLayerRef.current = tileLayer;
-    }, [basemap]);
+      mapRefs.basemapLayerRef.current = tileLayer;
+    }, [config.basemap]);
 
     // Update non-bangunan layer jika data berubah
     useEffect(() => {
-      const nonBangunanLayer = nonBangunanLayerRef.current;
+      const nonBangunanLayer = mapRefs.nonBangunanLayerRef.current;
       if (!nonBangunanLayer) return;
       nonBangunanLayer.clearLayers();
-      if (layerVisible && nonBangunanFeatures.length > 0) {
+      if (config.layerVisible && features.nonBangunanFeatures.length > 0) {
         nonBangunanLayer.addData({
           type: "FeatureCollection",
-          features: nonBangunanFeatures as unknown as FeatureFixed[],
+          features: features.nonBangunanFeatures as unknown as FeatureFixed[],
         } as GeoJSON.FeatureCollection);
       }
-    }, [nonBangunanFeatures, layerVisible]);
+    }, [features.nonBangunanFeatures, config.layerVisible]);
 
     // Update bangunan layer jika data berubah
     useEffect(() => {
-      const bangunanLayer = bangunanLayerRef.current;
-      const map = leafletMapRef.current;
+      const bangunanLayer = mapRefs.bangunanLayerRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!bangunanLayer || !map) return;
       bangunanLayer.clearLayers();
-      if (layerVisible && bangunanFeatures.length > 0) {
+      if (config.layerVisible && features.bangunanFeatures.length > 0) {
         bangunanLayer.addData({
           type: "FeatureCollection",
-          features: bangunanFeatures as unknown as FeatureFixed[],
+          features: features.bangunanFeatures as unknown as FeatureFixed[],
         } as GeoJSON.FeatureCollection);
       }
-    }, [bangunanFeatures, layerVisible]);
+    }, [features.bangunanFeatures, config.layerVisible]);
 
     // Pencarian dipindahkan ke useFeatureSearch hook
 
@@ -4409,30 +4298,30 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       };
 
-      if (isEditingName || isEditingThumbnail) {
+      if (edit.isEditingName || edit.isEditingThumbnail) {
         document.addEventListener("mousedown", handleClickOutsideEdit);
       }
 
       return () => {
         document.removeEventListener("mousedown", handleClickOutsideEdit);
       };
-    }, [isEditingName, isEditingThumbnail]);
+    }, [edit.isEditingName, edit.isEditingThumbnail]);
 
     // Event listener untuk keyboard shortcuts pada modal edit
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
-        if (isEditingName || isEditingThumbnail || isEditingInteraksi) {
+        if (edit.isEditingName || edit.isEditingThumbnail || edit.isEditingInteraksi) {
           if (event.key === "Enter") {
             event.preventDefault();
             if (
-              !isSaving &&
-              ((isEditingName && editName.trim()) ||
-                (isEditingThumbnail && editThumbnail.trim()) ||
-                (isEditingInteraksi && editInteraksi) ||
-                (isEditingName &&
-                  isEditingInteraksi &&
-                  editName.trim() &&
-                  editInteraksi))
+              !loading.isSaving &&
+              ((edit.isEditingName && edit.editName.trim()) ||
+                (edit.isEditingThumbnail && edit.editThumbnail.trim()) ||
+                (edit.isEditingInteraksi && edit.editInteraksi) ||
+                (edit.isEditingName &&
+                  edit.isEditingInteraksi &&
+                  edit.editName.trim() &&
+                  edit.editInteraksi))
             ) {
               handleSaveEdit();
             }
@@ -4443,7 +4332,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       };
 
-      if (isEditingName || isEditingThumbnail || isEditingInteraksi) {
+      if (edit.isEditingName || edit.isEditingThumbnail || edit.isEditingInteraksi) {
         document.addEventListener("keydown", handleKeyDown);
       }
 
@@ -4451,13 +4340,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         document.removeEventListener("keydown", handleKeyDown);
       };
     }, [
-      isEditingName,
-      isEditingThumbnail,
-      isEditingInteraksi,
-      editName,
-      selectedFile,
-      editInteraksi,
-      isSaving,
+      edit.isEditingName,
+      edit.isEditingThumbnail,
+      edit.isEditingInteraksi,
+      edit.editName,
+      edit.selectedFile,
+      edit.editInteraksi,
+      loading.isSaving,
     ]);
 
     // Sinkronisasi status login dengan perubahan storage/event, gunakan useAuth.refresh
@@ -4486,7 +4375,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     useEffect(() => {
       const handleFocusToUserLocation = (event: MessageEvent) => {
         if (event.data.type === "focus-to-user-location" && userLocation) {
-          const map = leafletMapRef.current;
+          const map = mapRefs.leafletMapRef.current;
           if (map) {
             map.setView(userLocation, Math.max(map.getZoom(), 16), {
               animate: true,
@@ -4504,11 +4393,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi helper untuk highlight bangunan
     const highlightBangunan = (featureId: number) => {
-      const bangunanLayer = bangunanLayerRef.current;
+      const bangunanLayer = mapRefs.bangunanLayerRef.current;
       if (!bangunanLayer) return;
 
       // Reset highlight sebelumnya jika ada
-      if (searchHighlightedId && searchHighlightedId !== featureId) {
+      if (highlight.searchHighlightedId && highlight.searchHighlightedId !== featureId) {
         resetBangunanHighlight();
       }
 
@@ -4545,12 +4434,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
 
       // Simpan ID yang sedang di-highlight
-      setSearchHighlightedId(featureId);
+      highlight.setSearchHighlightedId(featureId);
     };
 
     // Fungsi untuk reset highlight bangunan
     const resetBangunanHighlight = () => {
-      const bangunanLayer = bangunanLayerRef.current;
+      const bangunanLayer = mapRefs.bangunanLayerRef.current;
       if (!bangunanLayer) return;
 
       bangunanLayer.eachLayer((layer: L.Layer) => {
@@ -4584,7 +4473,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Hapus highlight untuk satu bangunan berdasarkan ID apapun sumber highlight-nya
     const clearBangunanHighlightById = (featureId: number | string) => {
-      const bangunanLayer = bangunanLayerRef.current;
+      const bangunanLayer = mapRefs.bangunanLayerRef.current;
       if (!bangunanLayer) return;
 
       bangunanLayer.eachLayer((layer: L.Layer) => {
@@ -4614,24 +4503,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Handle select search result
     const handleSelectSearchResult = async (feature: FeatureType) => {
       // Blokir jika highlight aktif - user harus close container dulu
-      if (isHighlightActive) {
+      if (highlight.isHighlightActive) {
         console.log(
           "⚠️ Container detail sedang terbuka, tutup dulu untuk memilih bangunan lain"
         );
 
         // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-        setIsContainerShaking(true);
-        setTimeout(() => setIsContainerShaking(false), 600);
+        animation.setIsContainerShaking(true);
+        setTimeout(() => animation.setIsContainerShaking(false), 600);
         return;
       }
 
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
 
       // Tampilkan detail bangunan dan zoom ke lokasi
       if (feature.properties?.displayType === "ruangan") {
         const bangunanId = feature.properties?.bangunan_id;
-        const bangunan = bangunanFeatures.find(
+        const bangunan = features.bangunanFeatures.find(
           (b) => b.properties?.id === bangunanId
         );
 
@@ -4661,11 +4550,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             });
 
             const onMoveEnd = () => {
-              setSelectedFeature(bangunan);
-              setCardVisible(true);
+              features.setSelectedFeature(bangunan);
+              ui.setCardVisible(true);
               openBuildingDetailModal(feature);
               // Samakan perilaku dengan klik bangunan: nonaktifkan interaksi peta dan highlight bangunan
-              setIsHighlightActive(true);
+              highlight.setIsHighlightActive(true);
               if (bangunan.properties?.id != null) {
                 highlightBangunan(Number(bangunan.properties.id));
               }
@@ -4686,11 +4575,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             map.on("moveend", onMoveEnd);
           } else {
             // Jika tidak ada geometry, langsung buka modal
-            setSelectedFeature(bangunan);
-            setCardVisible(true);
+            features.setSelectedFeature(bangunan);
+            ui.setCardVisible(true);
             openBuildingDetailModal(feature);
             // Samakan perilaku dengan klik bangunan: nonaktifkan interaksi peta dan highlight bangunan
-            setIsHighlightActive(true);
+            highlight.setIsHighlightActive(true);
             if (bangunan.properties?.id != null) {
               highlightBangunan(Number(bangunan.properties.id));
             }
@@ -4712,7 +4601,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           );
           openBuildingDetailModal(feature);
           // Tetap nonaktifkan interaksi peta saat modal ruangan dibuka
-          setIsHighlightActive(true);
+          highlight.setIsHighlightActive(true);
 
           window.postMessage(
             {
@@ -4775,51 +4664,51 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       setShowSearchResults(false);
 
       // Reset search highlight jika ada highlight sebelumnya
-      if (searchHighlightedId) {
+      if (highlight.searchHighlightedId) {
         resetBangunanHighlight();
-        setSearchHighlightedId(null);
+        highlight.setSearchHighlightedId(null);
       }
 
       if (
         feature.properties?.kategori === "Bangunan" ||
         feature.properties?.displayType === "bangunan"
       ) {
-        setSelectedFeature(feature);
-        setCardVisible(true);
-        setIsHighlightActive(true);
+        features.setSelectedFeature(feature);
+        ui.setCardVisible(true);
+        highlight.setIsHighlightActive(true);
       }
     };
 
-    // Toggle basemap
+    // Toggle config.basemap
     const handleToggleBasemap = () => {
-      if (isSatellite) {
-        setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
-        setIsSatellite(false);
+      if (config.isSatellite) {
+        config.setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
+        config.setIsSatellite(false);
       } else {
-        setBasemap("esri_satellite");
-        setIsSatellite(true);
+        config.setBasemap("esri_satellite");
+        config.setIsSatellite(true);
       }
     };
 
     // Toggle layer
     const handleToggleLayer = () => {
-      setLayerVisible((v) => !v);
+      config.setLayerVisible((v) => !v);
     };
 
     // Toggle layer jalur dan titik untuk dashboard admin
     const toggleJalurLayer = (show: boolean) => {
-      setJalurLayerVisible(show);
-      // Layer visibility akan dihandle oleh useEffect yang mengawasi jalurLayerVisible
+      layerVisibility.setJalurLayerVisible(show);
+      // Layer visibility akan dihandle oleh useEffect yang mengawasi layerVisibility.jalurLayerVisible
     };
 
     const toggleTitikLayer = (show: boolean) => {
-      setTitikLayerVisible(show);
-      // Layer visibility akan dihandle oleh useEffect yang mengawasi titikLayerVisible
+      layerVisibility.setTitikLayerVisible(show);
+      // Layer visibility akan dihandle oleh useEffect yang mengawasi layerVisibility.titikLayerVisible
     };
 
     const toggleBangunanLayer = (show: boolean) => {
-      setBangunanLayerVisible(show);
-      // Layer visibility akan dihandle oleh useEffect yang mengawasi bangunanLayerVisible
+      layerVisibility.setBangunanLayerVisible(show);
+      // Layer visibility akan dihandle oleh useEffect yang mengawasi layerVisibility.bangunanLayerVisible
     };
 
     // Function to reset visual feedback for a specific shape only
@@ -4839,10 +4728,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Function to disable/enable shape interactions
     const setShapeInteractions = (enabled: boolean) => {
-      if (!leafletMapRef.current) return;
+      if (!mapRefs.leafletMapRef.current) return;
 
-      leafletMapRef.current.eachLayer((layer: any) => {
-        if (layer && layer !== activeShape) {
+      mapRefs.leafletMapRef.current.eachLayer((layer: any) => {
+        if (layer && layer !== drawing.activeShape) {
           // Disable/enable click events on other shapes
           if (enabled) {
             // Re-enable click events
@@ -4889,7 +4778,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       );
 
-      rectangleBorder.addTo(leafletMapRef.current);
+      rectangleBorder.addTo(mapRefs.leafletMapRef.current);
 
       // Add event listeners to update border when shape changes
       const updateBorder = () => {
@@ -4914,9 +4803,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           );
 
           // Remove old border and add new one
-          if (leafletMapRef.current) {
-            leafletMapRef.current.removeLayer(layer._rectangleBorder);
-            newBorder.addTo(leafletMapRef.current);
+          if (mapRefs.leafletMapRef.current) {
+            mapRefs.leafletMapRef.current.removeLayer(layer._rectangleBorder);
+            newBorder.addTo(mapRefs.leafletMapRef.current);
             layer._rectangleBorder = newBorder;
           }
         }
@@ -4941,8 +4830,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       if (layer._rectangleBorder) {
         console.log("📍 Found rectangle border, removing...");
-        if (leafletMapRef.current) {
-          leafletMapRef.current.removeLayer(layer._rectangleBorder);
+        if (mapRefs.leafletMapRef.current) {
+          mapRefs.leafletMapRef.current.removeLayer(layer._rectangleBorder);
         }
         delete layer._rectangleBorder;
         console.log("✅ Rectangle border removed from map");
@@ -4969,15 +4858,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (!layer) return;
 
       // Check if there's already an active shape
-      if (activeShape && activeShape !== layer) {
+      if (drawing.activeShape && drawing.activeShape !== layer) {
         // Show confirmation modal to switch to new shape
-        setPendingNewShape({ layer, mode });
-        setShowShapeSwitchModal(true);
+        drawing.setPendingNewShape({ layer, mode });
+        ui.setShowShapeSwitchModal(true);
         return;
       }
 
       // Set new active shape
-      setActiveShape(layer);
+      drawing.setActiveShape(layer);
 
       // Disable interactions on other shapes
       setShapeInteractions(false);
@@ -4988,99 +4877,99 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Function to handle shape switch confirmation
     const handleConfirmShapeSwitch = () => {
-      if (pendingNewShape) {
+      if (drawing.pendingNewShape) {
         // Reset current active shape
-        if (activeShape) {
-          resetShapeVisualFeedback(activeShape);
+        if (drawing.activeShape) {
+          resetShapeVisualFeedback(drawing.activeShape);
         }
 
         // Enable interactions on all shapes temporarily
         setShapeInteractions(true);
 
         // Set new active shape
-        setActiveShape(pendingNewShape.layer);
+        drawing.setActiveShape(drawing.pendingNewShape.layer);
 
         // Disable interactions on other shapes again
         setShapeInteractions(false);
 
         // Apply visual feedback to new shape
-        const { layer, mode } = pendingNewShape;
+        const { layer, mode } = drawing.pendingNewShape;
         addRectangleBorder(layer, mode);
 
         // Reset pending state
-        setPendingNewShape(null);
-        setShowShapeSwitchModal(false);
+        drawing.setPendingNewShape(null);
+        ui.setShowShapeSwitchModal(false);
       }
     };
 
     const handleCancelShapeSwitch = () => {
-      setPendingNewShape(null);
-      setShowShapeSwitchModal(false);
+      drawing.setPendingNewShape(null);
+      ui.setShowShapeSwitchModal(false);
     };
 
     // Drawing tool handlers
     const handleDrawingModeChange = (mode: string | null) => {
       // Reset editing state when changing drawing mode
-      if (isEditingShape && editingShape) {
+      if (drawing.isEditingShape && drawing.editingShape) {
         console.log(
           "🔄 Resetting previous editing shape when changing drawing mode"
         );
         // Don't disable PM - just reset state
-        setIsEditingShape(false);
-        setEditingShape(null);
-        setOriginalShapeData(null);
+        drawing.setIsEditingShape(false);
+        drawing.setEditingShape(null);
+        drawing.setOriginalShapeData(null);
       }
 
       // Reset drag state when changing drawing mode
-      if (draggedShape) {
+      if (drawing.draggedShape) {
         console.log(
           "🔄 Resetting previous dragged shape when changing drawing mode"
         );
         // Don't disable PM - just reset state
-        setDraggedShape(null);
-        setOriginalShapePosition(null);
-        setShowDragConfirmation(false);
-        setPendingDragShape(null);
+        drawing.setDraggedShape(null);
+        drawing.setOriginalShapePosition(null);
+        drawing.setShowDragConfirmation(false);
+        drawing.setPendingDragShape(null);
       }
 
       // Reset active shape when changing drawing mode
-      if (activeShape) {
-        resetShapeVisualFeedback(activeShape);
-        setActiveShape(null);
+      if (drawing.activeShape) {
+        resetShapeVisualFeedback(drawing.activeShape);
+        drawing.setActiveShape(null);
         setShapeInteractions(true);
       }
 
-      setDrawingMode(mode);
-      setIsDrawingEnabled(!!mode);
+      drawing.setDrawingMode(mode);
+      drawing.setIsDrawingEnabled(!!mode);
     };
 
     // Edit confirmation handlers
     const handleSaveEditConfirmation = () => {
-      if (editingShape) {
+      if (drawing.editingShape) {
         console.log("✅ Edit changes saved");
 
         // Reset visual feedback and active shape
-        if (activeShape) {
-          console.log("🔄 Resetting activeShape after edit save:", activeShape);
-          resetShapeVisualFeedback(activeShape);
-          setActiveShape(null);
-          console.log("✅ activeShape reset to null");
+        if (drawing.activeShape) {
+          console.log("🔄 Resetting drawing.activeShape after edit save:", drawing.activeShape);
+          resetShapeVisualFeedback(drawing.activeShape);
+          drawing.setActiveShape(null);
+          console.log("✅ drawing.activeShape reset to null");
         }
 
         // Re-enable interactions on all shapes
         setShapeInteractions(true);
 
         // Disable PM to allow re-enabling for future operations
-        if ((editingShape as any).pm) {
+        if ((drawing.editingShape as any).pm) {
           try {
-            (editingShape as any).pm.disable();
+            (drawing.editingShape as any).pm.disable();
             console.log("✅ PM disabled after edit save");
 
             // Verify PM is actually disabled
             setTimeout(() => {
               if (
-                (editingShape as any).pm &&
-                (editingShape as any).pm.enabled()
+                (drawing.editingShape as any).pm &&
+                (drawing.editingShape as any).pm.enabled()
               ) {
                 console.log("⚠️ PM is still enabled after disable!");
               } else {
@@ -5093,51 +4982,51 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Reset editing state
-        setIsEditingShape(false);
-        setEditingShape(null);
-        setOriginalShapeData(null);
+        drawing.setIsEditingShape(false);
+        drawing.setEditingShape(null);
+        drawing.setOriginalShapeData(null);
         // Don't reset drawing mode completely - keep it available for next use
         // Just clear the active shape so buildings can be clicked
-        // setDrawingMode(null);
-        // setIsDrawingEnabled(false);
-        // drawingModeRef.current = null;
-        // isDrawingEnabledRef.current = false;
+        // drawing.setDrawingMode(null);
+        // drawing.setIsDrawingEnabled(false);
+        // mapRefs.drawingModeRef.current = null;
+        // mapRefs.isDrawingEnabledRef.current = false;
       }
     };
 
     const handleCancelEditConfirmation = () => {
-      if (editingShape && originalShapeData) {
+      if (drawing.editingShape && drawing.originalShapeData) {
         console.log("❌ Edit changes cancelled - restoring original shape");
         try {
           // Restore original shape data
           if (
-            editingShape instanceof (L as any).Polygon ||
-            editingShape instanceof (L as any).Polyline
+            drawing.editingShape instanceof (L as any).Polygon ||
+            drawing.editingShape instanceof (L as any).Polyline
           ) {
-            editingShape.setLatLngs(originalShapeData.latLngs);
+            drawing.editingShape.setLatLngs(drawing.originalShapeData.latLngs);
           } else if (
-            editingShape instanceof (L as any).Circle ||
-            editingShape instanceof (L as any).CircleMarker
+            drawing.editingShape instanceof (L as any).Circle ||
+            drawing.editingShape instanceof (L as any).CircleMarker
           ) {
-            editingShape.setLatLng(originalShapeData.latLng);
-            if (originalShapeData.radius) {
-              editingShape.setRadius(originalShapeData.radius);
+            drawing.editingShape.setLatLng(drawing.originalShapeData.latLng);
+            if (drawing.originalShapeData.radius) {
+              drawing.editingShape.setRadius(drawing.originalShapeData.radius);
             }
           }
 
           // Don't change any colors - shape should keep its original appearance
 
           // Disable PM to allow re-enabling for future operations
-          if ((editingShape as any).pm) {
+          if ((drawing.editingShape as any).pm) {
             try {
-              (editingShape as any).pm.disable();
+              (drawing.editingShape as any).pm.disable();
               console.log("✅ PM disabled after edit cancel");
 
               // Verify PM is actually disabled
               setTimeout(() => {
                 if (
-                  (editingShape as any).pm &&
-                  (editingShape as any).pm.enabled()
+                  (drawing.editingShape as any).pm &&
+                  (drawing.editingShape as any).pm.enabled()
                 ) {
                   console.log("⚠️ PM is still enabled after disable!");
                 } else {
@@ -5152,14 +5041,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           console.log("✅ Shape restored to original state");
 
           // Reset visual feedback and active shape
-          if (activeShape) {
+          if (drawing.activeShape) {
             console.log(
-              "🔄 Resetting activeShape after edit cancel:",
-              activeShape
+              "🔄 Resetting drawing.activeShape after edit cancel:",
+              drawing.activeShape
             );
-            resetShapeVisualFeedback(activeShape);
-            setActiveShape(null);
-            console.log("✅ activeShape reset to null");
+            resetShapeVisualFeedback(drawing.activeShape);
+            drawing.setActiveShape(null);
+            console.log("✅ drawing.activeShape reset to null");
           }
 
           // Re-enable interactions on all shapes
@@ -5169,15 +5058,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Reset editing state
-        setIsEditingShape(false);
-        setEditingShape(null);
-        setOriginalShapeData(null);
+        drawing.setIsEditingShape(false);
+        drawing.setEditingShape(null);
+        drawing.setOriginalShapeData(null);
         // Don't reset drawing mode completely - keep it available for next use
         // Just clear the active shape so buildings can be clicked
-        // setDrawingMode(null);
-        // setIsDrawingEnabled(false);
-        // drawingModeRef.current = null;
-        // isDrawingEnabledRef.current = false;
+        // drawing.setDrawingMode(null);
+        // drawing.setIsDrawingEnabled(false);
+        // mapRefs.drawingModeRef.current = null;
+        // mapRefs.isDrawingEnabledRef.current = false;
       }
     };
 
@@ -5186,25 +5075,25 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       console.log("✅ User confirmed drag - saving shape position");
 
       // Reset visual feedback and active shape
-      if (activeShape) {
-        resetShapeVisualFeedback(activeShape);
-        setActiveShape(null);
+      if (drawing.activeShape) {
+        resetShapeVisualFeedback(drawing.activeShape);
+        drawing.setActiveShape(null);
       }
 
       // Re-enable interactions on all shapes
       setShapeInteractions(true);
 
       // Disable PM to allow re-enabling for future operations
-      if (draggedShape && (draggedShape as any).pm) {
+      if (drawing.draggedShape && (drawing.draggedShape as any).pm) {
         try {
-          (draggedShape as any).pm.disable();
+          (drawing.draggedShape as any).pm.disable();
           console.log("✅ PM disabled after drag save");
 
           // Verify PM is actually disabled
           setTimeout(() => {
             if (
-              (draggedShape as any).pm &&
-              (draggedShape as any).pm.enabled()
+              (drawing.draggedShape as any).pm &&
+              (drawing.draggedShape as any).pm.enabled()
             ) {
               console.log("⚠️ PM is still enabled after disable!");
             } else {
@@ -5217,17 +5106,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       // Reset drag state
-      setDraggedShape(null);
-      setOriginalShapePosition(null);
-      setShowDragConfirmation(false);
-      setPendingDragShape(null);
+      drawing.setDraggedShape(null);
+      drawing.setOriginalShapePosition(null);
+      drawing.setShowDragConfirmation(false);
+      drawing.setPendingDragShape(null);
 
       // Don't reset drawing mode completely - keep it available for next use
       // Just clear the active shape so buildings can be clicked
-      // setDrawingMode(null);
-      // setIsDrawingEnabled(false);
-      // drawingModeRef.current = null;
-      // isDrawingEnabledRef.current = false;
+      // drawing.setDrawingMode(null);
+      // drawing.setIsDrawingEnabled(false);
+      // mapRefs.drawingModeRef.current = null;
+      // mapRefs.isDrawingEnabledRef.current = false;
 
       console.log("✅ Drag completed and saved - buildings can now be clicked");
     };
@@ -5236,33 +5125,33 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       console.log("❌ User cancelled drag - reverting shape position");
 
       // Revert the shape to its original position
-      if (draggedShape && originalShapePosition) {
+      if (drawing.draggedShape && drawing.originalShapePosition) {
         try {
           if (
-            draggedShape instanceof (L as any).Polygon ||
-            draggedShape instanceof (L as any).Polyline
+            drawing.draggedShape instanceof (L as any).Polygon ||
+            drawing.draggedShape instanceof (L as any).Polyline
           ) {
-            draggedShape.setLatLngs(originalShapePosition);
+            drawing.draggedShape.setLatLngs(drawing.originalShapePosition);
           } else if (
-            draggedShape instanceof (L as any).Circle ||
-            draggedShape instanceof (L as any).CircleMarker
+            drawing.draggedShape instanceof (L as any).Circle ||
+            drawing.draggedShape instanceof (L as any).CircleMarker
           ) {
-            draggedShape.setLatLng(originalShapePosition);
+            drawing.draggedShape.setLatLng(drawing.originalShapePosition);
           }
 
           // Don't change any colors - shape should keep its original appearance
 
           // Disable PM to allow re-enabling for future operations
-          if ((draggedShape as any).pm) {
+          if ((drawing.draggedShape as any).pm) {
             try {
-              (draggedShape as any).pm.disable();
+              (drawing.draggedShape as any).pm.disable();
               console.log("✅ PM disabled after drag cancel");
 
               // Verify PM is actually disabled
               setTimeout(() => {
                 if (
-                  (draggedShape as any).pm &&
-                  (draggedShape as any).pm.enabled()
+                  (drawing.draggedShape as any).pm &&
+                  (drawing.draggedShape as any).pm.enabled()
                 ) {
                   console.log("⚠️ PM is still enabled after disable!");
                 } else {
@@ -5281,26 +5170,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       // Reset visual feedback and active shape
-      if (activeShape) {
-        resetShapeVisualFeedback(activeShape);
-        setActiveShape(null);
+      if (drawing.activeShape) {
+        resetShapeVisualFeedback(drawing.activeShape);
+        drawing.setActiveShape(null);
       }
 
       // Re-enable interactions on all shapes
       setShapeInteractions(true);
 
       // Reset drag state
-      setDraggedShape(null);
-      setOriginalShapePosition(null);
-      setShowDragConfirmation(false);
-      setPendingDragShape(null);
+      drawing.setDraggedShape(null);
+      drawing.setOriginalShapePosition(null);
+      drawing.setShowDragConfirmation(false);
+      drawing.setPendingDragShape(null);
 
       // Don't reset drawing mode completely - keep it available for next use
       // Just clear the active shape so buildings can be clicked
-      // setDrawingMode(null);
-      // setIsDrawingEnabled(false);
-      // drawingModeRef.current = null;
-      // isDrawingEnabledRef.current = false;
+      // drawing.setDrawingMode(null);
+      // drawing.setIsDrawingEnabled(false);
+      // mapRefs.drawingModeRef.current = null;
+      // mapRefs.isDrawingEnabledRef.current = false;
 
       console.log(
         "✅ Drag cancelled and reverted - buildings can now be clicked"
@@ -5308,16 +5197,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     const handleToggleDrawing = () => {
-      const newState = !isDrawingEnabled;
-      setIsDrawingEnabled(newState);
+      const newState = !drawing.isDrawingEnabled;
+      drawing.setIsDrawingEnabled(newState);
       if (!newState) {
-        setDrawingMode(null);
+        drawing.setDrawingMode(null);
       }
     };
 
     // Reset zoom/center
     const handleResetZoom = () => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) {
         return;
       }
@@ -5336,8 +5225,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     useEffect(() => {
-      if (!isSatellite && isDark !== undefined) {
-        setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
+      if (!config.isSatellite && isDark !== undefined) {
+        config.setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDark]);
@@ -5356,7 +5245,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Update GPS sekali saja setiap kali tombol diklik
       getCurrentLocation()
         .then(([lat, lng]) => {
-          const map = leafletMapRef.current;
+          const map = mapRefs.leafletMapRef.current;
           if (map) {
             const userLatLng = L.latLng(lat, lng);
             map.setView(userLatLng, Math.max(map.getZoom(), 16), {
@@ -5408,16 +5297,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Tampilkan marker user di map jika userLocation ada
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
 
       if (userLocation) {
         const heading = (userLocation as any).heading || userHeading;
 
         // Jika marker sudah ada, update posisinya
-        if (userMarkerRef.current) {
-          userMarkerRef.current.setLatLng(userLocation);
-          userMarkerRef.current.setIcon(createUserMarkerIcon(heading));
+        if (mapRefs.userMarkerRef.current) {
+          mapRefs.userMarkerRef.current.setLatLng(userLocation);
+          mapRefs.userMarkerRef.current.setIcon(createUserMarkerIcon(heading));
           console.log(
             "📍 GPS marker updated to:",
             [userLocation.lat, userLocation.lng],
@@ -5431,7 +5320,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             title: "Lokasi Saya",
           });
           marker.addTo(map).bindPopup("Lokasi Saya");
-          userMarkerRef.current = marker;
+          mapRefs.userMarkerRef.current = marker;
           console.log(
             "📍 GPS marker created at:",
             [userLocation.lat, userLocation.lng],
@@ -5441,18 +5330,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       } else {
         // Hapus marker jika tidak ada lokasi
-        if (userMarkerRef.current) {
-          map.removeLayer(userMarkerRef.current);
-          userMarkerRef.current = null;
+        if (mapRefs.userMarkerRef.current) {
+          map.removeLayer(mapRefs.userMarkerRef.current);
+          mapRefs.userMarkerRef.current = null;
           console.log("📍 GPS marker removed");
         }
       }
 
       // Cleanup
       return () => {
-        if (userMarkerRef.current) {
-          map.removeLayer(userMarkerRef.current);
-          userMarkerRef.current = null;
+        if (mapRefs.userMarkerRef.current) {
+          map.removeLayer(mapRefs.userMarkerRef.current);
+          mapRefs.userMarkerRef.current = null;
         }
       };
     }, [userLocation, userHeading]);
@@ -5474,14 +5363,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Tampilkan polyline rute jika userLocation & hasil pencarian dipilih
     const { addRouteLine, removeRouteLine } = useRouteDrawing(
-      leafletMapRef as any
+      mapRefs.leafletMapRef as any
     );
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (!map) return;
-      if (routeLineRef.current) {
-        removeRouteLine(routeLineRef.current);
-        routeLineRef.current = null;
+      if (mapRefs.routeLineRef.current) {
+        removeRouteLine(mapRefs.routeLineRef.current);
+        mapRefs.routeLineRef.current = null;
       }
       // Cek: jika userLocation & searchText & searchResults.length==1 (hasil dipilih)
       if (userLocation && searchText && searchResults.length === 1) {
@@ -5499,44 +5388,44 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             dashArray: "8 8",
           }
         );
-        routeLineRef.current = line as any;
+        mapRefs.routeLineRef.current = line as any;
       }
       // Cleanup
       return () => {
-        if (routeLineRef.current) {
-          removeRouteLine(routeLineRef.current);
-          routeLineRef.current = null;
+        if (mapRefs.routeLineRef.current) {
+          removeRouteLine(mapRefs.routeLineRef.current);
+          mapRefs.routeLineRef.current = null;
         }
       };
     }, [userLocation, searchText, searchResults]);
 
     // Fungsi untuk menutup modal dengan animasi fade
     const closeBuildingDetailModal = () => {
-      setIsBuildingDetailFadingOut(true);
+      animation.setIsBuildingDetailFadingOut(true);
       setTimeout(() => {
-        setShowBuildingDetailCanvas(false);
-        setIsBuildingDetailFadingOut(false);
+        ui.setShowBuildingDetailCanvas(false);
+        animation.setIsBuildingDetailFadingOut(false);
 
         // Reset search highlight saat modal ditutup
-        if (searchHighlightedId) {
+        if (highlight.searchHighlightedId) {
           resetBangunanHighlight();
-          setSearchHighlightedId(null);
+          highlight.setSearchHighlightedId(null);
         }
 
         // Reset state lantai saat modal ditutup
-        setLantaiFiles({});
-        setLantaiPreviewUrls({});
-        setSavedLantaiFiles({});
-        setLantaiGambarData([]);
-        setShowTambahLantaiModal(false);
-        setTambahLantaiFile(null);
-        setTambahLantaiPreviewUrl(null);
+        lantai.setLantaiFiles({});
+        lantai.setLantaiPreviewUrls({});
+        lantai.setSavedLantaiFiles({});
+        lantai.setLantaiGambarData([]);
+        ui.setShowTambahLantaiModal(false);
+        lantai.setTambahLantaiFile(null);
+        lantai.setTambahLantaiPreviewUrl(null);
       }, 300); // durasi animasi fade
     };
 
     // Fungsi untuk handle edit nama bangunan
     const handleEditName = () => {
-      if (!selectedFeature?.properties?.nama) return;
+      if (!features.selectedFeature?.properties?.nama) return;
 
       // Cek apakah user sudah login
       const token = localStorage.getItem("token");
@@ -5549,13 +5438,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
-      setEditName(selectedFeature.properties.nama);
-      setIsEditingName(true);
+      edit.setEditName(features.selectedFeature.properties.nama);
+      edit.setIsEditingName(true);
     };
 
     // Fungsi untuk handle edit thumbnail
     const handleEditThumbnail = () => {
-      if (!selectedFeature?.properties?.nama) return;
+      if (!features.selectedFeature?.properties?.nama) return;
 
       // Cek apakah user sudah login
       const token = localStorage.getItem("token");
@@ -5568,13 +5457,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
-      setSelectedFile(null);
-      setIsEditingThumbnail(true);
+      edit.setSelectedFile(null);
+      edit.setIsEditingThumbnail(true);
     };
 
     // Fungsi untuk handle edit interaksi
     const handleEditInteraksi = () => {
-      if (!selectedFeature?.properties?.nama) return;
+      if (!features.selectedFeature?.properties?.nama) return;
 
       // Cek apakah user sudah login
       const token = localStorage.getItem("token");
@@ -5587,15 +5476,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
-      setIsEditingInteraksi(true);
+      edit.setIsEditingInteraksi(true);
       const currentInteraksi =
-        selectedFeature?.properties?.interaksi || "Noninteraktif";
-      setEditInteraksi(currentInteraksi);
+        features.selectedFeature?.properties?.interaksi || "Noninteraktif";
+      edit.setEditInteraksi(currentInteraksi);
     };
 
     // Fungsi untuk handle edit lantai
     const handleEditLantai = async () => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       // Cek apakah user sudah login
       const token = localStorage.getItem("token");
@@ -5611,20 +5500,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       try {
         // Ambil data lantai gambar yang sudah ada
         const data = await getLantaiGambarByBangunan(
-          Number(selectedFeature.properties.id),
+          Number(features.selectedFeature.properties.id),
           token
         );
-        setLantaiGambarData(data || []);
+        lantai.setLantaiGambarData(data || []);
 
         // Ambil data ruangan untuk menghitung jumlah ruangan per lantai
-        await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
+        await fetchRuanganByBangunan(Number(features.selectedFeature.properties.id));
 
         // Reset state
-        setLantaiFiles({});
-        setLantaiPreviewUrls({});
-        setSelectedLantaiFilter(1); // Reset filter ke lantai pertama
+        lantai.setLantaiFiles({});
+        lantai.setLantaiPreviewUrls({});
+        lantai.setSelectedLantaiFilter(1); // Reset filter ke lantai pertama
 
-        // Inisialisasi savedLantaiFiles berdasarkan data yang sudah ada
+        // Inisialisasi lantai.savedLantaiFiles berdasarkan data yang sudah ada
         const savedFiles: { [key: number]: boolean } = {};
         if (data && data.length > 0) {
           data.forEach((lantai: any) => {
@@ -5635,19 +5524,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           });
         }
-        setSavedLantaiFiles(savedFiles);
+        lantai.setSavedLantaiFiles(savedFiles);
 
-        setIsEditingLantai(true);
+        edit.setIsEditingLantai(true);
       } catch (error) {
-        setLantaiGambarData([]);
-        setIsEditingLantai(true);
+        lantai.setLantaiGambarData([]);
+        edit.setIsEditingLantai(true);
       }
     };
 
     // Fungsi untuk simpan gambar lantai individual
     const handleSaveLantaiImage = async (lantaiNumber: number) => {
       try {
-        const file = lantaiFiles[lantaiNumber];
+        const file = lantai.lantaiFiles[lantaiNumber];
         if (!file) {
           showNotification(
             "error",
@@ -5670,26 +5559,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         const formData = new FormData();
         formData.append("gambar_lantai", file);
         formData.append("nomor_lantai", lantaiNumber.toString());
-        formData.append("id_bangunan", String(selectedFeature?.properties?.id));
+        formData.append("id_bangunan", String(features.selectedFeature?.properties?.id));
 
         await createLantaiGambar(
           {
             file,
             lantaiNumber,
-            bangunanId: Number(selectedFeature?.properties?.id),
+            bangunanId: Number(features.selectedFeature?.properties?.id),
           },
           token
         );
 
         // Refresh data lantai gambar
-        if (selectedFeature?.properties?.id) {
+        if (features.selectedFeature?.properties?.id) {
           const data = await getLantaiGambarByBangunan(
-            Number(selectedFeature.properties.id),
+            Number(features.selectedFeature.properties.id),
             token
           );
-          setLantaiGambarData(data || []);
+          lantai.setLantaiGambarData(data || []);
 
-          // Update savedLantaiFiles berdasarkan data yang baru
+          // Update lantai.savedLantaiFiles berdasarkan data yang baru
           const savedFiles: { [key: number]: boolean } = {};
           if (data && data.length > 0) {
             data.forEach((lantai: any) => {
@@ -5700,16 +5589,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             });
           }
-          setSavedLantaiFiles(savedFiles);
+          lantai.setSavedLantaiFiles(savedFiles);
         }
 
         // Hapus file dari state setelah berhasil disimpan
-        setLantaiFiles((prev) => {
+        lantai.setLantaiFiles((prev) => {
           const newFiles = { ...prev };
           delete newFiles[lantaiNumber];
           return newFiles;
         });
-        setLantaiPreviewUrls((prev) => {
+        lantai.setLantaiPreviewUrls((prev) => {
           const newUrls = { ...prev };
           if (newUrls[lantaiNumber]) {
             URL.revokeObjectURL(newUrls[lantaiNumber]!);
@@ -5719,7 +5608,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
 
         // Refresh modal jika sedang terbuka
-        if (showBuildingDetailCanvas) {
+        if (ui.showBuildingDetailCanvas) {
           await openBuildingDetailModal();
         }
 
@@ -5751,7 +5640,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Cari lantai yang akan dihapus untuk validasi
-        const lantaiToDelete = lantaiGambarData.find(
+        const lantaiToDelete = lantai.lantaiGambarData.find(
           (l) => l.id_lantai_gambar === lantaiGambarId
         );
         if (!lantaiToDelete) {
@@ -5765,7 +5654,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Validasi: hanya lantai teratas yang boleh dihapus
         const maxLantaiNumber = Math.max(
-          ...lantaiGambarData.map((l) => {
+          ...lantai.lantaiGambarData.map((l) => {
             const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
             return match ? parseInt(match[1]) : 0;
           })
@@ -5787,10 +5676,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         await deleteLantaiGambar(lantaiGambarId, token);
 
         // Refresh data lantai gambar dan update field lantai di tabel bangunan
-        if (selectedFeature?.properties?.id) {
-          const bangunanId = Number(selectedFeature.properties.id);
+        if (features.selectedFeature?.properties?.id) {
+          const bangunanId = Number(features.selectedFeature.properties.id);
           const lantaiData = await getLantaiGambarByBangunan(bangunanId, token);
-          setLantaiGambarData(lantaiData || []);
+          lantai.setLantaiGambarData(lantaiData || []);
 
           // Update field lantai di tabel bangunan
           const jumlahLantaiTersisa = lantaiData ? lantaiData.length : 0;
@@ -5799,12 +5688,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           try {
             await updateBangunan(bangunanId, { lantai: newLantaiValue }, token);
 
-            // Update selectedFeature properties dengan jumlah lantai yang baru
-            if (selectedFeature && selectedFeature.properties) {
-              selectedFeature.properties.lantai = newLantaiValue;
+            // Update features.selectedFeature properties dengan jumlah lantai yang baru
+            if (features.selectedFeature && features.selectedFeature.properties) {
+              features.selectedFeature.properties.lantai = newLantaiValue;
             }
 
-            // Update savedLantaiFiles berdasarkan data yang baru
+            // Update lantai.savedLantaiFiles berdasarkan data yang baru
             const savedFiles: { [key: number]: boolean } = {};
             if (lantaiData && lantaiData.length > 0) {
               lantaiData.forEach((lantai: any) => {
@@ -5815,13 +5704,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
               });
             }
-            setSavedLantaiFiles(savedFiles);
+            lantai.setSavedLantaiFiles(savedFiles);
 
             // Renumbering lantai setelah penghapusan
             await renumberLantaiAfterDelete(currentLantaiNumber);
 
             // Refresh modal dengan data terbaru secara immediate
-            if (showBuildingDetailCanvas) {
+            if (ui.showBuildingDetailCanvas) {
               // Refresh data tanpa tutup modal
               await openBuildingDetailModal();
             }
@@ -5862,7 +5751,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
-        if (!selectedFeature?.properties?.id) {
+        if (!features.selectedFeature?.properties?.id) {
           showNotification(
             "error",
             "Data Error",
@@ -5871,11 +5760,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
-        const bangunanId = Number(selectedFeature.properties.id);
+        const bangunanId = Number(features.selectedFeature.properties.id);
 
         // Validasi: hanya lantai teratas yang boleh dihapus
         const maxLantaiNumber = Math.max(
-          ...lantaiGambarData.map((l) => {
+          ...lantai.lantaiGambarData.map((l) => {
             const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
             return match ? parseInt(match[1]) : 0;
           })
@@ -5891,7 +5780,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Hapus gambar lantai terlebih dahulu
-        const lantaiGambar = lantaiGambarData.find((l) => {
+        const lantaiGambar = lantai.lantaiGambarData.find((l) => {
           const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
           const extractedNumber = match ? parseInt(match[1]) : null;
           return extractedNumber === lantaiNumber;
@@ -5912,7 +5801,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Hapus semua ruangan di lantai tersebut
-        const ruanganDiLantai = ruanganList.filter(
+        const ruanganDiLantai = ruangan.ruanganList.filter(
           (ruangan) => ruangan.nomor_lantai === lantaiNumber
         );
 
@@ -5930,7 +5819,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Refresh data lantai gambar untuk menghitung jumlah lantai yang tersisa
         const lantaiData = await getLantaiGambarByBangunan(bangunanId, token);
-        setLantaiGambarData(lantaiData || []);
+        lantai.setLantaiGambarData(lantaiData || []);
 
         // Update field lantai di tabel bangunan
         const jumlahLantaiTersisa = lantaiData ? lantaiData.length : 0;
@@ -5939,13 +5828,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         try {
           await updateBangunan(bangunanId, { lantai: newLantaiValue }, token);
 
-          // Update selectedFeature properties dengan jumlah lantai yang baru
-          if (selectedFeature && selectedFeature.properties) {
-            selectedFeature.properties.lantai = newLantaiValue;
+          // Update features.selectedFeature properties dengan jumlah lantai yang baru
+          if (features.selectedFeature && features.selectedFeature.properties) {
+            features.selectedFeature.properties.lantai = newLantaiValue;
           }
 
           // Refresh modal dengan data terbaru secara immediate
-          if (showBuildingDetailCanvas) {
+          if (ui.showBuildingDetailCanvas) {
             // Refresh data tanpa tutup modal
             await openBuildingDetailModal();
           }
@@ -5964,7 +5853,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Refresh data ruangan
         await fetchRuanganByBangunan(bangunanId);
 
-        // Update savedLantaiFiles
+        // Update lantai.savedLantaiFiles
         const savedFiles: { [key: number]: boolean } = {};
         if (lantaiData && lantaiData.length > 0) {
           lantaiData.forEach((lantai: any) => {
@@ -5975,7 +5864,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           });
         }
-        setSavedLantaiFiles(savedFiles);
+        lantai.setSavedLantaiFiles(savedFiles);
 
         showNotification(
           "success",
@@ -5994,7 +5883,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk tambah lantai baru
     const handleAddLantai = () => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       const token = localStorage.getItem("token");
       if (!token) {
@@ -6007,9 +5896,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       // Reset state untuk modal tambah lantai
-      setTambahLantaiFile(null);
-      setTambahLantaiPreviewUrl(null);
-      setShowTambahLantaiModal(true);
+      lantai.setTambahLantaiFile(null);
+      lantai.setTambahLantaiPreviewUrl(null);
+      ui.setShowTambahLantaiModal(true);
     };
 
     // Fungsi untuk handle file selection saat tambah lantai
@@ -6037,15 +5926,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           return;
         }
 
-        setTambahLantaiFile(file);
+        lantai.setTambahLantaiFile(file);
         const url = URL.createObjectURL(file);
-        setTambahLantaiPreviewUrl(url);
+        lantai.setTambahLantaiPreviewUrl(url);
       }
     };
 
     // Fungsi untuk save lantai baru dengan SVG
     const handleSaveTambahLantai = async () => {
-      if (!selectedFeature?.properties?.id || !tambahLantaiFile) {
+      if (!features.selectedFeature?.properties?.id || !lantai.tambahLantaiFile) {
         showNotification(
           "error",
           "Data Tidak Lengkap",
@@ -6065,14 +5954,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       try {
-        setIsSaving(true);
-        const newLantaiCount = (selectedFeature.properties.lantai || 0) + 1;
+        loading.setIsSaving(true);
+        const newLantaiCount = (features.selectedFeature.properties.lantai || 0) + 1;
 
         // Upload SVG untuk lantai baru TERLEBIH DAHULU menggunakan service
-        const bangunanId = Number(selectedFeature.properties.id);
+        const bangunanId = Number(features.selectedFeature.properties.id);
         await createLantaiGambar(
           {
-            file: tambahLantaiFile,
+            file: lantai.tambahLantaiFile,
             lantaiNumber: newLantaiCount,
             bangunanId: bangunanId,
           },
@@ -6081,35 +5970,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Hanya jika upload SVG berhasil, baru update field lantai di database
         await updateBangunan(
-          selectedFeature.properties.id,
+          features.selectedFeature.properties.id,
           {
             lantai: newLantaiCount,
           },
           token
         );
 
-        // Update selectedFeature properties
-        if (selectedFeature && selectedFeature.properties) {
-          selectedFeature.properties.lantai = newLantaiCount;
+        // Update features.selectedFeature properties
+        if (features.selectedFeature && features.selectedFeature.properties) {
+          features.selectedFeature.properties.lantai = newLantaiCount;
         }
 
         // Reset state
-        setTambahLantaiFile(null);
-        setTambahLantaiPreviewUrl(null);
-        setShowTambahLantaiModal(false);
-        setLantaiFiles({});
-        setLantaiPreviewUrls({});
-        setSavedLantaiFiles({});
-        setSelectedLantaiFilter(newLantaiCount);
+        lantai.setTambahLantaiFile(null);
+        lantai.setTambahLantaiPreviewUrl(null);
+        ui.setShowTambahLantaiModal(false);
+        lantai.setLantaiFiles({});
+        lantai.setLantaiPreviewUrls({});
+        lantai.setSavedLantaiFiles({});
+        lantai.setSelectedLantaiFilter(newLantaiCount);
 
         // Refresh data lantai gambar
         const data = await getLantaiGambarByBangunan(
-          Number(selectedFeature.properties.id),
+          Number(features.selectedFeature.properties.id),
           token
         );
-        setLantaiGambarData(data || []);
+        lantai.setLantaiGambarData(data || []);
 
-        // Update savedLantaiFiles
+        // Update lantai.savedLantaiFiles
         const savedFiles: { [key: number]: boolean } = {};
         if (data && data.length > 0) {
           data.forEach((lantai: any) => {
@@ -6120,10 +6009,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
           });
         }
-        setSavedLantaiFiles(savedFiles);
+        lantai.setSavedLantaiFiles(savedFiles);
 
         // Refresh modal jika sedang terbuka
-        if (showBuildingDetailCanvas) {
+        if (ui.showBuildingDetailCanvas) {
           await openBuildingDetailModal();
         }
 
@@ -6145,31 +6034,31 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             ". Silakan coba lagi."
         );
       } finally {
-        setIsSaving(false);
+        loading.setIsSaving(false);
       }
     };
 
     // Fungsi untuk cancel tambah lantai
     const handleCancelTambahLantai = () => {
-      setTambahLantaiFile(null);
-      setTambahLantaiPreviewUrl(null);
-      setShowTambahLantaiModal(false);
+      lantai.setTambahLantaiFile(null);
+      lantai.setTambahLantaiPreviewUrl(null);
+      ui.setShowTambahLantaiModal(false);
     };
 
     // Fungsi untuk force refresh data lantai
     const refreshLantaiData = async () => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       try {
         const token = localStorage.getItem("token");
         if (token) {
           const lantaiData = await getLantaiGambarByBangunan(
-            Number(selectedFeature.properties.id),
+            Number(features.selectedFeature.properties.id),
             token
           );
-          setLantaiGambarData(lantaiData || []);
+          lantai.setLantaiGambarData(lantaiData || []);
 
-          // Update savedLantaiFiles
+          // Update lantai.savedLantaiFiles
           const savedFiles: { [key: number]: boolean } = {};
           if (lantaiData && lantaiData.length > 0) {
             lantaiData.forEach((lantai: any) => {
@@ -6180,7 +6069,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             });
           }
-          setSavedLantaiFiles(savedFiles);
+          lantai.setSavedLantaiFiles(savedFiles);
         }
       } catch (error) {
         console.error("Error refreshing lantai data:", error);
@@ -6189,13 +6078,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk renumbering lantai setelah penghapusan
     const renumberLantaiAfterDelete = async (deletedLantaiNumber: number) => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const bangunanId = Number(selectedFeature.properties.id);
+        const bangunanId = Number(features.selectedFeature.properties.id);
 
         // Ambil data lantai yang tersisa
         const lantaiData = await getLantaiGambarByBangunan(bangunanId, token);
@@ -6267,10 +6156,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk save ruangan
     const handleSaveRuangan = async () => {
-      if (!selectedFeature?.properties?.id || !ruanganForm.nama_ruangan.trim())
+      if (!features.selectedFeature?.properties?.id || !ruangan.ruanganForm.nama_ruangan.trim())
         return;
 
-      setIsSaving(true);
+      loading.setIsSaving(true);
       try {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -6288,20 +6177,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         const ruanganData = {
-          nama_ruangan: ruanganForm.nama_ruangan.trim(),
-          nomor_lantai: ruanganForm.nomor_lantai,
-          id_bangunan: selectedFeature.properties.id,
-          nama_jurusan: ruanganForm.nama_jurusan,
-          nama_prodi: ruanganForm.nama_prodi,
-          pin_style: ruanganForm.pin_style,
-          posisi_x: ruanganForm.posisi_x,
-          posisi_y: ruanganForm.posisi_y,
+          nama_ruangan: ruangan.ruanganForm.nama_ruangan.trim(),
+          nomor_lantai: ruangan.ruanganForm.nomor_lantai,
+          id_bangunan: features.selectedFeature.properties.id,
+          nama_jurusan: ruangan.ruanganForm.nama_jurusan,
+          nama_prodi: ruangan.ruanganForm.nama_prodi,
+          pin_style: ruangan.ruanganForm.pin_style,
+          posisi_x: ruangan.ruanganForm.posisi_x,
+          posisi_y: ruangan.ruanganForm.posisi_y,
         };
 
         await createRuangan(ruanganData, token);
 
         // Reset form
-        setRuanganForm({
+        ruangan.setRuanganForm({
           nama_ruangan: "",
           nomor_lantai: 1,
           nama_jurusan: "",
@@ -6310,7 +6199,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_x: null,
           posisi_y: null,
         });
-        setShowRuanganModal(false);
+        ui.setShowRuanganModal(false);
 
         showNotification(
           "success",
@@ -6324,7 +6213,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Gagal membuat ruangan: " + (error as Error).message
         );
       } finally {
-        setIsSaving(false);
+        loading.setIsSaving(false);
       }
     };
 
@@ -6341,7 +6230,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           });
         });
 
-        setRuanganList(ruanganArray);
+        ruangan.setRuanganList(ruanganArray);
         return ruanganArray;
       } catch (error) {
         showNotification(
@@ -6355,25 +6244,25 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk membuka modal edit ruangan
     const handleEditRuangan = async (lantaiNumber?: number) => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       // Tutup modal edit lantai jika sedang terbuka
-      if (isEditingLantai || isEditingInteraksi || isEditingName) {
+      if (edit.isEditingLantai || edit.isEditingInteraksi || edit.isEditingName) {
         handleCancelEdit();
       }
 
       try {
-        await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
+        await fetchRuanganByBangunan(Number(features.selectedFeature.properties.id));
 
         // Jika ada lantaiNumber, set lantai untuk ruangan baru
         if (lantaiNumber) {
-          setSelectedLantaiForRuangan(lantaiNumber);
-          setRuanganForm((prev) => ({ ...prev, nomor_lantai: lantaiNumber }));
+          lantai.setSelectedLantaiForRuangan(lantaiNumber);
+          ruangan.setRuanganForm((prev) => ({ ...prev, nomor_lantai: lantaiNumber }));
         }
 
         // Reset form dan buka modal buat ruangan baru
-        setSelectedRuanganForEdit(null);
-        setRuanganForm({
+        ruangan.setSelectedRuanganForEdit(null);
+        ruangan.setRuanganForm({
           nama_ruangan: "",
           nomor_lantai: lantaiNumber || 1,
           nama_jurusan: "",
@@ -6382,14 +6271,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_x: null,
           posisi_y: null,
         });
-        setShowRuanganModal(true);
+        ui.setShowRuanganModal(true);
       } catch (error) {}
     };
 
     // Fungsi untuk memilih ruangan untuk diedit
     const handleSelectRuanganForEdit = (ruangan: any) => {
-      setSelectedRuanganForEdit(ruangan);
-      setRuanganForm({
+      ruangan.setSelectedRuanganForEdit(ruangan);
+      ruangan.setRuanganForm({
         nama_ruangan: ruangan.nama_ruangan,
         nomor_lantai: ruangan.nomor_lantai,
         nama_jurusan: ruangan.nama_jurusan || "",
@@ -6398,21 +6287,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         posisi_x: ruangan.posisi_x,
         posisi_y: ruangan.posisi_y,
       });
-      setSelectedLantaiForRuangan(ruangan.nomor_lantai);
+      lantai.setSelectedLantaiForRuangan(ruangan.nomor_lantai);
 
-      setShowRuanganModal(true);
+      ui.setShowRuanganModal(true);
     };
 
     // Fungsi untuk edit ruangan yang sudah ada
     const handleEditExistingRuangan = async (ruangan: any) => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       try {
-        await fetchRuanganByBangunan(Number(selectedFeature.properties.id));
+        await fetchRuanganByBangunan(Number(features.selectedFeature.properties.id));
 
         // Set ruangan yang akan diedit
-        setSelectedRuanganForEdit(ruangan);
-        setRuanganForm({
+        ruangan.setSelectedRuanganForEdit(ruangan);
+        ruangan.setRuanganForm({
           nama_ruangan: ruangan.nama_ruangan,
           nomor_lantai: ruangan.nomor_lantai,
           nama_jurusan: ruangan.nama_jurusan || "",
@@ -6421,15 +6310,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_x: ruangan.posisi_x,
           posisi_y: ruangan.posisi_y,
         });
-        setSelectedLantaiForRuangan(ruangan.nomor_lantai);
+        lantai.setSelectedLantaiForRuangan(ruangan.nomor_lantai);
 
-        setShowRuanganModal(true);
+        ui.setShowRuanganModal(true);
       } catch (error) {}
     };
 
     // Fungsi untuk hapus ruangan
     const handleDeleteRuangan = async (ruangan: any) => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       try {
         const token = localStorage.getItem("token");
@@ -6457,7 +6346,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               // Refresh data ruangan
               await fetchRuanganByBangunan(
-                Number(selectedFeature.properties.id)
+                Number(features.selectedFeature?.properties?.id)
               );
 
               showNotification(
@@ -6486,12 +6375,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Fungsi untuk update ruangan
     const handleUpdateRuangan = async () => {
       if (
-        !selectedRuanganForEdit?.id_ruangan ||
-        !ruanganForm.nama_ruangan.trim()
+        !ruangan.selectedRuanganForEdit?.id_ruangan ||
+        !ruangan.ruanganForm.nama_ruangan.trim()
       )
         return;
 
-      setIsSaving(true);
+      loading.setIsSaving(true);
       try {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -6509,23 +6398,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         const ruanganData = {
-          nama_ruangan: ruanganForm.nama_ruangan.trim(),
-          nomor_lantai: ruanganForm.nomor_lantai,
-          nama_jurusan: ruanganForm.nama_jurusan,
-          nama_prodi: ruanganForm.nama_prodi,
-          pin_style: ruanganForm.pin_style,
-          posisi_x: ruanganForm.posisi_x,
-          posisi_y: ruanganForm.posisi_y,
+          nama_ruangan: ruangan.ruanganForm.nama_ruangan.trim(),
+          nomor_lantai: ruangan.ruanganForm.nomor_lantai,
+          nama_jurusan: ruangan.ruanganForm.nama_jurusan,
+          nama_prodi: ruangan.ruanganForm.nama_prodi,
+          pin_style: ruangan.ruanganForm.pin_style,
+          posisi_x: ruangan.ruanganForm.posisi_x,
+          posisi_y: ruangan.ruanganForm.posisi_y,
         };
 
         await updateRuangan(
-          selectedRuanganForEdit.id_ruangan,
+          ruangan.selectedRuanganForEdit.id_ruangan,
           ruanganData,
           token
         );
 
         // Reset form dan modal
-        setRuanganForm({
+        ruangan.setRuanganForm({
           nama_ruangan: "",
           nomor_lantai: 1,
           nama_jurusan: "",
@@ -6534,8 +6423,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           posisi_x: null,
           posisi_y: null,
         });
-        setSelectedRuanganForEdit(null);
-        setShowRuanganModal(false);
+        ruangan.setSelectedRuanganForEdit(null);
+        ui.setShowRuanganModal(false);
 
         showNotification(
           "success",
@@ -6549,20 +6438,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Gagal memperbarui ruangan: " + (error as Error).message
         );
       } finally {
-        setIsSaving(false);
+        loading.setIsSaving(false);
       }
     };
 
     // Fungsi untuk save edit
     const handleSaveEdit = async () => {
-      if (!selectedFeature?.properties?.id) return;
+      if (!features.selectedFeature?.properties?.id) return;
 
       // Validasi untuk edit nama dan interaksi (opsional)
       // Removed required validation - fields can now be empty
 
       // Debug logging untuk troubleshooting
 
-      setIsSaving(true);
+      loading.setIsSaving(true);
       try {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -6575,17 +6464,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Handle edit nama dan interaksi (optional) - combined in one request
-        if (isEditingName || isEditingInteraksi) {
+        if (edit.isEditingName || edit.isEditingInteraksi) {
           const updateData: any = {};
 
-          if (isEditingName) {
-            updateData.nama = editName.trim() || undefined;
+          if (edit.isEditingName) {
+            updateData.nama = edit.editName.trim() || undefined;
           }
 
-          if (isEditingInteraksi) {
-            // Pastikan editInteraksi tidak kosong jika user sudah memilih nilai
-            if (editInteraksi && editInteraksi.trim() !== "") {
-              updateData.interaksi = editInteraksi;
+          if (edit.isEditingInteraksi) {
+            // Pastikan edit.editInteraksi tidak kosong jika user sudah memilih nilai
+            if (edit.editInteraksi && edit.editInteraksi.trim() !== "") {
+              updateData.interaksi = edit.editInteraksi;
             } else {
               // Jika kosong, gunakan nilai default "Noninteraktif"
               updateData.interaksi = "Noninteraktif";
@@ -6593,35 +6482,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
 
           await updateBangunan(
-            selectedFeature.properties.id,
+            features.selectedFeature.properties.id,
             updateData,
             token
           );
 
           // Update local state
-          if (selectedFeature) {
-            selectedFeature.properties = {
-              ...selectedFeature.properties,
+          if (features.selectedFeature) {
+            features.selectedFeature.properties = {
+              ...features.selectedFeature.properties,
               ...updateData,
             };
           }
         }
 
         // Handle upload thumbnail
-        if (isEditingThumbnail && selectedFile) {
+        if (edit.isEditingThumbnail && edit.selectedFile) {
           const formData = new FormData();
-          formData.append("thumbnail", selectedFile);
+          formData.append("thumbnail", edit.selectedFile);
 
           const result = await uploadBangunanThumbnail(
-            Number(selectedFeature.properties.id),
-            selectedFile,
+            Number(features.selectedFeature.properties.id),
+            edit.selectedFile,
             token
           );
 
           // Update local state
-          if (selectedFeature) {
-            selectedFeature.properties = {
-              ...selectedFeature.properties,
+          if (features.selectedFeature) {
+            features.selectedFeature.properties = {
+              ...features.selectedFeature.properties,
               thumbnail: result.thumbnailPath,
             };
           }
@@ -6633,26 +6522,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Upload lantai gambar sekarang ditangani oleh handleSaveLantaiImage
 
         // Reset edit mode
-        setIsEditingName(false);
-        setIsEditingThumbnail(false);
-        setIsEditingLantai(false);
+        edit.setIsEditingName(false);
+        edit.setIsEditingThumbnail(false);
+        edit.setIsEditingLantai(false);
 
-        setIsEditingInteraksi(false);
-        setEditName("");
+        edit.setIsEditingInteraksi(false);
+        edit.setEditName("");
 
-        setEditInteraksi("");
-        setSelectedFile(null);
-        setLantaiFiles({});
+        edit.setEditInteraksi("");
+        edit.setSelectedFile(null);
+        lantai.setLantaiFiles({});
         // Clean up file preview URLs
-        if (filePreviewUrl) {
-          URL.revokeObjectURL(filePreviewUrl);
-          setFilePreviewUrl(null);
+        if (edit.filePreviewUrl) {
+          URL.revokeObjectURL(edit.filePreviewUrl);
+          edit.setFilePreviewUrl(null);
         }
         // Clean up lantai preview URLs
-        Object.values(lantaiPreviewUrls).forEach((url) => {
+        Object.values(lantai.lantaiPreviewUrls).forEach((url) => {
           if (url) URL.revokeObjectURL(url);
         });
-        setLantaiPreviewUrls({});
+        lantai.setLantaiPreviewUrls({});
 
         // Tampilkan notifikasi
         showNotification(
@@ -6662,15 +6551,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         );
 
         // Refresh data bangunan
-        if (bangunanLayerRef.current) {
+        if (mapRefs.bangunanLayerRef.current) {
           // Trigger re-render dengan data baru
-          const currentFeatures = [...bangunanFeatures];
+          const currentFeatures = [...features.bangunanFeatures];
           const updatedIndex = currentFeatures.findIndex(
-            (f) => f.properties?.id === selectedFeature.properties?.id
+            (f) => f.properties?.id === features.selectedFeature?.properties?.id
           );
           if (updatedIndex !== -1) {
-            currentFeatures[updatedIndex] = selectedFeature;
-            setBangunanFeatures(currentFeatures);
+            currentFeatures[updatedIndex] = features.selectedFeature;
+            features.setBangunanFeatures(currentFeatures);
           }
         }
       } catch (error) {
@@ -6680,34 +6569,34 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Gagal menyimpan perubahan. Silakan coba lagi."
         );
       } finally {
-        setIsSaving(false);
+        loading.setIsSaving(false);
       }
     };
 
     // Fungsi untuk cancel edit
     const handleCancelEdit = () => {
-      setIsEditingName(false);
-      setIsEditingThumbnail(false);
-      setIsEditingLantai(false);
-      setIsEditingInteraksi(false);
-      setEditName("");
-      setEditInteraksi("");
-      setSelectedFile(null);
-      setLantaiFiles({});
-      setSavedLantaiFiles({});
-      setShowTambahLantaiModal(false);
-      setTambahLantaiFile(null);
-      setTambahLantaiPreviewUrl(null);
+      edit.setIsEditingName(false);
+      edit.setIsEditingThumbnail(false);
+      edit.setIsEditingLantai(false);
+      edit.setIsEditingInteraksi(false);
+      edit.setEditName("");
+      edit.setEditInteraksi("");
+      edit.setSelectedFile(null);
+      lantai.setLantaiFiles({});
+      lantai.setSavedLantaiFiles({});
+      ui.setShowTambahLantaiModal(false);
+      lantai.setTambahLantaiFile(null);
+      lantai.setTambahLantaiPreviewUrl(null);
       // Clean up file preview URL
-      if (filePreviewUrl) {
-        URL.revokeObjectURL(filePreviewUrl);
-        setFilePreviewUrl(null);
+      if (edit.filePreviewUrl) {
+        URL.revokeObjectURL(edit.filePreviewUrl);
+        edit.setFilePreviewUrl(null);
       }
       // Clean up lantai preview URLs
-      Object.values(lantaiPreviewUrls).forEach((url) => {
+      Object.values(lantai.lantaiPreviewUrls).forEach((url) => {
         if (url) URL.revokeObjectURL(url);
       });
-      setLantaiPreviewUrls({});
+      lantai.setLantaiPreviewUrls({});
     };
 
     // Event listener pesan close-buildingdetail dari iframe
@@ -6732,7 +6621,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             highlightBangunan(Number(featureId));
 
             // Pan ke lokasi bangunan dengan zoom smooth
-            const bangunanLayer = bangunanLayerRef.current;
+            const bangunanLayer = mapRefs.bangunanLayerRef.current;
             if (bangunanLayer) {
               bangunanLayer.eachLayer((layer: L.Layer) => {
                 if (
@@ -6741,7 +6630,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   (layer as any).feature.geometry.type === "Polygon" &&
                   (layer as any).feature.properties?.id === Number(featureId)
                 ) {
-                  const map = leafletMapRef.current;
+                  const map = mapRefs.leafletMapRef.current;
                   if (map && (layer as any).getBounds) {
                     map.fitBounds((layer as any).getBounds(), {
                       padding: [50, 50],
@@ -6757,14 +6646,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             console.log("Highlight ruangan:", featureId, featureName);
 
             // Cari ruangan di data ruangan
-            const selectedRuangan = ruanganFeatures.find(
+            const selectedRuangan = features.ruanganFeatures.find(
               (r) => r.properties?.id === Number(featureId)
             );
 
             if (selectedRuangan) {
               // Cari bangunan yang berisi ruangan ini
               const bangunanId = selectedRuangan.properties?.bangunan_id;
-              const bangunan = bangunanFeatures.find(
+              const bangunan = features.bangunanFeatures.find(
                 (b) => b.properties?.id === Number(bangunanId)
               );
 
@@ -6787,7 +6676,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   );
 
                   // Zoom ke bangunan, lalu buka detail bangunan dengan ruangan yang di-highlight
-                  const map = leafletMapRef.current;
+                  const map = mapRefs.leafletMapRef.current;
                   if (map) {
                     map.fitBounds(bounds, {
                       padding: [50, 50],
@@ -6795,9 +6684,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       duration: 0.8,
                     });
                     const onMoveEnd = () => {
-                      setSelectedFeature(bangunan);
-                      setCardVisible(true);
-                      // Highlight permanen sudah ditangani oleh useEffect berdasarkan selectedFeature
+                      features.setSelectedFeature(bangunan);
+                      ui.setCardVisible(true);
+                      // Highlight permanen sudah ditangani oleh useEffect berdasarkan features.selectedFeature
                       // Langsung buka modal detail bangunan dengan ruangan yang dipilih
                       openBuildingDetailModal(selectedRuangan);
                       map.off("moveend", onMoveEnd);
@@ -6806,9 +6695,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 } else {
                   // Jika tidak ada geometry, langsung buka modal
-                  setSelectedFeature(bangunan);
-                  setCardVisible(true);
-                  // Highlight permanen sudah ditangani oleh useEffect berdasarkan selectedFeature
+                  features.setSelectedFeature(bangunan);
+                  ui.setCardVisible(true);
+                  // Highlight permanen sudah ditangani oleh useEffect berdasarkan features.selectedFeature
                   openBuildingDetailModal(selectedRuangan);
                 }
               } else {
@@ -6845,10 +6734,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         if (featureType === "bangunan") {
           // Jika container detail bangunan sedang aktif, berikan efek shake
-          if (isHighlightActiveRef.current) {
+          if (mapRefs.isHighlightActiveRef.current) {
             // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-            setIsContainerShaking(true);
-            setTimeout(() => setIsContainerShaking(false), 600);
+            animation.setIsContainerShaking(true);
+            setTimeout(() => animation.setIsContainerShaking(false), 600);
             return;
           }
 
@@ -6856,7 +6745,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           highlightBangunan(featureId);
 
           // Pan ke lokasi bangunan dengan zoom smooth
-          const bangunanLayer = bangunanLayerRef.current;
+          const bangunanLayer = mapRefs.bangunanLayerRef.current;
           if (bangunanLayer) {
             bangunanLayer.eachLayer((layer: L.Layer) => {
               if (
@@ -6865,7 +6754,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 (layer as any).feature.geometry.type === "Polygon" &&
                 (layer as any).feature.properties?.id === featureId
               ) {
-                const map = leafletMapRef.current;
+                const map = mapRefs.leafletMapRef.current;
                 if (map && (layer as any).getBounds) {
                   map.fitBounds((layer as any).getBounds(), {
                     padding: [50, 50],
@@ -6881,23 +6770,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           console.log("Highlight ruangan:", featureId, featureName);
 
           // Cari ruangan di data ruangan
-          const selectedRuangan = ruanganFeatures.find(
+          const selectedRuangan = features.ruanganFeatures.find(
             (r) => r.properties?.id === featureId
           );
 
           if (selectedRuangan) {
             // Cari bangunan yang berisi ruangan ini
             const bangunanId = selectedRuangan.properties?.bangunan_id;
-            const bangunan = bangunanFeatures.find(
+            const bangunan = features.bangunanFeatures.find(
               (b) => b.properties?.id === Number(bangunanId)
             );
 
             if (bangunan && bangunan.geometry) {
               // Jika container detail bangunan sedang aktif, berikan efek shake
-              if (isHighlightActiveRef.current) {
+              if (mapRefs.isHighlightActiveRef.current) {
                 // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-                setIsContainerShaking(true);
-                setTimeout(() => setIsContainerShaking(false), 600);
+                animation.setIsContainerShaking(true);
+                setTimeout(() => animation.setIsContainerShaking(false), 600);
                 return;
               }
 
@@ -6919,7 +6808,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 );
 
                 // Zoom ke bangunan, lalu buka detail bangunan dengan ruangan yang di-highlight
-                const map = leafletMapRef.current;
+                const map = mapRefs.leafletMapRef.current;
                 if (map) {
                   map.fitBounds(bounds, {
                     padding: [50, 50],
@@ -6927,9 +6816,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     duration: 0.8,
                   });
                   const onMoveEnd = () => {
-                    setSelectedFeature(bangunan);
-                    setCardVisible(true);
-                    // Highlight permanen sudah ditangani oleh useEffect berdasarkan selectedFeature
+                    features.setSelectedFeature(bangunan);
+                    ui.setCardVisible(true);
+                    // Highlight permanen sudah ditangani oleh useEffect berdasarkan features.selectedFeature
                     // Langsung buka modal detail bangunan dengan ruangan yang dipilih
                     openBuildingDetailModal(selectedRuangan);
                     map.off("moveend", onMoveEnd);
@@ -6938,9 +6827,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 }
               } else {
                 // Jika tidak ada geometry, langsung buka modal
-                setSelectedFeature(bangunan);
-                setCardVisible(true);
-                // Highlight permanen sudah ditangani oleh useEffect berdasarkan selectedFeature
+                features.setSelectedFeature(bangunan);
+                ui.setCardVisible(true);
+                // Highlight permanen sudah ditangani oleh useEffect berdasarkan features.selectedFeature
                 openBuildingDetailModal(selectedRuangan);
               }
             } else {
@@ -6956,18 +6845,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       },
     }));
 
-    // Saat cardVisible berubah ke true, trigger animasi fade-in
+    // Saat ui.cardVisible berubah ke true, trigger animasi fade-in
     useEffect(() => {
-      if (cardVisible) {
-        setTimeout(() => setCardAnimation(true), 10);
+      if (ui.cardVisible) {
+        setTimeout(() => animation.setCardAnimation(true), 10);
       } else {
-        setCardAnimation(false);
+        animation.setCardAnimation(false);
       }
-    }, [cardVisible]);
+    }, [ui.cardVisible]);
 
     // Highlight merah persist selama card detail bangunan terbuka
     useEffect(() => {
-      const bangunanLayer = bangunanLayerRef.current;
+      const bangunanLayer = mapRefs.bangunanLayerRef.current;
       if (!bangunanLayer) return;
 
       // Reset semua bangunan ke style default
@@ -6990,8 +6879,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
 
       // Highlight merah hanya pada bangunan yang sedang aktif
-      if (cardVisible && selectedFeature?.properties?.id) {
-        const featureId = Number(selectedFeature.properties.id);
+      if (ui.cardVisible && features.selectedFeature?.properties?.id) {
+        const featureId = Number(features.selectedFeature.properties.id);
         bangunanLayer.eachLayer((layer: L.Layer) => {
           if (
             (layer as any).feature &&
@@ -7010,24 +6899,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
 
         // Reset search highlight jika ada card detail yang aktif
-        if (searchHighlightedId) {
-          setSearchHighlightedId(null);
+        if (highlight.searchHighlightedId) {
+          highlight.setSearchHighlightedId(null);
         }
-      } else if (!cardVisible && searchHighlightedId) {
+      } else if (!ui.cardVisible && highlight.searchHighlightedId) {
         // Jika card ditutup dan ada search highlight, biarkan highlight tetap
         // Highlight akan di-reset saat ada pencarian baru atau highlight baru
       }
-    }, [cardVisible, selectedFeature, searchHighlightedId]);
+    }, [ui.cardVisible, features.selectedFeature, highlight.searchHighlightedId]);
 
     // Fungsi untuk dapatkan koordinat centroid dari featureId (bangunan/ruangan)
     const getCentroidById = (type: "bangunan" | "ruangan", id: string) => {
       let feature = null;
       if (type === "bangunan") {
-        feature = bangunanFeatures.find(
+        feature = features.bangunanFeatures.find(
           (b: FeatureType) => b.properties.id == id
         );
       } else if (type === "ruangan") {
-        feature = ruanganFeatures.find(
+        feature = features.ruanganFeatures.find(
           (r: FeatureType) => r.properties.id == id
         );
       }
@@ -7056,7 +6945,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Handle semua step navigation dalam satu useEffect - tidak ada yang di-skip
     useEffect(() => {
-      const map = leafletMapRef.current;
+      const map = mapRefs.leafletMapRef.current;
       if (
         !map ||
         !routeSteps.length ||
@@ -7073,10 +6962,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       // Hapus navigation marker sebelumnya
-      if (navigationMarkerRef.current) {
+      if (mapRefs.navigationMarkerRef.current) {
         console.log(`🔍 [DEBUG] Removing previous marker`);
-        map.removeLayer(navigationMarkerRef.current);
-        navigationMarkerRef.current = null;
+        map.removeLayer(mapRefs.navigationMarkerRef.current);
+        mapRefs.navigationMarkerRef.current = null;
       }
 
       // Debug: tampilkan semua step yang ada
@@ -7246,7 +7135,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         console.log(`🔍 [DEBUG] Marker created and added to map`);
 
-        navigationMarkerRef.current = navigationMarker;
+        mapRefs.navigationMarkerRef.current = navigationMarker;
 
         // PERBAIKAN: Hapus destination marker terpisah karena sekarang hanya ada 1 marker
         if (destinationMarker && map.hasLayer(destinationMarker)) {
@@ -7255,10 +7144,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
 
         // Zoom ke posisi marker dengan smooth dan tahan di tengah ketika zooming
-        isZoomingRef.current = true;
+        mapRefs.isZoomingRef.current = true;
         map.setView(markerPosition, 19, { animate: true, duration: 0.8 });
         map.once("moveend", () => {
-          isZoomingRef.current = false;
+          mapRefs.isZoomingRef.current = false;
         });
 
         // HAPUS: Highlight jalur step - menyebabkan garis leaflet-interactive yang mengganggu
@@ -7291,11 +7180,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           activeStepLineRef.current = null;
         }
         if (
-          navigationMarkerRef.current &&
-          map.hasLayer(navigationMarkerRef.current)
+          mapRefs.navigationMarkerRef.current &&
+          map.hasLayer(mapRefs.navigationMarkerRef.current)
         ) {
-          map.removeLayer(navigationMarkerRef.current);
-          navigationMarkerRef.current = null;
+          map.removeLayer(mapRefs.navigationMarkerRef.current);
+          mapRefs.navigationMarkerRef.current = null;
         }
         if (destinationMarker && map.hasLayer(destinationMarker)) {
           map.removeLayer(destinationMarker);
@@ -7334,16 +7223,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Hapus rute dan GPS marker saat card bangunan di-close
     useEffect(() => {
-      if (!cardVisible && leafletMapRef.current) {
+      if (!ui.cardVisible && mapRefs.leafletMapRef.current) {
         // Reset edit mode
-        setIsEditingName(false);
-        setIsEditingThumbnail(false);
-        setEditName("");
-        setEditThumbnail("");
+        edit.setIsEditingName(false);
+        edit.setIsEditingThumbnail(false);
+        edit.setEditName("");
+        edit.setEditThumbnail("");
 
         // Hapus route line jika ada
         if (routeLine) {
-          leafletMapRef.current.removeLayer(routeLine);
+          mapRefs.leafletMapRef.current.removeLayer(routeLine);
           setRouteLine(null);
           setRouteDistance(null);
         }
@@ -7351,42 +7240,42 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Hapus alternative route lines jika ada
         if (alternativeRouteLines.length > 0) {
           alternativeRouteLines.forEach((layer) => {
-            if (leafletMapRef.current) {
-              leafletMapRef.current.removeLayer(layer);
+            if (mapRefs.leafletMapRef.current) {
+              mapRefs.leafletMapRef.current.removeLayer(layer);
             }
           });
           setAlternativeRouteLines([]);
         }
 
         // Hapus navigation marker jika ada
-        if (navigationMarkerRef.current) {
-          leafletMapRef.current.removeLayer(navigationMarkerRef.current);
-          navigationMarkerRef.current = null;
+        if (mapRefs.navigationMarkerRef.current) {
+          mapRefs.leafletMapRef.current.removeLayer(mapRefs.navigationMarkerRef.current);
+          mapRefs.navigationMarkerRef.current = null;
         }
 
         // Hapus GPS marker jika ada
-        if (userMarkerRef.current) {
-          leafletMapRef.current.removeLayer(userMarkerRef.current);
-          userMarkerRef.current = null;
+        if (mapRefs.userMarkerRef.current) {
+          mapRefs.leafletMapRef.current.removeLayer(mapRefs.userMarkerRef.current);
+          mapRefs.userMarkerRef.current = null;
           setUserLocation(null); // Reset GPS location state
         }
       }
-    }, [cardVisible]);
+    }, [ui.cardVisible]);
 
-    // Debug: log kategori setiap kali selectedFeature berubah
+    // Debug: log kategori setiap kali features.selectedFeature berubah
     useEffect(() => {
-      if (selectedFeature) {
+      if (features.selectedFeature) {
         console.log(
-          "DEBUG selectedFeature kategori:",
-          selectedFeature?.properties?.kategori
+          "DEBUG features.selectedFeature kategori:",
+          features.selectedFeature?.properties?.kategori
         );
       }
-    }, [selectedFeature]);
+    }, [features.selectedFeature]);
 
     // useEffect untuk membuat pane khusus dengan z-index yang benar
     useEffect(() => {
-      if (leafletMapRef.current) {
-        const map = leafletMapRef.current;
+      if (mapRefs.leafletMapRef.current) {
+        const map = mapRefs.leafletMapRef.current;
 
         // Buat pane khusus untuk route dengan z-index rendah
         if (!map.getPane("routePane")) {
@@ -7411,21 +7300,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Redefine handleRouteSubmit in this component (inside the component function, before return)
     const handleRouteSubmit = async () => {
-      setIsCalculatingRoute(true);
+      loading.setIsCalculatingRoute(true);
       let startLatLng: [number, number] | null = null;
       let endLatLng: [number, number] | null = null;
       setRouteDistance(null);
 
       // PERBAIKAN: Cleanup routes sebelumnya
-      if (!isGpsRecalcRef.current) {
-        if (routeLine && leafletMapRef.current) {
-          leafletMapRef.current.removeLayer(routeLine);
+      if (!mapRefs.isGpsRecalcRef.current) {
+        if (routeLine && mapRefs.leafletMapRef.current) {
+          mapRefs.leafletMapRef.current.removeLayer(routeLine);
           setRouteLine(null);
         }
         if (alternativeRouteLines.length > 0) {
           alternativeRouteLines.forEach((layer) => {
-            if (leafletMapRef.current) {
-              leafletMapRef.current.removeLayer(layer);
+            if (mapRefs.leafletMapRef.current) {
+              mapRefs.leafletMapRef.current.removeLayer(layer);
             }
           });
           setAlternativeRouteLines([]);
@@ -7433,7 +7322,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       // Titik awal
-      if (routeStartType === "my-location") {
+      if (routing.routeStartType === "my-location") {
         setIsGettingLocation(true);
         try {
           const coords = await getCurrentLocation();
@@ -7446,26 +7335,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             // Routing langsung ke tujuan tanpa gerbang
             if (!endLatLng) {
               showNotification("error", "Error", "Titik tujuan tidak valid.");
-              setShowRouteModal(false);
-              setIsCalculatingRoute(false);
+              ui.setShowRouteModal(false);
+              loading.setIsCalculatingRoute(false);
               return;
             }
             const points = convertTitikToPoints();
-            let filteredJalurFeatures = jalurFeatures;
+            let filteredJalurFeatures = features.jalurFeatures;
             if (transportMode === "jalan_kaki") {
-              const pejalanSegments = jalurFeatures.filter(
+              const pejalanSegments = features.jalurFeatures.filter(
                 (segment: any) => segment.properties?.Mode === "pejalan"
               );
-              const bothSegments = jalurFeatures.filter(
+              const bothSegments = features.jalurFeatures.filter(
                 (segment: any) => segment.properties?.Mode === "both"
               );
               filteredJalurFeatures = [...pejalanSegments, ...bothSegments];
             } else if (transportMode === "kendaraan") {
               // Untuk kendaraan, terapkan logika oneway
-              const bothSegments = jalurFeatures.filter(
+              const bothSegments = features.jalurFeatures.filter(
                 (segment: any) => segment.properties?.Mode === "both"
               );
-              const pejalanSegments = jalurFeatures.filter(
+              const pejalanSegments = features.jalurFeatures.filter(
                 (segment: any) => segment.properties?.Mode === "pejalan"
               );
 
@@ -7557,10 +7446,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   pane: "routePane",
                 }
               );
-              if (leafletMapRef.current) {
-                geoJsonLayer.addTo(leafletMapRef.current);
-                if (!isGpsRecalcRef.current) {
-                  leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+              if (mapRefs.leafletMapRef.current) {
+                geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
+                if (!mapRefs.isGpsRecalcRef.current) {
+                  mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
                     padding: [40, 40],
                     maxZoom: 19,
                     animate: true,
@@ -7590,14 +7479,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               );
               setActiveStepIndex(0);
               setHasReachedDestination(false);
-              setIsNavigationActive(true);
+              routing.setIsNavigationActive(true);
             } else {
               showNotification(
                 "error",
                 "Rute Tidak Ditemukan",
                 "Tidak ditemukan rute yang valid dari lokasi Anda ke tujuan. Pastikan Anda berada di area yang terhubung ke jalur kampus."
               );
-              setIsCalculatingRoute(false);
+              loading.setIsCalculatingRoute(false);
             }
             return;
           } else {
@@ -7607,22 +7496,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         } catch (error) {
           setIsGettingLocation(false);
-          setIsCalculatingRoute(false);
+          loading.setIsCalculatingRoute(false);
           console.error("GPS Error in handleRouteSubmit:", error);
-          if (titikFeatures.length > 0) {
-            const firstTitik = titikFeatures[0];
-            setRouteStartType("titik");
-            setRouteStartId(
+          if (features.titikFeatures.length > 0) {
+            const firstTitik = features.titikFeatures[0];
+            routing.setRouteStartType("titik");
+            routing.setRouteStartId(
               String(firstTitik.id || firstTitik.properties?.OBJECTID)
             );
           }
           return;
         }
-      } else if (routeStartType === "titik" && routeStartId) {
+      } else if (routing.routeStartType === "titik" && routing.routeStartId) {
         // Cari titik dari geojson
-        const titik = titikFeatures.find(
+        const titik = features.titikFeatures.find(
           (t: any) =>
-            String(t.id || t.properties?.OBJECTID) === String(routeStartId)
+            String(t.id || t.properties?.OBJECTID) === String(routing.routeStartId)
         );
         if (titik && titik.geometry && titik.geometry.coordinates) {
           const coords = titik.geometry.coordinates;
@@ -7631,48 +7520,48 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Error",
-            `Titik awal dengan ID ${routeStartId} tidak ditemukan.`
+            `Titik awal dengan ID ${routing.routeStartId} tidak ditemukan.`
           );
-          setShowRouteModal(false);
-          setIsCalculatingRoute(false);
+          ui.setShowRouteModal(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
-      } else if (routeStartType) {
+      } else if (routing.routeStartType) {
         // Jika bangunan, ambil centroid bangunan
-        const bangunanCentroid = getCentroidById("bangunan", routeStartType);
+        const bangunanCentroid = getCentroidById("bangunan", routing.routeStartType);
         if (bangunanCentroid) {
           startLatLng = bangunanCentroid as [number, number];
         } else {
           showNotification(
             "error",
             "Error",
-            `Bangunan dengan ID ${routeStartType} tidak ditemukan.`
+            `Bangunan dengan ID ${routing.routeStartType} tidak ditemukan.`
           );
-          setShowRouteModal(false);
-          setIsCalculatingRoute(false);
+          ui.setShowRouteModal(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
       }
 
       // Titik tujuan
-      if (routeEndType === "bangunan" && routeEndId) {
-        const bangunanCentroid = getCentroidById("bangunan", routeEndId);
+      if (routing.routeEndType === "bangunan" && routing.routeEndId) {
+        const bangunanCentroid = getCentroidById("bangunan", routing.routeEndId);
         if (bangunanCentroid) {
           endLatLng = bangunanCentroid as [number, number];
         } else {
           showNotification(
             "error",
             "Error",
-            `Bangunan dengan ID ${routeEndId} tidak ditemukan.`
+            `Bangunan dengan ID ${routing.routeEndId} tidak ditemukan.`
           );
-          setShowRouteModal(false);
-          setIsCalculatingRoute(false);
+          ui.setShowRouteModal(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
-      } else if (routeEndType === "titik" && routeEndSearchText) {
+      } else if (routing.routeEndType === "titik" && routing.routeEndSearchText) {
         // Cari titik tujuan dari geojson
         const tujuan = convertTitikToPoints().find(
-          (p) => p.name === routeEndSearchText
+          (p) => p.name === routing.routeEndSearchText
         );
         if (tujuan) {
           endLatLng = tujuan.coordinates;
@@ -7680,10 +7569,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Error",
-            `Titik tujuan "${routeEndSearchText}" tidak ditemukan.`
+            `Titik tujuan "${routing.routeEndSearchText}" tidak ditemukan.`
           );
-          setShowRouteModal(false);
-          setIsCalculatingRoute(false);
+          ui.setShowRouteModal(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
       }
@@ -7702,8 +7591,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Titik Tidak Valid",
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
-        setShowRouteModal(false);
-        setIsCalculatingRoute(false);
+        ui.setShowRouteModal(false);
+        loading.setIsCalculatingRoute(false);
         return;
       }
 
@@ -7716,15 +7605,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Titik Sama",
           "Titik awal dan tujuan tidak boleh sama. Silakan pilih tujuan yang berbeda."
         );
-        setShowRouteModal(false);
-        setIsCalculatingRoute(false);
+        ui.setShowRouteModal(false);
+        loading.setIsCalculatingRoute(false);
         return;
       }
 
       // Routing dengan logika khusus untuk "Lokasi Saya"
-      if (startLatLng && endLatLng && leafletMapRef.current) {
-        if (!isGpsRecalcRef.current && routeLine) {
-          leafletMapRef.current.removeLayer(routeLine);
+      if (startLatLng && endLatLng && mapRefs.leafletMapRef.current) {
+        if (!mapRefs.isGpsRecalcRef.current && routeLine) {
+          mapRefs.leafletMapRef.current.removeLayer(routeLine);
         }
 
         const points = convertTitikToPoints();
@@ -7732,15 +7621,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         let totalDistance = 0;
 
         // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
-        if (routeStartType === "my-location") {
+        if (routing.routeStartType === "my-location") {
           try {
             const bestGateInfo = await findAllRoutesToBuilding(
               startLatLng,
               endLatLng,
               undefined,
               convertTitikToPoints(),
-              jalurFeatures,
-              titikFeatures
+              features.jalurFeatures,
+              features.titikFeatures
             );
 
             if (
@@ -7802,7 +7691,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   bestGateInfo.gate.geometry.coordinates[1]
                 );
                 // HILANGKAN GARIS MAGENTA DEBUG - tidak diperlukan untuk user
-                // if (leafletMapRef.current) {
+                // if (mapRefs.leafletMapRef.current) {
                 //   const line = addRouteLine(
                 //     [
                 //       [gpsLat, gpsLng],
@@ -7846,7 +7735,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     "GPS Error",
                     "Error: GPS dan Gerbang terlalu dekat. Coba lokasi yang berbeda."
                   );
-                  setIsCalculatingRoute(false);
+                  loading.setIsCalculatingRoute(false);
                   return;
                 }
               }
@@ -7877,10 +7766,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     pane: "routePane",
                   }
                 );
-                if (leafletMapRef.current) {
-                  mainRouteLayer.addTo(leafletMapRef.current);
-                  if (!isGpsRecalcRef.current) {
-                    leafletMapRef.current.fitBounds(
+                if (mapRefs.leafletMapRef.current) {
+                  mainRouteLayer.addTo(mapRefs.leafletMapRef.current);
+                  if (!mapRefs.isGpsRecalcRef.current) {
+                    mapRefs.leafletMapRef.current.fitBounds(
                       mainRouteLayer.getBounds(),
                       {
                         padding: [60, 60],
@@ -7920,8 +7809,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
                 const bounds = L.latLngBounds(allLatLngs);
-                if (leafletMapRef.current) {
-                  leafletMapRef.current.fitBounds(bounds, {
+                if (mapRefs.leafletMapRef.current) {
+                  mapRefs.leafletMapRef.current.fitBounds(bounds, {
                     padding: [60, 60],
                     maxZoom: 17,
                     animate: true,
@@ -7973,14 +7862,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 );
                 setActiveStepIndex(0);
                 setHasReachedDestination(false);
-                setIsNavigationActive(true);
+                routing.setIsNavigationActive(true);
               } else {
                 showNotification(
                   "error",
                   "Rute Tidak Ditemukan",
                   "Tidak ditemukan rute dari gerbang terdekat ke tujuan."
                 );
-                setIsCalculatingRoute(false);
+                loading.setIsCalculatingRoute(false);
               }
             } else {
               showNotification(
@@ -7988,7 +7877,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 "Gerbang Tidak Ditemukan",
                 "Tidak ditemukan gerbang terdekat."
               );
-              setIsCalculatingRoute(false);
+              loading.setIsCalculatingRoute(false);
             }
           } catch (error) {
             console.error("🚨 Error dalam routing my-location:", error);
@@ -8002,13 +7891,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Routing biasa (bukan dari "Lokasi Saya")
           try {
             // Filter jalur berdasarkan mode transportasi
-            let filteredJalurFeatures = jalurFeatures;
+            let filteredJalurFeatures = features.jalurFeatures;
             if (transportMode === "jalan_kaki") {
               // Untuk pejalan kaki, prioritaskan jalur "pejalan", jika tidak ada baru pakai "both"
-              const pejalanSegments = jalurFeatures.filter(
+              const pejalanSegments = features.jalurFeatures.filter(
                 (segment: any) => segment.properties?.Mode === "pejalan"
               );
-              const bothSegments = jalurFeatures.filter(
+              const bothSegments = features.jalurFeatures.filter(
                 (segment: any) => segment.properties?.Mode === "both"
               );
 
@@ -8020,7 +7909,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             } else if (transportMode === "kendaraan") {
               // PERBAIKAN: Kendaraan bisa menggunakan semua jalur dengan algoritma cerdas
               // Algoritma Dijkstra akan memilih jalur optimal dengan penalty untuk jalur pejalan
-              filteredJalurFeatures = jalurFeatures;
+              filteredJalurFeatures = features.jalurFeatures;
               console.log(
                 `🏍️ Mode kendaraan: ${filteredJalurFeatures.length} segmen (algoritma cerdas untuk meminimalkan penggunaan jalur pejalan)`
               );
@@ -8028,16 +7917,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             // PERBAIKAN: Cek apakah tujuan adalah gedung dengan multiple pintu
             let nearestPoint: Point | null = null;
-            if (routeEndType === "titik" && routeEndSearchText) {
+            if (routing.routeEndType === "titik" && routing.routeEndSearchText) {
               // Cari semua titik dengan nama yang sama
               const allPoints = convertTitikToPoints();
               console.log(
                 `🔍 [DEBUG] Total points available: ${allPoints.length}`
               );
-              console.log(`🔍 [DEBUG] Searching for: "${routeEndSearchText}"`);
+              console.log(`🔍 [DEBUG] Searching for: "${routing.routeEndSearchText}"`);
 
               const sameNamePoints = allPoints.filter(
-                (p) => p.name === routeEndSearchText
+                (p) => p.name === routing.routeEndSearchText
               );
 
               console.log(
@@ -8090,7 +7979,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 );
               } else {
                 console.log(
-                  `🔍 [DEBUG] No points found for "${routeEndSearchText}"`
+                  `🔍 [DEBUG] No points found for "${routing.routeEndSearchText}"`
                 );
               }
             }
@@ -8157,9 +8046,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   pane: "routePane",
                 }
               );
-              if (leafletMapRef.current) {
-                geoJsonLayer.addTo(leafletMapRef.current);
-                leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+              if (mapRefs.leafletMapRef.current) {
+                geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
+                mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
                   padding: [40, 40],
                   maxZoom: 19,
                   animate: true,
@@ -8172,7 +8061,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               setAlternativeRouteLines([]);
 
               // Smooth zoom animation untuk single route
-              leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+              mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
                 padding: [40, 40],
                 maxZoom: 19,
                 animate: true,
@@ -8227,7 +8116,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               );
               setActiveStepIndex(0);
               setHasReachedDestination(false);
-              setIsNavigationActive(true);
+              routing.setIsNavigationActive(true);
             } else {
               showNotification(
                 "error",
@@ -8245,10 +8134,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         }
       }
-      setShowRouteModal(false);
-      setIsCalculatingRoute(false);
+      ui.setShowRouteModal(false);
+      loading.setIsCalculatingRoute(false);
       // reset flag recalc setelah selesai
-      isGpsRecalcRef.current = false;
+      mapRefs.isGpsRecalcRef.current = false;
     };
 
     // Listener untuk GPS updates
@@ -8262,13 +8151,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const newLatLng = L.latLng(newCoords[0], newCoords[1]);
 
           // Update marker GPS secara otomatis jika ada
-          if (userMarkerRef.current) {
-            const currentLatLng = userMarkerRef.current.getLatLng();
+          if (mapRefs.userMarkerRef.current) {
+            const currentLatLng = mapRefs.userMarkerRef.current.getLatLng();
             const distance = currentLatLng.distanceTo(newLatLng);
 
             // Update marker setiap kali GPS berubah (tanpa batasan jarak)
-            userMarkerRef.current.setLatLng(newLatLng);
-            userMarkerRef.current.setIcon(createUserMarkerIcon(newHeading));
+            mapRefs.userMarkerRef.current.setLatLng(newLatLng);
+            mapRefs.userMarkerRef.current.setIcon(createUserMarkerIcon(newHeading));
             console.log(
               "📍 GPS marker automatically updated to:",
               newCoords,
@@ -8281,9 +8170,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
 
           // Recalculate route HANYA jika navigasi aktif dan start dari GPS
-          if (isNavigationActive && routeStartType === "my-location") {
+          if (routing.isNavigationActive && routing.routeStartType === "my-location") {
             // tandai recalc dari GPS agar tidak hapus routeLine lebih dulu
-            isGpsRecalcRef.current = true;
+            mapRefs.isGpsRecalcRef.current = true;
             setTimeout(() => {
               handleRouteSubmit();
             }, 1000); // Tunggu 1 detik untuk stabilitas
@@ -8295,7 +8184,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return () => {
         window.removeEventListener("message", handleGpsUpdate);
       };
-    }, [isNavigationActive, routeStartType, routeSteps.length]);
+    }, [routing.isNavigationActive, routing.routeStartType, routeSteps.length]);
 
     // Fungsi untuk melakukan routing dengan parameter yang sudah pasti
     const performRouting = async (
@@ -8313,7 +8202,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (startType === "my-location" && gpsCoords) {
         startLatLng = gpsCoords;
       } else if (startType === "titik" && startId) {
-        const titik = titikFeatures.find(
+        const titik = features.titikFeatures.find(
           (t: any) => String(t.id || t.properties?.OBJECTID) === String(startId)
         );
         if (titik && titik.geometry && titik.geometry.coordinates) {
@@ -8326,7 +8215,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             "Error",
             `Titik awal dengan ID ${startId} tidak ditemukan.`
           );
-          setIsCalculatingRoute(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
       } else if (startType) {
@@ -8340,7 +8229,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             "Error",
             `Bangunan dengan ID ${startType} tidak ditemukan.`
           );
-          setIsCalculatingRoute(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
       }
@@ -8357,7 +8246,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             "Error",
             `Bangunan dengan ID ${endId} tidak ditemukan.`
           );
-          setIsCalculatingRoute(false);
+          loading.setIsCalculatingRoute(false);
           return;
         }
       }
@@ -8377,7 +8266,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           "Titik Tidak Valid",
           "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
         );
-        setIsCalculatingRoute(false);
+        loading.setIsCalculatingRoute(false);
         return;
       }
 
@@ -8387,9 +8276,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       });
 
       // Routing dengan logika khusus untuk "Lokasi Saya"
-      if (startLatLng && endLatLng && leafletMapRef.current) {
+      if (startLatLng && endLatLng && mapRefs.leafletMapRef.current) {
         if (routeLine) {
-          leafletMapRef.current.removeLayer(routeLine);
+          mapRefs.leafletMapRef.current.removeLayer(routeLine);
         }
 
         const points = convertTitikToPoints();
@@ -8401,7 +8290,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Dapatkan nama gedung dari endType jika ada
           let buildingName: string | undefined;
           if (endType === "bangunan" && endId) {
-            const bangunan = bangunanFeatures.find(
+            const bangunan = features.bangunanFeatures.find(
               (b: any) =>
                 String(b.id || b.properties?.OBJECTID) === String(endId)
             );
@@ -8416,8 +8305,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             endLatLng,
             buildingName,
             convertTitikToPoints(),
-            jalurFeatures,
-            titikFeatures
+            features.jalurFeatures,
+            features.titikFeatures
           );
 
           if (
@@ -8441,7 +8330,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 "Error",
                 "Koordinat gerbang tidak valid. Silakan coba lagi."
               );
-              setIsCalculatingRoute(false);
+              loading.setIsCalculatingRoute(false);
               return;
             }
 
@@ -8490,7 +8379,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
               const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
               // HILANGKAN GARIS MAGENTA DEBUG - tidak diperlukan untuk user
-              // if (leafletMapRef.current) {
+              // if (mapRefs.leafletMapRef.current) {
               //   const line = addRouteLine(
               //     [
               //       [gpsLat, gpsLng],
@@ -8569,14 +8458,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   pane: "routePane",
                 }
               );
-              if (leafletMapRef.current) {
+              if (mapRefs.leafletMapRef.current) {
                 console.log("🗺️ Menambahkan layer ke map");
-                geoJsonLayer.addTo(leafletMapRef.current);
+                geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
 
                 try {
                   const bounds = geoJsonLayer.getBounds();
                   console.log("🗺️ Bounds:", bounds);
-                  leafletMapRef.current.fitBounds(bounds, {
+                  mapRefs.leafletMapRef.current.fitBounds(bounds, {
                     padding: [60, 60],
                     maxZoom: 17,
                     animate: true,
@@ -8587,7 +8476,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   console.error("❌ Error fitting bounds:", error);
                 }
               } else {
-                console.error("❌ leafletMapRef.current is null");
+                console.error("❌ mapRefs.leafletMapRef.current is null");
               }
 
               setRouteLine(geoJsonLayer);
@@ -8613,7 +8502,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               const bounds = L.latLngBounds(allLatLngs);
 
               // Smooth zoom animation
-              leafletMapRef.current.fitBounds(bounds, {
+              mapRefs.leafletMapRef.current.fitBounds(bounds, {
                 padding: [60, 60],
                 maxZoom: 17,
                 animate: true,
@@ -8655,7 +8544,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 "Rute Tidak Ditemukan",
                 "Tidak ditemukan rute dari gerbang ke tujuan. Silakan coba lokasi lain."
               );
-              setIsCalculatingRoute(false);
+              loading.setIsCalculatingRoute(false);
               return;
             }
           } else {
@@ -8665,7 +8554,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               "Tidak Ada Rute",
               "Tidak ada gerbang yang terhubung ke tujuan. Silakan coba lokasi lain."
             );
-            setIsCalculatingRoute(false);
+            loading.setIsCalculatingRoute(false);
             return;
           }
         } else {
@@ -8674,7 +8563,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             startLatLng,
             endLatLng,
             points,
-            jalurFeatures,
+            features.jalurFeatures,
             transportMode,
             false // isGpsInsideCampus = false
           );
@@ -8698,9 +8587,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 pane: "routePane",
               }
             );
-            if (leafletMapRef.current) {
-              geoJsonLayer.addTo(leafletMapRef.current);
-              leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+            if (mapRefs.leafletMapRef.current) {
+              geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
+              mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
                 padding: [40, 40],
                 maxZoom: 19,
                 animate: true,
@@ -8710,7 +8599,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             setRouteLine(geoJsonLayer);
 
             // Smooth zoom animation
-            leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
+            mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
               padding: [40, 40],
               maxZoom: 19,
               animate: true,
@@ -8779,8 +8668,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     };
 
     useEffect(() => {
-      if (leafletMapRef.current) {
-        const map = leafletMapRef.current;
+      if (mapRefs.leafletMapRef.current) {
+        const map = mapRefs.leafletMapRef.current;
 
         // Buat pane khusus untuk route dengan z-index rendah
         if (!map.getPane("routePane")) {
@@ -8809,29 +8698,29 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         style={{
           minHeight: 350,
           touchAction: "none", // Prevent default touch behaviors
-          cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+          cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
         }}
       >
         <MapControlsPanel
           isDark={!!isDark}
-          isSatellite={!!isSatellite}
-          layerVisible={!!layerVisible}
+          isSatellite={!!config.isSatellite}
+          layerVisible={!!config.layerVisible}
           isDashboard={isDashboard}
           onZoomIn={() => {
-            const map = leafletMapRef.current;
+            const map = mapRefs.leafletMapRef.current;
             if (map) map.setZoom(Math.min(map.getZoom() + 1, 19));
           }}
           onZoomOut={() => {
-            const map = leafletMapRef.current;
+            const map = mapRefs.leafletMapRef.current;
             if (map) map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()));
           }}
           onReset={handleResetZoom}
           onLocateMe={handleLocateMe}
           onToggleLayer={handleToggleLayer}
           onToggleBasemap={handleToggleBasemap}
-          jalurVisible={jalurLayerVisible}
-          titikVisible={titikLayerVisible}
-          bangunanVisible={bangunanLayerVisible}
+          jalurVisible={layerVisibility.jalurLayerVisible}
+          titikVisible={layerVisibility.titikLayerVisible}
+          bangunanVisible={layerVisibility.bangunanLayerVisible}
           onToggleJalur={toggleJalurLayer}
           onToggleTitik={toggleTitikLayer}
           onToggleBangunan={toggleBangunanLayer}
@@ -8839,17 +8728,17 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           onSearchTextChange={(value) => {
             setSearchText(value);
             setShowSearchResults(true);
-            if (value.trim() === "" && searchHighlightedId) {
+            if (value.trim() === "" && highlight.searchHighlightedId) {
               resetBangunanHighlight();
-              setSearchHighlightedId(null);
+              highlight.setSearchHighlightedId(null);
             }
           }}
           showSearchResults={showSearchResults}
           onToggleSearchResults={(show) => setShowSearchResults(show)}
-          isLoadingData={isLoadingData}
+          isLoadingData={loading.isLoadingData}
           searchResults={searchResults}
           onSelectSearchResult={handleSelectSearchResult as any}
-          isHighlightActive={!!isHighlightActive}
+          isHighlightActive={!!highlight.isHighlightActive}
         />
 
         <Navigation
@@ -8868,24 +8757,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             setRouteSteps([]);
             setActiveStepIndex(0);
             setHasReachedDestination(false);
-            setIsNavigationActive(false);
+            routing.setIsNavigationActive(false);
             setTotalWalkingTime(null);
             setTotalVehicleTime(null);
-            if (destinationMarker && leafletMapRef.current) {
-              leafletMapRef.current.removeLayer(destinationMarker);
+            if (destinationMarker && mapRefs.leafletMapRef.current) {
+              mapRefs.leafletMapRef.current.removeLayer(destinationMarker);
               setDestinationMarker(null);
             }
-            if (routeLine && leafletMapRef.current) {
-              leafletMapRef.current.removeLayer(routeLine);
+            if (routeLine && mapRefs.leafletMapRef.current) {
+              mapRefs.leafletMapRef.current.removeLayer(routeLine);
               setRouteLine(null);
             }
-            if (navigationMarkerRef.current && leafletMapRef.current) {
-              leafletMapRef.current.removeLayer(navigationMarkerRef.current);
-              navigationMarkerRef.current = null;
+            if (mapRefs.navigationMarkerRef.current && mapRefs.leafletMapRef.current) {
+              mapRefs.leafletMapRef.current.removeLayer(mapRefs.navigationMarkerRef.current);
+              mapRefs.navigationMarkerRef.current = null;
             }
-            if (selectedFeature && selectedFeature.properties?.id) {
-              setIsHighlightActive(true);
-              const bangunanLayer = bangunanLayerRef.current;
+            if (features.selectedFeature && features.selectedFeature.properties?.id) {
+              highlight.setIsHighlightActive(true);
+              const bangunanLayer = mapRefs.bangunanLayerRef.current;
               if (bangunanLayer) {
                 bangunanLayer.eachLayer((layer: L.Layer) => {
                   if (
@@ -8893,7 +8782,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     (layer as any).feature.geometry &&
                     (layer as any).feature.geometry.type === "Polygon" &&
                     (layer as any).feature.properties?.id ===
-                      Number(selectedFeature.properties.id)
+                      Number(features.selectedFeature?.properties?.id)
                   ) {
                     (layer as any).setStyle({
                       color: "#ff3333",
@@ -8905,18 +8794,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 });
               }
-              if (leafletMapRef.current && selectedFeature.geometry) {
-                const centroid = getFeatureCentroid(selectedFeature);
-                const currentZoom = leafletMapRef.current.getZoom();
-                leafletMapRef.current.setView(centroid, currentZoom, {
+              if (mapRefs.leafletMapRef.current && features.selectedFeature.geometry) {
+                const centroid = getFeatureCentroid(features.selectedFeature);
+                const currentZoom = mapRefs.leafletMapRef.current.getZoom();
+                mapRefs.leafletMapRef.current.setView(centroid, currentZoom, {
                   animate: true,
                   duration: 1,
                 });
               }
             }
-            if (isMobile && selectedFeature) {
-              setCardVisible(true);
-              setTimeout(() => setCardAnimation(true), 50);
+            if (isMobile && features.selectedFeature) {
+              ui.setCardVisible(true);
+              setTimeout(() => animation.setCardAnimation(true), 50);
             }
           }}
           onPrev={() => {
@@ -8940,82 +8829,82 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         {/* Kontrol peta disatukan dalam MapControlsPanel */}
 
         {/* Sidebar Gedung (floating card kanan atas) - Mobile Responsive */}
-        {selectedFeature && cardVisible && (
+        {features.selectedFeature && ui.cardVisible && (
           <BuildingDetailModal
             isDark={!!isDark}
             isDashboard={!!isDashboard}
             isLoggedIn={isLoggedIn}
-            selectedFeature={selectedFeature}
-            isContainerShaking={isContainerShaking}
-            drawingMode={drawingMode}
+            selectedFeature={features.selectedFeature}
+            isContainerShaking={animation.isContainerShaking}
+            drawingMode={drawing.drawingMode}
             onClose={() => {
-              setCardVisible(false);
-              setIsHighlightActive(false);
-              setIsEditingName(false);
-              setIsEditingThumbnail(false);
-              setIsEditingInteraksi(false);
-              setEditName("");
-              setEditThumbnail("");
-              setEditInteraksi("");
+              ui.setCardVisible(false);
+              highlight.setIsHighlightActive(false);
+              edit.setIsEditingName(false);
+              edit.setIsEditingThumbnail(false);
+              edit.setIsEditingInteraksi(false);
+              edit.setEditName("");
+              edit.setEditThumbnail("");
+              edit.setEditInteraksi("");
               // Hapus highlight seperti saat klik bangunan (prioritas ke yang sedang ditampilkan)
-              if (selectedFeature?.properties?.id) {
-                clearBangunanHighlightById(selectedFeature.properties.id);
+              if (features.selectedFeature?.properties?.id) {
+                clearBangunanHighlightById(features.selectedFeature.properties.id);
               }
-              if (searchHighlightedId) {
+              if (highlight.searchHighlightedId) {
                 resetBangunanHighlight();
-                setSearchHighlightedId(null);
+                highlight.setSearchHighlightedId(null);
               }
-              if (isNavigationActive) {
+              if (routing.isNavigationActive) {
                 setRouteSteps([]);
                 setActiveStepIndex(0);
                 setHasReachedDestination(false);
-                setIsNavigationActive(false);
-                if (routeLine && leafletMapRef.current) {
-                  leafletMapRef.current.removeLayer(routeLine);
+                routing.setIsNavigationActive(false);
+                if (routeLine && mapRefs.leafletMapRef.current) {
+                  mapRefs.leafletMapRef.current.removeLayer(routeLine);
                   setRouteLine(null);
                 }
-                if (navigationMarkerRef.current && leafletMapRef.current) {
-                  leafletMapRef.current.removeLayer(
-                    navigationMarkerRef.current
+                if (mapRefs.navigationMarkerRef.current && mapRefs.leafletMapRef.current) {
+                  mapRefs.leafletMapRef.current.removeLayer(
+                    mapRefs.navigationMarkerRef.current
                   );
-                  navigationMarkerRef.current = null;
+                  mapRefs.navigationMarkerRef.current = null;
                 }
               }
               // Pastikan style layer bangunan kembali default
-              if (bangunanLayerRef.current) {
-                bangunanLayerRef.current.resetStyle();
+              if (mapRefs.bangunanLayerRef.current) {
+                mapRefs.bangunanLayerRef.current.resetStyle();
               }
-              setTimeout(() => setSelectedFeature(null), 350);
+              setTimeout(() => features.setSelectedFeature(null), 350);
             }}
             onOpenDetail={() => openBuildingDetailModal()}
             onEditThumbnail={handleEditThumbnail}
             onEditLantai={handleEditLantai}
             onEditNameAndInteraksi={() => {
               // Buka modal edit nama dan interaksi
-              setIsEditingName(true);
-              setIsEditingInteraksi(true);
-              setEditName(selectedFeature.properties?.nama || "");
-              setEditInteraksi(
-                selectedFeature.properties?.interaksi || "Noninteraktif"
+              edit.setIsEditingName(true);
+              edit.setIsEditingInteraksi(true);
+              edit.setEditName(features.selectedFeature?.properties?.nama || "");
+              edit.setEditInteraksi(
+                features.selectedFeature?.properties?.interaksi || "Noninteraktif"
               );
             }}
             onSetRouteToBuilding={() => {
-              setRouteEndType("bangunan");
-              setRouteEndId(String(selectedFeature.properties.id ?? ""));
-              setTimeout(() => setShowRouteModal(true), 10);
+              routing.setRouteEndType("bangunan");
+              routing.setRouteEndId(String(features.selectedFeature?.properties?.id ?? ""));
+              setTimeout(() => ui.setShowRouteModal(true), 10);
             }}
           />
         )}
 
         {/* Modal Edit Bangunan */}
-        {(isEditingName ||
-          isEditingThumbnail ||
-          isEditingLantai ||
-          isEditingInteraksi) && (
+        {(edit.isEditingName ||
+          edit.isEditingThumbnail ||
+          edit.isEditingLantai ||
+          edit.isEditingInteraksi) && (
           <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-[50]"
             style={{
-              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             }}
           >
             <div
@@ -9025,13 +8914,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Edit{" "}
-                  {isEditingName && isEditingInteraksi
+                  {edit.isEditingName && edit.isEditingInteraksi
                     ? "Nama & Interaksi"
-                    : isEditingName
+                    : edit.isEditingName
                     ? "Nama"
-                    : isEditingThumbnail
+                    : edit.isEditingThumbnail
                     ? "Thumbnail"
-                    : isEditingInteraksi
+                    : edit.isEditingInteraksi
                     ? "Interaksi"
                     : "Lantai"}{" "}
                   Bangunan
@@ -9045,7 +8934,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               </div>
 
               <div className="space-y-4">
-                {isEditingThumbnail && (
+                {edit.isEditingThumbnail && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Upload Thumbnail Baru
@@ -9058,39 +8947,39 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            setSelectedFile(file);
+                            edit.setSelectedFile(file);
                             // Create preview URL for the selected file
                             const url = URL.createObjectURL(file);
-                            setFilePreviewUrl(url);
+                            edit.setFilePreviewUrl(url);
                           }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
                       />
 
                       {/* Preview file yang dipilih */}
-                      {selectedFile && filePreviewUrl && (
+                      {edit.selectedFile && edit.filePreviewUrl && (
                         <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <div className="flex items-center gap-3">
                             <img
-                              src={filePreviewUrl}
+                              src={edit.filePreviewUrl}
                               alt="File preview"
                               className="w-12 h-12 object-cover rounded-lg border"
                             />
                             <div className="flex-1">
                               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {selectedFile.name}
+                                {edit.selectedFile.name}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {(selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                                {(edit.selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
                                 MB
                               </p>
                             </div>
                             <button
                               onClick={() => {
-                                setSelectedFile(null);
-                                setFilePreviewUrl(null);
-                                if (filePreviewUrl) {
-                                  URL.revokeObjectURL(filePreviewUrl);
+                                edit.setSelectedFile(null);
+                                edit.setFilePreviewUrl(null);
+                                if (edit.filePreviewUrl) {
+                                  URL.revokeObjectURL(edit.filePreviewUrl);
                                 }
                               }}
                               className="text-red-500 hover:text-red-700"
@@ -9102,20 +8991,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       )}
 
                       {/* Thumbnail saat ini */}
-                      {selectedFeature?.properties?.thumbnail && (
+                      {features.selectedFeature?.properties?.thumbnail && (
                         <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
                             Thumbnail saat ini:
                           </p>
                           <img
                             src={`${
-                              selectedFeature?.properties?.thumbnail?.startsWith(
+                              features.selectedFeature?.properties?.thumbnail?.startsWith(
                                 "http"
                               )
                                 ? ""
                                 : "/"
                             }${
-                              selectedFeature?.properties?.thumbnail
+                              features.selectedFeature?.properties?.thumbnail
                             }?v=${Date.now()}`}
                             alt="Current thumbnail"
                             className="w-20 h-20 object-cover rounded-lg border"
@@ -9133,15 +9022,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
                 )}
 
-                {isEditingName && (
+                {edit.isEditingName && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Nama Bangunan
                     </label>
                     <input
                       type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
+                      value={edit.editName}
+                      onChange={(e) => edit.setEditName(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                       placeholder="Masukkan nama bangunan"
                       autoFocus
@@ -9150,14 +9039,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
                 )}
 
-                {isEditingInteraksi && (
+                {edit.isEditingInteraksi && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Status Interaksi
                     </label>
                     <select
-                      value={editInteraksi}
-                      onChange={(e) => setEditInteraksi(e.target.value)}
+                      value={edit.editInteraksi}
+                      onChange={(e) => edit.setEditInteraksi(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
                       <option value="Interaktif">Interaktif</option>
@@ -9167,23 +9056,23 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
                 )}
 
-                {isEditingLantai && (
+                {edit.isEditingLantai && (
                   <EditLantaiImageUploader
                     visible={true}
                     isDark={isDark}
-                    lantaiCount={selectedFeature?.properties?.lantai || 0}
-                    selectedLantaiFilter={selectedLantaiFilter}
-                    onChangeLantaiFilter={setSelectedLantaiFilter}
-                    lantaiGambarData={lantaiGambarData}
-                    lantaiFiles={lantaiFiles}
-                    lantaiPreviewUrls={lantaiPreviewUrls}
+                    lantaiCount={features.selectedFeature?.properties?.lantai || 0}
+                    selectedLantaiFilter={lantai.selectedLantaiFilter}
+                    onChangeLantaiFilter={lantai.setSelectedLantaiFilter}
+                    lantaiGambarData={lantai.lantaiGambarData}
+                    lantaiFiles={lantai.lantaiFiles}
+                    lantaiPreviewUrls={lantai.lantaiPreviewUrls}
                     onChooseFile={(lantaiNumber: number, file: File) => {
-                      setLantaiFiles((prev) => ({
+                      lantai.setLantaiFiles((prev) => ({
                         ...prev,
                         [lantaiNumber]: file,
                       }));
                       const url = URL.createObjectURL(file);
-                      setLantaiPreviewUrls((prev) => ({
+                      lantai.setLantaiPreviewUrls((prev) => ({
                         ...prev,
                         [lantaiNumber]: url,
                       }));
@@ -9195,22 +9084,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     onEditExistingRuangan={handleEditExistingRuangan}
                     onDeleteRuangan={handleDeleteRuangan}
                     onBuatRuangan={(lantaiNumber: number) => {
-                      setSelectedLantaiForRuangan(lantaiNumber);
-                      setRuanganForm((prev) => ({
+                      lantai.setSelectedLantaiForRuangan(lantaiNumber);
+                      ruangan.setRuanganForm((prev) => ({
                         ...prev,
                         nomor_lantai: lantaiNumber,
                         posisi_x: null,
                         posisi_y: null,
                       }));
-                      setShowRuanganModal(true);
+                      ui.setShowRuanganModal(true);
                     }}
-                    savedLantaiFiles={savedLantaiFiles}
-                    ruanganList={ruanganList}
+                    savedLantaiFiles={lantai.savedLantaiFiles}
+                    ruanganList={ruangan.ruanganList}
                     onDeleteLantai={handleDeleteLantai}
                     onEditLantai={(lantaiNumber) => {
                       // Buka modal edit lantai dengan file picker
-                      setSelectedLantaiForEdit(lantaiNumber);
-                      setShowEditLantaiModal(true);
+                      lantai.setSelectedLantaiForEdit(lantaiNumber);
+                      ui.setShowEditLantaiModal(true);
                     }}
                   />
                 )}
@@ -9219,35 +9108,35 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <button
                     onClick={handleSaveEdit}
                     disabled={(() => {
-                      let disabled = isSaving;
+                      let disabled = loading.isSaving;
 
                       // Nama and Interaksi are now optional - removed validation
 
-                      if (isEditingThumbnail) {
-                        disabled = disabled || !selectedFile;
+                      if (edit.isEditingThumbnail) {
+                        disabled = disabled || !edit.selectedFile;
                       }
 
-                      if (isEditingLantai) {
+                      if (edit.isEditingLantai) {
                         // Lantai editing tidak memerlukan validasi khusus karena menggunakan tombol simpan individual
                         // disabled = disabled || false; // Selalu false
                       }
 
                       // Interaksi is now optional - removed validation
-                      // if (isEditingInteraksi) {
-                      //   disabled = disabled || !editInteraksi;
+                      // if (edit.isEditingInteraksi) {
+                      //   disabled = disabled || !edit.editInteraksi;
                       // }
 
                       // Combined validation for nama and interaksi is now optional
-                      // if (isEditingName && isEditingInteraksi) {
+                      // if (edit.isEditingName && edit.isEditingInteraksi) {
                       //   disabled =
-                      //     disabled || !editName.trim() || !editInteraksi;
+                      //     disabled || !edit.editName.trim() || !edit.editInteraksi;
                       // }
 
                       return disabled;
                     })()}
                     className="flex-1 px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {isSaving ? (
+                    {loading.isSaving ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         Menyimpan...
@@ -9283,38 +9172,38 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* Modal Buat/Edit Ruangan */}
         <EditRuanganForm
-          visible={showRuanganModal}
+          visible={ui.showRuanganModal}
           isDark={!!isDark}
-          selectedRuanganForEdit={selectedRuanganForEdit}
-          selectedLantaiForRuangan={selectedLantaiForRuangan}
-          ruanganForm={ruanganForm as any}
-          maxLantai={selectedFeature?.properties?.lantai || 1}
-          isSaving={isSaving}
+          selectedRuanganForEdit={ruangan.selectedRuanganForEdit}
+          selectedLantaiForRuangan={lantai.selectedLantaiForRuangan}
+          ruanganForm={ruangan.ruanganForm as any}
+          maxLantai={features.selectedFeature?.properties?.lantai || 1}
+          isSaving={loading.isSaving}
           onChange={(partial) =>
-            setRuanganForm((prev) => ({ ...prev, ...partial }))
+            ruangan.setRuanganForm((prev) => ({ ...prev, ...partial }))
           }
           onSave={handleSaveRuangan}
           onUpdate={handleUpdateRuangan}
-          onClose={() => setShowRuanganModal(false)}
-          onOpenPinPicker={() => setShowPinPositionModal(true)}
+          onClose={() => ui.setShowRuanganModal(false)}
+          onOpenPinPicker={() => ui.setShowPinPositionModal(true)}
         />
 
         {/* Modal Pilih Posisi Pin */}
-        {showPinPositionModal && (
+        {ui.showPinPositionModal && (
           <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
             style={{
-              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             }}
           >
             <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
               {/* Header - Fixed */}
               <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Pilih Posisi Pin - Lantai {selectedLantaiForRuangan}
+                  Pilih Posisi Pin - Lantai {lantai.selectedLantaiForRuangan}
                 </h3>
                 <button
-                  onClick={() => setShowPinPositionModal(false)}
+                  onClick={() => ui.setShowPinPositionModal(false)}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
                   <i className="fas fa-times text-lg"></i>
@@ -9354,10 +9243,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 {/* SVG Container dengan click handler */}
                 <div className="relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-700">
                   {(() => {
-                    const existingLantai = lantaiGambarData.find((l) => {
+                    const existingLantai = lantai.lantaiGambarData.find((l) => {
                       const match = l.nama_file.match(/Lt(\d+)\.svg/i);
                       const extractedNumber = match ? parseInt(match[1]) : null;
-                      return extractedNumber === selectedLantaiForRuangan;
+                      return extractedNumber === lantai.selectedLantaiForRuangan;
                     });
 
                     if (!existingLantai) {
@@ -9366,7 +9255,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           <div className="text-center">
                             <i className="fas fa-exclamation-triangle text-gray-400 text-3xl mb-2"></i>
                             <p className="text-gray-500 dark:text-gray-400">
-                              Gambar SVG untuk lantai {selectedLantaiForRuangan}{" "}
+                              Gambar SVG untuk lantai {lantai.selectedLantaiForRuangan}{" "}
                               tidak ditemukan
                             </p>
                           </div>
@@ -9382,7 +9271,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               ? ""
                               : "/"
                           }${existingLantai.path_file}?v=${Date.now()}`}
-                          alt={`Lantai ${selectedLantaiForRuangan}`}
+                          alt={`Lantai ${lantai.selectedLantaiForRuangan}`}
                           className="w-full h-auto cursor-crosshair"
                           onClick={(e) => {
                             const rect =
@@ -9396,19 +9285,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               100
                             ).toFixed(2);
 
-                            setRuanganForm((prev) => ({
+                            ruangan.setRuanganForm((prev) => ({
                               ...prev,
                               posisi_x: parseFloat(x),
                               posisi_y: parseFloat(y),
                             }));
                           }}
                         />
-                        {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                        {ruangan.ruanganForm.posisi_x && ruangan.ruanganForm.posisi_y && (
                           <div
                             className="absolute transform -translate-x-1/2 -translate-y-full pointer-events-none"
                             style={{
-                              left: `${ruanganForm.posisi_x}%`,
-                              top: `${ruanganForm.posisi_y}%`,
+                              left: `${ruangan.ruanganForm.posisi_x}%`,
+                              top: `${ruangan.ruanganForm.posisi_y}%`,
                             }}
                           >
                             {/* Pin marker berdasarkan style yang dipilih */}
@@ -9417,7 +9306,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               <div className="flex items-center justify-center hover:scale-110 transition-all duration-200">
                                 {(() => {
                                   const pinStyle =
-                                    ruanganForm.pin_style || "default";
+                                    ruangan.ruanganForm.pin_style || "default";
                                   const pinConfig = {
                                     default: {
                                       hexColor: "#9e9e9e",
@@ -9470,10 +9359,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                   Pin Posisi
                                 </div>
                                 <div className="text-center text-gray-200">
-                                  X: {ruanganForm.posisi_x}%
+                                  X: {ruangan.ruanganForm.posisi_x}%
                                 </div>
                                 <div className="text-center text-gray-200">
-                                  Y: {ruanganForm.posisi_y}%
+                                  Y: {ruangan.ruanganForm.posisi_y}%
                                 </div>
                                 <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                               </div>
@@ -9485,7 +9374,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   })()}
                 </div>
 
-                {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                {ruangan.ruanganForm.posisi_x && ruangan.ruanganForm.posisi_y && (
                   <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                     <div className="flex items-start">
                       <i className="fas fa-check-circle text-green-600 dark:text-green-400 mr-3 text-lg mt-0.5"></i>
@@ -9496,8 +9385,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         <p className="text-sm text-green-700 dark:text-green-300">
                           Koordinat pin telah disimpan:{" "}
                           <strong>
-                            X = {ruanganForm.posisi_x}%, Y =&nbsp;
-                            {ruanganForm.posisi_y}%
+                            X = {ruangan.ruanganForm.posisi_x}%, Y =&nbsp;
+                            {ruangan.ruanganForm.posisi_y}%
                           </strong>
                         </p>
                         <p className="text-xs text-green-600 dark:text-green-400 mt-1">
@@ -9513,14 +9402,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               {/* Footer - Fixed */}
               <div className="flex gap-2 p-6 border-t border-gray-200 dark:border-gray-700">
                 <button
-                  onClick={() => setShowPinPositionModal(false)}
+                  onClick={() => ui.setShowPinPositionModal(false)}
                   className="flex-1 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
                 >
                   Tutup
                 </button>
-                {ruanganForm.posisi_x && ruanganForm.posisi_y && (
+                {ruangan.ruanganForm.posisi_x && ruangan.ruanganForm.posisi_y && (
                   <button
-                    onClick={() => setShowPinPositionModal(false)}
+                    onClick={() => ui.setShowPinPositionModal(false)}
                     className="flex-1 px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
                   >
                     <i className="fas fa-check mr-2"></i>
@@ -9537,14 +9426,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {/* Area Map/Canvas: tampilkan peta atau 3D Mall Map sesuai state */}
         <div
-          ref={mapRef}
+          ref={mapRefs.mapRef}
           style={{
             width: "100%",
             height: "100%",
             minHeight: 300,
             zIndex: 1,
-            cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
-            display: showBuildingDetailCanvas ? "none" : "block",
+            cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+            display: ui.showBuildingDetailCanvas ? "none" : "block",
             touchAction: "none",
             WebkitTouchCallout: "none",
             userSelect: "none",
@@ -9558,14 +9447,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           isDark={!!isDark}
           isDashboard={isDashboard}
           onDrawingModeChange={handleDrawingModeChange}
-          externalActiveMode={drawingMode}
+          externalActiveMode={drawing.drawingMode}
           isConfirmationActive={
-            isEditingShape || showDragConfirmation || showShapeSwitchModal
+            drawing.isEditingShape || drawing.showDragConfirmation || ui.showShapeSwitchModal
           }
         />
 
         {/* Edit Confirmation Buttons - Only show when editing a shape */}
-        {isEditingShape && (
+        {drawing.isEditingShape && (
           <div className="absolute top-4 right-4 z-30 flex gap-2">
             <button
               onClick={handleSaveEditConfirmation}
@@ -9611,7 +9500,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         )}
 
         {/* Shape Switch Confirmation Modal */}
-        {showShapeSwitchModal && (
+        {ui.showShapeSwitchModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4 shadow-xl">
               <div className="flex items-center mb-4">
@@ -9666,7 +9555,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         )}
 
         {/* Drag Confirmation Buttons - Only show when dragging a shape */}
-        {showDragConfirmation && (
+        {drawing.showDragConfirmation && (
           <div className="absolute top-4 right-4 z-30 flex gap-2">
             <button
               onClick={handleConfirmDrag}
@@ -9711,22 +9600,22 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {showBuildingDetailCanvas && (
+        {ui.showBuildingDetailCanvas && (
           <div
             className={`absolute inset-0 w-full h-full flex flex-col z-[20] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
-              isBuildingDetailFadingOut
+              animation.isBuildingDetailFadingOut
                 ? "opacity-0"
-                : isBuildingDetailFadingIn
+                : animation.isBuildingDetailFadingIn
                 ? "opacity-0 animate-fade-in"
                 : "opacity-100"
             }`}
             style={{
-              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             }}
           >
             <iframe
               src={`/building-details/index.html?id=${
-                selectedFeature?.properties?.id || "45"
+                features.selectedFeature?.properties?.id || "45"
               }&apiUrl=${encodeURIComponent(
                 process.env.NEXT_PUBLIC_API_BASE_URL as string
               )}`}
@@ -9734,32 +9623,32 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               className="w-full h-full border-0"
               style={{
                 minHeight: "300px",
-                cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+                cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
               }}
             />
           </div>
         )}
 
         {/* MODAL RUTE (di dalam canvas) */}
-        {showRouteModal && (
+        {ui.showRouteModal && (
           <div
             data-modal="route-modal"
             className="absolute inset-0 z-[25] flex items-center justify-center"
             style={{
-              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             }}
           >
             {/* Overlay */}
             <div
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setShowRouteModal(false)}
+              onClick={() => ui.setShowRouteModal(false)}
             />
             {/* Modal */}
             <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 z-[26] animate-fadeInUp">
               {/* Tombol tutup */}
               <button
                 className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl focus:outline-none"
-                onClick={() => setShowRouteModal(false)}
+                onClick={() => ui.setShowRouteModal(false)}
                 title="Tutup"
               >
                 ×
@@ -9825,19 +9714,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       type="button"
                       className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-left flex items-center justify-between"
                       onClick={() =>
-                        setIsStartDropdownOpen(!isStartDropdownOpen)
+                        routing.setIsStartDropdownOpen(!routing.isStartDropdownOpen)
                       }
                     >
                       <span>
-                        {routeStartType === "my-location"
+                        {routing.routeStartType === "my-location"
                           ? isGettingLocation
                             ? "📍 Mendapatkan Lokasi..."
                             : "📍 Lokasi Saya"
                           : (() => {
-                              const selectedTitik = titikFeatures.find(
+                              const selectedTitik = features.titikFeatures.find(
                                 (t: any) =>
                                   String(t.id || t.properties?.OBJECTID) ===
-                                  String(routeStartId)
+                                  String(routing.routeStartId)
                               );
                               return selectedTitik
                                 ? selectedTitik.properties?.Nama ||
@@ -9850,7 +9739,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       </span>
                       <svg
                         className={`w-4 h-4 transition-transform ${
-                          isStartDropdownOpen ? "rotate-180" : ""
+                          routing.isStartDropdownOpen ? "rotate-180" : ""
                         }`}
                         fill="none"
                         stroke="currentColor"
@@ -9865,7 +9754,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       </svg>
                     </button>
 
-                    {isStartDropdownOpen && (
+                    {routing.isStartDropdownOpen && (
                       <div
                         className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 dropdown-list"
                         onWheel={(e) => {
@@ -9896,16 +9785,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           type="button"
                           className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-100 dark:border-gray-700"
                           onClick={() => {
-                            setRouteStartType("my-location");
-                            setRouteStartId("");
-                            setIsStartDropdownOpen(false);
+                            routing.setRouteStartType("my-location");
+                            routing.setRouteStartId("");
+                            routing.setIsStartDropdownOpen(false);
                           }}
                         >
                           {isGettingLocation
                             ? "📍 Mendapatkan Lokasi..."
                             : "📍 Lokasi Saya"}
                         </button>
-                        {titikFeatures
+                        {features.titikFeatures
                           .filter((t: any) => {
                             const nama = t.properties?.Nama || "";
                             const lowerNama = nama.toLowerCase();
@@ -9941,11 +9830,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               type="button"
                               className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
                               onClick={() => {
-                                setRouteStartType("titik");
-                                setRouteStartId(
+                                routing.setRouteStartType("titik");
+                                routing.setRouteStartId(
                                   String(t.id || t.properties?.OBJECTID)
                                 );
-                                setIsStartDropdownOpen(false);
+                                routing.setIsStartDropdownOpen(false);
                               }}
                             >
                               {t.properties?.Nama ||
@@ -9961,13 +9850,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <label className="block text-sm font-medium mb-1">
                     Titik Tujuan
                   </label>
-                  {routeEndType === "bangunan" && routeEndId ? (
+                  {routing.routeEndType === "bangunan" && routing.routeEndId ? (
                     // Tampilkan bangunan yang dipilih (dari klik bangunan)
                     <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                       <span className="font-medium">
                         {(() => {
-                          const b = bangunanFeatures.find(
-                            (b: FeatureType) => b.properties.id == routeEndId
+                          const b = features.bangunanFeatures.find(
+                            (b: FeatureType) => b.properties.id == routing.routeEndId
                           );
                           return b ? b.properties.nama : "Bangunan";
                         })()}
@@ -9979,31 +9868,31 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       <input
                         type="text"
                         className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        value={routeEndSearchText}
+                        value={routing.routeEndSearchText}
                         onChange={(e) => {
                           const searchText = e.target.value;
-                          setRouteEndSearchText(searchText);
+                          routing.setRouteEndSearchText(searchText);
                           if (searchText.trim()) {
                             const results = searchTitikByName(searchText);
-                            setRouteEndSearchResults(results);
+                            routing.setRouteEndSearchResults(results);
                           } else {
-                            setRouteEndSearchResults([]);
+                            routing.setRouteEndSearchResults([]);
                           }
                         }}
                         placeholder="Cari nama titik tujuan..."
                       />
                       {/* Dropdown hasil pencarian */}
-                      {routeEndSearchResults.length > 0 && (
+                      {routing.routeEndSearchResults.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto z-50">
-                          {routeEndSearchResults.map((point) => (
+                          {routing.routeEndSearchResults.map((point) => (
                             <button
                               key={point.id}
                               type="button"
                               className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
                               onClick={() => {
-                                setRouteEndSearchText(point.name);
-                                setRouteEndType("titik");
-                                setRouteEndSearchResults([]);
+                                routing.setRouteEndSearchText(point.name);
+                                routing.setRouteEndType("titik");
+                                routing.setRouteEndSearchResults([]);
                               }}
                             >
                               {point.name}
@@ -10017,9 +9906,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 {/* Tombol submit */}
                 <button
                   type="submit"
-                  disabled={isGettingLocation || isCalculatingRoute}
+                  disabled={isGettingLocation || loading.isCalculatingRoute}
                   className={`w-full py-2 rounded-lg font-bold mt-2 transition-all ${
-                    isGettingLocation || isCalculatingRoute
+                    isGettingLocation || loading.isCalculatingRoute
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-primary text-white hover:bg-primary/90"
                   }`}
@@ -10029,7 +9918,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Mendapatkan Lokasi GPS...
                     </div>
-                  ) : isCalculatingRoute ? (
+                  ) : loading.isCalculatingRoute ? (
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       Menghitung Rute...
@@ -10132,11 +10021,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         )}
 
         {/* Modal Tambah Lantai */}
-        {showTambahLantaiModal && (
+        {ui.showTambahLantaiModal && (
           <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
             style={{
-              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             }}
           >
             <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
@@ -10167,7 +10056,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       Upload File SVG Lantai *
                     </label>
                     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
-                      {!tambahLantaiFile ? (
+                      {!lantai.tambahLantaiFile ? (
                         <div>
                           <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
                           <p className="text-gray-600 dark:text-gray-400 mb-2">
@@ -10195,12 +10084,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         <div>
                           <i className="fas fa-check-circle text-4xl text-green-500 mb-4"></i>
                           <p className="text-gray-600 dark:text-gray-400 mb-2">
-                            File dipilih: {tambahLantaiFile.name}
+                            File dipilih: {lantai.tambahLantaiFile.name}
                           </p>
                           <button
                             onClick={() => {
-                              setTambahLantaiFile(null);
-                              setTambahLantaiPreviewUrl(null);
+                              lantai.setTambahLantaiFile(null);
+                              lantai.setTambahLantaiPreviewUrl(null);
                             }}
                             className="text-red-600 hover:text-red-700 text-sm"
                           >
@@ -10213,14 +10102,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
 
                   {/* Preview */}
-                  {tambahLantaiPreviewUrl && (
+                  {lantai.tambahLantaiPreviewUrl && (
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Preview SVG
                       </label>
                       <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
                         <img
-                          src={tambahLantaiPreviewUrl}
+                          src={lantai.tambahLantaiPreviewUrl}
                           alt="Preview SVG"
                           className="w-full h-48 object-contain"
                         />
@@ -10265,10 +10154,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 </button>
                 <button
                   onClick={handleSaveTambahLantai}
-                  disabled={!tambahLantaiFile || isSaving}
+                  disabled={!lantai.tambahLantaiFile || loading.isSaving}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                 >
-                  {isSaving ? (
+                  {loading.isSaving ? (
                     <>
                       <i className="fas fa-spinner fa-spin mr-1"></i>
                       Menyimpan...
@@ -10286,21 +10175,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         )}
 
         {/* Modal Edit Lantai */}
-        {showEditLantaiModal && (
+        {ui.showEditLantaiModal && (
           <div
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]"
             style={{
-              cursor: drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
             }}
           >
             <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Edit Gambar Lantai {selectedLantaiForEdit}
+                  Edit Gambar Lantai {lantai.selectedLantaiForEdit}
                 </h3>
                 <button
-                  onClick={() => setShowEditLantaiModal(false)}
+                  onClick={() => ui.setShowEditLantaiModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <i className="fas fa-times text-xl"></i>
@@ -10322,9 +10211,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            setTambahLantaiFile(file);
+                            lantai.setTambahLantaiFile(file);
                             const url = URL.createObjectURL(file);
-                            setTambahLantaiPreviewUrl(url);
+                            lantai.setTambahLantaiPreviewUrl(url);
                           }
                         }}
                         className="hidden"
@@ -10346,14 +10235,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   </div>
 
                   {/* Preview */}
-                  {tambahLantaiPreviewUrl && (
+                  {lantai.tambahLantaiPreviewUrl && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Preview
                       </label>
                       <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
                         <img
-                          src={tambahLantaiPreviewUrl}
+                          src={lantai.tambahLantaiPreviewUrl}
                           alt="Preview SVG"
                           className="w-full h-32 object-contain"
                         />
@@ -10367,9 +10256,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => {
-                    setShowEditLantaiModal(false);
-                    setTambahLantaiFile(null);
-                    setTambahLantaiPreviewUrl(null);
+                    ui.setShowEditLantaiModal(false);
+                    lantai.setTambahLantaiFile(null);
+                    lantai.setTambahLantaiPreviewUrl(null);
                   }}
                   className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
                 >
@@ -10377,10 +10266,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 </button>
                 <button
                   onClick={async () => {
-                    if (tambahLantaiFile && selectedLantaiForEdit) {
+                    if (lantai.tambahLantaiFile && lantai.selectedLantaiForEdit) {
                       try {
                         // Set loading state
-                        setIsSaving(true);
+                        loading.setIsSaving(true);
 
                         // Update gambar lantai dengan file baru
                         const token = localStorage.getItem("token");
@@ -10394,10 +10283,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         }
 
                         // Hapus gambar lama dari database dan Cloudinary
-                        if (selectedFeature?.properties?.id) {
-                          const lantaiData = lantaiGambarData.find(
+                        if (features.selectedFeature?.properties?.id) {
+                          const lantaiData = lantai.lantaiGambarData.find(
                             (lantai: any) =>
-                              lantai.nomor_lantai === selectedLantaiForEdit
+                              lantai.nomor_lantai === lantai.selectedLantaiForEdit
                           );
 
                           if (lantaiData) {
@@ -10416,38 +10305,38 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                         // Tambah gambar baru
                         const formData = new FormData();
-                        formData.append("gambar_lantai", tambahLantaiFile);
+                        formData.append("gambar_lantai", lantai.tambahLantaiFile);
                         formData.append(
                           "nomor_lantai",
-                          selectedLantaiForEdit.toString()
+                          lantai.selectedLantaiForEdit.toString()
                         );
                         formData.append(
                           "id_bangunan",
-                          String(selectedFeature?.properties?.id)
+                          String(features.selectedFeature?.properties?.id)
                         );
 
                         await createLantaiGambar(
                           {
-                            file: tambahLantaiFile,
-                            lantaiNumber: selectedLantaiForEdit,
-                            bangunanId: Number(selectedFeature?.properties?.id),
+                            file: lantai.tambahLantaiFile,
+                            lantaiNumber: lantai.selectedLantaiForEdit,
+                            bangunanId: Number(features.selectedFeature?.properties?.id),
                           },
                           token
                         );
 
                         // Refresh data lantai gambar agar langsung terlihat
-                        if (selectedFeature?.properties?.id) {
+                        if (features.selectedFeature?.properties?.id) {
                           await refreshLantaiData();
                         }
 
-                        setShowEditLantaiModal(false);
-                        setTambahLantaiFile(null);
-                        setTambahLantaiPreviewUrl(null);
+                        ui.setShowEditLantaiModal(false);
+                        lantai.setTambahLantaiFile(null);
+                        lantai.setTambahLantaiPreviewUrl(null);
 
                         showNotification(
                           "success",
                           "Berhasil",
-                          `Gambar lantai ${selectedLantaiForEdit} berhasil diperbarui!`
+                          `Gambar lantai ${lantai.selectedLantaiForEdit} berhasil diperbarui!`
                         );
                       } catch (error) {
                         showNotification(
@@ -10457,14 +10346,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         );
                       } finally {
                         // Reset loading state
-                        setIsSaving(false);
+                        loading.setIsSaving(false);
                       }
                     }
                   }}
-                  disabled={!tambahLantaiFile || isSaving}
+                  disabled={!lantai.tambahLantaiFile || loading.isSaving}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                 >
-                  {isSaving ? (
+                  {loading.isSaving ? (
                     <>
                       <i className="fas fa-spinner fa-spin mr-1"></i>
                       Menyimpan...
