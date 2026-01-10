@@ -1,9 +1,9 @@
+/* Geoman Leaflet Styles */
+@import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Geoman Leaflet Styles */
-@import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
 /* Google Translate customization - Hide the banner */
 .goog-te-banner-frame {
@@ -713,4 +713,3 @@ html > body > .skiptranslate {
   background-color: #4b5563;
   color: #f9fafb;
 }
-
