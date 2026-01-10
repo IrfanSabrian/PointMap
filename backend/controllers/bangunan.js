@@ -31,19 +31,40 @@ export const getBangunanById = async (req, res) => {
   }
 };
 
-// CREATE bangunan baru (DISABLED - hanya untuk edit)
-export const addBangunan = async (req, res) => {
-  res.status(403).json({
-    error: "Akses ditolak",
-    message: "Tidak dapat menambah bangunan baru. Gunakan fitur edit saja.",
-  });
+// CREATE bangunan baru
+export const createBangunan = async (req, res) => {
+  try {
+    const { nama, interaksi, lantai, geometri } = req.body;
+
+    // Validasi data wajib
+    if (!nama || !geometri) {
+      return res.status(400).json({
+        error: "Nama bangunan dan data geometri wajib diisi",
+      });
+    }
+
+    const newBangunan = await Bangunan.create({
+      nama,
+      interaksi: interaksi || "Noninteraktif",
+      lantai: lantai || 1,
+      geometri:
+        typeof geometri === "string" ? geometri : JSON.stringify(geometri),
+    });
+
+    res.status(201).json({
+      message: "Bangunan berhasil dibuat",
+      data: newBangunan,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // UPDATE bangunan
 export const updateBangunan = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nama, interaksi, lantai, thumbnail } = req.body;
+    const { nama, interaksi, lantai, thumbnail, geometri } = req.body;
 
     // Hanya update field yang dikirim (tidak undefined)
     const updateData = {};
@@ -51,6 +72,10 @@ export const updateBangunan = async (req, res) => {
     if (interaksi !== undefined) updateData.interaksi = interaksi;
     if (lantai !== undefined) updateData.lantai = lantai;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+    if (geometri !== undefined) {
+      updateData.geometri =
+        typeof geometri === "string" ? geometri : JSON.stringify(geometri);
+    }
 
     const [updated] = await Bangunan.update(updateData, {
       where: { id_bangunan: id },
@@ -143,12 +168,25 @@ export const uploadThumbnail = async (req, res) => {
   }
 };
 
-// DELETE bangunan (DISABLED - hanya untuk edit)
+// DELETE bangunan
 export const deleteBangunan = async (req, res) => {
-  res.status(403).json({
-    error: "Akses ditolak",
-    message: "Tidak dapat menghapus bangunan. Gunakan fitur edit saja.",
-  });
+  try {
+    const id = req.params.id;
+
+    const deleted = await Bangunan.destroy({
+      where: { id_bangunan: id },
+    });
+
+    if (deleted) {
+      res.json({
+        message: "Bangunan berhasil dihapus",
+      });
+    } else {
+      res.status(404).json({ error: "Bangunan tidak ditemukan" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 export const getBangunanGeoJSON = async (req, res) => {

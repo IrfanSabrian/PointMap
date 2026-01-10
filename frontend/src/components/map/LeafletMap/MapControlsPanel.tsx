@@ -7,7 +7,6 @@ import {
   faGlobe,
   faLayerGroup,
   faChevronLeft,
-  faLocation,
   faEye,
   faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
@@ -26,16 +25,13 @@ type Props = {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onReset: () => void;
-  onLocateMe: () => void;
+
   // layer & basemap
   onToggleLayer: () => void;
   onToggleBasemap: () => void;
   // layer control props
-  jalurVisible: boolean;
-  titikVisible: boolean;
+
   bangunanVisible: boolean;
-  onToggleJalur: (visible: boolean) => void;
-  onToggleTitik: (visible: boolean) => void;
   onToggleBangunan: (visible: boolean) => void;
   // search
   searchText: string;
@@ -64,14 +60,9 @@ export default function MapControlsPanel(props: Props) {
     onZoomIn,
     onZoomOut,
     onReset,
-    onLocateMe,
     onToggleLayer,
     onToggleBasemap,
-    jalurVisible,
-    titikVisible,
     bangunanVisible,
-    onToggleJalur,
-    onToggleTitik,
     onToggleBangunan,
     searchText,
     onSearchTextChange,
@@ -376,22 +367,6 @@ export default function MapControlsPanel(props: Props) {
               className="w-3 h-3 sm:w-4 sm:h-4"
             />
           </button>
-          <button
-            data-control="locate-me"
-            onClick={onLocateMe}
-            aria-label="Lokasi Saya"
-            title="Lokasi Saya"
-            className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
-              isDark
-                ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-                : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
-            }`}
-          >
-            <FontAwesomeIcon
-              icon={faLocation}
-              className="w-3 h-3 sm:w-4 sm:h-4"
-            />
-          </button>
         </div>
 
         {/* Legend Box */}
@@ -443,50 +418,6 @@ export default function MapControlsPanel(props: Props) {
             </div>
 
             <div className="space-y-2 text-xs sm:text-sm">
-              {/* Titik Layer Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-sm"></div>
-                  <span>Titik</span>
-                </div>
-                <button
-                  onClick={() => onToggleTitik(!titikVisible)}
-                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded transition-colors flex items-center justify-center ${
-                    titikVisible
-                      ? "bg-red-500 hover:bg-red-600 text-white"
-                      : "bg-gray-400 hover:bg-gray-500 text-white"
-                  }`}
-                  title={titikVisible ? "Sembunyikan Titik" : "Tampilkan Titik"}
-                >
-                  <FontAwesomeIcon
-                    icon={titikVisible ? faEye : faEyeSlash}
-                    className="w-2.5 h-2.5 sm:w-3 sm:h-3"
-                  />
-                </button>
-              </div>
-
-              {/* Jalur Layer Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-black rounded-sm"></div>
-                  <span>Jalur</span>
-                </div>
-                <button
-                  onClick={() => onToggleJalur(!jalurVisible)}
-                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded transition-colors flex items-center justify-center ${
-                    jalurVisible
-                      ? "bg-black hover:bg-gray-800 text-white"
-                      : "bg-gray-400 hover:bg-gray-500 text-white"
-                  }`}
-                  title={jalurVisible ? "Sembunyikan Jalur" : "Tampilkan Jalur"}
-                >
-                  <FontAwesomeIcon
-                    icon={jalurVisible ? faEye : faEyeSlash}
-                    className="w-2.5 h-2.5 sm:w-3 sm:h-3"
-                  />
-                </button>
-              </div>
-
               {/* Building Layer Toggle */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

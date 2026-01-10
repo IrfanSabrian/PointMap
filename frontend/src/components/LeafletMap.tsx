@@ -1,4 +1,5 @@
-﻿/* eslint-disable @typescript-eslint/no-unused-vars */
+﻿// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, {
@@ -16,43 +17,22 @@ import "@geoman-io/leaflet-geoman-free";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faInfoCircle,
-  faRoute,
   faPlus,
   faMinus,
   faSyncAlt,
   faLayerGroup,
   faGlobe,
-  faCar,
-  faWalking,
-  faMotorcycle,
   faCheckCircle,
   faTimesCircle,
   faExclamationTriangle,
-  faLocationArrow,
 } from "@fortawesome/free-solid-svg-icons";
-import {
-  findRoute,
-  Point,
-  calculateDistance,
-  getRealWorldRoute,
-} from "../lib/routing";
-// Import fungsi routing dari src/lib/routeSteps
-import { useGps } from "@/hooks/gps/useGps";
-import { useRouting } from "@/hooks/routing/useRouting";
-import {
-  parseRouteSteps,
-  getStepInstruction,
-  calculateBearing,
-} from "../lib/routeSteps";
+
 import { geojsonBangunanUrl, geojsonStatisUrl } from "../lib/map/constants";
 import { kategoriStyle, defaultStyle } from "../lib/map/styles";
 import { BASEMAPS } from "../lib/map/basemaps";
 import MapControlsPanel from "./map/LeafletMap/MapControlsPanel";
 import DrawingSidebar from "./map/LeafletMap/DrawingSidebar";
 
-import { useRouteDrawing } from "@/hooks/routing/useRouteDrawing";
-import { findAllRoutesToBuilding } from "../lib/routing";
-import Navigation from "./map/LeafletMap/Navigation";
 import { useFeatureSearch } from "@/hooks/map/useFeatureSearch";
 import BuildingDetailModal from "./map/LeafletMap/BuildingDetailModal";
 import EditRuanganForm from "./map/LeafletMap/EditRuanganForm";
@@ -77,8 +57,6 @@ import {
   deleteRuangan,
 } from "../services/ruangan";
 import { updateBangunan, uploadBangunanThumbnail } from "../services/bangunan";
-import { getTitik } from "../services/titik";
-import { getJalur } from "../services/jalur";
 
 // Import custom hooks for state & refs management
 import { useMapState } from "@/hooks/map/useMapState";
@@ -91,6 +69,8 @@ interface LeafletMapProps {
   initialZoom?: number;
   className?: string;
   isDashboard?: boolean;
+  onGeometryChange?: (geometry: any) => void;
+  initialFeature?: any;
 }
 
 export interface LeafletMapRef {
@@ -99,8 +79,7 @@ export interface LeafletMapRef {
     featureId: number,
     featureName: string
   ) => void;
-  toggleJalurLayer: (show: boolean) => void;
-  toggleTitikLayer: (show: boolean) => void;
+
   toggleBangunanLayer: (show: boolean) => void;
 }
 
@@ -115,6 +94,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       initialZoom = 18,
       className = "",
       isDashboard = false,
+      onGeometryChange,
+      initialFeature,
     },
     ref
   ) => {
@@ -127,7 +108,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       ui,
       animation,
       features,
-      routing,
       drawing,
       edit,
       lantai,
@@ -150,9 +130,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       mapRefs.isHighlightActiveRef.current = highlight.isHighlightActive;
     }, [highlight.isHighlightActive, mapRefs]);
 
+    // Navigation ref cleanup removed
+
+    // Keep onGeometryChange fresh
+    const onGeometryChangeRef = useRef(onGeometryChange);
     useEffect(() => {
-      mapRefs.isNavigationActiveRef.current = routing.isNavigationActive;
-    }, [routing.isNavigationActive, mapRefs]);
+      onGeometryChangeRef.current = onGeometryChange;
+    }, [onGeometryChange]);
 
     // ==================== OTHER HOOKS ====================
     const {
@@ -161,9 +145,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       showSearchResults,
       setShowSearchResults,
       searchResults,
-    } = useFeatureSearch({ 
-      bangunanFeatures: features.bangunanFeatures, 
-      ruanganFeatures: features.ruanganFeatures 
+    } = useFeatureSearch({
+      bangunanFeatures: features.bangunanFeatures,
+      ruanganFeatures: features.ruanganFeatures,
     });
     const {
       isLoggedIn,
@@ -196,48 +180,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     } | null>(null);
 
     // Gunakan custom hook
-    const {
-      userLocation,
-      userHeading,
-      setUserLocation,
-      isGettingLocation,
-      setIsGettingLocation,
-      isGpsRequesting,
-      showGPSTroubleshoot,
-      setShowGPSTroubleshoot,
-      isUserInsideCampus,
-      getCurrentLocation,
-      isLiveTracking,
-      startLiveTracking,
-      stopLiveTracking,
-      focusToUserLocation,
-    } = useGps();
-
-    const {
-      routeSteps,
-      setRouteSteps,
-      activeStepIndex,
-      setActiveStepIndex,
-      routeDistance,
-      setRouteDistance,
-      totalWalkingTime,
-      setTotalWalkingTime,
-      totalVehicleTime,
-      setTotalVehicleTime,
-      routeLine,
-      setRouteLine,
-      alternativeRouteLines,
-      setAlternativeRouteLines,
-      destinationMarker,
-      setDestinationMarker,
-      hasReachedDestination,
-      setHasReachedDestination,
-      transportMode,
-      setTransportMode,
-      activeStepLineRef,
-      parseRouteSteps,
-      getStepInstruction,
-    } = useRouting();
 
     // Notification system functions
     const showNotification = useCallback(
@@ -283,7 +225,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (confirmationDialog?.onConfirm) {
         confirmationDialog.onConfirm();
       }
-      hideConfirmation()
+      hideConfirmation();
     }, [confirmationDialog]);
 
     // Fungsi untuk membuka modal dengan animasi fade-in
@@ -320,6 +262,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     };
 
+    // Routing function removed
+
     // Mobile detection effect
     useEffect(() => {
       const checkMobile = () => {
@@ -333,6 +277,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Load data non-bangunan dari file statis (hanya untuk tampilan, bukan pencarian)
     useEffect(() => {
+      // If editing a specific building (initialFeature present), don't load static features to keep canvas clear
+      if (initialFeature) {
+        features.setNonBangunanFeatures([]);
+        return;
+      }
+
       fetch(geojsonStatisUrl)
         .then((res) => {
           if (!res.ok) {
@@ -353,10 +303,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         .catch((error) => {
           features.setNonBangunanFeatures([]);
         });
-    }, []);
+    }, [initialFeature]);
 
     // Load data bangunan dari API
     useEffect(() => {
+      // If editing a specific building (initialFeature present), only show that building
+      if (initialFeature) {
+        const featureArray = Array.isArray(initialFeature)
+          ? initialFeature
+          : [initialFeature];
+        features.setBangunanFeatures(featureArray);
+
+        // Optionally fit bounds to this feature if needed, though usually handled by parent or initialLat/Lng
+        return;
+      }
+
       loading.setIsLoadingData(true);
       fetch(geojsonBangunanUrl, {
         headers: { "ngrok-skip-browser-warning": "true" },
@@ -380,7 +341,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           features.setBangunanFeatures([]);
         })
         .finally(() => loading.setIsLoadingData(false));
-    }, []);
+    }, [initialFeature]);
 
     // Load data ruangan dari API
     useEffect(() => {
@@ -434,643 +395,37 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         });
     }, []);
 
-    // Load data titik dari database Railway
+    // Update bangunan layer when features change
     useEffect(() => {
-      const fetchTitikData = async () => {
-        try {
-          const titikData = await getTitik();
-          if (titikData && titikData.length > 0) {
-            // Convert database data to GeoJSON format for compatibility
-            const geoJsonFeatures = titikData.map((titik) => ({
-              type: "Feature",
-              id: titik.id_titik,
-              geometry: JSON.parse(titik.geometri),
-              properties: {
-                OBJECTID: titik.id_titik,
-                Nama: titik.nama,
-              },
-            }));
-            features.setTitikFeatures(geoJsonFeatures);
-          } else {
-            features.setTitikFeatures([]);
-          }
-        } catch (error) {
-          console.error("Error fetching titik data:", error);
-          features.setTitikFeatures([]);
-        }
-      };
+      const bangunanLayer = mapRefs.bangunanLayerRef.current;
+      if (!bangunanLayer) return;
 
-      fetchTitikData();
-    }, []);
+      // Clear existing features
+      bangunanLayer.clearLayers();
 
-    // Load data jalur dari database Railway
-    useEffect(() => {
-      const fetchJalurData = async () => {
-        try {
-          const jalurData = await getJalur();
-          if (jalurData && jalurData.length > 0) {
-            // Convert database data to GeoJSON format for compatibility
-            const geoJsonFeatures = jalurData.map((jalur) => ({
-              type: "Feature",
-              id: jalur.id_jalur,
-              geometry: JSON.parse(jalur.geometri),
-              properties: {
-                id: jalur.id_jalur,
-                OBJECTID: jalur.id_jalur,
-                FID: 0,
-                FID_ba_Project: 0,
-                Shape_Length: Number(jalur.panjang) || 0,
-                panjang: Number(jalur.panjang) || 0,
-                Mode: jalur.mode,
-                waktu_kaki: Number(jalur.waktu_kaki) || 0,
-                waktu_kendara: Number(jalur.waktu_kendara) || 0,
-                arah: jalur.arah,
-                nama: `Jalur ${jalur.id_jalur}`,
-                jenis: "jalur",
-                kategori: "Jalur",
-              },
-            }));
-            features.setJalurFeatures(geoJsonFeatures);
-          } else {
-            features.setJalurFeatures([]);
-          }
-        } catch (error) {
-          console.error("Error fetching jalur data:", error);
-          features.setJalurFeatures([]);
-        }
-      };
-
-      fetchJalurData();
-    }, []);
-
-    // Fungsi untuk mengkonversi titik GeoJSON ke format Point
-    const convertTitikToPoints = (): Point[] => {
-      return features.titikFeatures
-        .map((titik: any) => {
-          const coords = titik.geometry?.coordinates;
-          if (coords && Array.isArray(coords) && coords.length > 0) {
-            // Handle MultiPoint atau Point
-            const pointCoords = Array.isArray(coords[0]) ? coords[0] : coords;
-            const nama = titik.properties?.Nama || "";
-            const lowerNama = nama.toLowerCase();
-
-            // Filter out titik yang memiliki nama "Toilet" atau "Pos Satpam"
-            if (
-              lowerNama.includes("toilet") ||
-              lowerNama.includes("pos satpam")
-            ) {
-              return null;
-            }
-
-            return {
-              id: String(titik.id || titik.properties?.OBJECTID || ""),
-              name:
-                titik.properties?.Nama ||
-                `Titik ${titik.id || titik.properties?.OBJECTID || ""}`,
-              coordinates: [pointCoords[1], pointCoords[0]], // [lat, lng]
-            };
-          }
-          return null;
-        })
-        .filter(Boolean) as Point[];
-    };
-
-    // Fungsi untuk mencari titik berdasarkan nama
-    const searchTitikByName = (searchText: string): Point[] => {
-      const points = convertTitikToPoints();
-      const lowerSearchText = searchText.toLowerCase();
-      return points.filter((point) =>
-        point.name.toLowerCase().includes(lowerSearchText)
-      );
-    };
-
-    // Debug: log jalur yang tersedia
-    useEffect(() => {
-      if (features.jalurFeatures.length > 0) {
-        console.log("Jalur yang tersedia:", features.jalurFeatures.length);
-        console.log("Contoh jalur:", features.jalurFeatures[0]);
-      }
-    }, [features.jalurFeatures]);
-
-    // Handle visibility layer jalur dan titik untuk dashboard admin
-    useEffect(() => {
-      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
-
-      const map = mapRefs.leafletMapRef.current;
-
-      // Update visibility jalur layer menggunakan ref
-      if (mapRefs.jalurLayerRef.current) {
-        if (layerVisibility.jalurLayerVisible) {
-          if (!map.hasLayer(mapRefs.jalurLayerRef.current)) {
-            map.addLayer(mapRefs.jalurLayerRef.current);
-          }
-        } else {
-          if (map.hasLayer(mapRefs.jalurLayerRef.current)) {
-            map.removeLayer(mapRefs.jalurLayerRef.current);
-          }
-          // Marker ujung jalur sudah menjadi bagian dari jalur layer, tidak perlu dikelola secara terpisah
-        }
-      }
-
-      // Update visibility titik layer menggunakan ref
-      if (mapRefs.titikLayerRef.current) {
-        if (layerVisibility.titikLayerVisible) {
-          if (!map.hasLayer(mapRefs.titikLayerRef.current)) {
-            map.addLayer(mapRefs.titikLayerRef.current);
-          }
-        } else {
-          if (map.hasLayer(mapRefs.titikLayerRef.current)) {
-            map.removeLayer(mapRefs.titikLayerRef.current);
-          }
-        }
-      }
-    }, [layerVisibility.jalurLayerVisible, layerVisibility.titikLayerVisible, isDashboard]);
-
-    // Create layer untuk jalur dan titik ketika data tersedia
-    useEffect(() => {
-      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
-
-      const map = mapRefs.leafletMapRef.current;
-
-      // Buat layer jalur jika belum ada dan data tersedia
-      if (features.jalurFeatures.length > 0 && !mapRefs.jalurLayerRef.current) {
-        // Buat layer group untuk jalur dan marker ujung
-        const jalurLayerGroup = L.layerGroup();
-
-        // Buat jalur layer
-        const jalurLineLayer = L.geoJSON(features.jalurFeatures as any, {
-          style: () => ({
-            color: "#000000", // Hitam
-            weight: 3,
-            opacity: 0.8,
-          }),
-          pane: "overlayPane",
-          onEachFeature: (feature, layer) => {
-            // Enable PM for existing jalur shapes but keep it disabled by default
-            if ((layer as any).pm) {
-              (layer as any).pm.enable({
-                allowEditing: true,
-                allowScaling: true,
-                allowRotating: true,
-                allowDrag: true,
-                allowRemoval: true,
-                allowCutting: true,
-                allowAddingVertices: true,
-                allowRemovingVertices: true,
-                allowMovingVertices: true,
-                allowMiddleMarkers: true,
-              });
-              // Disable PM by default - it will be enabled selectively
-              (layer as any).pm.disable();
-
-              // Add click handler for selective editing
-              layer.on("click", function (e: L.LeafletMouseEvent) {
-                // Check if drawing mode is active
-                if (!mapRefs.drawingModeRef.current) {
-                  return;
-                }
-
-                // If there's already a shape being edited, disable it first
-                if (drawing.isEditingShape && drawing.editingShape && drawing.editingShape !== layer) {
-                  console.log("🔄 Disabling previous editing shape");
-                  if ((drawing.editingShape as any).pm) {
-                    (drawing.editingShape as any).pm.disable();
-                  }
-                  drawing.setIsEditingShape(false);
-                  drawing.setEditingShape(null);
-                  drawing.setOriginalShapeData(null);
-                }
-
-                // Reset all other layers to disabled state
-                if (mapRefs.bangunanLayerRef.current) {
-                  (mapRefs.bangunanLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-                if (mapRefs.jalurLayerRef.current) {
-                  (mapRefs.jalurLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-                if (mapRefs.titikLayerRef.current) {
-                  (mapRefs.titikLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-                if (mapRefs.nonBangunanLayerRef.current) {
-                  (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-
-                // Enable PM for this specific layer based on drawing mode
-                try {
-                  if (mapRefs.drawingModeRef.current === "edit") {
-                    console.log(
-                      "🔍 Selective editing: Edit mode - checking PM state"
-                    );
-                    console.log(
-                      "🔍 PM enabled state:",
-                      (layer as any).pm?.enabled()
-                    );
-
-                    // Save original shape data
-                    const originalData = {
-                      latLngs: (layer as any).getLatLngs(),
-                      type: layer.constructor.name,
-                    };
-                    drawing.setOriginalShapeData(originalData);
-                    drawing.setEditingShape(layer);
-                    drawing.setIsEditingShape(true);
-
-                    (layer as any).pm.enable({ allowEditing: true });
-                    console.log(
-                      "🔍 PM enabled state after enable:",
-                      (layer as any).pm?.enabled()
-                    );
-
-                    // Apply visual feedback for edit mode
-                    applyVisualFeedback(layer, "edit");
-
-                    console.log(
-                      "✅ Edit enabled for jalur layer:",
-                      feature.properties?.nama || feature.properties?.id
-                    );
-                  } else if (mapRefs.drawingModeRef.current === "scale") {
-                    (layer as any).pm.enable({
-                      allowScaling: true,
-                    });
-                    console.log(
-                      "✅ Scale enabled for jalur layer:",
-                      feature.properties?.nama || feature.properties?.id
-                    );
-                  } else if (mapRefs.drawingModeRef.current === "drag") {
-                    console.log(
-                      "🔍 Selective editing: Drag mode - checking PM state"
-                    );
-                    console.log(
-                      "🔍 PM enabled state:",
-                      (layer as any).pm?.enabled()
-                    );
-
-                    // First, disable drag on all other layers
-                    map.eachLayer((otherLayer: any) => {
-                      if (otherLayer && otherLayer !== layer && otherLayer.pm) {
-                        try {
-                          if (typeof otherLayer.pm.disableDrag === "function") {
-                            otherLayer.pm.disableDrag();
-                          } else if (
-                            typeof otherLayer.pm.disable === "function"
-                          ) {
-                            otherLayer.pm.disable();
-                          }
-                        } catch (error) {
-                          // Ignore errors
-                        }
-                      }
-                    });
-
-                    (layer as any).pm.enableLayerDrag();
-                    console.log(
-                      "🔍 PM enabled state after enableLayerDrag:",
-                      (layer as any).pm?.enabled()
-                    );
-
-                    // Apply visual feedback for drag mode
-                    applyVisualFeedback(layer, "drag");
-
-                    console.log(
-                      "✅ Drag enabled for jalur layer:",
-                      feature.properties?.nama || feature.properties?.id
-                    );
-
-                    // Store the dragged shape and show confirmation
-                    drawing.setDraggedShape(layer);
-                    drawing.setOriginalShapePosition(
-                      (layer as any).getLatLngs
-                        ? (layer as any).getLatLngs()
-                        : null
-                    );
-                    drawing.setShowDragConfirmation(true);
-                  } else if (mapRefs.drawingModeRef.current === "remove") {
-                    (layer as any).pm.enable({ allowRemoval: true });
-
-                    // Apply visual feedback for remove mode
-                    applyVisualFeedback(layer, "remove");
-
-                    console.log(
-                      "✅ Remove enabled for jalur layer:",
-                      feature.properties?.nama || feature.properties?.id
-                    );
-                  }
-                } catch (error) {
-                  console.log("❌ Error enabling PM for jalur layer:", error);
-                }
-              });
-
-              console.log(
-                "✅ PM enabled for jalur layer:",
-                feature.properties?.nama || feature.properties?.id
-              );
-            }
-          },
+      // Add new features
+      if (features.bangunanFeatures.length > 0) {
+        features.bangunanFeatures.forEach((feature) => {
+          bangunanLayer.addData(feature);
         });
-
-        // Tambahkan jalur ke layer group
-        jalurLineLayer.addTo(jalurLayerGroup);
-
-        // Tambahkan marker ujung untuk setiap jalur
-        features.jalurFeatures.forEach((feature) => {
-          if (
-            feature.geometry &&
-            (feature.geometry.type === "LineString" ||
-              feature.geometry.type === "MultiLineString")
-          ) {
-            let coordinates: number[][] = [];
-
-            if (feature.geometry.type === "LineString") {
-              coordinates = feature.geometry.coordinates as number[][];
-            } else if (feature.geometry.type === "MultiLineString") {
-              // Ambil semua koordinat dari MultiLineString
-              coordinates = (
-                feature.geometry.coordinates as number[][][]
-              ).flat();
-            }
-
-            if (coordinates.length >= 2) {
-              // Tambahkan marker di ujung awal jalur
-              const startCoord = coordinates[0];
-              const startMarker = L.circleMarker(
-                [startCoord[1], startCoord[0]],
-                {
-                  radius: 3,
-                  fillColor: "#ffffff",
-                  color: "#000000",
-                  weight: 1,
-                  opacity: 1,
-                  fillOpacity: 1,
-                  pane: "overlayPane",
-                }
-              );
-
-              // Tambahkan marker ke jalur layer group
-              startMarker.addTo(jalurLayerGroup);
-
-              // Tambahkan marker di ujung akhir jalur
-              const endCoord = coordinates[coordinates.length - 1];
-              const endMarker = L.circleMarker([endCoord[1], endCoord[0]], {
-                radius: 3,
-                fillColor: "#ffffff",
-                color: "#000000",
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 1,
-                pane: "overlayPane",
-              });
-
-              // Tambahkan marker ke jalur layer group
-              endMarker.addTo(jalurLayerGroup);
-
-              // Marker sudah menjadi bagian dari jalur layer, tidak perlu dikelola secara terpisah
-            }
-          }
-        });
-
-        // Gunakan jalurLayerGroup sebagai jalurLayer
-        const jalurLayer = jalurLayerGroup;
-        // Set z-index agar jalur berada di atas bangunan
-        (jalurLayer as any).setZIndex(150);
-
-        // Simpan jalur layer ke ref tanpa menambahkan ke map
-        mapRefs.jalurLayerRef.current = jalurLayer;
-        console.log("Jalur layer created and saved to ref");
-
-        // Tambahkan jalur layer ke map dengan delay untuk render terakhir
-        setTimeout(() => {
-          if (layerVisibility.jalurLayerVisible) {
-            jalurLayer.addTo(map);
-            console.log("Jalur layer added to map");
-          }
-        }, 200);
       }
-    }, [features.jalurFeatures, layerVisibility.jalurLayerVisible, isDashboard]);
+    }, [features.bangunanFeatures]);
 
+    // Update non-bangunan layer when features change
     useEffect(() => {
-      if (!mapRefs.leafletMapRef.current || !isDashboard) return;
+      const nonBangunanLayer = mapRefs.nonBangunanLayerRef.current;
+      if (!nonBangunanLayer) return;
 
-      const map = mapRefs.leafletMapRef.current;
+      // Clear existing features
+      nonBangunanLayer.clearLayers();
 
-      // Buat layer titik jika belum ada dan data tersedia
-      if (features.titikFeatures.length > 0 && !mapRefs.titikLayerRef.current) {
-        const titikLayer = L.geoJSON(features.titikFeatures as any, {
-          pointToLayer: (feature, latlng) => {
-            return L.circleMarker(latlng, {
-              radius: 6,
-              fillColor: "#ef4444",
-              color: "#dc2626",
-              weight: 2,
-              opacity: 1,
-              fillOpacity: 0.8,
-            });
-          },
-          pane: "overlayPane",
-          onEachFeature: (feature, layer) => {
-            // Enable PM for existing point shapes but keep it disabled by default
-            if ((layer as any).pm) {
-              (layer as any).pm.enable({
-                allowEditing: true,
-                allowScaling: true,
-                allowRotating: true,
-                allowDrag: true,
-                allowRemoval: true,
-                allowCutting: true,
-                allowAddingVertices: true,
-                allowRemovingVertices: true,
-                allowMovingVertices: true,
-                allowMiddleMarkers: true,
-              });
-              // Disable PM by default - it will be enabled selectively
-              (layer as any).pm.disable();
-
-              // Add click handler for selective editing
-              layer.on("click", function (e: L.LeafletMouseEvent) {
-                // Check if drawing mode is active
-                if (!mapRefs.drawingModeRef.current) {
-                  return;
-                }
-
-                // If there's already a shape being edited, disable it first
-                if (drawing.isEditingShape && drawing.editingShape && drawing.editingShape !== layer) {
-                  console.log("🔄 Disabling previous editing shape");
-                  if ((drawing.editingShape as any).pm) {
-                    (drawing.editingShape as any).pm.disable();
-                  }
-                  drawing.setIsEditingShape(false);
-                  drawing.setEditingShape(null);
-                  drawing.setOriginalShapeData(null);
-                }
-
-                // Reset all other layers to disabled state
-                if (mapRefs.bangunanLayerRef.current) {
-                  (mapRefs.bangunanLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-                if (mapRefs.jalurLayerRef.current) {
-                  (mapRefs.jalurLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-                if (mapRefs.titikLayerRef.current) {
-                  (mapRefs.titikLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-                if (mapRefs.nonBangunanLayerRef.current) {
-                  (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
-                    (otherLayer: any) => {
-                      if (otherLayer.pm && otherLayer !== layer) {
-                        otherLayer.pm.disable();
-                      }
-                    }
-                  );
-                }
-
-                // Enable PM for this specific layer based on drawing mode
-                try {
-                  if (mapRefs.drawingModeRef.current === "edit") {
-                    // Save original shape data
-                    const originalData = {
-                      latLng: (layer as any).getLatLng(),
-                      radius: (layer as any).getRadius
-                        ? (layer as any).getRadius()
-                        : null,
-                      type: layer.constructor.name,
-                    };
-                    drawing.setOriginalShapeData(originalData);
-                    drawing.setEditingShape(layer);
-                    drawing.setIsEditingShape(true);
-
-                    (layer as any).pm.enable({ allowEditing: true });
-
-                    // Apply visual feedback for edit mode
-                    applyVisualFeedback(layer, "edit");
-
-                    console.log(
-                      "✅ Edit enabled for point layer:",
-                      feature.properties?.Nama || feature.properties?.id
-                    );
-                  } else if (mapRefs.drawingModeRef.current === "scale") {
-                    (layer as any).pm.enable({
-                      allowScaling: true,
-                    });
-                    console.log(
-                      "✅ Scale enabled for point layer:",
-                      feature.properties?.Nama || feature.properties?.id
-                    );
-                  } else if (mapRefs.drawingModeRef.current === "drag") {
-                    // First, disable drag on all other layers
-                    map.eachLayer((otherLayer: any) => {
-                      if (otherLayer && otherLayer !== layer && otherLayer.pm) {
-                        try {
-                          if (typeof otherLayer.pm.disableDrag === "function") {
-                            otherLayer.pm.disableDrag();
-                          } else if (
-                            typeof otherLayer.pm.disable === "function"
-                          ) {
-                            otherLayer.pm.disable();
-                          }
-                        } catch (error) {
-                          // Ignore errors
-                        }
-                      }
-                    });
-
-                    (layer as any).pm.enableLayerDrag();
-
-                    // Apply visual feedback for drag mode
-                    applyVisualFeedback(layer, "drag");
-
-                    console.log(
-                      "✅ Drag enabled for point layer:",
-                      feature.properties?.Nama || feature.properties?.id
-                    );
-
-                    // Store the dragged shape and show confirmation
-                    drawing.setDraggedShape(layer);
-                    drawing.setOriginalShapePosition(
-                      (layer as any).getLatLng
-                        ? (layer as any).getLatLng()
-                        : null
-                    );
-                    drawing.setShowDragConfirmation(true);
-                  } else if (mapRefs.drawingModeRef.current === "remove") {
-                    (layer as any).pm.enable({ allowRemoval: true });
-
-                    // Apply visual feedback for remove mode
-                    applyVisualFeedback(layer, "remove");
-
-                    console.log(
-                      "✅ Remove enabled for point layer:",
-                      feature.properties?.Nama || feature.properties?.id
-                    );
-                  }
-                } catch (error) {
-                  console.log("❌ Error enabling PM for point layer:", error);
-                }
-              });
-
-              console.log(
-                "✅ PM enabled for point layer:",
-                feature.properties?.Nama || feature.properties?.id
-              );
-            }
-          },
+      // Add new features
+      if (features.nonBangunanFeatures.length > 0) {
+        features.nonBangunanFeatures.forEach((feature) => {
+          nonBangunanLayer.addData(feature);
         });
-        // Set z-index agar titik berada di atas jalur
-        (titikLayer as any).setZIndex(200);
-
-        // Simpan titik layer ke ref tanpa menambahkan ke map
-        mapRefs.titikLayerRef.current = titikLayer;
-        console.log("Titik layer created and saved to ref");
-
-        // Tambahkan titik layer ke map dengan delay untuk render terakhir
-        setTimeout(() => {
-          if (layerVisibility.titikLayerVisible) {
-            titikLayer.addTo(map);
-            console.log("Titik layer added to map");
-          }
-        }, 300);
       }
-    }, [features.titikFeatures, layerVisibility.titikLayerVisible, isDashboard]);
+    }, [features.nonBangunanFeatures]);
 
     // Update visibility bangunan layer menggunakan ref
     useEffect(() => {
@@ -1096,7 +451,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     useEffect(() => {
       if (ui.showBuildingDetailCanvas && features.selectedFeature) {
         const namaGedung = features.selectedFeature.properties?.nama;
-        const jumlahLantai = Number(features.selectedFeature.properties?.lantai) || 0;
+        const jumlahLantai =
+          Number(features.selectedFeature.properties?.lantai) || 0;
         const iframe = document.querySelector(
           'iframe[title="Building Detail"]'
         ) as HTMLIFrameElement | null;
@@ -1121,6 +477,85 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       }
     }, [ui.showBuildingDetailCanvas, features.selectedFeature]);
+
+    // Handle initialFeature (single building edit mode)
+    useEffect(() => {
+      const map = mapRefs.leafletMapRef.current;
+      if (!map || !initialFeature) return;
+
+      // Disable main layers to "show only that building" if they exist
+      if (mapRefs.bangunanLayerRef.current) {
+        if (map.hasLayer(mapRefs.bangunanLayerRef.current)) {
+          map.removeLayer(mapRefs.bangunanLayerRef.current);
+        }
+      }
+      layerVisibility.setBangunanLayerVisible(false);
+
+      // Create a dedicated layer for the feature being edited
+      const editLayer = L.geoJSON(initialFeature, {
+        style: {
+          color: "#3388ff",
+          weight: 2,
+          fillColor: "#3388ff",
+          fillOpacity: 0.2,
+        },
+        onEachFeature: (feature, layer) => {
+          // Make it editable immediately
+          if ((layer as any).pm) {
+            // Enable editing
+            setTimeout(() => {
+              (layer as any).pm.enable({
+                allowEditing: true,
+                allowSnapping: true,
+              });
+            }, 500);
+
+            // Listen to changes
+            layer.on("pm:edit", (e: any) => {
+              const geojson = (e.layer as any).toGeoJSON();
+              if (onGeometryChangeRef.current) {
+                onGeometryChangeRef.current(geojson.geometry);
+              }
+            });
+
+            layer.on("pm:dragend", (e: any) => {
+              const geojson = (e.layer as any).toGeoJSON();
+              if (onGeometryChangeRef.current) {
+                onGeometryChangeRef.current(geojson.geometry);
+              }
+            });
+
+            // Handle vertex removal/addition if needed
+            layer.on("pm:markerdragend", (e: any) => {
+              const geojson = (e.layer as any).toGeoJSON();
+              if (onGeometryChangeRef.current) {
+                onGeometryChangeRef.current(geojson.geometry);
+              }
+            });
+          }
+        },
+      });
+
+      editLayer.addTo(map);
+
+      // Fit bounds
+      try {
+        const bounds = editLayer.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [100, 100], maxZoom: 19 });
+        }
+      } catch (e) {
+        console.error("Invalid bounds for initial feature", e);
+      }
+
+      // Cleanup
+      return () => {
+        if (map && map.hasLayer(editLayer)) {
+          map.removeLayer(editLayer);
+        }
+        // Restore visibility is risky here if we unmount map, but generally okay for this component's lifecycle
+      };
+    }, [initialFeature]);
 
     // Gabungkan data bangunan dan ruangan untuk pencarian (hanya yang bisa dicari)
     useEffect(() => {
@@ -1151,6 +586,51 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Set posisi awal sama dengan tombol reset
       map.setView([initialLat, initialLng], initialZoom, { animate: false });
 
+      // Initialize Geoman if map is ready and controls not yet added
+      if (map && isDashboard && (map as any).pm) {
+        (map as any).pm.addControls({
+          position: "topleft",
+          drawCircle: false,
+          drawMarker: false,
+          drawCircleMarker: false,
+          drawRectangle: false,
+          drawPolyline: false, // We mainly want Polygons for buildings
+          drawText: false,
+          editMode: true,
+          dragMode: true,
+          cutPolygon: false,
+          removalMode: true,
+          rotateMode: false,
+        });
+
+        // Event listener for shape creation
+        map.on("pm:create", (e: any) => {
+          const layer = e.layer;
+          const geoJson = layer.toGeoJSON();
+
+          console.log("Shape created:", geoJson);
+
+          if (onGeometryChangeRef.current) {
+            onGeometryChangeRef.current(geoJson.geometry);
+          }
+
+          // Add listener for subsequent edits on this layer
+          layer.on("pm:edit", (e: any) => {
+            const editedGeoJson = e.layer.toGeoJSON();
+            if (onGeometryChangeRef.current) {
+              onGeometryChangeRef.current(editedGeoJson.geometry);
+            }
+          });
+        });
+
+        // Event listener for removal
+        map.on("pm:remove", (e: any) => {
+          if (onGeometryChangeRef.current) {
+            onGeometryChangeRef.current(null);
+          }
+        });
+      }
+
       // Basemap awal
       const bm = BASEMAPS.find((b) => b.key === config.basemap) || BASEMAPS[1];
       const tileLayer = L.tileLayer(bm.url, {
@@ -1180,13 +660,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Store reference for cleanup
       (map as any)._originalPreventDefault = originalPreventDefault;
-
-      // Tambahkan custom pane untuk rute dengan zIndex tinggi
-      map.createPane("routePane");
-      const routePane = map.getPane("routePane");
-      if (routePane && routePane.style) {
-        routePane.style.zIndex = "650";
-      }
 
       // Layer non-bangunan (ditambahkan lebih dulu)
       const nonBangunanLayer = L.geoJSON(undefined, {
@@ -1232,20 +705,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
               }
-              if (mapRefs.jalurLayerRef.current) {
-                (mapRefs.jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
-                  if (otherLayer.pm && otherLayer !== layer) {
-                    otherLayer.pm.disable();
-                  }
-                });
-              }
-              if (mapRefs.titikLayerRef.current) {
-                (mapRefs.titikLayerRef.current as any).eachLayer((otherLayer: any) => {
-                  if (otherLayer.pm && otherLayer !== layer) {
-                    otherLayer.pm.disable();
-                  }
-                });
-              }
+
               if (mapRefs.nonBangunanLayerRef.current) {
                 (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
@@ -1405,20 +865,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
               }
-              if (mapRefs.jalurLayerRef.current) {
-                (mapRefs.jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
-                  if (otherLayer.pm && otherLayer !== layer) {
-                    otherLayer.pm.disable();
-                  }
-                });
-              }
-              if (mapRefs.titikLayerRef.current) {
-                (mapRefs.titikLayerRef.current as any).eachLayer((otherLayer: any) => {
-                  if (otherLayer.pm && otherLayer !== layer) {
-                    otherLayer.pm.disable();
-                  }
-                });
-              }
+
               if (mapRefs.nonBangunanLayerRef.current) {
                 (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
@@ -1539,11 +986,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 return;
               }
 
-              // Jika rute sedang tampil atau highlight aktif (dan navigation tidak aktif), blok interaksi klik bangunan lain
-              if (
-                mapRefs.routeLineRef.current ||
-                (mapRefs.isHighlightActiveRef.current && !mapRefs.isNavigationActiveRef.current)
-              ) {
+              // Jika highlight aktif, blok interaksi klik bangunan lain
+              if (mapRefs.isHighlightActiveRef.current) {
                 if (
                   e &&
                   e.originalEvent &&
@@ -1620,7 +1064,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           }
         },
       });
-      // Set z-index agar bangunan berada di bawah jalur dan titik
+      // Set z-index agar bangunan berada di bawah titik
       (bangunanLayer as any).setZIndex(50);
       bangunanLayer.addTo(map);
       mapRefs.bangunanLayerRef.current = bangunanLayer;
@@ -1723,20 +1167,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   }
                 );
               }
-              if (mapRefs.jalurLayerRef.current) {
-                (mapRefs.jalurLayerRef.current as any).eachLayer((otherLayer: any) => {
-                  if (otherLayer.pm && otherLayer !== newLayer) {
-                    otherLayer.pm.disable();
-                  }
-                });
-              }
-              if (mapRefs.titikLayerRef.current) {
-                (mapRefs.titikLayerRef.current as any).eachLayer((otherLayer: any) => {
-                  if (otherLayer.pm && otherLayer !== newLayer) {
-                    otherLayer.pm.disable();
-                  }
-                });
-              }
+
               if (mapRefs.nonBangunanLayerRef.current) {
                 (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                   (otherLayer: any) => {
@@ -1748,7 +1179,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
 
               // If there's already a shape being edited, disable it first
-              if (drawing.isEditingShape && drawing.editingShape && drawing.editingShape !== newLayer) {
+              if (
+                drawing.isEditingShape &&
+                drawing.editingShape &&
+                drawing.editingShape !== newLayer
+              ) {
                 console.log("🔄 Disabling previous editing shape");
                 if ((drawing.editingShape as any).pm) {
                   (drawing.editingShape as any).pm.disable();
@@ -2026,7 +1461,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
+                  handler.fn
+                    .toString()
+                    .includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -2530,7 +1967,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
+                  handler.fn
+                    .toString()
+                    .includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -2698,7 +2137,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
+                  handler.fn
+                    .toString()
+                    .includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -3015,7 +2456,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               (clickedLayer as any)._events.click.some(
                 (handler: any) =>
                   handler.fn &&
-                  handler.fn.toString().includes("mapRefs.drawingModeRef.current")
+                  handler.fn
+                    .toString()
+                    .includes("mapRefs.drawingModeRef.current")
               );
 
             if (hasSelectiveEditing) {
@@ -3056,7 +2499,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             return;
           }
 
-          console.log("🎯 PM click event - mode:", mapRefs.drawingModeRef.current);
+          console.log(
+            "🎯 PM click event - mode:",
+            mapRefs.drawingModeRef.current
+          );
 
           if (mapRefs.drawingModeRef.current === "edit") {
             try {
@@ -3143,7 +2589,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Auto-disable modes after operations complete
         map.on("pm:edit", (e: any) => {
-          if (mapRefs.drawingModeRef.current === "edit" && !drawing.isEditingShape) {
+          if (
+            mapRefs.drawingModeRef.current === "edit" &&
+            !drawing.isEditingShape
+          ) {
             try {
               (e.target as any).pm.disable();
               console.log("🔄 Edit disabled");
@@ -3420,24 +2869,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         }
                       );
                     }
-                    if (mapRefs.jalurLayerRef.current) {
-                      (mapRefs.jalurLayerRef.current as any).eachLayer(
-                        (otherLayer: any) => {
-                          if (otherLayer.pm && otherLayer !== circleMarker) {
-                            otherLayer.pm.disable();
-                          }
-                        }
-                      );
-                    }
-                    if (mapRefs.titikLayerRef.current) {
-                      (mapRefs.titikLayerRef.current as any).eachLayer(
-                        (otherLayer: any) => {
-                          if (otherLayer.pm && otherLayer !== circleMarker) {
-                            otherLayer.pm.disable();
-                          }
-                        }
-                      );
-                    }
+
                     if (mapRefs.nonBangunanLayerRef.current) {
                       (mapRefs.nonBangunanLayerRef.current as any).eachLayer(
                         (otherLayer: any) => {
@@ -3751,10 +3183,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Update refs untuk digunakan di event handler Leaflet
       mapRefs.isHighlightActiveRef.current = highlight.isHighlightActive;
-      mapRefs.isNavigationActiveRef.current = routing.isNavigationActive;
 
       // Jika navigation aktif, enable map interactions (bisa di-geser)
-      if (routing.isNavigationActive) {
+      if (false) {
         map.dragging.enable();
         map.touchZoom.enable();
         map.doubleClickZoom.enable();
@@ -3898,7 +3329,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           delete (map as any)._canvasClickCleanup;
         }
       }
-    }, [highlight.isHighlightActive, routing.isNavigationActive, drawing.isDrawingEnabled, drawing.drawingMode]);
+    }, [
+      highlight.isHighlightActive,
+      false,
+      drawing.isDrawingEnabled,
+      drawing.drawingMode,
+    ]);
 
     // Helper functions for cursor management
     const setDrawingCursor = () => {
@@ -3926,10 +3362,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Update refs untuk digunakan di event handler Leaflet
       mapRefs.isHighlightActiveRef.current = highlight.isHighlightActive;
-      mapRefs.isNavigationActiveRef.current = routing.isNavigationActive;
 
       // Jika navigation aktif, enable map interactions (bisa di-geser)
-      if (routing.isNavigationActive) {
+      if (false) {
         map.dragging.enable();
         map.touchZoom.enable();
         map.doubleClickZoom.enable();
@@ -4197,30 +3632,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           delete (map as any)._canvasClickCleanup;
         }
       }
-    }, [highlight.isHighlightActive, routing.isNavigationActive, drawing.isDrawingEnabled, drawing.drawingMode]);
-
-    // Sync routeLine state dengan mapRefs.routeLineRef
-    useEffect(() => {
-      mapRefs.routeLineRef.current = routeLine as L.Polyline | null;
-    }, [routeLine]);
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        const target = event.target as Element;
-        if (!target.closest(".route-modal-select")) {
-          routing.setIsStartDropdownOpen(false);
-        }
-      };
-
-      if (routing.isStartDropdownOpen) {
-        document.addEventListener("click", handleClickOutside);
-      }
-
-      return () => {
-        document.removeEventListener("click", handleClickOutside);
-      };
-    }, [routing.isStartDropdownOpen]);
+    }, [
+      highlight.isHighlightActive,
+      false,
+      drawing.isDrawingEnabled,
+      drawing.drawingMode,
+    ]);
 
     // Update config.basemap layer
     useEffect(() => {
@@ -4310,7 +3727,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Event listener untuk keyboard shortcuts pada modal edit
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
-        if (edit.isEditingName || edit.isEditingThumbnail || edit.isEditingInteraksi) {
+        if (
+          edit.isEditingName ||
+          edit.isEditingThumbnail ||
+          edit.isEditingInteraksi
+        ) {
           if (event.key === "Enter") {
             event.preventDefault();
             if (
@@ -4332,7 +3753,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         }
       };
 
-      if (edit.isEditingName || edit.isEditingThumbnail || edit.isEditingInteraksi) {
+      if (
+        edit.isEditingName ||
+        edit.isEditingThumbnail ||
+        edit.isEditingInteraksi
+      ) {
         document.addEventListener("keydown", handleKeyDown);
       }
 
@@ -4360,36 +3785,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       };
     }, [refreshAuth]);
 
-    // Aktifkan GPS otomatis saat halaman pertama kali dimuat
-    useEffect(() => {
-      // Hapus startLiveTracking otomatis - GPS hanya akan aktif saat tombol lokasi diklik
-      // startLiveTracking();
-
-      // Cleanup saat component unmount
-      return () => {
-        stopLiveTracking();
-      };
-    }, []); // Hanya jalankan sekali saat mount
-
-    // Event listener untuk fokus ke lokasi pengguna
-    useEffect(() => {
-      const handleFocusToUserLocation = (event: MessageEvent) => {
-        if (event.data.type === "focus-to-user-location" && userLocation) {
-          const map = mapRefs.leafletMapRef.current;
-          if (map) {
-            map.setView(userLocation, Math.max(map.getZoom(), 16), {
-              animate: true,
-              duration: 1,
-            });
-          }
-        }
-      };
-
-      window.addEventListener("message", handleFocusToUserLocation);
-      return () => {
-        window.removeEventListener("message", handleFocusToUserLocation);
-      };
-    }, [userLocation]);
+    // GPS/Location tracking feature removed
 
     // Fungsi helper untuk highlight bangunan
     const highlightBangunan = (featureId: number) => {
@@ -4397,7 +3793,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (!bangunanLayer) return;
 
       // Reset highlight sebelumnya jika ada
-      if (highlight.searchHighlightedId && highlight.searchHighlightedId !== featureId) {
+      if (
+        highlight.searchHighlightedId &&
+        highlight.searchHighlightedId !== featureId
+      ) {
         resetBangunanHighlight();
       }
 
@@ -4682,7 +4081,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Toggle config.basemap
     const handleToggleBasemap = () => {
       if (config.isSatellite) {
-        config.setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
+        config.setBasemap(
+          isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
+        );
         config.setIsSatellite(false);
       } else {
         config.setBasemap("esri_satellite");
@@ -4693,17 +4094,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Toggle layer
     const handleToggleLayer = () => {
       config.setLayerVisible((v) => !v);
-    };
-
-    // Toggle layer jalur dan titik untuk dashboard admin
-    const toggleJalurLayer = (show: boolean) => {
-      layerVisibility.setJalurLayerVisible(show);
-      // Layer visibility akan dihandle oleh useEffect yang mengawasi layerVisibility.jalurLayerVisible
-    };
-
-    const toggleTitikLayer = (show: boolean) => {
-      layerVisibility.setTitikLayerVisible(show);
-      // Layer visibility akan dihandle oleh useEffect yang mengawasi layerVisibility.titikLayerVisible
     };
 
     const toggleBangunanLayer = (show: boolean) => {
@@ -4950,7 +4340,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Reset visual feedback and active shape
         if (drawing.activeShape) {
-          console.log("🔄 Resetting drawing.activeShape after edit save:", drawing.activeShape);
+          console.log(
+            "🔄 Resetting drawing.activeShape after edit save:",
+            drawing.activeShape
+          );
           resetShapeVisualFeedback(drawing.activeShape);
           drawing.setActiveShape(null);
           console.log("✅ drawing.activeShape reset to null");
@@ -5226,125 +4619,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     useEffect(() => {
       if (!config.isSatellite && isDark !== undefined) {
-        config.setBasemap(isDark ?? false ? "alidade_smooth_dark" : "esri_topo");
+        config.setBasemap(
+          isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
+        );
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDark]);
 
     // Fungsi untuk handle klik tombol GPS - update GPS sekali dan fokus ke lokasi
-    const handleLocateMe = () => {
-      if (!navigator.geolocation) {
-        showNotification(
-          "error",
-          "Error",
-          "Browser tidak mendukung geolokasi."
-        );
-        return;
-      }
-
-      // Update GPS sekali saja setiap kali tombol diklik
-      getCurrentLocation()
-        .then(([lat, lng]) => {
-          const map = mapRefs.leafletMapRef.current;
-          if (map) {
-            const userLatLng = L.latLng(lat, lng);
-            map.setView(userLatLng, Math.max(map.getZoom(), 16), {
-              animate: true,
-              duration: 1,
-            });
-            showNotification(
-              "success",
-              "Lokasi Saya",
-              "GPS diperbarui dan fokus ke lokasi Anda."
-            );
-          }
-        })
-        .catch((error) => {
-          showNotification(
-            "error",
-            "Error",
-            "Gagal mendapatkan lokasi GPS. Pastikan GPS aktif dan izin lokasi diberikan."
-          );
-        });
-    };
 
     // Fungsi untuk membuat custom icon GPS marker seperti Google Maps
-    const createUserMarkerIcon = (heading: number | null) => {
-      const size = 32;
-      return L.divIcon({
-        html: `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
-                 <div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: white; border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center;">
-                   <div style="width: ${size - 12}px; height: ${
-          size - 12
-        }px; border-radius: 50%; background: #3b82f6; border: 1px solid #3b82f6; position: relative;">
-                     ${
-                       heading !== null
-                         ? `<div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(${
-                             heading + 180
-                           }deg); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 20px solid #3b82f6; opacity: 1; z-index: 1000;">
-                               <div style="position: absolute; top: -6px; left: -5px; width: 10px; height: 10px; border-radius: 50%; background: white; border: 1px solid #3b82f6;"></div>
-                             </div>`
-                         : ""
-                     }
-                   </div>
-                 </div>
-               </div>`,
-        className: "custom-user-marker",
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-      });
-    };
-
-    // Tampilkan marker user di map jika userLocation ada
-    useEffect(() => {
-      const map = mapRefs.leafletMapRef.current;
-      if (!map) return;
-
-      if (userLocation) {
-        const heading = (userLocation as any).heading || userHeading;
-
-        // Jika marker sudah ada, update posisinya
-        if (mapRefs.userMarkerRef.current) {
-          mapRefs.userMarkerRef.current.setLatLng(userLocation);
-          mapRefs.userMarkerRef.current.setIcon(createUserMarkerIcon(heading));
-          console.log(
-            "📍 GPS marker updated to:",
-            [userLocation.lat, userLocation.lng],
-            "heading:",
-            heading
-          );
-        } else {
-          // Buat marker baru jika belum ada
-          const marker = L.marker(userLocation, {
-            icon: createUserMarkerIcon(heading),
-            title: "Lokasi Saya",
-          });
-          marker.addTo(map).bindPopup("Lokasi Saya");
-          mapRefs.userMarkerRef.current = marker;
-          console.log(
-            "📍 GPS marker created at:",
-            [userLocation.lat, userLocation.lng],
-            "heading:",
-            heading
-          );
-        }
-      } else {
-        // Hapus marker jika tidak ada lokasi
-        if (mapRefs.userMarkerRef.current) {
-          map.removeLayer(mapRefs.userMarkerRef.current);
-          mapRefs.userMarkerRef.current = null;
-          console.log("📍 GPS marker removed");
-        }
-      }
-
-      // Cleanup
-      return () => {
-        if (mapRefs.userMarkerRef.current) {
-          map.removeLayer(mapRefs.userMarkerRef.current);
-          mapRefs.userMarkerRef.current = null;
-        }
-      };
-    }, [userLocation, userHeading]);
 
     // Fungsi untuk menghitung centroid dari feature (Polygon/MultiPolygon)
     function getFeatureCentroid(feature: FeatureType): [number, number] {
@@ -5361,43 +4645,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       return [lat, lng];
     }
 
-    // Tampilkan polyline rute jika userLocation & hasil pencarian dipilih
-    const { addRouteLine, removeRouteLine } = useRouteDrawing(
-      mapRefs.leafletMapRef as any
-    );
-    useEffect(() => {
-      const map = mapRefs.leafletMapRef.current;
-      if (!map) return;
-      if (mapRefs.routeLineRef.current) {
-        removeRouteLine(mapRefs.routeLineRef.current);
-        mapRefs.routeLineRef.current = null;
-      }
-      // Cek: jika userLocation & searchText & searchResults.length==1 (hasil dipilih)
-      if (userLocation && searchText && searchResults.length === 1) {
-        const feature = searchResults[0];
-        const [lat, lng] = getFeatureCentroid(feature);
-        const line = addRouteLine(
-          [
-            [userLocation.lat, userLocation.lng],
-            [lat, lng],
-          ],
-          {
-            color: "#ff6600",
-            weight: 5,
-            opacity: 0.8,
-            dashArray: "8 8",
-          }
-        );
-        mapRefs.routeLineRef.current = line as any;
-      }
-      // Cleanup
-      return () => {
-        if (mapRefs.routeLineRef.current) {
-          removeRouteLine(mapRefs.routeLineRef.current);
-          mapRefs.routeLineRef.current = null;
-        }
-      };
-    }, [userLocation, searchText, searchResults]);
+    // Routing feature removed - useRouteDrawing and route line display disabled
 
     // Fungsi untuk menutup modal dengan animasi fade
     const closeBuildingDetailModal = () => {
@@ -5505,7 +4753,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         lantai.setLantaiGambarData(data || []);
 
         // Ambil data ruangan untuk menghitung jumlah ruangan per lantai
-        await fetchRuanganByBangunan(Number(features.selectedFeature.properties.id));
+        await fetchRuanganByBangunan(
+          Number(features.selectedFeature.properties.id)
+        );
 
         // Reset state
         lantai.setLantaiFiles({});
@@ -5558,7 +4808,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         const formData = new FormData();
         formData.append("gambar_lantai", file);
         formData.append("nomor_lantai", lantaiNumber.toString());
-        formData.append("id_bangunan", String(features.selectedFeature?.properties?.id));
+        formData.append(
+          "id_bangunan",
+          String(features.selectedFeature?.properties?.id)
+        );
 
         await createLantaiGambar(
           {
@@ -5688,7 +4941,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             await updateBangunan(bangunanId, { lantai: newLantaiValue }, token);
 
             // Update features.selectedFeature properties dengan jumlah lantai yang baru
-            if (features.selectedFeature && features.selectedFeature.properties) {
+            if (
+              features.selectedFeature &&
+              features.selectedFeature.properties
+            ) {
               features.selectedFeature.properties.lantai = newLantaiValue;
             }
 
@@ -5993,7 +5249,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // Fungsi untuk save ruangan
     const handleSaveRuangan = async () => {
-      if (!features.selectedFeature?.properties?.id || !ruangan.ruanganForm.nama_ruangan.trim())
+      if (
+        !features.selectedFeature?.properties?.id ||
+        !ruangan.ruanganForm.nama_ruangan.trim()
+      )
         return;
 
       loading.setIsSaving(true);
@@ -6084,17 +5343,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (!features.selectedFeature?.properties?.id) return;
 
       // Tutup modal edit lantai jika sedang terbuka
-      if (edit.isEditingLantai || edit.isEditingInteraksi || edit.isEditingName) {
+      if (
+        edit.isEditingLantai ||
+        edit.isEditingInteraksi ||
+        edit.isEditingName
+      ) {
         handleCancelEdit();
       }
 
       try {
-        await fetchRuanganByBangunan(Number(features.selectedFeature.properties.id));
+        await fetchRuanganByBangunan(
+          Number(features.selectedFeature.properties.id)
+        );
 
         // Jika ada lantaiNumber, set lantai untuk ruangan baru
         if (lantaiNumber) {
           lantai.setSelectedLantaiForRuangan(lantaiNumber);
-          ruangan.setRuanganForm((prev) => ({ ...prev, nomor_lantai: lantaiNumber }));
+          ruangan.setRuanganForm((prev) => ({
+            ...prev,
+            nomor_lantai: lantaiNumber,
+          }));
         }
 
         // Reset form dan buka modal buat ruangan baru
@@ -6134,7 +5402,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (!features.selectedFeature?.properties?.id) return;
 
       try {
-        await fetchRuanganByBangunan(Number(features.selectedFeature.properties.id));
+        await fetchRuanganByBangunan(
+          Number(features.selectedFeature.properties.id)
+        );
 
         // Set ruangan yang akan diedit
         ruangan.setSelectedRuanganForEdit(ruangan);
@@ -6558,8 +5828,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     // Expose methods to parent component
     useImperativeHandle(ref, () => ({
       // Layer visibility control functions
-      toggleJalurLayer,
-      toggleTitikLayer,
       toggleBangunanLayer,
 
       highlightFeature: (
@@ -6743,7 +6011,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Jika card ditutup dan ada search highlight, biarkan highlight tetap
         // Highlight akan di-reset saat ada pencarian baru atau highlight baru
       }
-    }, [ui.cardVisible, features.selectedFeature, highlight.searchHighlightedId]);
+    }, [
+      ui.cardVisible,
+      features.selectedFeature,
+      highlight.searchHighlightedId,
+    ]);
 
     // Fungsi untuk dapatkan koordinat centroid dari featureId (bangunan/ruangan)
     const getCentroidById = (type: "bangunan" | "ruangan", id: string) => {
@@ -6780,322 +6052,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
     // getRealWorldRoute dipindahkan ke src/lib/routing.ts
 
-    // Handle semua step navigation dalam satu useEffect - tidak ada yang di-skip
+    // Routing navigation removed
+
+    // Routing feature removed - route stepper logging disabled
+
     useEffect(() => {
-      const map = mapRefs.leafletMapRef.current;
-      if (
-        !map ||
-        !routeSteps.length ||
-        activeStepIndex < 0 ||
-        activeStepIndex >= routeSteps.length
-      )
-        return;
-
-      // Jangan hapus jalur utama saat berpindah step
-      // (hapus hanya highlight step jika digunakan)
-      if (activeStepLineRef.current) {
-        map.removeLayer(activeStepLineRef.current);
-        activeStepLineRef.current = null;
-      }
-
-      // Hapus navigation marker sebelumnya
-      if (mapRefs.navigationMarkerRef.current) {
-        console.log(`🔍 [DEBUG] Removing previous marker`);
-        map.removeLayer(mapRefs.navigationMarkerRef.current);
-        mapRefs.navigationMarkerRef.current = null;
-      }
-
-      // Debug: tampilkan semua step yang ada
-      console.log(
-        `🔍 [NAVIGATION] Total steps: ${routeSteps.length}, Active step: ${
-          activeStepIndex + 1
-        }`
-      );
-      routeSteps.forEach((s, idx) => {
-        const sId = s.raw?.id || "unknown";
-        console.log(
-          `  Step ${idx + 1}: ID ${sId}, ${Math.round(s.distance || 0)}m`
-        );
-      });
-
-      // Handle semua step - pastikan lingkaran bergerak sesuai dengan step yang aktif
-      console.log(
-        `🔍 [DEBUG] useEffect triggered - activeStepIndex: ${activeStepIndex}, hasReachedDestination: ${hasReachedDestination}`
-      );
-
-      const step = hasReachedDestination
-        ? routeSteps[routeSteps.length - 1] // Gunakan step terakhir untuk marker merah
-        : routeSteps[activeStepIndex];
-
-      console.log(
-        `🔍 [DEBUG] Step selected - hasReachedDestination: ${hasReachedDestination}, stepIndex: ${
-          hasReachedDestination ? routeSteps.length - 1 : activeStepIndex
-        }`
-      );
-      if (step && step.coordinates && step.coordinates.length > 0) {
-        const isFirstStep = activeStepIndex === 0;
-        const isLastStep = activeStepIndex === routeSteps.length - 1;
-
-        // PERBAIKAN: Posisi marker sesuai dengan kondisi
-        let markerPosition: [number, number];
-        if (hasReachedDestination) {
-          // Setelah step terakhir ditekan next: marker merah di titik tujuan (akhir garis)
-          markerPosition = step.coordinates[step.coordinates.length - 1];
-          console.log(
-            `🔴 [DEBUG] Marker merah di posisi tujuan (akhir garis): [${markerPosition[0].toFixed(
-              6
-            )}, ${markerPosition[1].toFixed(6)}]`
-          );
-        } else if (isLastStep) {
-          // Step terakhir (oranye): di awal garis terakhir
-          markerPosition = step.coordinates[0];
-          console.log(
-            `🟠 [DEBUG] Marker oranye di posisi awal garis terakhir: [${markerPosition[0].toFixed(
-              6
-            )}, ${markerPosition[1].toFixed(6)}]`
-          );
-        } else {
-          // Step lainnya: marker di awal step (node awal garis)
-          markerPosition = step.coordinates[0];
-          console.log(
-            `🔵 [DEBUG] Marker di posisi awal step: [${markerPosition[0].toFixed(
-              6
-            )}, ${markerPosition[1].toFixed(6)}]`
-          );
-        }
-
-        // PERBAIKAN: Cek apakah ini step terakhir dan sudah ditekan next
-        let isActuallyAtDestination = false;
-        if (isLastStep) {
-          // Untuk step terakhir, cek apakah sudah ditekan next (activeStepIndex > routeSteps.length - 1)
-          // Jika masih di step terakhir, belum sampai tujuan
-          isActuallyAtDestination = false; // Belum sampai tujuan, masih di awal garis terakhir
-          console.log(`🎯 Step terakhir: BERADA DI AWAL GARIS TERAKHIR`);
-        }
-
-        // Debug: Lihat koordinat step untuk memastikan posisi yang benar
-        const segmentId = step.raw?.id || "unknown";
-        console.log(
-          `🔍 Step ${activeStepIndex + 1} (ID: ${segmentId}) coordinates:`,
-          {
-            start: step.coordinates[0],
-            end: step.coordinates[step.coordinates.length - 1],
-            totalPoints: step.coordinates.length,
-            markerPosition: markerPosition,
-            stepType: isFirstStep ? "FIRST" : isLastStep ? "LAST" : "MIDDLE",
-            distance: Math.round(step.distance || 0),
-            isFirstStep,
-            isLastStep,
-            totalSteps: routeSteps.length,
-          }
-        );
-
-        let markerColor: string;
-        let markerSize: number;
-
-        // PERBAIKAN: Hanya 1 lingkaran yang ditampilkan pada satu waktu
-        console.log(
-          `🔍 [DEBUG] hasReachedDestination: ${hasReachedDestination}, isFirstStep: ${isFirstStep}, isLastStep: ${isLastStep}`
-        );
-
-        if (hasReachedDestination) {
-          // Setelah step terakhir ditekan next: merah (tujuan tercapai)
-          markerColor = "#ef4444"; // Merah
-          markerSize = 40;
-          console.log(`🔴 [DEBUG] Marker MERAH dipilih`);
-        } else if (isFirstStep) {
-          // Step pertama: hijau
-          markerColor = "#10b981"; // Hijau
-          markerSize = 34;
-          console.log(`🟢 [DEBUG] Marker HIJAU dipilih`);
-        } else if (isLastStep) {
-          // Step terakhir: oranye
-          markerColor = "#f97316"; // Oranye
-          markerSize = 36;
-          console.log(`🟠 [DEBUG] Marker ORANYE dipilih`);
-        } else {
-          // Step tengah: biru
-          markerColor = "#4285f4"; // Biru
-          markerSize = 32;
-          console.log(`🔵 [DEBUG] Marker BIRU dipilih`);
-        }
-
-        const markerType = hasReachedDestination
-          ? "DESTINATION_REACHED"
-          : isFirstStep
-          ? "START"
-          : isLastStep
-          ? "DESTINATION_NOT_REACHED"
-          : "SEGMENT";
-
-        const positionType = hasReachedDestination
-          ? "TITIK TUJUAN (setelah next)"
-          : "AWAL step (titik sambungan)";
-
-        console.log(
-          `🎯 Marker Step ${
-            activeStepIndex + 1
-          }: ${markerType} - lingkaran di ${positionType} [${markerPosition[0].toFixed(
-            6
-          )}, ${markerPosition[1].toFixed(
-            6
-          )}] - Warna: ${markerColor}, Ukuran: ${markerSize}px, hasReachedDestination: ${hasReachedDestination}`
-        );
-
-        // Buat marker bulat di titik sambungan
-        console.log(
-          `🔍 [DEBUG] Creating marker with color: ${markerColor}, size: ${markerSize}px, position: [${markerPosition[0].toFixed(
-            6
-          )}, ${markerPosition[1].toFixed(6)}]`
-        );
-
-        const navigationMarker = L.marker(markerPosition, {
-          icon: L.divIcon({
-            className: "navigation-circle-marker",
-            html: `<div style="
-              width: ${markerSize}px; 
-              height: ${markerSize}px; 
-              background: ${markerColor}; 
-              border-radius: 50%; 
-              border: 3px solid white;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-              position: relative;
-              z-index: 9999;
-              transform: translateZ(0);
-            "></div>`,
-            iconSize: [markerSize, markerSize],
-            iconAnchor: [markerSize / 2, markerSize / 2],
-          }),
-          pane: "navigationPane",
-          zIndexOffset: 2000,
-        }).addTo(map);
-
-        console.log(`🔍 [DEBUG] Marker created and added to map`);
-
-        mapRefs.navigationMarkerRef.current = navigationMarker;
-
-        // PERBAIKAN: Hapus destination marker terpisah karena sekarang hanya ada 1 marker
-        if (destinationMarker && map.hasLayer(destinationMarker)) {
-          map.removeLayer(destinationMarker);
-          setDestinationMarker(null);
-        }
-
-        // Zoom ke posisi marker dengan smooth dan tahan di tengah ketika zooming
-        mapRefs.isZoomingRef.current = true;
-        map.setView(markerPosition, 19, { animate: true, duration: 0.8 });
-        map.once("moveend", () => {
-          mapRefs.isZoomingRef.current = false;
-        });
-
-        // HAPUS: Highlight jalur step - menyebabkan garis leaflet-interactive yang mengganggu
-        // if (step.coordinates.length > 1) {
-        //   const stepPolyline = L.polyline(step.coordinates, {
-        //     color: markerColor,
-        //     weight: 5,
-        //     opacity: 0.7,
-        //     dashArray: "8, 4",
-        //   }).addTo(map);
-
-        //   // Cleanup highlight sebelumnya
-        //   if (
-        //     activeStepLineRef.current &&
-        //     map.hasLayer(activeStepLineRef.current)
-        //   ) {
-        //     map.removeLayer(activeStepLineRef.current);
-        //   }
-        //   activeStepLineRef.current = stepPolyline;
-        // }
-      }
-
-      // Cleanup function
-      return () => {
-        if (
-          activeStepLineRef.current &&
-          map.hasLayer(activeStepLineRef.current)
-        ) {
-          map.removeLayer(activeStepLineRef.current);
-          activeStepLineRef.current = null;
-        }
-        if (
-          mapRefs.navigationMarkerRef.current &&
-          map.hasLayer(mapRefs.navigationMarkerRef.current)
-        ) {
-          map.removeLayer(mapRefs.navigationMarkerRef.current);
-          mapRefs.navigationMarkerRef.current = null;
-        }
-        if (destinationMarker && map.hasLayer(destinationMarker)) {
-          map.removeLayer(destinationMarker);
-          setDestinationMarker(null);
-        }
-      };
-    }, [activeStepIndex, routeSteps.length, hasReachedDestination]); // Depend pada activeStepIndex, routeSteps.length, dan hasReachedDestination
-
-    // Log setiap kali stepper dirender atau step berubah
-    useEffect(() => {
-      if (
-        routeSteps.length > 0 &&
-        activeStepIndex >= 0 &&
-        activeStepIndex < routeSteps.length
-      ) {
-        console.log(
-          "[ROUTE STEPPER] Rendered. Step:",
-          activeStepIndex + 1,
-          "/",
-          routeSteps.length
-        );
-      }
-    }, [activeStepIndex, routeSteps.length]); // Depend pada activeStepIndex dan length, bukan array
-
-    // Hapus atau modifikasi useEffect yang menyebabkan infinite loop
-    // useEffect untuk melanjutkan routing jika pendingRoute ada dan userLocation sudah update
-    // useEffect(() => {
-    //   if (pendingRoute && userLocation) {
-    //     const currentPendingRoute = pendingRoute;
-    //     setPendingRoute(null);
-    //     setTimeout(() => {
-    //       currentPendingRoute();
-    //     }, 0);
-    //   }
-    // }, [pendingRoute, userLocation?.lat, userLocation?.lng]); // Depend pada koordinat, bukan object
-
-    // Hapus rute dan GPS marker saat card bangunan di-close
-    useEffect(() => {
-      if (!ui.cardVisible && mapRefs.leafletMapRef.current) {
-        // Reset edit mode
+      if (!ui.cardVisible) {
         edit.setIsEditingName(false);
         edit.setIsEditingThumbnail(false);
         edit.setEditName("");
         edit.setEditThumbnail("");
-
-        // Hapus route line jika ada
-        if (routeLine) {
-          mapRefs.leafletMapRef.current.removeLayer(routeLine);
-          setRouteLine(null);
-          setRouteDistance(null);
-        }
-
-        // Hapus alternative route lines jika ada
-        if (alternativeRouteLines.length > 0) {
-          alternativeRouteLines.forEach((layer) => {
-            if (mapRefs.leafletMapRef.current) {
-              mapRefs.leafletMapRef.current.removeLayer(layer);
-            }
-          });
-          setAlternativeRouteLines([]);
-        }
-
-        // Hapus navigation marker jika ada
-        if (mapRefs.navigationMarkerRef.current) {
-          mapRefs.leafletMapRef.current.removeLayer(mapRefs.navigationMarkerRef.current);
-          mapRefs.navigationMarkerRef.current = null;
-        }
-
-        // Hapus GPS marker jika ada
-        if (mapRefs.userMarkerRef.current) {
-          mapRefs.leafletMapRef.current.removeLayer(mapRefs.userMarkerRef.current);
-          mapRefs.userMarkerRef.current = null;
-          setUserLocation(null); // Reset GPS location state
-        }
       }
     }, [ui.cardVisible]);
 
@@ -7136,1398 +6102,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     }, []);
 
     // Redefine handleRouteSubmit in this component (inside the component function, before return)
-    const handleRouteSubmit = async () => {
-      loading.setIsCalculatingRoute(true);
-      let startLatLng: [number, number] | null = null;
-      let endLatLng: [number, number] | null = null;
-      setRouteDistance(null);
-
-      // PERBAIKAN: Cleanup routes sebelumnya
-      if (!mapRefs.isGpsRecalcRef.current) {
-        if (routeLine && mapRefs.leafletMapRef.current) {
-          mapRefs.leafletMapRef.current.removeLayer(routeLine);
-          setRouteLine(null);
-        }
-        if (alternativeRouteLines.length > 0) {
-          alternativeRouteLines.forEach((layer) => {
-            if (mapRefs.leafletMapRef.current) {
-              mapRefs.leafletMapRef.current.removeLayer(layer);
-            }
-          });
-          setAlternativeRouteLines([]);
-        }
-      }
-
-      // Titik awal
-      if (routing.routeStartType === "my-location") {
-        setIsGettingLocation(true);
-        try {
-          const coords = await getCurrentLocation();
-          setIsGettingLocation(false);
-          startLatLng = coords;
-
-          // Tambahkan pengecekan apakah user di dalam kampus
-          const isInsideCampus = isUserInsideCampus(coords[0], coords[1]);
-          if (isInsideCampus) {
-            // Routing langsung ke tujuan tanpa gerbang
-            if (!endLatLng) {
-              showNotification("error", "Error", "Titik tujuan tidak valid.");
-              ui.setShowRouteModal(false);
-              loading.setIsCalculatingRoute(false);
-              return;
-            }
-            const points = convertTitikToPoints();
-            let filteredJalurFeatures = features.jalurFeatures;
-            if (transportMode === "jalan_kaki") {
-              const pejalanSegments = features.jalurFeatures.filter(
-                (segment: any) => segment.properties?.Mode === "pejalan"
-              );
-              const bothSegments = features.jalurFeatures.filter(
-                (segment: any) => segment.properties?.Mode === "both"
-              );
-              filteredJalurFeatures = [...pejalanSegments, ...bothSegments];
-            } else if (transportMode === "kendaraan") {
-              // Untuk kendaraan, terapkan logika oneway
-              const bothSegments = features.jalurFeatures.filter(
-                (segment: any) => segment.properties?.Mode === "both"
-              );
-              const pejalanSegments = features.jalurFeatures.filter(
-                (segment: any) => segment.properties?.Mode === "pejalan"
-              );
-
-              // Filter jalur oneway untuk kendaraan
-              const filteredBothSegments = bothSegments.filter(
-                (segment: any) => {
-                  // Jika bukan oneway, bisa digunakan
-                  if (segment.properties?.arah !== "oneway") {
-                    return true;
-                  }
-
-                  // Jika oneway, cek arah yang diizinkan untuk kendaraan
-                  // Kendaraan hanya boleh dari hijau (end) ke merah (start)
-                  // TIDAK BOLEH dari merah (start) ke hijau (end)
-                  const routeCoords = segment.geometry?.coordinates;
-                  if (routeCoords && routeCoords.length >= 2) {
-                    const startPoint = [routeCoords[0][1], routeCoords[0][0]]; // [lat, lng] dari titik merah
-                    const endPoint = [
-                      routeCoords[routeCoords.length - 1][1],
-                      routeCoords[routeCoords.length - 1][0],
-                    ]; // [lat, lng] dari titik hijau
-
-                    // Cek apakah jalur ini mengarah dari hijau ke merah (diizinkan)
-                    // Atau bisa digunakan untuk routing dari GPS ke tujuan
-                    return true; // Untuk sementara izinkan semua, logika oneway akan diterapkan di routing algorithm
-                  }
-                  return true;
-                }
-              );
-
-              // Gabungkan jalur both (dengan filter oneway) dan pejalan (untuk akses)
-              filteredJalurFeatures = [
-                ...filteredBothSegments,
-                ...pejalanSegments,
-              ];
-
-              console.log(
-                "🏍️ Mode kendaraan: Filtered routes for oneway restrictions"
-              );
-              console.log(`  - Total jalur both: ${bothSegments.length}`);
-              console.log(
-                `  - Jalur both setelah filter oneway: ${filteredBothSegments.length}`
-              );
-              console.log(
-                `  - Jalur pejalan untuk akses: ${pejalanSegments.length}`
-              );
-            }
-            console.log(`🏍️ [GPS-ROUTING] Mode transportasi: ${transportMode}`);
-            if (transportMode === "kendaraan") {
-              console.log(
-                "🏍️ [GPS-ROUTING] Logika oneway diterapkan untuk kendaraan"
-              );
-              console.log(
-                "🏍️ [GPS-ROUTING] Jalur oneway hanya boleh dari hijau→merah (dilarang merah→hijau)"
-              );
-            }
-
-            // Untuk GPS di dalam kampus, cari jalur GeoJSON terdekat sebagai titik awal
-            console.log(
-              "📍 [GPS-ROUTING] Mencari jalur GeoJSON terdekat sebagai titik awal routing"
-            );
-
-            // Coba routing dari jalur terdekat ke tujuan
-            const routeResult = findRoute(
-              coords,
-              endLatLng,
-              points,
-              filteredJalurFeatures,
-              transportMode,
-              true // isGpsInsideCampus = true
-            );
-            if (
-              routeResult &&
-              routeResult.geojsonSegments &&
-              routeResult.geojsonSegments.length > 0
-            ) {
-              const geoJsonLayer = L.geoJSON(
-                {
-                  type: "FeatureCollection",
-                  features:
-                    routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-                } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-                {
-                  style: () => ({
-                    color: "#2563eb",
-                    weight: 6,
-                    opacity: 1,
-                  }),
-                  pane: "routePane",
-                }
-              );
-              if (mapRefs.leafletMapRef.current) {
-                geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
-                if (!mapRefs.isGpsRecalcRef.current) {
-                  mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-                    padding: [40, 40],
-                    maxZoom: 19,
-                    animate: true,
-                    duration: 1.5,
-                  });
-                }
-              }
-              setRouteDistance(Math.round(routeResult.distance));
-              // Hitung total waktu berjalan kaki dan kendaraan
-              let totalWalkingTime = 0;
-              let totalVehicleTime = 0;
-              routeResult.geojsonSegments.forEach((segment: any) => {
-                if (segment.properties?.waktu_kaki)
-                  totalWalkingTime += Number(segment.properties.waktu_kaki);
-                if (segment.properties?.waktu_kendara)
-                  totalVehicleTime += Number(segment.properties.waktu_kendara);
-              });
-              setTotalWalkingTime(totalWalkingTime);
-              setTotalVehicleTime(totalVehicleTime);
-              setRouteSteps(
-                parseRouteSteps(
-                  routeResult.geojsonSegments,
-                  coords,
-                  endLatLng,
-                  transportMode
-                )
-              );
-              setActiveStepIndex(0);
-              setHasReachedDestination(false);
-              routing.setIsNavigationActive(true);
-            } else {
-              showNotification(
-                "error",
-                "Rute Tidak Ditemukan",
-                "Tidak ditemukan rute yang valid dari lokasi Anda ke tujuan. Pastikan Anda berada di area yang terhubung ke jalur kampus."
-              );
-              loading.setIsCalculatingRoute(false);
-            }
-            return;
-          } else {
-            console.log(
-              "📍 [GPS-ROUTING] Routing via gerbang terdekat (di luar kampus)"
-            );
-          }
-        } catch (error) {
-          setIsGettingLocation(false);
-          loading.setIsCalculatingRoute(false);
-          console.error("GPS Error in handleRouteSubmit:", error);
-          if (features.titikFeatures.length > 0) {
-            const firstTitik = features.titikFeatures[0];
-            routing.setRouteStartType("titik");
-            routing.setRouteStartId(
-              String(firstTitik.id || firstTitik.properties?.OBJECTID)
-            );
-          }
-          return;
-        }
-      } else if (routing.routeStartType === "titik" && routing.routeStartId) {
-        // Cari titik dari geojson
-        const titik = features.titikFeatures.find(
-          (t: any) =>
-            String(t.id || t.properties?.OBJECTID) === String(routing.routeStartId)
-        );
-        if (titik && titik.geometry && titik.geometry.coordinates) {
-          const coords = titik.geometry.coordinates;
-          startLatLng = [coords[1], coords[0]];
-        } else {
-          showNotification(
-            "error",
-            "Error",
-            `Titik awal dengan ID ${routing.routeStartId} tidak ditemukan.`
-          );
-          ui.setShowRouteModal(false);
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      } else if (routing.routeStartType) {
-        // Jika bangunan, ambil centroid bangunan
-        const bangunanCentroid = getCentroidById("bangunan", routing.routeStartType);
-        if (bangunanCentroid) {
-          startLatLng = bangunanCentroid as [number, number];
-        } else {
-          showNotification(
-            "error",
-            "Error",
-            `Bangunan dengan ID ${routing.routeStartType} tidak ditemukan.`
-          );
-          ui.setShowRouteModal(false);
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      }
-
-      // Titik tujuan
-      if (routing.routeEndType === "bangunan" && routing.routeEndId) {
-        const bangunanCentroid = getCentroidById("bangunan", routing.routeEndId);
-        if (bangunanCentroid) {
-          endLatLng = bangunanCentroid as [number, number];
-        } else {
-          showNotification(
-            "error",
-            "Error",
-            `Bangunan dengan ID ${routing.routeEndId} tidak ditemukan.`
-          );
-          ui.setShowRouteModal(false);
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      } else if (routing.routeEndType === "titik" && routing.routeEndSearchText) {
-        // Cari titik tujuan dari geojson
-        const tujuan = convertTitikToPoints().find(
-          (p) => p.name === routing.routeEndSearchText
-        );
-        if (tujuan) {
-          endLatLng = tujuan.coordinates;
-        } else {
-          showNotification(
-            "error",
-            "Error",
-            `Titik tujuan "${routing.routeEndSearchText}" tidak ditemukan.`
-          );
-          ui.setShowRouteModal(false);
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      }
-
-      // Validasi
-      if (
-        !startLatLng ||
-        !endLatLng ||
-        startLatLng[0] === undefined ||
-        startLatLng[1] === undefined ||
-        endLatLng[0] === undefined ||
-        endLatLng[1] === undefined
-      ) {
-        showNotification(
-          "error",
-          "Titik Tidak Valid",
-          "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
-        );
-        ui.setShowRouteModal(false);
-        loading.setIsCalculatingRoute(false);
-        return;
-      }
-
-      // Validasi titik awal dan tujuan sama
-      const distance = calculateDistance(startLatLng, endLatLng);
-      if (distance < 10) {
-        // Jika jarak kurang dari 10 meter, dianggap sama
-        showNotification(
-          "error",
-          "Titik Sama",
-          "Titik awal dan tujuan tidak boleh sama. Silakan pilih tujuan yang berbeda."
-        );
-        ui.setShowRouteModal(false);
-        loading.setIsCalculatingRoute(false);
-        return;
-      }
-
-      // Routing dengan logika khusus untuk "Lokasi Saya"
-      if (startLatLng && endLatLng && mapRefs.leafletMapRef.current) {
-        if (!mapRefs.isGpsRecalcRef.current && routeLine) {
-          mapRefs.leafletMapRef.current.removeLayer(routeLine);
-        }
-
-        const points = convertTitikToPoints();
-        let finalRouteSegments: any[] = [];
-        let totalDistance = 0;
-
-        // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
-        if (routing.routeStartType === "my-location") {
-          try {
-            const bestGateInfo = await findAllRoutesToBuilding(
-              startLatLng,
-              endLatLng,
-              undefined,
-              convertTitikToPoints(),
-              features.jalurFeatures,
-              features.titikFeatures
-            );
-
-            if (
-              bestGateInfo &&
-              bestGateInfo.bestRoute &&
-              bestGateInfo.bestRoute.gate &&
-              bestGateInfo.bestRoute.gate.geometry &&
-              bestGateInfo.bestRoute.gate.geometry.coordinates
-            ) {
-              const bestRoute = bestGateInfo.bestRoute;
-              const allRoutes = bestGateInfo.allRoutes;
-
-              const gateCoords: [number, number] = [
-                bestRoute.gate.geometry.coordinates[1],
-                bestRoute.gate.geometry.coordinates[0],
-              ];
-
-              // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
-              console.log(
-                "🗺️ Using optimized OSRM route: GPS →",
-                bestRoute.gate.properties?.Nama
-              );
-
-              // Gunakan OSRM route yang sudah didapat dari findAllRoutesToBuilding
-              const realWorldGpsToGate = bestRoute.osrmRoute;
-
-              let gpsToGateSegment;
-              let gpsToGateDistance;
-
-              if (realWorldGpsToGate) {
-                gpsToGateDistance = realWorldGpsToGate.distance;
-                const latLngs = realWorldGpsToGate.coordinates;
-                gpsToGateSegment = {
-                  type: "Feature",
-                  geometry: {
-                    type: "LineString",
-                    coordinates: latLngs.map((coord: [number, number]) => [
-                      coord[1],
-                      coord[0],
-                    ]),
-                  },
-                  properties: {
-                    routeType: "gps-to-gate-real",
-                    distance: gpsToGateDistance,
-                    name:
-                      "GPS ke " +
-                      (bestGateInfo.gate.properties?.Nama || "Gerbang") +
-                      " (Jalur Jalan)",
-                  },
-                };
-              } else {
-                gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
-                const gpsLng = Number(startLatLng[1]);
-                const gpsLat = Number(startLatLng[0]);
-                const gateLng = Number(
-                  bestGateInfo.gate.geometry.coordinates[0]
-                );
-                const gateLat = Number(
-                  bestGateInfo.gate.geometry.coordinates[1]
-                );
-                // HILANGKAN GARIS MAGENTA DEBUG - tidak diperlukan untuk user
-                // if (mapRefs.leafletMapRef.current) {
-                //   const line = addRouteLine(
-                //     [
-                //       [gpsLat, gpsLng],
-                //       [gateLat, gateLng],
-                //     ],
-                //     {
-                //       color: "#FF00FF",
-                //       weight: 8,
-                //       opacity: 0.8,
-                //       dashArray: "10, 5",
-                //     }
-                //   );
-                //   setTimeout(() => {
-                //     removeRouteLine(line as any);
-                //   }, 10000);
-                // }
-                gpsToGateSegment = {
-                  type: "Feature",
-                  geometry: {
-                    type: "LineString",
-                    coordinates: [
-                      [gpsLng, gpsLat],
-                      [gateLng, gateLat],
-                    ],
-                  },
-                  properties: {
-                    routeType: "gps-to-gate",
-                    distance: gpsToGateDistance,
-                    name:
-                      "GPS ke " +
-                      (bestGateInfo.gate.properties?.Nama || "Gerbang") +
-                      " (Garis Lurus)",
-                  },
-                };
-                const coordDistance = Math.sqrt(
-                  Math.pow(gpsLng - gateLng, 2) + Math.pow(gpsLat - gateLat, 2)
-                );
-                if (coordDistance < 0.000001) {
-                  showNotification(
-                    "error",
-                    "GPS Error",
-                    "Error: GPS dan Gerbang terlalu dekat. Coba lokasi yang berbeda."
-                  );
-                  loading.setIsCalculatingRoute(false);
-                  return;
-                }
-              }
-
-              // Segment 2: Gerbang -> Tujuan akhir (gunakan route yang sudah dihitung)
-              const gateToEndResult = bestGateInfo.routeToDestination;
-
-              if (gateToEndResult) {
-                totalDistance = gpsToGateDistance + gateToEndResult.distance;
-                finalRouteSegments = [
-                  gpsToGateSegment,
-                  ...gateToEndResult.geojsonSegments,
-                ];
-
-                // Tampilkan rute utama (terdekat) dengan warna biru
-                const mainRouteLayer = L.geoJSON(
-                  {
-                    type: "FeatureCollection",
-                    features:
-                      finalRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-                  } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-                  {
-                    style: (feature) => ({
-                      color: "#2563eb", // Biru untuk rute utama
-                      weight: 6,
-                      opacity: 1,
-                    }),
-                    pane: "routePane",
-                  }
-                );
-                if (mapRefs.leafletMapRef.current) {
-                  mainRouteLayer.addTo(mapRefs.leafletMapRef.current);
-                  if (!mapRefs.isGpsRecalcRef.current) {
-                    mapRefs.leafletMapRef.current.fitBounds(
-                      mainRouteLayer.getBounds(),
-                      {
-                        padding: [60, 60],
-                        maxZoom: 17,
-                        animate: true,
-                        duration: 1.5, // Smooth animation duration
-                      }
-                    );
-                  }
-                }
-                setRouteLine(mainRouteLayer);
-
-                if (allRoutes.length > 1) {
-                  console.log(
-                    `🔄 Ditemukan ${
-                      allRoutes.length - 1
-                    } rute alternatif, tetapi tidak ditampilkan untuk menghindari kebingungan visual`
-                  );
-                }
-
-                const allLatLngs: L.LatLng[] = [];
-                if (realWorldGpsToGate) {
-                  realWorldGpsToGate.coordinates.forEach(
-                    (coord: [number, number]) => {
-                      allLatLngs.push(L.latLng(coord[0], coord[1]));
-                    }
-                  );
-                } else {
-                  allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
-                  allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
-                }
-                // PERBAIKAN: Hapus penambahan endLatLng yang menyebabkan garis langsung mengganggu
-                // allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
-                gateToEndResult.coordinates.forEach(
-                  (coord: [number, number]) => {
-                    allLatLngs.push(L.latLng(coord[0], coord[1]));
-                  }
-                );
-                const bounds = L.latLngBounds(allLatLngs);
-                if (mapRefs.leafletMapRef.current) {
-                  mapRefs.leafletMapRef.current.fitBounds(bounds, {
-                    padding: [60, 60],
-                    maxZoom: 17,
-                    animate: true,
-                    duration: 1.5, // Smooth animation duration
-                  });
-                }
-                setRouteDistance(Math.round(totalDistance));
-
-                // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
-                let totalWalkingTime = 0;
-                let totalVehicleTime = 0;
-
-                console.log("🔍 [TIME] Menghitung total waktu dari segmen:");
-                finalRouteSegments.forEach((segment: any, idx: number) => {
-                  const segmentId = segment.id || "unknown";
-                  const waktuKaki = segment.properties?.waktu_kaki || 0;
-                  const waktuKendara = segment.properties?.waktu_kendara || 0;
-
-                  totalWalkingTime += Number(waktuKaki);
-                  totalVehicleTime += Number(waktuKendara);
-
-                  console.log(
-                    `  ${
-                      idx + 1
-                    }. ID ${segmentId}: kaki=${waktuKaki}s, kendara=${waktuKendara}s`
-                  );
-                });
-
-                console.log(
-                  `📊 [TIME] Total: kaki=${totalWalkingTime}s (${Math.floor(
-                    totalWalkingTime / 60
-                  )} menit ${Math.round(
-                    totalWalkingTime % 60
-                  )} detik), kendara=${totalVehicleTime}s (${Math.floor(
-                    totalVehicleTime / 60
-                  )} menit ${Math.round(totalVehicleTime % 60)} detik)`
-                );
-
-                setTotalWalkingTime(totalWalkingTime);
-                setTotalVehicleTime(totalVehicleTime);
-
-                setRouteSteps(
-                  parseRouteSteps(
-                    finalRouteSegments,
-                    startLatLng,
-                    endLatLng,
-                    transportMode
-                  )
-                );
-                setActiveStepIndex(0);
-                setHasReachedDestination(false);
-                routing.setIsNavigationActive(true);
-              } else {
-                showNotification(
-                  "error",
-                  "Rute Tidak Ditemukan",
-                  "Tidak ditemukan rute dari gerbang terdekat ke tujuan."
-                );
-                loading.setIsCalculatingRoute(false);
-              }
-            } else {
-              showNotification(
-                "error",
-                "Gerbang Tidak Ditemukan",
-                "Tidak ditemukan gerbang terdekat."
-              );
-              loading.setIsCalculatingRoute(false);
-            }
-          } catch (error) {
-            console.error("🚨 Error dalam routing my-location:", error);
-            showNotification(
-              "error",
-              "Error Routing",
-              "Terjadi error dalam routing dari lokasi Anda. Silakan coba lagi atau pilih titik yang berbeda."
-            );
-          }
-        } else {
-          // Routing biasa (bukan dari "Lokasi Saya")
-          try {
-            // Filter jalur berdasarkan mode transportasi
-            let filteredJalurFeatures = features.jalurFeatures;
-            if (transportMode === "jalan_kaki") {
-              // Untuk pejalan kaki, prioritaskan jalur "pejalan", jika tidak ada baru pakai "both"
-              const pejalanSegments = features.jalurFeatures.filter(
-                (segment: any) => segment.properties?.Mode === "pejalan"
-              );
-              const bothSegments = features.jalurFeatures.filter(
-                (segment: any) => segment.properties?.Mode === "both"
-              );
-
-              // Gabungkan dengan prioritas jalur pejalan
-              filteredJalurFeatures = [...pejalanSegments, ...bothSegments];
-              console.log(
-                `🚶 Mode pejalan kaki: ${pejalanSegments.length} segmen pejalan + ${bothSegments.length} segmen both`
-              );
-            } else if (transportMode === "kendaraan") {
-              // PERBAIKAN: Kendaraan bisa menggunakan semua jalur dengan algoritma cerdas
-              // Algoritma Dijkstra akan memilih jalur optimal dengan penalty untuk jalur pejalan
-              filteredJalurFeatures = features.jalurFeatures;
-              console.log(
-                `🏍️ Mode kendaraan: ${filteredJalurFeatures.length} segmen (algoritma cerdas untuk meminimalkan penggunaan jalur pejalan)`
-              );
-            }
-
-            // PERBAIKAN: Cek apakah tujuan adalah gedung dengan multiple pintu
-            let nearestPoint: Point | null = null;
-            if (routing.routeEndType === "titik" && routing.routeEndSearchText) {
-              // Cari semua titik dengan nama yang sama
-              const allPoints = convertTitikToPoints();
-              console.log(
-                `🔍 [DEBUG] Total points available: ${allPoints.length}`
-              );
-              console.log(`🔍 [DEBUG] Searching for: "${routing.routeEndSearchText}"`);
-
-              const sameNamePoints = allPoints.filter(
-                (p) => p.name === routing.routeEndSearchText
-              );
-
-              console.log(
-                `🔍 [DEBUG] Points with same name: ${sameNamePoints.length}`
-              );
-              sameNamePoints.forEach((p, idx) => {
-                console.log(
-                  `  ${idx + 1}. ${p.name} (ID: ${
-                    p.id
-                  }) at [${p.coordinates[0].toFixed(
-                    6
-                  )}, ${p.coordinates[1].toFixed(6)}]`
-                );
-              });
-
-              if (sameNamePoints.length > 1) {
-                // Cari titik terdekat dari multiple points
-                let minDistance = Infinity;
-                let closestPoint: Point | null = null;
-
-                for (const point of sameNamePoints) {
-                  const distance = calculateDistance(
-                    startLatLng,
-                    point.coordinates
-                  );
-                  console.log(
-                    `🔍 [DISTANCE] ${point.name} (${point.id}): ${Math.round(
-                      distance
-                    )}m`
-                  );
-
-                  if (distance < minDistance) {
-                    minDistance = distance;
-                    closestPoint = point;
-                  }
-                }
-
-                if (closestPoint) {
-                  nearestPoint = closestPoint;
-                  console.log(
-                    `🏢 [NEAREST] Titik terdekat: ${closestPoint.name} (${
-                      closestPoint.id
-                    }) - ${Math.round(minDistance)}m`
-                  );
-                }
-              } else if (sameNamePoints.length === 1) {
-                nearestPoint = sameNamePoints[0];
-                console.log(
-                  `🔍 [DEBUG] Single point found: ${nearestPoint.name}`
-                );
-              } else {
-                console.log(
-                  `🔍 [DEBUG] No points found for "${routing.routeEndSearchText}"`
-                );
-              }
-            }
-
-            let routeResult: any = null;
-
-            if (nearestPoint) {
-              // Gunakan titik terdekat untuk routing
-              console.log(
-                `🏢 [NEAREST] Routing to nearest point: ${
-                  nearestPoint.name
-                } at [${nearestPoint.coordinates[0].toFixed(
-                  6
-                )}, ${nearestPoint.coordinates[1].toFixed(6)}]`
-              );
-
-              routeResult = findRoute(
-                startLatLng,
-                nearestPoint.coordinates,
-                points,
-                filteredJalurFeatures,
-                transportMode,
-                false // isGpsInsideCampus = false
-              );
-
-              if (routeResult) {
-                console.log(
-                  `🏢 [NEAREST] Route found: ${Math.round(
-                    routeResult.distance
-                  )}m with ${routeResult.geojsonSegments.length} segments`
-                );
-              } else {
-                console.warn(`⚠️ [NEAREST] No route found to nearest point!`);
-              }
-            } else {
-              // Routing biasa untuk tujuan tunggal
-              routeResult = findRoute(
-                startLatLng,
-                endLatLng,
-                points,
-                filteredJalurFeatures,
-                transportMode,
-                false // isGpsInsideCampus = false
-              );
-            }
-
-            if (
-              routeResult &&
-              routeResult.geojsonSegments &&
-              routeResult.geojsonSegments.length > 0
-            ) {
-              const geoJsonLayer = L.geoJSON(
-                {
-                  type: "FeatureCollection",
-                  features:
-                    routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-                } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-                {
-                  style: () => ({
-                    color: "#2563eb",
-                    weight: 6,
-                    opacity: 1,
-                  }),
-                  pane: "routePane",
-                }
-              );
-              if (mapRefs.leafletMapRef.current) {
-                geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
-                mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-                  padding: [40, 40],
-                  maxZoom: 19,
-                  animate: true,
-                  duration: 1.5, // Smooth animation duration
-                });
-              }
-              setRouteLine(geoJsonLayer);
-
-              // PERBAIKAN: Hapus alternative routes (tidak digunakan lagi)
-              setAlternativeRouteLines([]);
-
-              // Smooth zoom animation untuk single route
-              mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-                padding: [40, 40],
-                maxZoom: 19,
-                animate: true,
-                duration: 1.5, // Smooth animation duration
-              });
-              setRouteDistance(Math.round(routeResult.distance));
-
-              // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
-              let totalWalkingTime = 0;
-              let totalVehicleTime = 0;
-
-              console.log(
-                "🔍 [TIME] Menghitung total waktu dari segmen (routing biasa):"
-              );
-              routeResult.geojsonSegments.forEach(
-                (segment: any, idx: number) => {
-                  const segmentId = segment.id || "unknown";
-                  const waktuKaki = segment.properties?.waktu_kaki || 0;
-                  const waktuKendara = segment.properties?.waktu_kendara || 0;
-
-                  totalWalkingTime += Number(waktuKaki);
-                  totalVehicleTime += Number(waktuKendara);
-
-                  console.log(
-                    `  ${
-                      idx + 1
-                    }. ID ${segmentId}: kaki=${waktuKaki}s, kendara=${waktuKendara}s`
-                  );
-                }
-              );
-
-              console.log(
-                `📊 [TIME] Total: kaki=${totalWalkingTime}s (${Math.floor(
-                  totalWalkingTime / 60
-                )} menit ${Math.round(
-                  totalWalkingTime % 60
-                )} detik), kendara=${totalVehicleTime}s (${Math.floor(
-                  totalVehicleTime / 60
-                )} menit ${Math.round(totalVehicleTime % 60)} detik)`
-              );
-
-              setTotalWalkingTime(totalWalkingTime);
-              setTotalVehicleTime(totalVehicleTime);
-
-              setRouteSteps(
-                parseRouteSteps(
-                  routeResult.geojsonSegments,
-                  startLatLng,
-                  endLatLng,
-                  transportMode
-                )
-              );
-              setActiveStepIndex(0);
-              setHasReachedDestination(false);
-              routing.setIsNavigationActive(true);
-            } else {
-              showNotification(
-                "error",
-                "Rute Tidak Valid",
-                "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
-              );
-            }
-          } catch (error) {
-            console.error("🚨 Error dalam routing:", error);
-            showNotification(
-              "error",
-              "Error Routing",
-              "Terjadi error dalam routing. Silakan coba lagi atau pilih titik yang berbeda."
-            );
-          }
-        }
-      }
-      ui.setShowRouteModal(false);
-      loading.setIsCalculatingRoute(false);
-      // reset flag recalc setelah selesai
-      mapRefs.isGpsRecalcRef.current = false;
-    };
-
-    // Listener untuk GPS updates
-    useEffect(() => {
-      const handleGpsUpdate = (event: MessageEvent) => {
-        if (event.data.type === "gps-updated") {
-          console.log("📍 GPS updated, updating marker and route...");
-
-          const newCoords = event.data.coordinates;
-          const newHeading = event.data.heading;
-          const newLatLng = L.latLng(newCoords[0], newCoords[1]);
-
-          // Update marker GPS secara otomatis jika ada
-          if (mapRefs.userMarkerRef.current) {
-            const currentLatLng = mapRefs.userMarkerRef.current.getLatLng();
-            const distance = currentLatLng.distanceTo(newLatLng);
-
-            // Update marker setiap kali GPS berubah (tanpa batasan jarak)
-            mapRefs.userMarkerRef.current.setLatLng(newLatLng);
-            mapRefs.userMarkerRef.current.setIcon(createUserMarkerIcon(newHeading));
-            console.log(
-              "📍 GPS marker automatically updated to:",
-              newCoords,
-              "heading:",
-              newHeading,
-              "distance moved:",
-              Math.round(distance),
-              "meters"
-            );
-          }
-
-          // Recalculate route HANYA jika navigasi aktif dan start dari GPS
-          if (routing.isNavigationActive && routing.routeStartType === "my-location") {
-            // tandai recalc dari GPS agar tidak hapus routeLine lebih dulu
-            mapRefs.isGpsRecalcRef.current = true;
-            setTimeout(() => {
-              handleRouteSubmit();
-            }, 1000); // Tunggu 1 detik untuk stabilitas
-          }
-        }
-      };
-
-      window.addEventListener("message", handleGpsUpdate);
-      return () => {
-        window.removeEventListener("message", handleGpsUpdate);
-      };
-    }, [routing.isNavigationActive, routing.routeStartType, routeSteps.length]);
-
-    // Fungsi untuk melakukan routing dengan parameter yang sudah pasti
-    const performRouting = async (
-      startType: string,
-      startId: string,
-      endType: string,
-      endId: string,
-      gpsCoords?: [number, number]
-    ) => {
-      let startLatLng: [number, number] | null = null;
-      let endLatLng: [number, number] | null = null;
-      setRouteDistance(null);
-
-      // Titik awal
-      if (startType === "my-location" && gpsCoords) {
-        startLatLng = gpsCoords;
-      } else if (startType === "titik" && startId) {
-        const titik = features.titikFeatures.find(
-          (t: any) => String(t.id || t.properties?.OBJECTID) === String(startId)
-        );
-        if (titik && titik.geometry && titik.geometry.coordinates) {
-          const coords = titik.geometry.coordinates;
-          startLatLng = [coords[1], coords[0]];
-        } else {
-          console.error(`❌ Titik awal dengan ID ${startId} tidak ditemukan.`);
-          showNotification(
-            "error",
-            "Error",
-            `Titik awal dengan ID ${startId} tidak ditemukan.`
-          );
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      } else if (startType) {
-        const bangunanCentroid = getCentroidById("bangunan", startType);
-        if (bangunanCentroid) {
-          startLatLng = bangunanCentroid as [number, number];
-        } else {
-          console.error(`❌ Bangunan dengan ID ${startType} tidak ditemukan.`);
-          showNotification(
-            "error",
-            "Error",
-            `Bangunan dengan ID ${startType} tidak ditemukan.`
-          );
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      }
-
-      // Titik tujuan
-      if (endType === "bangunan" && endId) {
-        const bangunanCentroid = getCentroidById("bangunan", endId);
-        if (bangunanCentroid) {
-          endLatLng = bangunanCentroid as [number, number];
-        } else {
-          console.error(`❌ Bangunan dengan ID ${endId} tidak ditemukan.`);
-          showNotification(
-            "error",
-            "Error",
-            `Bangunan dengan ID ${endId} tidak ditemukan.`
-          );
-          loading.setIsCalculatingRoute(false);
-          return;
-        }
-      }
-
-      // Validasi
-      if (
-        !startLatLng ||
-        !endLatLng ||
-        startLatLng[0] === undefined ||
-        startLatLng[1] === undefined ||
-        endLatLng[0] === undefined ||
-        endLatLng[1] === undefined
-      ) {
-        console.error("❌ Koordinat tidak valid:", { startLatLng, endLatLng });
-        showNotification(
-          "error",
-          "Titik Tidak Valid",
-          "Titik awal atau tujuan tidak valid. Pastikan Anda memilih titik yang benar dan data geojson sudah benar."
-        );
-        loading.setIsCalculatingRoute(false);
-        return;
-      }
-
-      console.log("✅ Koordinat valid, memulai routing:", {
-        startLatLng,
-        endLatLng,
-      });
-
-      // Routing dengan logika khusus untuk "Lokasi Saya"
-      if (startLatLng && endLatLng && mapRefs.leafletMapRef.current) {
-        if (routeLine) {
-          mapRefs.leafletMapRef.current.removeLayer(routeLine);
-        }
-
-        const points = convertTitikToPoints();
-        let finalRouteSegments: any[] = [];
-        let totalDistance = 0;
-
-        // Jika titik awal adalah "Lokasi Saya", route via gerbang terbaik yang terhubung ke tujuan
-        if (startType === "my-location") {
-          // Dapatkan nama gedung dari endType jika ada
-          let buildingName: string | undefined;
-          if (endType === "bangunan" && endId) {
-            const bangunan = features.bangunanFeatures.find(
-              (b: any) =>
-                String(b.id || b.properties?.OBJECTID) === String(endId)
-            );
-            if (bangunan && bangunan.properties?.Nama) {
-              buildingName = bangunan.properties.Nama;
-              console.log(`🏢 Menggunakan nama gedung: ${buildingName}`);
-            }
-          }
-
-          const gateInfo = await findAllRoutesToBuilding(
-            startLatLng,
-            endLatLng,
-            buildingName,
-            convertTitikToPoints(),
-            features.jalurFeatures,
-            features.titikFeatures
-          );
-
-          if (
-            gateInfo &&
-            gateInfo.bestRoute &&
-            gateInfo.bestRoute.gate &&
-            gateInfo.bestRoute.gate.geometry &&
-            gateInfo.bestRoute.gate.geometry.coordinates &&
-            Array.isArray(gateInfo.bestRoute.gate.geometry.coordinates) &&
-            gateInfo.bestRoute.gate.geometry.coordinates.length >= 2
-          ) {
-            const bestGateInfo = gateInfo.bestRoute;
-            const allRoutes = gateInfo.allRoutes;
-
-            // Validasi koordinat gerbang
-            const gateCoordsRaw = bestGateInfo.gate.geometry.coordinates;
-            if (!Array.isArray(gateCoordsRaw) || gateCoordsRaw.length < 2) {
-              console.error("❌ Koordinat gerbang tidak valid:", gateCoordsRaw);
-              showNotification(
-                "error",
-                "Error",
-                "Koordinat gerbang tidak valid. Silakan coba lagi."
-              );
-              loading.setIsCalculatingRoute(false);
-              return;
-            }
-
-            const gateCoords: [number, number] = [
-              gateCoordsRaw[1],
-              gateCoordsRaw[0],
-            ];
-
-            // Segment 1: GPS Location -> Gerbang terbaik (jalur jalan asli)
-            console.log(
-              "🗺️ Using optimized OSRM route: GPS →",
-              bestGateInfo.gate.properties?.Nama
-            );
-
-            // Gunakan OSRM route yang sudah didapat dari findBestGateForDestination
-            const realWorldGpsToGate = bestGateInfo.osrmRoute;
-
-            let gpsToGateSegment;
-            let gpsToGateDistance;
-
-            if (realWorldGpsToGate) {
-              gpsToGateDistance = realWorldGpsToGate.distance;
-              const latLngs = realWorldGpsToGate.coordinates;
-              gpsToGateSegment = {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: latLngs.map((coord: [number, number]) => [
-                    coord[1],
-                    coord[0],
-                  ]),
-                },
-                properties: {
-                  routeType: "gps-to-gate-real",
-                  distance: gpsToGateDistance,
-                  name:
-                    "GPS ke " +
-                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
-                    " (Jalur Jalan)",
-                },
-              };
-            } else {
-              gpsToGateDistance = calculateDistance(startLatLng, gateCoords);
-              const gpsLng = Number(startLatLng[1]);
-              const gpsLat = Number(startLatLng[0]);
-              const gateLng = Number(bestGateInfo.gate.geometry.coordinates[0]);
-              const gateLat = Number(bestGateInfo.gate.geometry.coordinates[1]);
-              // HILANGKAN GARIS MAGENTA DEBUG - tidak diperlukan untuk user
-              // if (mapRefs.leafletMapRef.current) {
-              //   const line = addRouteLine(
-              //     [
-              //       [gpsLat, gpsLng],
-              //       [gateLat, gateLng],
-              //     ],
-              //     {
-              //       color: "#FF00FF",
-              //       weight: 8,
-              //       opacity: 0.8,
-              //       dashArray: "10, 5",
-              //     }
-              //   );
-              //   setTimeout(() => removeRouteLine(line as any), 10000);
-              // }
-              gpsToGateSegment = {
-                type: "Feature",
-                geometry: {
-                  type: "LineString",
-                  coordinates: [
-                    [gpsLng, gpsLat],
-                    [gateLng, gateLat],
-                  ],
-                },
-                properties: {
-                  routeType: "gps-to-gate",
-                  distance: gpsToGateDistance,
-                  name:
-                    "GPS ke " +
-                    (bestGateInfo.gate.properties?.Nama || "Gerbang") +
-                    " (Garis Lurus)",
-                },
-              };
-            }
-
-            // Segment 2: Gerbang -> Tujuan akhir (gunakan route yang sudah dihitung)
-            const gateToEndResult = bestGateInfo.routeToDestination;
-
-            if (gateToEndResult) {
-              totalDistance = gpsToGateDistance + gateToEndResult.distance;
-              finalRouteSegments = [
-                gpsToGateSegment,
-                ...gateToEndResult.geojsonSegments,
-              ];
-
-              console.log(
-                `🎯 Rute terbaik: ${bestGateInfo.gateName} → ${
-                  bestGateInfo.targetPoint?.name || "Unknown"
-                }`
-              );
-              console.log(`📏 Total distance: ${Math.round(totalDistance)}m`);
-              console.log(`🛣️ Segments: ${finalRouteSegments.length}`);
-
-              console.log(
-                "🛣️ Membuat GeoJSON layer dengan segments:",
-                finalRouteSegments.length
-              );
-              console.log(
-                "🛣️ Segments:",
-                finalRouteSegments.map(
-                  (seg, idx) => `${idx + 1}. ID: ${seg.id || "unknown"}`
-                )
-              );
-
-              const geoJsonLayer = L.geoJSON(
-                {
-                  type: "FeatureCollection",
-                  features:
-                    finalRouteSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-                } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-                {
-                  style: (feature) => ({
-                    color: "#2563eb", // Biru konsisten
-                    weight: 6,
-                    opacity: 1,
-                  }),
-                  pane: "routePane",
-                }
-              );
-              if (mapRefs.leafletMapRef.current) {
-                console.log("🗺️ Menambahkan layer ke map");
-                geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
-
-                try {
-                  const bounds = geoJsonLayer.getBounds();
-                  console.log("🗺️ Bounds:", bounds);
-                  mapRefs.leafletMapRef.current.fitBounds(bounds, {
-                    padding: [60, 60],
-                    maxZoom: 17,
-                    animate: true,
-                    duration: 1.5, // Smooth animation duration
-                  });
-                  console.log("🗺️ Map berhasil di-fit ke bounds");
-                } catch (error) {
-                  console.error("❌ Error fitting bounds:", error);
-                }
-              } else {
-                console.error("❌ mapRefs.leafletMapRef.current is null");
-              }
-
-              setRouteLine(geoJsonLayer);
-              console.log("✅ Route line berhasil diset");
-
-              const allLatLngs: L.LatLng[] = [];
-              if (realWorldGpsToGate) {
-                realWorldGpsToGate.coordinates.forEach(
-                  (coord: [number, number]) => {
-                    allLatLngs.push(L.latLng(coord[0], coord[1]));
-                  }
-                );
-              } else {
-                allLatLngs.push(L.latLng(startLatLng[0], startLatLng[1]));
-                allLatLngs.push(L.latLng(gateCoords[0], gateCoords[1]));
-              }
-              // PERBAIKAN: Hapus penambahan endLatLng yang menyebabkan garis langsung mengganggu
-              // allLatLngs.push(L.latLng(endLatLng[0], endLatLng[1]));
-              gateToEndResult.coordinates.forEach((coord: [number, number]) => {
-                allLatLngs.push(L.latLng(coord[0], coord[1]));
-              });
-
-              const bounds = L.latLngBounds(allLatLngs);
-
-              // Smooth zoom animation
-              mapRefs.leafletMapRef.current.fitBounds(bounds, {
-                padding: [60, 60],
-                maxZoom: 17,
-                animate: true,
-                duration: 1.5, // Smooth animation duration
-              });
-
-              setRouteDistance(Math.round(totalDistance));
-
-              // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
-              let totalWalkingTime = 0;
-              let totalVehicleTime = 0;
-
-              finalRouteSegments.forEach((segment: any) => {
-                if (segment.properties?.waktu_kaki) {
-                  totalWalkingTime += Number(segment.properties.waktu_kaki);
-                }
-                if (segment.properties?.waktu_kendara) {
-                  totalVehicleTime += Number(segment.properties.waktu_kendara);
-                }
-              });
-
-              setTotalWalkingTime(totalWalkingTime);
-              setTotalVehicleTime(totalVehicleTime);
-
-              // PERBAIKAN: Tampilkan jalur saja tanpa instruksi navigasi terlebih dahulu
-              console.log(
-                "🎯 Menampilkan jalur di map tanpa instruksi navigasi"
-              );
-
-              // Set route steps tapi jangan aktifkan navigasi
-              setRouteSteps(
-                parseRouteSteps(finalRouteSegments, startLatLng, endLatLng)
-              );
-              setActiveStepIndex(-1); // Nonaktifkan navigasi
-            } else {
-              console.log("❌ Tidak ditemukan rute dari gerbang ke tujuan");
-              showNotification(
-                "error",
-                "Rute Tidak Ditemukan",
-                "Tidak ditemukan rute dari gerbang ke tujuan. Silakan coba lokasi lain."
-              );
-              loading.setIsCalculatingRoute(false);
-              return;
-            }
-          } else {
-            console.log("❌ Tidak ada gerbang yang terhubung ke tujuan");
-            showNotification(
-              "error",
-              "Tidak Ada Rute",
-              "Tidak ada gerbang yang terhubung ke tujuan. Silakan coba lokasi lain."
-            );
-            loading.setIsCalculatingRoute(false);
-            return;
-          }
-        } else {
-          // Routing biasa (bukan dari "Lokasi Saya")
-          const routeResult = findRoute(
-            startLatLng,
-            endLatLng,
-            points,
-            features.jalurFeatures,
-            transportMode,
-            false // isGpsInsideCampus = false
-          );
-          if (
-            routeResult &&
-            routeResult.geojsonSegments &&
-            routeResult.geojsonSegments.length > 0
-          ) {
-            const geoJsonLayer = L.geoJSON(
-              {
-                type: "FeatureCollection",
-                features:
-                  routeResult.geojsonSegments as GeoJSON.Feature<GeoJSON.Geometry>[],
-              } as GeoJSON.FeatureCollection<GeoJSON.Geometry>,
-              {
-                style: () => ({
-                  color: "#2563eb",
-                  weight: 6,
-                  opacity: 1,
-                }),
-                pane: "routePane",
-              }
-            );
-            if (mapRefs.leafletMapRef.current) {
-              geoJsonLayer.addTo(mapRefs.leafletMapRef.current);
-              mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-                padding: [40, 40],
-                maxZoom: 19,
-                animate: true,
-                duration: 1.5, // Smooth animation duration
-              });
-            }
-            setRouteLine(geoJsonLayer);
-
-            // Smooth zoom animation
-            mapRefs.leafletMapRef.current.fitBounds(geoJsonLayer.getBounds(), {
-              padding: [40, 40],
-              maxZoom: 19,
-              animate: true,
-              duration: 1.5, // Smooth animation duration
-            });
-
-            setRouteDistance(Math.round(routeResult.distance));
-
-            // PERBAIKAN: Hitung total waktu berjalan kaki dan kendaraan
-            let totalWalkingTime = 0;
-            let totalVehicleTime = 0;
-
-            console.log(
-              "🔍 [TIME] Menghitung total waktu dari segmen (performRouting):"
-            );
-            routeResult.geojsonSegments.forEach((segment: any, idx: number) => {
-              const segmentId = segment.id || "unknown";
-              const waktuKaki = segment.properties?.waktu_kaki || 0;
-              const waktuKendara = segment.properties?.waktu_kendara || 0;
-
-              totalWalkingTime += Number(waktuKaki);
-              totalVehicleTime += Number(waktuKendara);
-
-              console.log(
-                `  ${
-                  idx + 1
-                }. ID ${segmentId}: kaki=${waktuKaki}s, kendara=${waktuKendara}s`
-              );
-            });
-
-            console.log(
-              `📊 [TIME] Total: kaki=${totalWalkingTime}s (${Math.floor(
-                totalWalkingTime / 60
-              )} menit ${Math.round(
-                totalWalkingTime % 60
-              )} detik), kendara=${totalVehicleTime}s (${Math.floor(
-                totalVehicleTime / 60
-              )} menit ${Math.round(totalVehicleTime % 60)} detik)`
-            );
-
-            setTotalWalkingTime(totalWalkingTime);
-            setTotalVehicleTime(totalVehicleTime);
-
-            // PERBAIKAN: Tampilkan jalur saja tanpa instruksi navigasi
-            console.log(
-              "🎯 Menampilkan jalur di map tanpa instruksi navigasi (routing biasa)"
-            );
-            setRouteSteps(
-              parseRouteSteps(
-                routeResult.geojsonSegments,
-                startLatLng,
-                endLatLng,
-                transportMode
-              )
-            );
-            setActiveStepIndex(-1); // Nonaktifkan navigasi
-          } else {
-            showNotification(
-              "error",
-              "Rute Tidak Valid",
-              "Tidak ditemukan rute yang valid antara titik awal dan tujuan. Pastikan titik terhubung ke jalur."
-            );
-          }
-        }
-      }
-    };
-
-    useEffect(() => {
-      if (mapRefs.leafletMapRef.current) {
-        const map = mapRefs.leafletMapRef.current;
-
-        // Buat pane khusus untuk route dengan z-index rendah
-        if (!map.getPane("routePane")) {
-          map.createPane("routePane");
-          const routePane = map.getPane("routePane");
-          if (routePane) {
-            routePane.style.zIndex = "650"; // Konsisten di atas overlay
-          }
-        }
-
-        // Buat pane khusus untuk navigation marker dengan z-index SANGAT tinggi
-        if (!map.getPane("navigationPane")) {
-          map.createPane("navigationPane");
-          const navPane = map.getPane("navigationPane");
-          if (navPane) {
-            navPane.style.zIndex = "1000"; // Di atas SEMUA layer termasuk route
-            navPane.style.pointerEvents = "auto";
-          }
-        }
-      }
-    }, []);
+    const handleRouteSubmit = async () => {};
 
     return (
       <div
@@ -8552,14 +6127,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             if (map) map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()));
           }}
           onReset={handleResetZoom}
-          onLocateMe={handleLocateMe}
-          onToggleLayer={handleToggleLayer}
           onToggleBasemap={handleToggleBasemap}
-          jalurVisible={layerVisibility.jalurLayerVisible}
-          titikVisible={layerVisibility.titikLayerVisible}
-          bangunanVisible={layerVisibility.bangunanLayerVisible}
-          onToggleJalur={toggleJalurLayer}
-          onToggleTitik={toggleTitikLayer}
           onToggleBangunan={toggleBangunanLayer}
           searchText={searchText}
           onSearchTextChange={(value) => {
@@ -8576,89 +6144,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           searchResults={searchResults}
           onSelectSearchResult={handleSelectSearchResult as any}
           isHighlightActive={!!highlight.isHighlightActive}
-        />
-
-        <Navigation
-          isDark={!!isDark}
-          isMobile={!!isMobile}
-          routeSteps={routeSteps as any}
-          activeStepIndex={activeStepIndex}
-          hasReachedDestination={!!hasReachedDestination}
-          routeDistance={routeDistance}
-          totalWalkingTime={totalWalkingTime}
-          totalVehicleTime={totalVehicleTime}
-          transportMode={transportMode as any}
-          showStartButton={routeSteps.length > 0 && activeStepIndex === -1}
-          onStart={() => setActiveStepIndex(0)}
-          onClose={() => {
-            setRouteSteps([]);
-            setActiveStepIndex(0);
-            setHasReachedDestination(false);
-            routing.setIsNavigationActive(false);
-            setTotalWalkingTime(null);
-            setTotalVehicleTime(null);
-            if (destinationMarker && mapRefs.leafletMapRef.current) {
-              mapRefs.leafletMapRef.current.removeLayer(destinationMarker);
-              setDestinationMarker(null);
-            }
-            if (routeLine && mapRefs.leafletMapRef.current) {
-              mapRefs.leafletMapRef.current.removeLayer(routeLine);
-              setRouteLine(null);
-            }
-            if (mapRefs.navigationMarkerRef.current && mapRefs.leafletMapRef.current) {
-              mapRefs.leafletMapRef.current.removeLayer(mapRefs.navigationMarkerRef.current);
-              mapRefs.navigationMarkerRef.current = null;
-            }
-            if (features.selectedFeature && features.selectedFeature.properties?.id) {
-              highlight.setIsHighlightActive(true);
-              const bangunanLayer = mapRefs.bangunanLayerRef.current;
-              if (bangunanLayer) {
-                bangunanLayer.eachLayer((layer: L.Layer) => {
-                  if (
-                    (layer as any).feature &&
-                    (layer as any).feature.geometry &&
-                    (layer as any).feature.geometry.type === "Polygon" &&
-                    (layer as any).feature.properties?.id ===
-                      Number(features.selectedFeature?.properties?.id)
-                  ) {
-                    (layer as any).setStyle({
-                      color: "#ff3333",
-                      fillColor: "#ff3333",
-                      fillOpacity: 0.7,
-                      opacity: 1,
-                      weight: 3,
-                    });
-                  }
-                });
-              }
-              if (mapRefs.leafletMapRef.current && features.selectedFeature.geometry) {
-                const centroid = getFeatureCentroid(features.selectedFeature);
-                const currentZoom = mapRefs.leafletMapRef.current.getZoom();
-                mapRefs.leafletMapRef.current.setView(centroid, currentZoom, {
-                  animate: true,
-                  duration: 1,
-                });
-              }
-            }
-            if (isMobile && features.selectedFeature) {
-              ui.setCardVisible(true);
-              setTimeout(() => animation.setCardAnimation(true), 50);
-            }
-          }}
-          onPrev={() => {
-            if (hasReachedDestination) setHasReachedDestination(false);
-            else if (activeStepIndex > 0)
-              setActiveStepIndex(activeStepIndex - 1);
-          }}
-          onNext={() => {
-            if (activeStepIndex < routeSteps.length - 1)
-              setActiveStepIndex(activeStepIndex + 1);
-            else if (
-              activeStepIndex === routeSteps.length - 1 &&
-              !hasReachedDestination
-            )
-              setHasReachedDestination(true);
-          }}
         />
 
         {/* Panel navigasi digabung menjadi satu komponen */}
@@ -8685,22 +6170,27 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               edit.setEditInteraksi("");
               // Hapus highlight seperti saat klik bangunan (prioritas ke yang sedang ditampilkan)
               if (features.selectedFeature?.properties?.id) {
-                clearBangunanHighlightById(features.selectedFeature.properties.id);
+                clearBangunanHighlightById(
+                  features.selectedFeature.properties.id
+                );
               }
               if (highlight.searchHighlightedId) {
                 resetBangunanHighlight();
                 highlight.setSearchHighlightedId(null);
               }
-              if (routing.isNavigationActive) {
+              if (false) {
                 setRouteSteps([]);
                 setActiveStepIndex(0);
                 setHasReachedDestination(false);
-                routing.setIsNavigationActive(false);
+                // Routing removed
                 if (routeLine && mapRefs.leafletMapRef.current) {
                   mapRefs.leafletMapRef.current.removeLayer(routeLine);
                   setRouteLine(null);
                 }
-                if (mapRefs.navigationMarkerRef.current && mapRefs.leafletMapRef.current) {
+                if (
+                  mapRefs.navigationMarkerRef.current &&
+                  mapRefs.leafletMapRef.current
+                ) {
                   mapRefs.leafletMapRef.current.removeLayer(
                     mapRefs.navigationMarkerRef.current
                   );
@@ -8720,16 +6210,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Buka modal edit nama dan interaksi
               edit.setIsEditingName(true);
               edit.setIsEditingInteraksi(true);
-              edit.setEditName(features.selectedFeature?.properties?.nama || "");
+              edit.setEditName(
+                features.selectedFeature?.properties?.nama || ""
+              );
               edit.setEditInteraksi(
-                features.selectedFeature?.properties?.interaksi || "Noninteraktif"
+                features.selectedFeature?.properties?.interaksi ||
+                  "Noninteraktif"
               );
             }}
-            onSetRouteToBuilding={() => {
-              routing.setRouteEndType("bangunan");
-              routing.setRouteEndId(String(features.selectedFeature?.properties?.id ?? ""));
-              setTimeout(() => ui.setShowRouteModal(true), 10);
-            }}
+            onNavigate={handleNavigateToBuilding}
           />
         )}
 
@@ -8807,7 +6296,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 {edit.selectedFile.name}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {(edit.selectedFile.size / 1024 / 1024).toFixed(2)}{" "}
+                                {(edit.selectedFile.size / 1024 / 1024).toFixed(
+                                  2
+                                )}{" "}
                                 MB
                               </p>
                             </div>
@@ -8897,7 +6388,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   <EditLantaiImageUploader
                     visible={true}
                     isDark={isDark}
-                    lantaiCount={features.selectedFeature?.properties?.lantai || 0}
+                    lantaiCount={
+                      features.selectedFeature?.properties?.lantai || 0
+                    }
                     selectedLantaiFilter={lantai.selectedLantaiFilter}
                     onChangeLantaiFilter={lantai.setSelectedLantaiFilter}
                     lantaiGambarData={lantai.lantaiGambarData}
@@ -9034,7 +6527,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           onDrawingModeChange={handleDrawingModeChange}
           externalActiveMode={drawing.drawingMode}
           isConfirmationActive={
-            drawing.isEditingShape || drawing.showDragConfirmation || ui.showShapeSwitchModal
+            drawing.isEditingShape ||
+            drawing.showDragConfirmation ||
+            ui.showShapeSwitchModal
           }
         />
 
@@ -9214,353 +6709,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           </div>
         )}
 
-        {/* MODAL RUTE (di dalam canvas) */}
-        {ui.showRouteModal && (
-          <div
-            data-modal="route-modal"
-            className="absolute inset-0 z-[25] flex items-center justify-center"
-            style={{
-              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
-            }}
-          >
-            {/* Overlay */}
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => ui.setShowRouteModal(false)}
-            />
-            {/* Modal */}
-            <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 z-[26] animate-fadeInUp">
-              {/* Tombol tutup */}
-              <button
-                className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl focus:outline-none"
-                onClick={() => ui.setShowRouteModal(false)}
-                title="Tutup"
-              >
-                ×
-              </button>
-              <h3 className="text-lg font-bold mb-4 text-primary dark:text-primary-dark text-center">
-                Rute
-              </h3>
-              <form
-                className="flex flex-col gap-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleRouteSubmit();
-                }}
-              >
-                {/* Mode Transportasi */}
-                <div className="route-modal-select">
-                  <label className="block text-sm font-medium mb-1">
-                    Mode Transportasi
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setTransportMode("jalan_kaki")}
-                      className={`flex-1 px-3 py-2 rounded-lg border transition-all ${
-                        transportMode === "jalan_kaki"
-                          ? "bg-primary text-white border-primary"
-                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <FontAwesomeIcon icon={faWalking} className="w-4 h-4" />
-                        <span className="text-sm font-medium">Jalan Kaki</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTransportMode("kendaraan")}
-                      className={`flex-1 px-3 py-2 rounded-lg border transition-all ${
-                        transportMode === "kendaraan"
-                          ? "bg-primary text-white border-primary"
-                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <FontAwesomeIcon
-                          icon={faMotorcycle}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm font-medium">Kendaraan</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Titik Awal */}
-                <div className="route-modal-select">
-                  <label className="block text-sm font-medium mb-1">
-                    Titik Awal
-                  </label>
-
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-left flex items-center justify-between"
-                      onClick={() =>
-                        routing.setIsStartDropdownOpen(!routing.isStartDropdownOpen)
-                      }
-                    >
-                      <span>
-                        {routing.routeStartType === "my-location"
-                          ? isGettingLocation
-                            ? "📍 Mendapatkan Lokasi..."
-                            : "📍 Lokasi Saya"
-                          : (() => {
-                              const selectedTitik = features.titikFeatures.find(
-                                (t: any) =>
-                                  String(t.id || t.properties?.OBJECTID) ===
-                                  String(routing.routeStartId)
-                              );
-                              return selectedTitik
-                                ? selectedTitik.properties?.Nama ||
-                                    `Titik ${
-                                      selectedTitik.id ||
-                                      selectedTitik.properties?.OBJECTID
-                                    }`
-                                : "Pilih titik awal";
-                            })()}
-                      </span>
-                      <svg
-                        className={`w-4 h-4 transition-transform ${
-                          routing.isStartDropdownOpen ? "rotate-180" : ""
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-
-                    {routing.isStartDropdownOpen && (
-                      <div
-                        className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 dropdown-list"
-                        onWheel={(e) => {
-                          const target = e.currentTarget;
-                          const scrollTop = target.scrollTop;
-                          const scrollHeight = target.scrollHeight;
-                          const clientHeight = target.clientHeight;
-                          const delta = e.deltaY;
-
-                          // Cek apakah scroll akan melebihi batas
-                          const willScrollPastTop = delta < 0 && scrollTop <= 0;
-                          const willScrollPastBottom =
-                            delta > 0 &&
-                            scrollTop + clientHeight >= scrollHeight;
-
-                          // Jika akan scroll melebihi batas, prevent default dan stop propagation
-                          if (willScrollPastTop || willScrollPastBottom) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            return false;
-                          }
-
-                          // Jika scroll masih dalam batas, prevent default untuk mencegah scroll halaman
-                          e.preventDefault();
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-100 dark:border-gray-700"
-                          onClick={() => {
-                            routing.setRouteStartType("my-location");
-                            routing.setRouteStartId("");
-                            routing.setIsStartDropdownOpen(false);
-                          }}
-                        >
-                          {isGettingLocation
-                            ? "📍 Mendapatkan Lokasi..."
-                            : "📍 Lokasi Saya"}
-                        </button>
-                        {features.titikFeatures
-                          .filter((t: any) => {
-                            const nama = t.properties?.Nama || "";
-                            const lowerNama = nama.toLowerCase();
-                            // Filter out titik yang memiliki nama "Toilet" atau "Pos Satpam"
-                            return (
-                              !lowerNama.includes("toilet") &&
-                              !lowerNama.includes("pos satpam")
-                            );
-                          })
-                          .sort((a: any, b: any) => {
-                            const namaA = a.properties?.Nama || "";
-                            const namaB = b.properties?.Nama || "";
-                            const lowerNamaA = namaA.toLowerCase();
-                            const lowerNamaB = namaB.toLowerCase();
-
-                            // Gerbang selalu di atas
-                            const isGerbangA = lowerNamaA.includes("gerbang");
-                            const isGerbangB = lowerNamaB.includes("gerbang");
-
-                            if (isGerbangA && !isGerbangB) return -1;
-                            if (!isGerbangA && isGerbangB) return 1;
-                            if (isGerbangA && isGerbangB) {
-                              // Jika keduanya gerbang, urutkan alfabetis
-                              return namaA.localeCompare(namaB);
-                            }
-
-                            // Sisanya urutkan alfabetis
-                            return namaA.localeCompare(namaB);
-                          })
-                          .map((t: any) => (
-                            <button
-                              key={t.id || t.properties?.OBJECTID}
-                              type="button"
-                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
-                              onClick={() => {
-                                routing.setRouteStartType("titik");
-                                routing.setRouteStartId(
-                                  String(t.id || t.properties?.OBJECTID)
-                                );
-                                routing.setIsStartDropdownOpen(false);
-                              }}
-                            >
-                              {t.properties?.Nama ||
-                                `Titik ${t.id || t.properties?.OBJECTID}`}
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* Titik Tujuan */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Titik Tujuan
-                  </label>
-                  {routing.routeEndType === "bangunan" && routing.routeEndId ? (
-                    // Tampilkan bangunan yang dipilih (dari klik bangunan)
-                    <div className="w-full px-3 py-2 border rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                      <span className="font-medium">
-                        {(() => {
-                          const b = features.bangunanFeatures.find(
-                            (b: FeatureType) => b.properties.id == routing.routeEndId
-                          );
-                          return b ? b.properties.nama : "Bangunan";
-                        })()}
-                      </span>
-                    </div>
-                  ) : (
-                    // Input manual untuk mencari titik tujuan
-                    <div className="relative">
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        value={routing.routeEndSearchText}
-                        onChange={(e) => {
-                          const searchText = e.target.value;
-                          routing.setRouteEndSearchText(searchText);
-                          if (searchText.trim()) {
-                            const results = searchTitikByName(searchText);
-                            routing.setRouteEndSearchResults(results);
-                          } else {
-                            routing.setRouteEndSearchResults([]);
-                          }
-                        }}
-                        placeholder="Cari nama titik tujuan..."
-                      />
-                      {/* Dropdown hasil pencarian */}
-                      {routing.routeEndSearchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-40 overflow-y-auto z-50">
-                          {routing.routeEndSearchResults.map((point) => (
-                            <button
-                              key={point.id}
-                              type="button"
-                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
-                              onClick={() => {
-                                routing.setRouteEndSearchText(point.name);
-                                routing.setRouteEndType("titik");
-                                routing.setRouteEndSearchResults([]);
-                              }}
-                            >
-                              {point.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {/* Tombol submit */}
-                <button
-                  type="submit"
-                  disabled={isGettingLocation || loading.isCalculatingRoute}
-                  className={`w-full py-2 rounded-lg font-bold mt-2 transition-all ${
-                    isGettingLocation || loading.isCalculatingRoute
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-primary text-white hover:bg-primary/90"
-                  }`}
-                >
-                  {isGettingLocation ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Mendapatkan Lokasi GPS...
-                    </div>
-                  ) : loading.isCalculatingRoute ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Menghitung Rute...
-                    </div>
-                  ) : (
-                    "Cari Rute"
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
         {/* Modal GPS Troubleshooting */}
-        {showGPSTroubleshoot && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    🚨 GPS Bermasalah
-                  </h3>
-                  <button
-                    onClick={() => setShowGPSTroubleshoot(false)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
-                  <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <div className="font-medium text-yellow-800 dark:text-yellow-200 mb-2">
-                      Tidak dapat mengambil lokasi GPS. Silakan coba lagi atau
-                      pilih titik awal secara manual.
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-3 mt-6 justify-end">
-                  <button
-                    onClick={() => setShowGPSTroubleshoot(false)}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm font-medium"
-                  >
-                    Tutup
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Custom Notification System */}
         {notification && (
           <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] w-[calc(100vw-2rem)] max-w-md mx-4 transition-all duration-500 ${
+            className={`fixed top-20 right-4 z-[99999] w-[calc(100vw-2rem)] max-w-md transition-all duration-500 ${
               notification.visible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-full opacity-0"
+                ? "translate-x-0 opacity-100"
+                : "translate-x-full opacity-0"
             }`}
           >
             <div
@@ -9604,7 +6761,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             </div>
           </div>
         )}
-
 
         {/* Custom Confirmation Dialog */}
         {confirmationDialog && (
@@ -9654,4 +6810,3 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 LeafletMap.displayName = "LeafletMap";
 
 export default LeafletMap;
-

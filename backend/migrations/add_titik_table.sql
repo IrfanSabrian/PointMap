@@ -1,0 +1,65 @@
+-- Migration: Add titik table
+-- Created: 2026-01-08
+-- Description: Adds titik (points) table for POI markers on the map
+
+-- Drop table if exists (for re-running migration)
+DROP TABLE IF EXISTS `titik`;
+
+-- Create titik table
+CREATE TABLE `titik` (
+  `id_titik` int NOT NULL AUTO_INCREMENT,
+  `nama` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `koordinat_x` decimal(15,12) NOT NULL,
+  `koordinat_y` decimal(15,12) NOT NULL,
+  `geometri` text COLLATE utf8mb4_general_ci,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_titik`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Insert initial data
+LOCK TABLES `titik` WRITE;
+INSERT INTO `titik` VALUES
+(1,'Gerbang Depan',109.348102742000,-0.053777560999,'{"type":"Point","coordinates":[109.34810274200004,-0.053777560999947127]}',NOW()),
+(2,'Gerbang Samping',109.347800747000,-0.054223855999,'{"type":"Point","coordinates":[109.34780074700006,-0.054223855999964599]}',NOW()),
+(3,'Gerbang Belakang',109.345540999000,-0.056965624999,'{"type":"Point","coordinates":[109.34554099900004,-0.056965624999975262]}',NOW()),
+(4,'Pos Satpam',109.347919935000,-0.053867521999,'{"type":"Point","coordinates":[109.34791993500005,-0.053867521999961809]}',NOW()),
+(5,'Bank BNI',109.347776807000,-0.053995246999,'{"type":"Point","coordinates":[109.34777680700006,-0.053995246999932078]}',NOW()),
+(6,'Pos Satpam',109.347694329000,-0.054022929999,'{"type":"Point","coordinates":[109.34769432900003,-0.054022929999973712]}',NOW()),
+(7,'Polnep Mart',109.347644619000,-0.054167830999,'{"type":"Point","coordinates":[109.34764461900005,-0.054167830999972466]}',NOW()),
+(8,'Bank BRI',109.347577269000,-0.054085498999,'{"type":"Point","coordinates":[109.34757726900006,-0.054085498999938864]}',NOW()),
+(12,'Gedung Pusat Pengembangan Kewirausahaan & Inkubator Bisnis',109.347548995000,-0.054290134999,'{"type":"Point","coordinates":[109.34754899500007,-0.054290134999973816]}',NOW()),
+(13,'Masjid Al-Hadid Polnep',109.347292489000,-0.054462716999,'{"type":"Point","coordinates":[109.34729248900004,-0.054462716999978511]}',NOW()),
+(14,NULL,109.346868913000,-0.054049235999,'{"type":"Point","coordinates":[109.34686891300004,-0.054049235999968914]}',NOW()),
+(15,'Gedung Akademik 2',109.347004993000,-0.054005835999,'{"type":"Point","coordinates":[109.34700499300004,-0.054005835999930696]}',NOW()),
+(16,'Gedung Akademik 1',109.347209260000,-0.053736531999,'{"type":"Point","coordinates":[109.34720926000006,-0.053736531999959425]}',NOW()),
+(17,'Gedung Lab Teknik Informatika',109.345390909000,-0.054931256999,'{"type":"Point","coordinates":[109.34539090900006,-0.054931256999964262]}',NOW()),
+(18,'Jurusan Ilmu Kelautan dan Perikanan',109.345424815000,-0.055325773999,'{"type":"Point","coordinates":[109.34542481500006,-0.055325773999925332]}',NOW()),
+(19,'Gerbang Keluar Depan',109.347411172000,-0.053020617999,'{"type":"Point","coordinates":[109.34741117200008,-0.053020617999948172]}',NOW()),
+(20,'Gerbang Keluar Samping',109.346817694000,-0.053106450999,'{"type":"Point","coordinates":[109.34681769400004,-0.053106450999962362]}',NOW()),
+(21,'Toilet',109.347235513000,-0.054743523999,'{"type":"Point","coordinates":[109.34723551300004,-0.054743523999945864]}',NOW()),
+(22,NULL,109.347064561000,-0.054760623999,'{"type":"Point","coordinates":[109.34706456100008,-0.054760623999925429]}',NOW()),
+(23,NULL,109.346921273000,-0.054919497999,'{"type":"Point","coordinates":[109.34692127300008,-0.054919497999946998]}',NOW()),
+(24,'Jurusan Teknik Mesin',109.346418617000,-0.055357981999,'{"type":"Point","coordinates":[109.34641861700004,-0.055357981999975436]}',NOW()),
+(25,'Jurusan Ilmu Kelautan dan Perikanan',109.345232855000,-0.055326089999,'{"type":"Point","coordinates":[109.34523285500006,-0.055326089999937267]}',NOW()),
+(26,'Gedung Perkuliahan Terpadu 1',109.345536288000,-0.055756983999,'{"type":"Point","coordinates":[109.34553628800006,-0.055756983999970089]}',NOW()),
+(27,'Gedung Perkuliahan Terpadu 2',109.344960487000,-0.055459446999,'{"type":"Point","coordinates":[109.34496048700004,-0.055459446999975626]}',NOW()),
+(28,NULL,109.344995305000,-0.055332363999,'{"type":"Point","coordinates":[109.34499530500005,-0.055332363999980316]}',NOW()),
+(29,'Gedung Teori Bersama',109.346142421000,-0.054631796999,'{"type":"Point","coordinates":[109.34614242100008,-0.05463179699995635]}',NOW()),
+(30,'Toilet',109.345788620000,-0.054612737999,'{"type":"Point","coordinates":[109.34578862000006,-0.054612737999946148]}',NOW()),
+(31,'Toilet',109.345777574000,-0.054719930999,'{"type":"Point","coordinates":[109.34577757400007,-0.054719930999965527]}',NOW()),
+(32,'Bengkel Teknik Listrik',109.345702725000,-0.054874027999,'{"type":"Point","coordinates":[109.34570272500008,-0.054874027999971986]}',NOW()),
+(33,'Lab & Bengkel Teknik Elektronika',109.345533528000,-0.054739023999,'{"type":"Point","coordinates":[109.34553352800003,-0.054739023999957226]}',NOW()),
+(34,NULL,109.345603795000,-0.055154800999,'{"type":"Point","coordinates":[109.34560379500005,-0.055154800999957843]}',NOW()),
+(35,NULL,109.345784549000,-0.055463298999,'{"type":"Point","coordinates":[109.34578454900009,-0.05546329899993907]}',NOW()),
+(37,'Jurusan Arsitektur',109.346319442000,-0.054991267999,'{"type":"Point","coordinates":[109.34631944200004,-0.054991267999980664]}',NOW()),
+(38,' Kesma',109.346444693000,-0.055005098999,'{"type":"Point","coordinates":[109.34644469300008,-0.055005098999970414]}',NOW()),
+(39,NULL,109.345663341000,-0.055327133999,'{"type":"Point","coordinates":[109.34566334100003,-0.055327133999924172]}',NOW()),
+(40,NULL,109.347070885000,-0.054303425999,'{"type":"Point","coordinates":[109.34707088500005,-0.054303425999933097]}',NOW()),
+(41,'Kantin Hajar',109.345399128000,-0.056616933999,'{"type":"Point","coordinates":[109.34539912800005,-0.056616933999976027]}',NOW()),
+(42,'Gedung Perkuliahan Terpadu 4',109.345346748000,-0.056305595999,'{"type":"Point","coordinates":[109.34534674800005,-0.056305595999958769]}',NOW()),
+(43,'Gedung Perkuliahan Terpadu 3',109.345387970000,-0.056049473999,'{"type":"Point","coordinates":[109.34538797000005,-0.056049473999962629]}',NOW()),
+(44,NULL,109.345027441000,-0.056363183999,'{"type":"Point","coordinates":[109.34502744100007,-0.056363183999962985]}',NOW()),
+(45,'Rusunawa Polnep',109.344860211000,-0.055978569999,'{"type":"Point","coordinates":[109.34486021100008,-0.0559785699999793]}',NOW()),
+(46,NULL,109.344621085000,-0.055908204999,'{"type":"Point","coordinates":[109.34462108500009,-0.055908204999980171]}',NOW()),
+(47,NULL,109.344531976000,-0.055831876999,'{"type":"Point","coordinates":[109.34453197600004,-0.055831876999945962]}',NOW());
+UNLOCK TABLES;

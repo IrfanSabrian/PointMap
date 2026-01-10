@@ -11,8 +11,6 @@ import {
   Ruangan,
   LantaiGambar,
   RuanganGallery,
-  Titik,
-  Jalur,
 } from "./models/index.js";
 import bangunanRoutes from "./routes/bangunan.js";
 import ruanganRoutes from "./routes/ruangan.js";
@@ -20,17 +18,15 @@ import authRoutes from "./routes/auth.js";
 import lantaiGambarRoutes from "./routes/lantaiGambar.js";
 import ruanganGalleryRoutes from "./routes/ruanganGallery.js";
 import maintenanceRoutes from "./routes/maintenance.js";
-import titikRoutes from "./routes/titik.js";
-import jalurRoutes from "./routes/jalur.js";
 
 const app = express();
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
   : [
       "http://localhost:3000", // Default frontend dev URL
-      "http://localhost:3001", // Default backend dev URL  
+      "http://localhost:3001", // Default backend dev URL
       "http://localhost:3002", // Alternative port
     ];
 
@@ -61,7 +57,14 @@ app.use((req, res, next) => {
   next();
 });
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // API routes
 app.use("/api/bangunan", bangunanRoutes);
@@ -70,8 +73,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/lantai-gambar", lantaiGambarRoutes);
 app.use("/api/ruangan-gallery", ruanganGalleryRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
-app.use("/api/titik", titikRoutes);
-app.use("/api/jalur", jalurRoutes);
 
 // Debug endpoints
 app.get("/api/debug/env", (req, res) => {

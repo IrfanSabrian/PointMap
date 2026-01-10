@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faInfoCircle, faRoute } from "@fortawesome/free-solid-svg-icons";
+import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { Fancybox } from "@fancyapps/ui";
 import "@fancyapps/ui/dist/fancybox/fancybox.css";
 
@@ -16,7 +16,6 @@ type Props = {
   onEditThumbnail: () => void;
   onEditLantai: () => void;
   onEditNameAndInteraksi: () => void;
-  onSetRouteToBuilding: () => void;
 };
 
 export default function BuildingDetailModal(props: Props) {
@@ -32,7 +31,6 @@ export default function BuildingDetailModal(props: Props) {
     onEditThumbnail,
     onEditLantai,
     onEditNameAndInteraksi,
-    onSetRouteToBuilding,
   } = props;
 
   // Initialize Fancybox when component mounts
@@ -44,6 +42,28 @@ export default function BuildingDetailModal(props: Props) {
       Fancybox.destroy();
     };
   }, []);
+
+  // Handle click outside to close
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const modal = document.querySelector(
+        '[data-container="building-detail"]'
+      );
+      if (modal && !modal.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    // Use a small timeout to prevent immediate closing if the click that opened it bubbles up
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
 
   if (!selectedFeature) return null;
 
@@ -181,8 +201,7 @@ export default function BuildingDetailModal(props: Props) {
                   icon={faInfoCircle}
                   className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4"
                 />
-                <span className="sm:hidden">Detail</span>
-                <span className="hidden sm:inline">Detail Bangunan</span>
+                <span>Detail</span>
               </button>
             )}
             {isDashboard &&
@@ -203,24 +222,6 @@ export default function BuildingDetailModal(props: Props) {
                 </button>
               )}
           </div>
-
-          {selectedFeature?.properties?.id && (
-            <button
-              className={`w-full py-2 sm:py-2 rounded-lg font-bold text-xs sm:text-sm shadow transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-primary-dark touch-manipulation ${
-                drawingMode
-                  ? "bg-gray-400 text-gray-200 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
-                  : "bg-accent text-white hover:bg-accent/90 dark:bg-accent-dark dark:hover:bg-accent-dark/80"
-              }`}
-              onClick={drawingMode ? undefined : onSetRouteToBuilding}
-              disabled={!!drawingMode}
-            >
-              <FontAwesomeIcon
-                icon={faRoute}
-                className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4"
-              />
-              Rute
-            </button>
-          )}
         </div>
       </div>
     </div>

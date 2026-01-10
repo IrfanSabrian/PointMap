@@ -218,7 +218,11 @@ export default function EditLantaiImageUploader(props: Props) {
                     >
                       <img
                         src={`${
-                          existingLantai.path_file.startsWith("http") ? "" : "/"
+                          existingLantai.path_file.startsWith("http")
+                            ? ""
+                            : process.env.NEXT_PUBLIC_API_BASE_URL
+                        }${
+                          existingLantai.path_file.startsWith("/") ? "" : "/"
                         }${existingLantai.path_file}?v=${Date.now()}`}
                         alt={`Lantai ${lantaiNumber}`}
                         className="w-full h-full object-cover"
@@ -463,6 +467,16 @@ export default function EditLantaiImageUploader(props: Props) {
                       return extractedNumber === showSvgPreview;
                     })
                     ?.path_file.startsWith("http")
+                    ? ""
+                    : process.env.NEXT_PUBLIC_API_BASE_URL
+                }${
+                  lantaiGambarData
+                    .find((l) => {
+                      const match = (l?.nama_file || "").match(/Lt(\d+)?.svg/i);
+                      const extractedNumber = match ? parseInt(match[1]) : null;
+                      return extractedNumber === showSvgPreview;
+                    })
+                    ?.path_file.startsWith("/")
                     ? ""
                     : "/"
                 }${

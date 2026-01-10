@@ -1,5 +1,5 @@
 /**
- * @file useMapRefs.ts  
+ * @file useMapRefs.ts
  * @description Custom hook untuk mengelola semua refs di LeafletMap component
  * @phase Phase 1.2 - Extract Refs
  * @created 2025-12-04
@@ -17,22 +17,13 @@ export interface MapRefs {
   mapRef: MutableRefObject<HTMLDivElement | null>;
   leafletMapRef: MutableRefObject<L.Map | null>;
   basemapLayerRef: MutableRefObject<L.TileLayer | null>;
-  
+
   // Layer Refs
   nonBangunanLayerRef: MutableRefObject<L.GeoJSON<FeatureType> | null>;
   bangunanLayerRef: MutableRefObject<L.GeoJSON<FeatureType> | null>;
-  jalurLayerRef: MutableRefObject<L.Layer | null>;
-  titikLayerRef: MutableRefObject<L.Layer | null>;
-  
-  // Route/Navigation Refs
-  userMarkerRef: MutableRefObject<L.Marker | null>;
-  routeLineRef: MutableRefObject<L.Polyline | null>;
-  navigationMarkerRef: MutableRefObject<L.Marker | null>;
-  
+
   // State Tracking Refs (for performance)
   isHighlightActiveRef: MutableRefObject<boolean>;
-  isNavigationActiveRef: MutableRefObject<boolean>;
-  isGpsRecalcRef: MutableRefObject<boolean>;
   isZoomingRef: MutableRefObject<boolean>;
   isBuildingClickedRef: MutableRefObject<boolean>;
   isDrawingEnabledRef: MutableRefObject<boolean>;
@@ -52,19 +43,10 @@ export function useMapRefs(): MapRefs {
   // ==================== LAYER REFS ====================
   const nonBangunanLayerRef = useRef<L.GeoJSON<FeatureType> | null>(null);
   const bangunanLayerRef = useRef<L.GeoJSON<FeatureType> | null>(null);
-  const jalurLayerRef = useRef<L.Layer | null>(null);
-  const titikLayerRef = useRef<L.Layer | null>(null);
-
-  // ==================== ROUTE/NAVIGATION REFS ====================
-  const userMarkerRef = useRef<L.Marker | null>(null);
-  const routeLineRef = useRef<L.Polyline | null>(null);
-  const navigationMarkerRef = useRef<L.Marker | null>(null);
 
   // ==================== STATE TRACKING REFS ====================
   // These refs are used for performance optimization to avoid re-renders
   const isHighlightActiveRef = useRef(false);
-  const isNavigationActiveRef = useRef(false);
-  const isGpsRecalcRef = useRef(false);
   const isZoomingRef = useRef(false);
   const isBuildingClickedRef = useRef(false);
   const isDrawingEnabledRef = useRef(false);
@@ -76,22 +58,13 @@ export function useMapRefs(): MapRefs {
     mapRef,
     leafletMapRef,
     basemapLayerRef,
-    
+
     // Layers
     nonBangunanLayerRef,
     bangunanLayerRef,
-    jalurLayerRef,
-    titikLayerRef,
-    
-    // Route/Navigation
-    userMarkerRef,
-    routeLineRef,
-    navigationMarkerRef,
-    
+
     // State Tracking
     isHighlightActiveRef,
-    isNavigationActiveRef,
-    isGpsRecalcRef,
     isZoomingRef,
     isBuildingClickedRef,
     isDrawingEnabledRef,
