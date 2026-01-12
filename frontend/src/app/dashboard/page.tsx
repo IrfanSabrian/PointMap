@@ -260,23 +260,25 @@ export default function DashboardStats() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto min-h-0 space-y-3">
+          <div className="flex-1 overflow-y-auto min-h-0 p-1">
             {isLoading ? (
-              [1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="h-32 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"
-                />
-              ))
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="h-32 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"
+                  />
+                ))}
+              </div>
             ) : paginatedBuildings.length > 0 ? (
-              paginatedBuildings.map((b) => (
-                <div
-                  key={b.id_bangunan}
-                  className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/30 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group"
-                >
-                  <div className="flex gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {paginatedBuildings.map((b) => (
+                  <div
+                    key={b.id_bangunan}
+                    className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all group flex gap-3 items-start"
+                  >
                     {/* Thumbnail */}
-                    <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative shadow-md">
+                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative shadow-sm border border-gray-100 dark:border-gray-600">
                       {b.thumbnail ? (
                         <img
                           src={
@@ -302,106 +304,75 @@ export default function DashboardStats() {
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <FaBuilding className="text-2xl" />
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800">
+                          <FaBuilding className="text-xl opacity-50" />
                         </div>
                       )}
                     </div>
 
                     {/* Info Content */}
-                    <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
                       <div>
-                        <h3
-                          className="font-bold text-base text-gray-800 dark:text-white mb-2"
-                          title={b.nama}
-                        >
-                          {b.nama}
-                        </h3>
+                        <div className="flex items-start justify-between gap-1">
+                          <h3
+                            className="font-bold text-sm text-gray-800 dark:text-white line-clamp-1"
+                            title={b.nama}
+                          >
+                            {b.nama}
+                          </h3>
+                          <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded text-[9px] font-mono border border-gray-200 dark:border-gray-600 flex-shrink-0">
+                            #{b.id_bangunan}
+                          </span>
+                        </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {/* Jumlah Lantai */}
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                              <FaLayerGroup className="text-blue-600 dark:text-blue-400 text-xs" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                                Lantai
-                              </p>
-                              <p className="font-semibold text-gray-800 dark:text-white">
-                                {b.lantai || 0} Lt
-                              </p>
-                            </div>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                            <FaLayerGroup className="text-blue-500" />
+                            <span>{b.lantai ? `${b.lantai} Lt` : "-"}</span>
                           </div>
 
-                          {/* Status Interaktif */}
-                          <div className="flex items-center gap-2">
+                          <div
+                            className={`flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded border ${
+                              b.interaksi === "Interaktif"
+                                ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800"
+                                : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700"
+                            }`}
+                          >
                             <div
-                              className={`w-7 h-7 rounded-md flex items-center justify-center ${
+                              className={`w-1.5 h-1.5 rounded-full ${
                                 b.interaksi === "Interaktif"
-                                  ? "bg-green-100 dark:bg-green-900/30"
-                                  : "bg-gray-100 dark:bg-gray-700"
+                                  ? "bg-green-500 animate-pulse"
+                                  : "bg-gray-400"
                               }`}
-                            >
-                              <div
-                                className={`w-2 h-2 rounded-full ${
-                                  b.interaksi === "Interaktif"
-                                    ? "bg-green-500 animate-pulse"
-                                    : "bg-gray-400"
-                                }`}
-                              />
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                                Status
-                              </p>
-                              <p
-                                className={`font-semibold ${
-                                  b.interaksi === "Interaktif"
-                                    ? "text-green-700 dark:text-green-400"
-                                    : "text-gray-500 dark:text-gray-400"
-                                }`}
-                              >
-                                {b.interaksi === "Interaktif"
-                                  ? "Aktif"
-                                  : "Non-aktif"}
-                              </p>
-                            </div>
+                            />
+                            <span>
+                              {b.interaksi === "Interaktif"
+                                ? "Aktif"
+                                : "Non-aktif"}
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* ID Badge */}
-                      <div className="mt-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-md border border-gray-200 dark:border-gray-700 text-[10px]">
-                          <svg
-                            className="w-3 h-3"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm6 6H7v2h6v-2z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          ID: {b.id_bangunan}
-                        </span>
+                      <div className="flex justify-end">
+                        <Link
+                          href={`/dashboard/bangunan?edit=${b.id_bangunan}`}
+                          className="text-[10px] font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                        >
+                          Edit Gedung →
+                        </Link>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
-              <div className="py-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <FaBuilding className="text-2xl text-gray-400" />
+              <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700/50 rounded-full flex items-center justify-center mb-3">
+                  <FaBuilding className="text-xl text-gray-300 dark:text-gray-600" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                   Belum ada data gedung
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Data gedung akan tampil di sini
                 </p>
               </div>
             )}

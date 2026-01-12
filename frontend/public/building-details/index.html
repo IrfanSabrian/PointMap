@@ -2105,6 +2105,12 @@
                 transform-origin: 50% 100% !important;
                 -webkit-transform-origin: 50% 100% !important;
               }
+              
+              /* Override for 2D mode - flat pin */
+              .building.building--2d .${pinClass} {
+                transform: translate(-50%, -100%) !important;
+                -webkit-transform: translate(-50%, -100%) !important;
+              }
             `;
 
             cssRules += cssRule;

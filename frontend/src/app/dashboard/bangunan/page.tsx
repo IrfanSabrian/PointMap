@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import Modal from "@/components/dashboard/Modal";
 import BangunanForm from "@/components/dashboard/BangunanForm";
 import {
@@ -58,6 +59,8 @@ function Pagination({
 export default function BangunanPage() {
   const [bangunan, setBangunan] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid"); // Default to grid for better aesthetics
 
@@ -85,6 +88,21 @@ export default function BangunanPage() {
   useEffect(() => {
     fetchBangunan();
   }, []);
+
+  // Check for edit query param
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && bangunan.length > 0) {
+      const targetBangunan = bangunan.find(
+        (b) => b.id_bangunan === parseInt(editId) || b.id_bangunan === editId
+      );
+      if (targetBangunan) {
+        handleOpenEdit(targetBangunan);
+        // Clear param so it doesn't reopen on refresh/navigation
+        router.replace("/dashboard/bangunan", { scroll: false });
+      }
+    }
+  }, [bangunan, searchParams]);
 
   // Modal State
   const [modalState, setModalState] = useState<{
