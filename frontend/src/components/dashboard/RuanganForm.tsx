@@ -44,6 +44,17 @@ export default function RuanganForm({
   const [currentFloorImage, setCurrentFloorImage] = useState<string | null>(
     null
   );
+  const [imageError, setImageError] = useState(false);
+
+  // State untuk tracking dimensi gambar yang ditampilkan
+  const [imageDimensions, setImageDimensions] = useState<{
+    displayedWidth: number;
+    displayedHeight: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // Fetch Buildings
   useEffect(() => {
@@ -92,23 +103,57 @@ export default function RuanganForm({
 
   // Update image when floor or list changes
   useEffect(() => {
+    setImageError(false);
     if (!lantaiList.length) {
+      console.log(
+        "⚠️ No floor images available for building",
+        formData.id_bangunan
+      );
       setCurrentFloorImage(null);
       return;
     }
-    // Try to find image matching the floor number
-    // Convention: nama_file contains "Lt{number}" or we just rely on order?
-    // The previous controller logic generated nama_file as `Lt${nomor_lantai}.svg`
-    // So we search for that.
-    const expectedName = `Lt${formData.nomor_lantai}.svg`;
-    const image = lantaiList.find((l) => l.nama_file === expectedName);
+    const floorNum = formData.nomor_lantai;
+
+    console.log("🔍 Debug Floor Selection:");
+    console.log("   - Building ID:", formData.id_bangunan);
+    console.log("   - Target Floor:", floorNum);
+    console.log(
+      "   - Available Files:",
+      lantaiList.map((l) => l.nama_file)
+    );
+
+    let image = lantaiList.find((l) => l.nama_file === `Lt${floorNum}.svg`);
+
+    if (!image) {
+      // Fallback: Find any file that contains "Lt{floorNum}"
+      const regex = new RegExp(`Lt\\s*${floorNum}(\\D|$)`, "i");
+      image = lantaiList.find((l) => regex.test(l.nama_file));
+    }
+
+    console.log("   - Matched File:", image ? image.nama_file : "NONE");
+    console.log("   - Path:", image ? image.path_file : "N/A");
 
     if (image) {
       setCurrentFloorImage(image.path_file);
+      // Reset dimensions saat gambar berubah, akan dihitung ulang di onLoad
+      setImageDimensions(null);
     } else {
       setCurrentFloorImage(null);
+      setImageDimensions(null);
     }
-  }, [formData.nomor_lantai, lantaiList]);
+  }, [formData.nomor_lantai, lantaiList, formData.id_bangunan]);
+
+  // Recalculate dimensions saat window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (imageRef.current) {
+        handleImageLoad({ currentTarget: imageRef.current } as any);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,17 +215,116 @@ export default function RuanganForm({
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
     if (!currentFloorImage) return;
 
-    // Ambil bounding rect dari GAMBAR, bukan dari container
-    const rect = e.currentTarget.getBoundingClientRect();
+    const img = e.currentTarget;
+    const containerRect = img.getBoundingClientRect();
 
-    // Hitung koordinat relatif terhadap gambar yang sebenarnya
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    // Dapatkan ukuran natural dari gambar
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+
+    if (!naturalWidth || !naturalHeight) {
+      console.warn("Image natural dimensions not available");
+      return;
+    }
+
+    // Hitung aspect ratio
+    const containerAspectRatio = containerRect.width / containerRect.height;
+    const imageAspectRatio = naturalWidth / naturalHeight;
+
+    // Tentukan ukuran gambar yang sebenarnya ditampilkan (object-contain)
+    let displayedWidth, displayedHeight, offsetX, offsetY;
+
+    if (imageAspectRatio > containerAspectRatio) {
+      // Gambar lebih lebar, fit by width
+      displayedWidth = containerRect.width;
+      displayedHeight = containerRect.width / imageAspectRatio;
+      offsetX = 0;
+      offsetY = (containerRect.height - displayedHeight) / 2;
+    } else {
+      // Gambar lebih tinggi, fit by height
+      displayedHeight = containerRect.height;
+      displayedWidth = containerRect.height * imageAspectRatio;
+      offsetX = (containerRect.width - displayedWidth) / 2;
+      offsetY = 0;
+    }
+
+    // Hitung posisi click relatif terhadap container
+    const clickX = e.clientX - containerRect.left;
+    const clickY = e.clientY - containerRect.top;
+
+    // Hitung posisi relatif terhadap gambar yang sebenarnya ditampilkan
+    const relativeX = clickX - offsetX;
+    const relativeY = clickY - offsetY;
+
+    // Cek apakah klik berada di dalam area gambar yang sebenarnya
+    if (
+      relativeX < 0 ||
+      relativeX > displayedWidth ||
+      relativeY < 0 ||
+      relativeY > displayedHeight
+    ) {
+      console.warn("Click outside image bounds");
+      return;
+    }
+
+    // Konversi ke persentase relatif terhadap gambar yang ditampilkan
+    const x = (relativeX / displayedWidth) * 100;
+    const y = (relativeY / displayedHeight) * 100;
+
+    console.log("📍 Pin Position Set:", { x, y });
+    console.log("  - Natural Size:", { naturalWidth, naturalHeight });
+    console.log("  - Displayed Size:", { displayedWidth, displayedHeight });
+    console.log("  - Offset:", { offsetX, offsetY });
+    console.log("  - Click Position:", { clickX, clickY });
+    console.log("  - Relative to Image:", { relativeX, relativeY });
 
     setFormData({
       ...formData,
       posisi_x: x,
       posisi_y: y,
+    });
+
+    // Update image dimensions untuk positioning pin marker
+    setImageDimensions({
+      displayedWidth,
+      displayedHeight,
+      offsetX,
+      offsetY,
+    });
+  };
+
+  // Handler untuk menghitung dimensi gambar saat dimuat
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    const containerRect = img.getBoundingClientRect();
+
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+
+    if (!naturalWidth || !naturalHeight) return;
+
+    const containerAspectRatio = containerRect.width / containerRect.height;
+    const imageAspectRatio = naturalWidth / naturalHeight;
+
+    let displayedWidth, displayedHeight, offsetX, offsetY;
+
+    if (imageAspectRatio > containerAspectRatio) {
+      displayedWidth = containerRect.width;
+      displayedHeight = containerRect.width / imageAspectRatio;
+      offsetX = 0;
+      offsetY = (containerRect.height - displayedHeight) / 2;
+    } else {
+      displayedHeight = containerRect.height;
+      displayedWidth = containerRect.height * imageAspectRatio;
+      offsetX = (containerRect.width - displayedWidth) / 2;
+      offsetY = 0;
+    }
+
+    setImageDimensions({
+      displayedWidth,
+      displayedHeight,
+      offsetX,
+      offsetY,
     });
   };
 
@@ -212,7 +356,7 @@ export default function RuanganForm({
 
         {/* Scrollable Form Content */}
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-          <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2 text-gray-800 dark:text-white">
               <FaDoorOpen className="text-primary" /> Detail Ruangan
             </h3>
@@ -253,12 +397,13 @@ export default function RuanganForm({
                   <div className="relative">
                     <select
                       value={formData.nomor_lantai}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
                         setFormData({
                           ...formData,
-                          nomor_lantai: parseInt(e.target.value),
-                        })
-                      }
+                          nomor_lantai: isNaN(val) ? 0 : val,
+                        });
+                      }}
                       className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none"
                       disabled={
                         !formData.id_bangunan || lantaiList.length === 0
@@ -266,16 +411,73 @@ export default function RuanganForm({
                       required
                     >
                       <option value="">-- Pilih --</option>
-                      {lantaiList.map((l) => (
-                        <option
-                          key={l.id_lantai_gambar}
-                          value={l.nama_file.replace(/\D/g, "")}
-                        >
-                          Lantai {l.nama_file.replace(/\D/g, "")}
-                        </option>
-                      ))}
+                      {lantaiList.map((l) => {
+                        // Extract number: Try to find 'Lt' followed by dots/digits, or just digits
+                        const match =
+                          l.nama_file.match(/Lt\s*(\d+)/i) ||
+                          l.nama_file.match(/(\d+)/);
+                        const floorNum = match ? match[1] : null;
+                        const label = floorNum
+                          ? `Lantai ${floorNum}`
+                          : l.nama_file;
+                        const val = floorNum ? floorNum : "0";
+
+                        return (
+                          <option key={l.id_lantai_gambar} value={val}>
+                            {label}
+                          </option>
+                        );
+                      })}
                     </select>
                     <FaLayerGroup className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                    Kategori
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.pin_style}
+                      onChange={(e) =>
+                        setFormData({ ...formData, pin_style: e.target.value })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none"
+                    >
+                      <option value="default">Default</option>
+                      <option value="ruang_kelas">Ruang Kelas</option>
+                      <option value="laboratorium">Laboratorium</option>
+                      <option value="kantor">Kantor</option>
+                      <option value="ruang_rapat">Ruang Rapat</option>
+                      <option value="perpustakaan">Perpustakaan</option>
+                      <option value="kantin">Kantin</option>
+                      <option value="toilet">Toilet</option>
+                      <option value="gudang">Gudang</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <span
+                        className={`block w-3 h-3 rounded-full ${
+                          formData.pin_style === "laboratorium"
+                            ? "bg-[#1976d2]"
+                            : formData.pin_style === "kantor"
+                            ? "bg-[#388e3c]"
+                            : formData.pin_style === "ruang_rapat"
+                            ? "bg-[#f57c00]"
+                            : formData.pin_style === "ruang_kelas"
+                            ? "bg-[#d32f2f]"
+                            : formData.pin_style === "perpustakaan"
+                            ? "bg-[#7b1fa2]"
+                            : formData.pin_style === "kantin"
+                            ? "bg-[#c2185b]"
+                            : formData.pin_style === "toilet"
+                            ? "bg-[#00796b]"
+                            : formData.pin_style === "gudang"
+                            ? "bg-[#5d4037]"
+                            : "bg-[#9e9e9e]"
+                        }`}
+                      ></span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -348,21 +550,6 @@ export default function RuanganForm({
                   />
                 </div>
               </div>
-
-              <div className="flex bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg gap-3 items-center">
-                <FaMapMarkerAlt className="text-blue-500 text-xl" />
-                <div className="text-xs text-blue-800 dark:text-blue-200">
-                  <p className="font-bold">Posisi Pin:</p>
-                  {formData.posisi_x ? (
-                    <p>
-                      X: {Math.round(formData.posisi_x)}%, Y:{" "}
-                      {Math.round(formData.posisi_y)}%
-                    </p>
-                  ) : (
-                    <p>Belum diset (Klik di denah)</p>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -387,91 +574,152 @@ export default function RuanganForm({
 
       {/* Right Column: Floor Plan Interaction */}
       <div className="w-full lg:w-2/3 flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden h-full">
-        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-900/50 dark:to-gray-800/50 shrink-0">
-          <h3 className="font-semibold text-sm flex items-center gap-2">
-            <FaMapMarkerAlt className="text-primary animate-bounce" /> Plot
-            Lokasi Ruangan
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 shrink-0">
+          <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <FaMapMarkerAlt className="text-primary" /> Plot Lokasi Ruangan
           </h3>
-          <div className="text-xs text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700">
+          <div className="text-xs px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             {formData.posisi_x && formData.posisi_y ? (
-              <span className="text-green-600 dark:text-green-400 font-medium">
-                ✓ Pin telah diset
+              <span className="text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span> Pin
+                Diset
               </span>
             ) : (
               <span className="text-orange-500 dark:text-orange-400 font-medium">
-                ⚠ Klik denah untuk mengatur pin
+                Klik denah untuk set lokasi
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex-1 bg-gray-100 dark:bg-gray-900 overflow-hidden relative flex items-center justify-center p-4">
+        {/* Canvas Area */}
+        <div className="flex-1 bg-slate-100 dark:bg-slate-900 relative w-full h-full overflow-hidden flex items-center justify-center p-6">
           {currentFloorImage ? (
-            <div
-              className="relative inline-block shadow-lg hover:shadow-2xl transition-shadow duration-300 group"
-              style={{ maxHeight: "100%", maxWidth: "100%" }}
-              title="Klik untuk mengatur posisi pin ruangan"
-            >
-              {/* Overlay instruction - shown on hover */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none flex items-start justify-center pt-4">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-blue-600 text-white text-xs px-3 py-1 rounded-full shadow-lg">
-                  Klik untuk menandai lokasi
-                </div>
-              </div>
-
+            <div className="relative aspect-[3/2] w-full max-h-full shadow-lg bg-white overflow-hidden mx-auto">
+              {/* Image */}
               <img
-                src={
-                  currentFloorImage.startsWith("http")
-                    ? currentFloorImage
-                    : currentFloorImage.startsWith("/img")
-                    ? currentFloorImage // Path dari public folder Next.js
-                    : `${
-                        process.env.NEXT_PUBLIC_API_BASE_URL || ""
-                      }/${currentFloorImage.replace(/^\//, "")}`
-                }
+                src={(() => {
+                  const path = currentFloorImage;
+                  if (!path) return "";
+
+                  let finalPath = path;
+
+                  // Case 1: External URL
+                  if (path.startsWith("http")) {
+                    finalPath = path;
+                  }
+                  // Case 2: Legacy Frontend Paths (../img, ./img, img/)
+                  else if (
+                    path.match(/^(\.\.?\/)*img\//) ||
+                    path.startsWith("/img/")
+                  ) {
+                    const clean = path.replace(/^(\.\.?\/)+/, "");
+                    finalPath = clean.startsWith("/") ? clean : `/${clean}`;
+                  }
+                  // Case 3: Backend Uploads (default)
+                  else {
+                    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+                    const cleanPath = path.startsWith("/")
+                      ? path.substring(1)
+                      : path;
+                    finalPath = `${baseUrl}/${cleanPath}`;
+                  }
+
+                  return finalPath;
+                })()}
                 alt="Denah Lantai"
-                className="block max-w-full max-h-full h-auto w-auto object-contain cursor-crosshair"
-                style={{ maxHeight: "80vh" }}
+                ref={imageRef}
+                className="w-full h-full object-contain cursor-crosshair select-none"
                 onClick={handleImageClick}
+                onLoad={handleImageLoad}
+                draggable={false}
                 onError={(e) => {
                   console.error("Failed to load image:", currentFloorImage);
-                  (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
 
-              {formData.posisi_x && formData.posisi_y && (
+              {/* Visual guide untuk area gambar yang sebenarnya */}
+              {imageDimensions && (
                 <div
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 animate-pulse cursor-pointer"
+                  className="absolute pointer-events-none border-2 border-dashed border-blue-300 dark:border-blue-600"
                   style={{
-                    left: `${formData.posisi_x}%`,
-                    top: `${formData.posisi_y}%`,
+                    left: `${imageDimensions.offsetX}px`,
+                    top: `${imageDimensions.offsetY}px`,
+                    width: `${imageDimensions.displayedWidth}px`,
+                    height: `${imageDimensions.displayedHeight}px`,
                   }}
-                  title={`Posisi: X=${Math.round(
-                    formData.posisi_x
-                  )}%, Y=${Math.round(formData.posisi_y)}%`}
+                  title="Area gambar yang valid untuk penempatan pin"
+                />
+              )}
+
+              {/* Pin Marker */}
+              {formData.posisi_x && formData.posisi_y && imageDimensions && (
+                <div
+                  className="absolute z-20 pointer-events-none transition-all duration-200 ease-out"
+                  style={{
+                    left: `${
+                      imageDimensions.offsetX +
+                      (formData.posisi_x / 100) * imageDimensions.displayedWidth
+                    }px`,
+                    top: `${
+                      imageDimensions.offsetY +
+                      (formData.posisi_y / 100) *
+                        imageDimensions.displayedHeight
+                    }px`,
+                    transform: "translate(-50%, -100%)", // Anchor point at bottom center
+                  }}
                 >
-                  <FaMapMarkerAlt
-                    className={`text-4xl drop-shadow-lg hover:scale-125 transition-transform ${
-                      formData.pin_style === "blue"
-                        ? "text-blue-500"
-                        : formData.pin_style === "green"
-                        ? "text-green-500"
-                        : formData.pin_style === "yellow"
-                        ? "text-yellow-500"
-                        : "text-red-500"
-                    }`}
-                  />
-                  {/* Pin label */}
-                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                    {formData.nama_ruangan || "Ruangan"}
+                  {/* Pin match public view style */}
+                  <div className="relative group">
+                    <div
+                      className={`relative flex items-center justify-center ${
+                        formData.pin_style === "laboratorium"
+                          ? "text-[#1976d2]"
+                          : formData.pin_style === "kantor"
+                          ? "text-[#388e3c]"
+                          : formData.pin_style === "ruang_rapat"
+                          ? "text-[#f57c00]"
+                          : formData.pin_style === "ruang_kelas"
+                          ? "text-[#d32f2f]"
+                          : formData.pin_style === "perpustakaan"
+                          ? "text-[#7b1fa2]"
+                          : formData.pin_style === "kantin"
+                          ? "text-[#c2185b]"
+                          : formData.pin_style === "toilet"
+                          ? "text-[#00796b]"
+                          : formData.pin_style === "gudang"
+                          ? "text-[#5d4037]"
+                          : "text-[#9e9e9e]"
+                      }`}
+                    >
+                      {/* Icon Container similar to public view */}
+                      <span className="block transform -translate-y-[10%]">
+                        <FaMapMarkerAlt className="text-3xl drop-shadow-md filter" />
+                      </span>
+
+                      {/* Pulse effect for better visibility in editor */}
+                      <div className="absolute inset-0 bg-current opacity-20 rounded-full animate-ping scale-50"></div>
+                    </div>
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                      Posisi: {Math.round(formData.posisi_x)}%,{" "}
+                      {Math.round(formData.posisi_y)}%
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center text-gray-400">
-              <FaLayerGroup className="text-6xl mx-auto mb-3 opacity-30" />
-              <p>Pilih Gedung dan Lantai untuk memuat denah</p>
+            <div className="text-center text-gray-400 flex flex-col items-center justify-center h-full">
+              <div className="w-20 h-20 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <FaLayerGroup className="text-4xl opacity-50" />
+              </div>
+              <p className="font-medium">Pilih Gedung & Lantai</p>
+              <p className="text-sm opacity-70">
+                Denah lantai akan muncul di sini
+              </p>
             </div>
           )}
         </div>
