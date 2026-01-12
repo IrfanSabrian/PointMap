@@ -406,7 +406,41 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Add new features
       if (features.bangunanFeatures.length > 0) {
         features.bangunanFeatures.forEach((feature) => {
-          bangunanLayer.addData(feature);
+          try {
+            // Validate feature has geometry
+            if (!feature || !feature.geometry) {
+              console.warn("Feature missing geometry:", feature);
+              return;
+            }
+
+            // Parse geometry if it's a string
+            let geometry = feature.geometry;
+            if (typeof geometry === "string") {
+              try {
+                geometry = JSON.parse(geometry);
+              } catch (e) {
+                console.error("Failed to parse geometry string:", e);
+                return;
+              }
+            }
+
+            // Validate geometry structure
+            if (!geometry.type || !geometry.coordinates) {
+              console.warn("Invalid geometry structure:", geometry);
+              return;
+            }
+
+            // Build valid GeoJSON Feature for Leaflet
+            const validFeature = {
+              type: "Feature",
+              properties: feature.properties || {},
+              geometry: geometry,
+            };
+
+            bangunanLayer.addData(validFeature);
+          } catch (error) {
+            console.error("Error adding feature to layer:", error, feature);
+          }
         });
       }
     }, [features.bangunanFeatures]);
