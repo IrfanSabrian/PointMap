@@ -56,13 +56,36 @@ export default function BangunanForm({
 
   // State for drawing
   const [isDrawing, setIsDrawing] = useState(false);
-  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any>(
-    initialData?.geometri
-      ? typeof initialData.geometri === "string"
-        ? JSON.parse(initialData.geometri)
-        : initialData.geometri
-      : null
-  );
+  const [drawnGeoJSON, setDrawnGeoJSON] = useState<any>(() => {
+    if (!initialData?.geometri) return null;
+
+    try {
+      const geometri =
+        typeof initialData.geometri === "string"
+          ? JSON.parse(initialData.geometri)
+          : initialData.geometri;
+
+      // Jika geometri sudah dalam format Feature, return as is
+      if (geometri.type === "Feature") {
+        return geometri;
+      }
+
+      // Jika geometri dalam format geometry saja (Polygon/MultiPolygon),
+      // wrap menjadi Feature untuk MapEditor
+      if (geometri.type === "Polygon" || geometri.type === "MultiPolygon") {
+        return {
+          type: "Feature",
+          properties: {},
+          geometry: geometri,
+        };
+      }
+
+      return geometri;
+    } catch (e) {
+      console.error("Error parsing initial geometry:", e);
+      return null;
+    }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,8 +141,25 @@ export default function BangunanForm({
 
       const method = isEdit ? "PUT" : "POST";
 
-      // Prepare geometry string
-      const geometriString = JSON.stringify(drawnGeoJSON);
+      // Extract geometry dari Feature GeoJSON
+      // Jika drawnGeoJSON adalah Feature, ambil hanya geometry-nya
+      let geometryToSave;
+      if (drawnGeoJSON.type === "Feature" && drawnGeoJSON.geometry) {
+        geometryToSave = drawnGeoJSON.geometry;
+      } else if (
+        drawnGeoJSON.type === "Polygon" ||
+        drawnGeoJSON.type === "MultiPolygon"
+      ) {
+        geometryToSave = drawnGeoJSON;
+      } else {
+        alert("Format geometry tidak valid");
+        console.error("Invalid geometry format:", drawnGeoJSON);
+        setLoading(false);
+        return;
+      }
+
+      // Prepare geometry string (hanya geometry, bukan Feature)
+      const geometriString = JSON.stringify(geometryToSave);
 
       const bodyData = {
         ...formData,
@@ -128,14 +168,16 @@ export default function BangunanForm({
 
       // Log data for debugging
       console.log("📝 Saving building with data:", {
-        ...bodyData,
-        geometri: drawnGeoJSON, // Log as object for better readability
+        nama: bodyData.nama,
+        interaksi: bodyData.interaksi,
+        lantai: bodyData.lantai,
+        geometri: geometryToSave, // Log as object for better readability
       });
       console.log("🗺️ Geometry string length:", geometriString.length);
-      console.log("🗺️ Geometry type:", drawnGeoJSON.geometry.type);
+      console.log("🗺️ Geometry type:", geometryToSave.type);
       console.log(
         "🗺️ Coordinates count:",
-        drawnGeoJSON.geometry.coordinates[0]?.length || 0
+        geometryToSave.coordinates[0]?.length || 0
       );
 
       const res = await fetch(url, {
