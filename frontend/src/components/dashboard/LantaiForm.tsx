@@ -2,16 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FaSave, FaArrowLeft, FaUpload, FaImage } from "react-icons/fa";
+import {
+  FaSave,
+  FaArrowLeft,
+  FaUpload,
+  FaCity,
+  FaLayerGroup,
+  FaFileImage,
+} from "react-icons/fa";
 
 interface LantaiFormProps {
   initialData?: any;
   isEdit?: boolean;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 export default function LantaiForm({
   initialData,
   isEdit = false,
+  onSuccess,
+  onCancel,
 }: LantaiFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -45,27 +56,6 @@ export default function LantaiForm({
     };
     fetchBangunan();
   }, []);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      if (!selectedFile.type.includes("svg")) {
-        alert("Harap pilih file SVG untuk denah lantai");
-        // return; // Allow user to upload other formats if they really want, but warn relevantly?
-        // backend expects SVG for 'format: svg' if we look at controller, but image/png is also used for thumbnails?
-        // Controller says `if (!allowedTypes...)`? No, controller `addLantaiGambar` sets `format: "svg"`.
-        // So we should enforce SVG or check if backend supports others.
-        // In `lantaiGambar.js`, it sets `format: "svg"`. So it forces SVG conversion or expects SVG.
-        // Let's assume SVG is required.
-      }
-      setFile(selectedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,17 +136,46 @@ export default function LantaiForm({
       });
 
       if (res.ok) {
-        alert("Gambar lantai berhasil disimpan");
-        router.push("/dashboard/lantai");
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          alert("Data lantai berhasil disimpan");
+          router.push("/dashboard/lantai");
+        }
       } else {
         const err = await res.json();
         alert(`Gagal menyimpan: ${err.message || err.error}`);
       }
     } catch (error) {
-      console.error("Error saving floor:", error);
+      console.error("Error saving lantai:", error);
       alert("Terjadi kesalahan saat menyimpan");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      router.back();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (!selectedFile.type.includes("svg")) {
+        alert("Harap pilih file SVG untuk denah lantai");
+        // return; // Allow user to upload other formats if they really want, but warn relevantly?
+        // backend expects SVG for 'format: svg' if we look at controller, but image/png is also used for thumbnails?
+        // Controller says `if (!allowedTypes...)`? No, controller `addLantaiGambar` sets `format: "svg"`.
+        // So we should enforce SVG or check if backend supports others.
+        // In `lantaiGambar.js`, it sets `format: "svg"`. So it forces SVG conversion or expects SVG.
+        // Let's assume SVG is required.
+      }
+      setFile(selectedFile);
+      setPreview(URL.createObjectURL(selectedFile));
     }
   };
 
@@ -166,117 +185,73 @@ export default function LantaiForm({
   const maxLantai = selectedBangunan ? selectedBangunan.lantai : 10;
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-        >
-          <FaArrowLeft />
-        </button>
-        <h1 className="text-2xl font-bold font-gray-800 dark:text-white">
-          {isEdit ? "Upload Ulang Lantai" : "Tambah Gambar Lantai"}
-        </h1>
-      </div>
+    <div className="w-full h-full flex justify-center p-4 lg:p-6 overflow-y-auto">
+      <div className="w-full max-w-2xl flex flex-col gap-4">
+        {!onCancel && (
+          <div className="flex items-center gap-4 mb-2 shrink-0">
+            <button
+              onClick={handleBack}
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <FaArrowLeft />
+            </button>
+            <h1 className="text-2xl font-bold font-gray-800 dark:text-white">
+              {isEdit ? "Edit Lantai" : "Tambah Lantai"}
+            </h1>
+          </div>
+        )}
 
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-1">Gedung *</label>
-          <select
-            value={formData.id_bangunan}
-            onChange={(e) =>
-              setFormData({ ...formData, id_bangunan: e.target.value })
-            }
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent"
-            required
-            disabled={isEdit} // Disable changing building/floor on edit to avoid confusion with upsert logic
-          >
-            <option value="">-- Pilih Gedung --</option>
-            {bangunanList.map((b) => (
-              <option key={b.id_bangunan} value={b.id_bangunan}>
-                {b.nama}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2 text-gray-800 dark:text-white">
+            <FaCity className="text-primary" /> Target
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                Gedung *
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.id_bangunan}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      id_bangunan: e.target.value,
+                    })
+                  }
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none"
+                  required
+                  disabled={isEdit}
+                >
+                  <option value="">-- Pilih Gedung --</option>
+                  {bangunanList.map((b) => (
+                    <option key={b.id_bangunan} value={b.id_bangunan}>
+                      {b.nama}
+                    </option>
+                  ))}
+                </select>
+                <FaCity className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              </div>
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Nomor Lantai *
-          </label>
-          <input
-            type="number"
-            min="1"
-            max={maxLantai}
-            value={formData.nomor_lantai}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                nomor_lantai: parseInt(e.target.value),
-              })
-            }
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent"
-            disabled={isEdit}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            File Denah (SVG) {isEdit && "(Upload untuk mengganti)"}
-          </label>
-          <div
-            className={`border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition ${
-              !formData.id_bangunan ? "opacity-50 pointer-events-none" : ""
-            }`}
-          >
-            <input
-              type="file"
-              accept=".svg"
-              onChange={handleFileChange}
-              className="hidden"
-              id="floor-upload"
-              disabled={!formData.id_bangunan}
-            />
-            <label htmlFor="floor-upload" className="cursor-pointer block">
-              {preview ? (
-                <div>
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="max-h-60 mx-auto object-contain mb-2"
-                  />
-                  <p className="text-sm text-green-600">
-                    File terpilih: {file?.name || "Gambar saat ini"}
-                  </p>
-                </div>
+          <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={handleSubmit}
+              disabled={loading || (!file && !isEdit)}
+              className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {loading ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
-                <div className="py-4">
-                  <FaUpload className="mx-auto text-3xl text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500">
-                    Klik untuk upload file SVG
-                  </span>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Format wajib: .svg
-                  </p>
-                </div>
+                <>
+                  <FaSave className="text-xl" />{" "}
+                  {isEdit ? "Simpan Perubahan" : "Terbitkan Lantai"}
+                </>
               )}
-            </label>
+            </button>
           </div>
         </div>
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading || (!file && !isEdit)}
-          className="w-full bg-primary hover:bg-primary-dark text-white py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mt-4"
-        >
-          {loading ? (
-            "Mengupload..."
-          ) : (
-            <>
-              <FaSave /> {isEdit ? "Update Gambar" : "Upload Gambar"}
-            </>
-          )}
-        </button>
       </div>
     </div>
   );

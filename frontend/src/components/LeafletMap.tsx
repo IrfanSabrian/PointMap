@@ -986,8 +986,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 return;
               }
 
-              // Jika highlight aktif, blok interaksi klik bangunan lain
-              if (mapRefs.isHighlightActiveRef.current) {
+              // 1. Cek apakah bangunan yang diklik SAMA dengan yang sedang aktif
+              if (
+                mapRefs.isHighlightActiveRef.current &&
+                features.selectedFeature?.properties?.id ===
+                  feature.properties?.id
+              ) {
                 if (
                   e &&
                   e.originalEvent &&
@@ -995,12 +999,31 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 ) {
                   e.originalEvent.stopPropagation();
                 }
-                // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-                animation.setIsContainerShaking(true);
-                setTimeout(() => animation.setIsContainerShaking(false), 600);
                 return;
               }
-              // Pastikan kategori diset dengan benar
+
+              // 2. Jika BEDA bangunan (atau belum ada yang aktif), proses ganti bangunan
+
+              // Clear highlight dari bangunan sebelumnya jika ada
+              if (features.selectedFeature?.properties?.id) {
+                clearBangunanHighlightById(
+                  features.selectedFeature.properties.id
+                );
+              }
+              if (highlight.searchHighlightedId) {
+                resetBangunanHighlight();
+                highlight.setSearchHighlightedId(null);
+              }
+
+              // Reset state editing
+              edit.setIsEditingName(false);
+              edit.setIsEditingThumbnail(false);
+              edit.setIsEditingInteraksi(false);
+              edit.setEditName("");
+              edit.setEditThumbnail("");
+              edit.setEditInteraksi("");
+
+              // Siapkan data feature baru
               const featureWithKategori = {
                 ...feature,
                 properties: {
@@ -1008,17 +1031,21 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   kategori: "Bangunan",
                 },
               } as FeatureFixed;
-              // Set flag untuk mencegah canvas click handler terpicu
+
+              // Set flag untuk mencegah canvas click handler menutup popup
               mapRefs.isBuildingClickedRef.current = true;
+
+              // Update state utama
               features.setSelectedFeature(featureWithKategori);
               ui.setCardVisible(true);
               highlight.setIsHighlightActive(true);
 
-              // Reset flag setelah delay singkat
+              // Reset flag click handler setelah delay singkat
               setTimeout(() => {
                 mapRefs.isBuildingClickedRef.current = false;
               }, 100);
-              // Kirim pesan ke dashboard untuk update sidebar
+
+              // Kirim pesan ke dashboard
               window.postMessage(
                 {
                   type: "building-clicked",
@@ -3279,16 +3306,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               ui.setCardVisible(false);
               highlight.setIsHighlightActive(false);
 
-              // Tambahkan efek shake pada container sebelum ditutup untuk memberikan feedback visual
-              if (container) {
-                animation.setIsContainerShaking(true);
-                setTimeout(() => {
-                  animation.setIsContainerShaking(false);
-                  setTimeout(() => features.setSelectedFeature(null), 350);
-                }, 600);
-              } else {
-                setTimeout(() => features.setSelectedFeature(null), 350);
-              }
+              // Set selectedFeature to null after animation
+              setTimeout(() => features.setSelectedFeature(null), 350);
             }
           };
 
@@ -3439,11 +3458,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               !container.contains(e.target as Node) &&
               !routeModal &&
               !isMapControl &&
-              isClickInsideMap // Hanya trigger shake jika klik di dalam area peta
+              isClickInsideMap // Hanya trigger jika klik di dalam area peta
             ) {
-              // Trigger shake effect (hanya jika modal route tidak terbuka, bukan kontrol peta, dan klik di dalam peta)
-              animation.setIsContainerShaking(true);
-              setTimeout(() => animation.setIsContainerShaking(false), 600);
+              // Do nothing - shake effect removed
             }
           };
 
@@ -3483,10 +3500,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
             const isMapControl = isTargetMapControl(target as Element);
             if (container && !routeModal && !isMapControl && !shakeCooldown) {
-              animation.setIsContainerShaking(true);
+              // Shake effect removed
               shakeCooldown = true;
               setTimeout(() => {
-                animation.setIsContainerShaking(false);
                 shakeCooldown = false;
               }, 600);
             }
@@ -3906,10 +3922,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         console.log(
           "⚠️ Container detail sedang terbuka, tutup dulu untuk memilih bangunan lain"
         );
-
-        // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-        animation.setIsContainerShaking(true);
-        setTimeout(() => animation.setIsContainerShaking(false), 600);
         return;
       }
 
@@ -5838,11 +5850,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Implementation
 
         if (featureType === "bangunan") {
-          // Jika container detail bangunan sedang aktif, berikan efek shake
+          // Jika container detail bangunan sedang aktif, return
           if (mapRefs.isHighlightActiveRef.current) {
-            // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-            animation.setIsContainerShaking(true);
-            setTimeout(() => animation.setIsContainerShaking(false), 600);
             return;
           }
 
@@ -5887,11 +5896,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             );
 
             if (bangunan && bangunan.geometry) {
-              // Jika container detail bangunan sedang aktif, berikan efek shake
+              // Jika container detail bangunan sedang aktif, return
               if (mapRefs.isHighlightActiveRef.current) {
-                // Tambahkan efek shake pada container detail bangunan yang sedang aktif
-                animation.setIsContainerShaking(true);
-                setTimeout(() => animation.setIsContainerShaking(false), 600);
                 return;
               }
 
@@ -6157,7 +6163,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             isDashboard={!!isDashboard}
             isLoggedIn={isLoggedIn}
             selectedFeature={features.selectedFeature}
-            isContainerShaking={animation.isContainerShaking}
             drawingMode={drawing.drawingMode}
             onClose={() => {
               ui.setCardVisible(false);
@@ -6218,7 +6223,6 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   "Noninteraktif"
               );
             }}
-            onNavigate={handleNavigateToBuilding}
           />
         )}
 
@@ -6682,7 +6686,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         {ui.showBuildingDetailCanvas && (
           <div
-            className={`absolute inset-0 w-full h-full flex flex-col z-[20] bg-white dark:bg-gray-900 transition-opacity duration-300 ${
+            className={`absolute inset-0 w-full h-full flex flex-col z-[20] transition-opacity duration-300 ${
               animation.isBuildingDetailFadingOut
                 ? "opacity-0"
                 : animation.isBuildingDetailFadingIn
@@ -6690,7 +6694,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 : "opacity-100"
             }`}
             style={{
-              cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+              cursor: drawing.drawingMode ? "crosshair" : "default",
             }}
           >
             <iframe
@@ -6700,10 +6704,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 process.env.NEXT_PUBLIC_API_BASE_URL as string
               )}`}
               title="Building Detail"
-              className="w-full h-full border-0"
+              className="w-full h-full border-0 bg-white dark:bg-gray-900"
               style={{
                 minHeight: "300px",
-                cursor: drawing.drawingMode ? "crosshair" : "default", // Set cursor crosshair saat drawing mode aktif
+                cursor: drawing.drawingMode ? "crosshair" : "default",
               }}
             />
           </div>

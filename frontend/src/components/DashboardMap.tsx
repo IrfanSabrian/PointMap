@@ -37,7 +37,7 @@ export default function DashboardMap({
       attribution: isDark
         ? '&copy; <a href="https://carto.com/">CartoDB</a>'
         : '&copy; <a href="https://www.esri.com/">Esri</a>',
-      maxZoom: 20,
+      maxZoom: 19,
     }).addTo(map);
 
     // Fetch and display bangunan (buildings)

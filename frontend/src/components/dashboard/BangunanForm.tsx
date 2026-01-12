@@ -9,14 +9,18 @@ import {
   FaDrawPolygon,
   FaEraser,
   FaImages,
+  FaCity,
+  FaMapMarkedAlt,
+  FaImage,
+  FaUpload,
 } from "react-icons/fa";
 
-// Import LeafletMap dynamically to avoid SSR issues
-const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
+// Import MapEditor for drawing building polygons
+const MapEditor = dynamic(() => import("@/components/MapEditor"), {
   ssr: false,
   loading: () => (
-    <div className="h-[500px] w-full bg-gray-100 animate-pulse rounded-lg">
-      Loading Map...
+    <div className="h-full w-full bg-gray-100 dark:bg-gray-900 animate-pulse rounded-lg flex items-center justify-center">
+      <p className="text-gray-500">Loading Map...</p>
     </div>
   ),
 });
@@ -24,11 +28,15 @@ const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
 interface BangunanFormProps {
   initialData?: any;
   isEdit?: boolean;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 export default function BangunanForm({
   initialData,
   isEdit = false,
+  onSuccess,
+  onCancel,
 }: BangunanFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -93,7 +101,11 @@ export default function BangunanForm({
         body: JSON.stringify(bodyData),
       });
 
-      if (!res.ok) throw new Error("Gagal menyimpan data");
+      if (!res.ok) {
+        const errorBody = await res.text();
+        console.error("Failed to save building:", res.status, errorBody);
+        throw new Error(`Gagal menyimpan data: ${res.status} - ${errorBody}`);
+      }
 
       const data = await res.json();
       const newId = isEdit ? initialData.id_bangunan : data.data.id_bangunan;
@@ -116,7 +128,16 @@ export default function BangunanForm({
       }
 
       alert("Data berhasil disimpan!");
-      router.push("/dashboard/bangunan");
+
+      // Dispatch event untuk memberitahu komponen lain bahwa data bangunan telah berubah
+      window.dispatchEvent(new CustomEvent("bangunan-data-changed"));
+
+      // Call onSuccess callback if provided (for modal usage)
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/dashboard/bangunan");
+      }
     } catch (error) {
       console.error("Error saving:", error);
       alert("Terjadi kesalahan saat menyimpan data");
@@ -137,6 +158,14 @@ export default function BangunanForm({
     }
   };
 
+  const handleBack = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      router.back();
+    }
+  };
+
   // Callback to receive drawn geometry from LeafletMap
   // We need to implement this capability in LeafletMap component
   const handleMapReady = (mapInstance: any) => {
@@ -146,67 +175,54 @@ export default function BangunanForm({
   };
 
   return (
-    <div className="w-full px-4 pb-8">
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => router.back()}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-        >
-          <FaArrowLeft />
-        </button>
-        <h1 className="text-2xl font-bold font-gray-800 dark:text-white">
-          {isEdit ? "Edit Gedung" : "Tambah Gedung Baru"}
-        </h1>
-      </div>
+    <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+      {/* Left Column: Form Inputs - Scrollable if needed but optimized to fit */}
+      <div className="w-full lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+        {!onCancel && (
+          <div className="flex items-center gap-4 mb-2 shrink-0">
+            <button
+              onClick={handleBack}
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            >
+              <FaArrowLeft />
+            </button>
+            <h1 className="text-2xl font-bold font-gray-800 dark:text-white">
+              {isEdit ? "Edit Gedung" : "Tambah Gedung"}
+            </h1>
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form Fields */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-            <h3 className="font-semibold text-lg mb-4 border-b pb-2">
-              Informasi Dasar
-            </h3>
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 shrink-0">
+          <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2">
+            <FaCity className="text-primary" /> Informasi Dasar
+          </h3>
 
-            <div className="space-y-4">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                Nama Gedung *
+              </label>
+              <input
+                type="text"
+                value={formData.nama}
+                onChange={(e) =>
+                  setFormData({ ...formData, nama: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                placeholder="Contoh: Gedung Rektorat"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Nama Gedung
-                </label>
-                <input
-                  type="text"
-                  value={formData.nama}
-                  onChange={(e) =>
-                    setFormData({ ...formData, nama: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent"
-                  placeholder="Contoh: Gedung AB"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Status Interaksi
-                </label>
-                <select
-                  value={formData.interaksi}
-                  onChange={(e) =>
-                    setFormData({ ...formData, interaksi: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent"
-                >
-                  <option value="Noninteraktif">Noninteraktif</option>
-                  <option value="Interaktif">Interaktif</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Jumlah Lantai
+                <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                  Lantai *
                 </label>
                 <input
                   type="number"
                   min="1"
+                  max="50"
                   value={formData.lantai}
                   onChange={(e) =>
                     setFormData({
@@ -214,111 +230,140 @@ export default function BangunanForm({
                       lantai: parseInt(e.target.value),
                     })
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                  required
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Thumbnail
+                <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                  Interaksi
                 </label>
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleThumbnailChange}
-                    className="hidden"
-                    id="thumbnail-upload"
-                  />
-                  <label
-                    htmlFor="thumbnail-upload"
-                    className="cursor-pointer block"
-                  >
-                    {thumbnailPreview ? (
-                      <img
-                        src={thumbnailPreview}
-                        alt="Preview"
-                        className="w-full h-40 object-cover rounded-md"
-                      />
-                    ) : (
-                      <div className="py-4">
-                        <FaImages className="mx-auto text-3xl text-gray-400 mb-2" />
-                        <span className="text-sm text-gray-500">
-                          Klik untuk upload foto
-                        </span>
-                      </div>
-                    )}
-                  </label>
-                </div>
+                <select
+                  value={formData.interaksi}
+                  onChange={(e) =>
+                    setFormData({ ...formData, interaksi: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                >
+                  <option value="Noninteraktif">Non-Interaktif</option>
+                  <option value="Interaktif">Interaktif</option>
+                </select>
               </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t">
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="w-full bg-primary hover:bg-primary-dark text-white py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  "Menyimpan..."
-                ) : (
-                  <>
-                    <FaSave /> Simpan Data
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Map Drawing Area */}
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden h-[600px] flex flex-col">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <FaDrawPolygon /> Area Gedung
-              </h3>
-              <div className="text-sm text-gray-500">
-                Gunakan alat gambar di peta untuk menentukan area gedung
-              </div>
-            </div>
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 shrink-0">
+          <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2">
+            <FaImage className="text-primary" /> Thumbnail
+          </h3>
+          <div className="flex gap-4 items-start">
+            {thumbnailPreview ? (
+              <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shrink-0">
+                <img
+                  src={(() => {
+                    if (!thumbnailPreview) return "";
+                    // If it's a data URL, use it directly
+                    if (thumbnailPreview.startsWith("data:"))
+                      return thumbnailPreview;
 
-            <div className="flex-1 relative">
-              {/* IMPORTANT: We need to pass drawing props to LeafletMap or use a simpler map for this form */}
-              {/* Using the existing LeafletMap might be complex because it has too much logic for viewing. */}
-              {/* However, reusing it ensures consistency. We need to Enable Drawing Mode. */}
-              <LeafletMap
-                isDashboard={true} // Reusing dashboard prop to potentially enable edit controls
-                initialFeature={drawnGeoJSON}
-                onGeometryChange={(geo) => setDrawnGeoJSON(geo)}
+                    // If it's an absolute URL from backend (3001), convert to relative or frontend (3000)
+                    if (thumbnailPreview.includes("localhost:3001")) {
+                      return thumbnailPreview.replace(
+                        "localhost:3001",
+                        "localhost:3000"
+                      );
+                    }
+
+                    // If it is already http/https (but not 3001), use it
+                    if (thumbnailPreview.startsWith("http"))
+                      return thumbnailPreview;
+
+                    // Otherwise treat as relative path
+                    return `/${thumbnailPreview.replace(/^\//, "")}`;
+                  })()}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 shrink-0">
+                <FaImage className="text-2xl" />
+              </div>
+            )}
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleThumbnailChange}
+                className="hidden"
+                id="thumbnail-upload"
               />
-
-              {/* Instructions Overlay */}
-              <div className="absolute bottom-4 left-4 right-4 bg-white/90 dark:bg-black/80 backdrop-blur p-3 rounded-lg text-xs z-[1000] border border-gray-200 dark:border-gray-700">
-                <p>
-                  <strong>Cara Menggambar:</strong>
-                </p>
-                <ul className="list-disc pl-4 mt-1 space-y-1">
-                  <li>
-                    Klik ikon <strong>Polygon</strong> (segi lima) di toolbar
-                    peta.
-                  </li>
-                  <li>
-                    Klik pada peta untuk membuat titik-titik sudut gedung.
-                  </li>
-                  <li>Klik titik awal lagi untuk menutup bentuk.</li>
-                  <li>
-                    Klik ikon <strong>Edit</strong> untuk mengubah bentuk yang
-                    sudah ada.
-                  </li>
-                  <li>
-                    Klik ikon <strong>Hapus</strong> untuk menghapus bentuk.
-                  </li>
-                </ul>
-              </div>
+              <label
+                htmlFor="thumbnail-upload"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-primary hover:text-primary transition-colors text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide h-24"
+              >
+                <div className="text-center">
+                  <FaUpload className="mx-auto mb-1 text-lg" />
+                  {thumbnailPreview ? "Ganti" : "Upload"}
+                </div>
+              </label>
             </div>
           </div>
         </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shrink-0 mt-auto"
+        >
+          {loading ? (
+            "Menyimpan..."
+          ) : (
+            <>
+              <FaSave /> Simpan Gedung
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Right Column: Map Editor - Takes remaining space */}
+      <div className="w-full lg:w-2/3 flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden h-full">
+        <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 shrink-0">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <FaDrawPolygon className="text-primary" /> Editor Geometri
+          </h3>
+          <div className="text-xs text-gray-500 flex gap-2">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> Gambar
+              Polygon
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Edit
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 relative min-h-[300px]">
+          <MapEditor
+            onGeometryChange={(geo: any) => setDrawnGeoJSON(geo)}
+            initialGeometry={drawnGeoJSON}
+            isEdit={isEdit}
+          />
+        </div>
+
+        {/* Overlay removed as per user request to avoid distraction */}
+        {/* {!drawnGeoJSON && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-[400] bg-black/5">
+            <div className="bg-white/90 backdrop-blur px-6 py-4 rounded-xl shadow-xl border border-blue-100 text-center max-w-sm">
+              <FaMapMarkedAlt className="text-4xl text-blue-500 mx-auto mb-2" />
+              <p className="font-bold text-gray-800">Area Belum Digambar</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Gunakan toolbar peta untuk menggambar area gedung.
+              </p>
+            </div>
+          </div>
+        )} */}
       </div>
     </div>
   );

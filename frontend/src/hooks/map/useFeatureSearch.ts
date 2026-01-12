@@ -19,13 +19,11 @@ export function useFeatureSearch({
 }: UseFeatureSearchArgs) {
   const [searchText, setSearchText] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchResults, setSearchResults] = useState<FeatureType[]>([]);
 
-  // Compute results when dependencies change
-  useEffect(() => {
+  // Directly compute search results using useMemo - no separate state needed
+  const searchResults = useMemo(() => {
     if (!searchText.trim()) {
-      setSearchResults([]);
-      return;
+      return [];
     }
 
     const searchLower = searchText.toLowerCase();
@@ -61,17 +59,14 @@ export function useFeatureSearch({
       }
     });
 
-    setSearchResults(results);
+    return results;
   }, [searchText, bangunanFeatures, ruanganFeatures]);
 
-  return useMemo(
-    () => ({
-      searchText,
-      setSearchText,
-      showSearchResults,
-      setShowSearchResults,
-      searchResults,
-    }),
-    [searchText, showSearchResults, searchResults]
-  );
+  return {
+    searchText,
+    setSearchText,
+    showSearchResults,
+    setShowSearchResults,
+    searchResults,
+  };
 }

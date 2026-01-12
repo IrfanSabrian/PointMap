@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Modal from "@/components/dashboard/Modal";
+import LantaiForm from "@/components/dashboard/LantaiForm";
 import {
   FaPlus,
   FaEdit,
@@ -9,6 +11,7 @@ import {
   FaSearch,
   FaList,
   FaThLarge,
+  FaLayerGroup,
 } from "react-icons/fa";
 
 // Pagination Component
@@ -146,18 +149,55 @@ export default function LantaiPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredLantai.slice(indexOfFirstItem, indexOfLastItem);
 
+  const handleSuccess = () => {
+    // Refresh data
+    const fetchData = async () => {
+      // Re-fetch logic or just simple reload.
+      // Re-fetching better to keep state clean.
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setLantai(data);
+        setFilteredLantai(data); // Re-apply filter if needed, but for now reset
+      }
+    };
+    fetchData();
+    handleCloseModal();
+  };
+
+  // Modal State
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: "add" | "edit";
+    data?: any;
+  }>({ isOpen: false, type: "add" });
+
+  const handleOpenAdd = () => {
+    setModalState({ isOpen: true, type: "add", data: null });
+  };
+
+  const handleOpenEdit = (data: any) => {
+    setModalState({ isOpen: true, type: "edit", data });
+  };
+
+  const handleCloseModal = () => {
+    setModalState({ ...modalState, isOpen: false });
+  };
+
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-          Manajemen Lantai
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+          <FaLayerGroup className="text-primary" /> Manajemen Lantai
         </h1>
-        <Link
-          href="/dashboard/lantai/tambah"
-          className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-md"
+        <button
+          onClick={handleOpenAdd}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 shadow-lg shadow-primary/30"
         >
-          <FaPlus /> Upload Denah
-        </Link>
+          <FaPlus /> Tambah Lantai
+        </button>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
@@ -243,12 +283,12 @@ export default function LantaiPage() {
                 </p>
 
                 <div className="flex gap-2">
-                  <Link
-                    href={`/dashboard/lantai/edit/${l.id_lantai_gambar}`}
+                  <button
+                    onClick={() => handleOpenEdit(l)}
                     className="flex-1 text-center py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-sm font-medium transition-colors"
                   >
                     <FaEdit className="inline mr-1" /> Edit
-                  </Link>
+                  </button>
                   <button
                     onClick={() => handleDelete(l.id_lantai_gambar)}
                     className="w-10 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
@@ -291,13 +331,13 @@ export default function LantaiPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
-                        <Link
-                          href={`/dashboard/lantai/edit/${l.id_lantai_gambar}`}
+                        <button
+                          onClick={() => handleOpenEdit(l)}
                           className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                           title="Upload Ulang"
                         >
                           <FaEdit />
-                        </Link>
+                        </button>
                         <button
                           onClick={() => handleDelete(l.id_lantai_gambar)}
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
@@ -363,6 +403,23 @@ export default function LantaiPage() {
           </div>
         </div>
       )}
+
+      {/* Main Form Modal */}
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={handleCloseModal}
+        title={
+          modalState.type === "add" ? "Tambah Data Lantai" : "Edit Data Lantai"
+        }
+        size="full"
+      >
+        <LantaiForm
+          isEdit={modalState.type === "edit"}
+          initialData={modalState.data}
+          onSuccess={handleSuccess}
+          onCancel={handleCloseModal}
+        />
+      </Modal>
     </div>
   );
 }

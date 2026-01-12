@@ -546,14 +546,8 @@
   perspective-origin: center center !important;
 }
 
-/* Fix pins and other elements in 2D mode */
-.building.building--2d .pin,
-.building.building--2d .pin * {
-  -webkit-transform: none !important;
-  transform: none !important;
-  -webkit-transform-style: flat !important;
-  transform-style: flat !important;
-}
+/* REMOVED: Pin transform reset in 2D mode causes flattened pins
+   Pins should maintain their 3D appearance in both 2D and 2.5D modes */
 
 /* Fix any inline styles that might override our CSS */
 .building.building--2d [style*="transform"] {
@@ -610,11 +604,6 @@
     rgba(255, 255, 255, 0.1) 4px
   ) !important;
   pointer-events: none !important;
-}
-
-/* View toggle button uses same styling as other nav buttons */
-.buildingnav__button--view-toggle {
-  /* Inherits all styles from .boxbutton class */
 }
 
 /* Make the text smaller for 2D/2.5D toggle */

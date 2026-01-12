@@ -52,9 +52,6 @@ export interface UIState {
  * Interface untuk Animation States
  */
 export interface AnimationState {
-  isContainerShaking: boolean;
-  setIsContainerShaking: Dispatch<SetStateAction<boolean>>;
-
   isBuildingDetailFadingOut: boolean;
   setIsBuildingDetailFadingOut: Dispatch<SetStateAction<boolean>>;
 
@@ -262,7 +259,7 @@ export interface MapState {
 export function useMapState(isDark: boolean = false): MapState {
   // ==================== MAP CONFIGURATION ====================
   const [basemap, setBasemap] = useState<string>(
-    isDark ? "alidade_smooth_dark" : "esri_topo"
+    isDark ? "alidade_smooth_dark" : "esri_satellite" // Changed default to satellite
   );
   const [layerVisible, setLayerVisible] = useState(true);
   const [isSatellite, setIsSatellite] = useState(basemap === "esri_satellite");
@@ -278,7 +275,6 @@ export function useMapState(isDark: boolean = false): MapState {
   const [showShapeSwitchModal, setShowShapeSwitchModal] = useState(false);
 
   // ==================== ANIMATION STATES ====================
-  const [isContainerShaking, setIsContainerShaking] = useState(false);
   const [isBuildingDetailFadingOut, setIsBuildingDetailFadingOut] =
     useState(false);
   const [isBuildingDetailFadingIn, setIsBuildingDetailFadingIn] =
@@ -392,8 +388,6 @@ export function useMapState(isDark: boolean = false): MapState {
       setShowShapeSwitchModal,
     },
     animation: {
-      isContainerShaking,
-      setIsContainerShaking,
       isBuildingDetailFadingOut,
       setIsBuildingDetailFadingOut,
       isBuildingDetailFadingIn,

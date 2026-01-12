@@ -9,7 +9,6 @@ type Props = {
   isDashboard: boolean;
   isLoggedIn: boolean;
   selectedFeature: any;
-  isContainerShaking: boolean;
   drawingMode: string | null;
   onClose: () => void;
   onOpenDetail: () => void;
@@ -24,7 +23,6 @@ export default function BuildingDetailModal(props: Props) {
     isDashboard,
     isLoggedIn,
     selectedFeature,
-    isContainerShaking,
     drawingMode,
     onClose,
     onOpenDetail,
@@ -43,36 +41,35 @@ export default function BuildingDetailModal(props: Props) {
     };
   }, []);
 
-  // Handle click outside to close
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const modal = document.querySelector(
-        '[data-container="building-detail"]'
-      );
-      if (modal && !modal.contains(event.target as Node)) {
-        onClose();
-      }
-    };
+  // Handle click outside to close - DISABLED
+  // Popup sekarang hanya tertutup saat user klik tombol close
+  // useEffect(() => {
+  //   const handleClickOutside = (event: MouseEvent) => {
+  //     const modal = document.querySelector(
+  //       '[data-container="building-detail"]'
+  //     );
+  //     if (modal && !modal.contains(event.target as Node)) {
+  //       onClose();
+  //     }
+  //   };
 
-    // Use a small timeout to prevent immediate closing if the click that opened it bubbles up
-    const timeoutId = setTimeout(() => {
-      document.addEventListener("mousedown", handleClickOutside);
-    }, 100);
+  //   // Use a small timeout to prevent immediate closing if the click that opened it bubbles up
+  //   const timeoutId = setTimeout(() => {
+  //     document.addEventListener("mousedown", handleClickOutside);
+  //   }, 100);
 
-    return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [onClose]);
+  //   return () => {
+  //     clearTimeout(timeoutId);
+  //     document.removeEventListener("mousedown", handleClickOutside);
+  //   };
+  // }, [onClose]);
 
   if (!selectedFeature) return null;
 
   return (
     <div
       data-container="building-detail"
-      className={`absolute top-14 right-2 sm:right-4 sm:top-4 z-20 w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out ${
-        isContainerShaking ? "animate-shake" : ""
-      }`}
+      className="absolute top-14 right-2 sm:right-4 sm:top-4 z-20 w-44 sm:w-64 max-w-xs bg-white dark:bg-gray-900 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 ease-out"
       style={{ boxShadow: "0 8px 32px 0 rgba(30,41,59,0.18)" }}
     >
       <div className={`rounded-xl ${isDark ? "bg-[#232946]" : "bg-white"}`}>

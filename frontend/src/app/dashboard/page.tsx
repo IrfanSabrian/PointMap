@@ -212,7 +212,7 @@ export default function DashboardStats() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
-        {/* Main Content: Recent Buildings */}
+        {/* Main Content: Recent Buildings - Informational Only */}
         <div className="lg:col-span-2 space-y-4 flex flex-col h-full bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between flex-shrink-0">
             <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
@@ -260,102 +260,151 @@ export default function DashboardStats() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto min-h-0 grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-3">
             {isLoading ? (
               [1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"
+                  className="h-32 bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse"
                 />
               ))
             ) : paginatedBuildings.length > 0 ? (
               paginatedBuildings.map((b) => (
                 <div
                   key={b.id_bangunan}
-                  className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group flex gap-3 h-24"
+                  className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/30 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all group"
                 >
-                  <div className="w-16 h-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative">
-                    {b.thumbnail ? (
-                      <img
-                        src={
-                          b.thumbnail.startsWith("http")
-                            ? b.thumbnail
-                            : b.thumbnail.startsWith("/img") ||
-                              b.thumbnail.startsWith("img") ||
-                              b.thumbnail.startsWith("/building-details") ||
-                              b.thumbnail.startsWith("building-details")
-                            ? b.thumbnail
-                            : `${
-                                process.env.NEXT_PUBLIC_API_BASE_URL
-                              }/${b.thumbnail.replace(/^\//, "")}`
-                        }
-                        alt={b.nama}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={(e) => {
-                          (
-                            e.target as HTMLImageElement
-                          ).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            b.nama
-                          )}&background=random`;
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <FaBuilding className="text-xl" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 flex flex-col justify-between py-1">
-                    <div>
-                      <h3
-                        className="font-bold text-sm text-gray-800 dark:text-white line-clamp-1 mb-1"
-                        title={b.nama}
-                      >
-                        {b.nama}
-                      </h3>
-                      <div className="flex flex-wrap gap-1 text-[10px]">
-                        <span className="px-1.5 py-0.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded border border-gray-200 dark:border-gray-700">
-                          {b.lantai} Lt
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded border ${
-                            b.interaksi === "Interaktif"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-gray-100 text-gray-500 border-gray-200"
-                          }`}
+                  <div className="flex gap-4">
+                    {/* Thumbnail */}
+                    <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative shadow-md">
+                      {b.thumbnail ? (
+                        <img
+                          src={
+                            b.thumbnail.startsWith("http")
+                              ? b.thumbnail
+                              : b.thumbnail.startsWith("/img") ||
+                                b.thumbnail.startsWith("img") ||
+                                b.thumbnail.startsWith("/building-details") ||
+                                b.thumbnail.startsWith("building-details")
+                              ? b.thumbnail
+                              : `${
+                                  process.env.NEXT_PUBLIC_API_BASE_URL
+                                }/${b.thumbnail.replace(/^\//, "")}`
+                          }
+                          alt={b.nama}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={(e) => {
+                            (
+                              e.target as HTMLImageElement
+                            ).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              b.nama
+                            )}&background=random`;
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <FaBuilding className="text-2xl" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info Content */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3
+                          className="font-bold text-base text-gray-800 dark:text-white mb-2"
+                          title={b.nama}
                         >
-                          {b.interaksi === "Interaktif" ? "Aktif" : "Non-aktif"}
+                          {b.nama}
+                        </h3>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {/* Jumlah Lantai */}
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                              <FaLayerGroup className="text-blue-600 dark:text-blue-400 text-xs" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                Lantai
+                              </p>
+                              <p className="font-semibold text-gray-800 dark:text-white">
+                                {b.lantai || 0} Lt
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Status Interaktif */}
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-7 h-7 rounded-md flex items-center justify-center ${
+                                b.interaksi === "Interaktif"
+                                  ? "bg-green-100 dark:bg-green-900/30"
+                                  : "bg-gray-100 dark:bg-gray-700"
+                              }`}
+                            >
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  b.interaksi === "Interaktif"
+                                    ? "bg-green-500 animate-pulse"
+                                    : "bg-gray-400"
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                Status
+                              </p>
+                              <p
+                                className={`font-semibold ${
+                                  b.interaksi === "Interaktif"
+                                    ? "text-green-700 dark:text-green-400"
+                                    : "text-gray-500 dark:text-gray-400"
+                                }`}
+                              >
+                                {b.interaksi === "Interaktif"
+                                  ? "Aktif"
+                                  : "Non-aktif"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ID Badge */}
+                      <div className="mt-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-md border border-gray-200 dark:border-gray-700 text-[10px]">
+                          <svg
+                            className="w-3 h-3"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm6 6H7v2h6v-2z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          ID: {b.id_bangunan}
                         </span>
                       </div>
                     </div>
-                    <Link
-                      href={`/dashboard/bangunan/edit/${b.id_bangunan}`}
-                      className="text-xs text-blue-600 font-medium hover:underline w-fit flex items-center gap-1"
-                    >
-                      Edit{" "}
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        →
-                      </span>
-                    </Link>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="col-span-2 py-8 text-center text-gray-500 rounded-xl border border-dashed border-gray-300">
-                Belum ada data gedung.
+              <div className="py-12 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                  <FaBuilding className="text-2xl text-gray-400" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">
+                  Belum ada data gedung
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Data gedung akan tampil di sini
+                </p>
               </div>
             )}
-
-            {/* Add New Card - Compact */}
-            <Link
-              href="/dashboard/bangunan/tambah"
-              className="flex items-center justify-center h-24 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all gap-2"
-            >
-              <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-blue-100">
-                <FaPlus className="text-sm" />
-              </div>
-              <span className="text-sm font-medium">Tambah</span>
-            </Link>
           </div>
         </div>
 
@@ -389,45 +438,142 @@ export default function DashboardStats() {
             </div>
           </div>
 
-          {/* Simple Chart / List Widget */}
+          {/* Real Statistics Widget */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex-1 flex flex-col">
             <h3 className="text-sm font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-              <FaChartBar className="text-purple-500" /> Statistik
+              <FaChartBar className="text-purple-500" /> Statistik Sistem
             </h3>
-            <div className="space-y-3 flex-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500">Kapasitas Server</span>
-                <span className="text-green-600 font-medium">Sehat</span>
+            <div className="space-y-4 flex-1">
+              {/* Interactive Buildings Stats */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                  <span>Gedung Interaktif</span>
+                  <span>
+                    {recentBuildings.length > 0
+                      ? Math.round(
+                          (recentBuildings.filter(
+                            (b) => b.interaksi === "Interaktif"
+                          ).length /
+                            recentBuildings.length) *
+                            100
+                        )
+                      : 0}
+                    %
+                  </span>
+                </div>
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-green-500 h-2 rounded-full transition-all duration-1000"
+                    style={{
+                      width: `${
+                        recentBuildings.length > 0
+                          ? (recentBuildings.filter(
+                              (b) => b.interaksi === "Interaktif"
+                            ).length /
+                              recentBuildings.length) *
+                            100
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  {
+                    recentBuildings.filter((b) => b.interaksi === "Interaktif")
+                      .length
+                  }{" "}
+                  dari {recentBuildings.length} gedung aktif
+                </p>
               </div>
 
-              {/* Fake Data Bars for visual appeal */}
+              {/* Floor Plan Completeness */}
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
-                  <span>Storage (Images)</span>
-                  <span>45%</span>
+                <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                  <span>Kelengkapan Denah</span>
+                  <span>
+                    {(() => {
+                      const totalFloors = recentBuildings.reduce(
+                        (sum, b) => sum + (parseInt(b.lantai) || 0),
+                        0
+                      );
+                      if (totalFloors === 0) return 0;
+                      return Math.round((stats.lantai / totalFloors) * 100);
+                    })()}
+                    %
+                  </span>
                 </div>
-                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
-                  <div className="bg-blue-500 h-1.5 rounded-full w-[45%]" />
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                    style={{
+                      width: `${(() => {
+                        const totalFloors = recentBuildings.reduce(
+                          (sum, b) => sum + (parseInt(b.lantai) || 0),
+                          0
+                        );
+                        if (totalFloors === 0) return 0;
+                        return Math.min(
+                          100,
+                          (stats.lantai / totalFloors) * 100
+                        );
+                      })()}%`,
+                    }}
+                  />
                 </div>
+                <p className="text-[10px] text-gray-400">
+                  {stats.lantai} denah terupload dari estimasi{" "}
+                  {recentBuildings.reduce(
+                    (sum, b) => sum + (parseInt(b.lantai) || 0),
+                    0
+                  )}{" "}
+                  lantai
+                </p>
               </div>
 
+              {/* Room Density */}
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
-                  <span>Database Usage</span>
-                  <span>12%</span>
+                <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                  <span>Rata-rata Ruangan/Gedung</span>
+                  <span>
+                    {recentBuildings.length > 0
+                      ? (stats.ruangan / recentBuildings.length).toFixed(1)
+                      : 0}
+                  </span>
                 </div>
-                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
-                  <div className="bg-purple-500 h-1.5 rounded-full w-[12%]" />
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-orange-500 h-2 rounded-full transition-all duration-1000"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (stats.ruangan / (recentBuildings.length * 10 || 1)) *
+                          100
+                      )}%`, // Assume avg 10 rooms map to 100%
+                    }}
+                  />
                 </div>
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white">
-                <p className="text-[10px] opacity-80 mb-0.5">Tip Hari Ini</p>
-                <p className="text-xs font-medium">
-                  Pastikan menekan tombol "Simpan" setelah menggambar poligon.
-                </p>
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 bg-white/20 p-1 rounded-full">
+                    <FaChartBar className="text-[10px]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] opacity-90 font-semibold mb-0.5 uppercase tracking-wide">
+                      Insight Sistem
+                    </p>
+                    <p className="text-xs font-medium leading-relaxed">
+                      {stats.bangunan === 0
+                        ? "Sistem masih kosong. Mulai dengan menambahkan gedung baru!"
+                        : stats.ruangan < stats.bangunan
+                        ? "Perbanyak data ruangan untuk memaksimalkan fitur pencarian."
+                        : "Sistem berjalan baik. Terus lengkapi galeri ruangan Anda!"}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1749,7 +1749,7 @@
     <script>
       // Konfigurasi API
       const urlParams = new URLSearchParams(window.location.search);
-      const rawApiUrl = urlParams.get('apiUrl');
+      const rawApiUrl = urlParams.get("apiUrl");
       // Remove trailing slash if present
       const cleanApiUrl = rawApiUrl.replace(/\/$/, "");
       const API_BASE_URL = `${cleanApiUrl}/api`;
@@ -2076,85 +2076,32 @@
               return;
             }
 
-            // Use exact coordinates with adjustment based on actual SVG dimensions
-            // This ensures pin markers align with the actual SVG image, not the container
-            let finalTop, finalLeft;
+            // Use coordinates DIRECTLY from database without complex adjustments
+            // This ensures pin placement matches exactly what was set in dashboard
+            const finalTop = topPercent;
+            const finalLeft = leftPercent;
 
-            // Get actual SVG dimensions and positioning within the level container
-            const levelElement = document.querySelector(`.level--${lantai}`);
-            let svgImage = null;
-            let svgRect = null;
-            let levelRect = null;
-
-            if (levelElement) {
-              svgImage = levelElement.querySelector("img");
-              if (svgImage) {
-                // Get the actual displayed dimensions of both level container and SVG image
-                levelRect = levelElement.getBoundingClientRect();
-                svgRect = svgImage.getBoundingClientRect();
-              }
-            }
-
-            // Calculate coordinates based on actual SVG content area (excluding transparent padding)
-            if (svgRect && levelRect) {
-              // Get the actual SVG content dimensions (excluding transparent padding)
-              const svgContentWidth = svgImage.naturalWidth || svgRect.width;
-              const svgContentHeight = svgImage.naturalHeight || svgRect.height;
-
-              // Calculate the actual content area within the displayed SVG
-              const contentAspectRatio = svgContentWidth / svgContentHeight;
-              const displayAspectRatio = svgRect.width / svgRect.height;
-
-              let actualContentWidth, actualContentHeight;
-              let contentOffsetX = 0,
-                contentOffsetY = 0;
-
-              if (contentAspectRatio > displayAspectRatio) {
-                // Content is wider than display - fit to width
-                actualContentWidth = svgRect.width;
-                actualContentHeight = svgRect.width / contentAspectRatio;
-                contentOffsetY = (svgRect.height - actualContentHeight) / 2;
-              } else {
-                // Content is taller than display - fit to height
-                actualContentHeight = svgRect.height;
-                actualContentWidth = svgRect.height * contentAspectRatio;
-                contentOffsetX = (svgRect.width - actualContentWidth) / 2;
-              }
-
-              // Calculate coordinates relative to actual content area
-              const contentLeftPercent =
-                (leftPercent * actualContentWidth) / svgRect.width +
-                (contentOffsetX / svgRect.width) * 100;
-              const contentTopPercent =
-                (topPercent * actualContentHeight) / svgRect.height +
-                (contentOffsetY / svgRect.height) * 100;
-
-              finalTop = Math.max(0, contentTopPercent - 5);
-              finalLeft = Math.max(0, contentLeftPercent - 5);
-            } else {
-              // Fallback to direct coordinates if SVG info not available
-              finalTop = Math.max(0, topPercent - 5);
-              finalLeft = Math.max(0, leftPercent - 5);
-            }
-
-            // Store the coordinates for debug indicators to use
+            // Store the coordinates for debug purposes
             if (!window.pinCoordinates) window.pinCoordinates = {};
             window.pinCoordinates[pinClass] = {
               top: `${finalTop}%`,
               left: `${finalLeft}%`,
               ruangan: ruangan.nama_ruangan,
-              original: { top: `${topPercent}%`, left: `${leftPercent}%` },
-              adjusted: { top: `${finalTop}%`, left: `${finalLeft}%` },
-              shift: { top: -5, left: -5 }, // Shift values applied
+              hasCustomPosition: !!(
+                ruangan.pin_position.top && ruangan.pin_position.left
+              ),
             };
 
             // Generate CSS with exact percentage positioning
+            // Combine 3D transform with centering translate
             const cssRule = `
               .${pinClass} {
                 top: ${finalTop}% !important;
                 left: ${finalLeft}% !important;
                 position: absolute !important;
                 z-index: 10 !important;
+                transform: translate(-50%, -100%) rotateZ(-20deg) rotateZ(45deg) rotateX(-70deg) !important;
+                -webkit-transform: translate(-50%, -100%) rotateZ(-20deg) rotateZ(45deg) rotateX(-70deg) !important;
                 transform-origin: 50% 100% !important;
                 -webkit-transform-origin: 50% 100% !important;
               }
@@ -2178,6 +2125,12 @@
 
           // Add to head
           document.head.appendChild(styleElement);
+
+          console.log(
+            `✅ Applied pin CSS for ${
+              Object.keys(window.pinCoordinates || {}).length
+            } pins with precise positioning`
+          );
         }
       }
 
@@ -2474,21 +2427,12 @@
                             // Fallback ke path berdasarkan ID ruangan
                             return `
                               <div class="gallery-container">
-                                }
-                                <a href="../img/${
-                                  buildingData.id_bangunan
-                                }/ruangan/${
-                              item.ruangan.id_ruangan
-                            }/gallery1.jpg" 
+                                <a href="../img/${buildingData.id_bangunan}/ruangan/${item.ruangan.id_ruangan}/gallery1.jpg" 
                                    data-fancybox="gallery-${item.space}"
                                    data-caption="${item.title} - Foto 1"
                                    class="gallery-link">
                                   <img 
-                                    src="../img/${
-                                      buildingData.id_bangunan
-                                    }/ruangan/${
-                              item.ruangan.id_ruangan
-                            }/gallery1.jpg" 
+                                    src="../img/${buildingData.id_bangunan}/ruangan/${item.ruangan.id_ruangan}/gallery1.jpg" 
                                     alt="${item.title}"
                                     class="room-thumbnail"
                                     onError="this.src='../img/default/ruangan/thumbnail.jpg'"
@@ -2496,9 +2440,7 @@
                                   <div class="gallery-overlay">
                                     <div class="gallery-indicator">
                                       <i class="fas fa-images"></i>
-                                      <span class="gallery-count" data-room="${
-                                        item.title
-                                      }" data-building="${buildingName}">3</span>
+                                      <span class="gallery-count" data-room="${item.title}" data-building="${buildingName}">3</span>
                                     </div>
                                   </div>
                                 </a>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Modal from "@/components/dashboard/Modal";
+import RuanganForm from "@/components/dashboard/RuanganForm";
 import {
   FaPlus,
   FaEdit,
@@ -316,12 +318,46 @@ export default function RuanganPage() {
   const [bangunanList, setBangunanList] = useState<any[]>([]);
   const [selectedBangunan, setSelectedBangunan] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
+  const [lantaiGambar, setLantaiGambar] = useState<any[]>([]); // State untuk menyimpan gambar lantai
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   // Modal State
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: "add" | "edit";
+    data?: any;
+  }>({ isOpen: false, type: "add" });
+
+  const handleOpenAdd = () => {
+    setModalState({ isOpen: true, type: "add", data: null });
+  };
+
+  const handleOpenEdit = (data: any) => {
+    setModalState({ isOpen: true, type: "edit", data });
+  };
+
+  const handleCloseModal = () => {
+    setModalState({ ...modalState, isOpen: false });
+  };
+
+  const handleSuccess = () => {
+    // Refresh data
+    const fetchData = async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`
+      );
+      if (res.ok) {
+        setRuangan(await res.json());
+      }
+    };
+    fetchData();
+    handleCloseModal();
+  };
+
+  // Gallery Modal State
   const [selectedRoomGallery, setSelectedRoomGallery] = useState<{
     id: number;
     name: string;
@@ -341,17 +377,22 @@ export default function RuanganPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [resRuangan, resBangunan] = await Promise.all([
+        const [resRuangan, resBangunan, resLantaiGambar] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`),
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`),
         ]);
 
         if (resRuangan.ok && resBangunan.ok) {
           const dataRuangan = await resRuangan.json();
           const dataBangunan = await resBangunan.json();
+          const dataLantaiGambar = resLantaiGambar.ok
+            ? await resLantaiGambar.json()
+            : [];
           setRuangan(dataRuangan);
           setFilteredRuangan(dataRuangan);
           setBangunanList(dataBangunan);
+          setLantaiGambar(dataLantaiGambar);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -425,18 +466,30 @@ export default function RuanganPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredRuangan.slice(indexOfFirstItem, indexOfLastItem);
 
+  // Helper function untuk mendapatkan gambar lantai
+  const getLantaiGambarForRuangan = (
+    id_bangunan: number,
+    nomor_lantai: number
+  ) => {
+    const lantaiFile = `Lt${nomor_lantai}.svg`;
+    const gambar = lantaiGambar.find(
+      (lg) => lg.id_bangunan === id_bangunan && lg.nama_file === lantaiFile
+    );
+    return gambar?.path_file;
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
           Manajemen Ruangan
         </h1>
-        <Link
-          href="/dashboard/ruangan/tambah"
-          className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-md"
+        <button
+          onClick={handleOpenAdd}
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 shadow-lg shadow-primary/30"
         >
           <FaPlus /> Tambah Ruangan
-        </Link>
+        </button>
       </div>
 
       {/* View Toggle & Search */}
@@ -545,6 +598,38 @@ export default function RuanganPage() {
                 </div>
               </div>
 
+              {/* SVG Lantai Preview */}
+              {(() => {
+                const lantaiPath = getLantaiGambarForRuangan(
+                  r.id_bangunan,
+                  r.nomor_lantai
+                );
+                return lantaiPath ? (
+                  <div className="px-4 pt-2 pb-3 bg-white dark:bg-gray-800/50">
+                    <div className="relative w-full h-32 bg-gray-100 dark:bg-gray-900/50 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <img
+                        src={
+                          lantaiPath.startsWith("/img")
+                            ? lantaiPath // Path dari public folder Next.js
+                            : `${
+                                process.env.NEXT_PUBLIC_API_BASE_URL || ""
+                              }/${lantaiPath.replace(/^\//, "")}`
+                        }
+                        alt={`Lantai ${r.nomor_lantai}`}
+                        className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          // Hide image if failed to load
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      <div className="absolute bottom-1 right-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
+                        Lantai {r.nomor_lantai}
+                      </div>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
               <div className="p-4 flex-1">
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center gap-2">
@@ -576,12 +661,12 @@ export default function RuanganPage() {
                 >
                   <FaImages />
                 </button>
-                <Link
-                  href={`/dashboard/ruangan/edit/${r.id_ruangan}`}
+                <button
+                  onClick={() => handleOpenEdit(r)}
                   className="flex-1 text-center py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 transition-colors"
                 >
                   <FaEdit className="inline mr-1" /> Edit
-                </Link>
+                </button>
                 <button
                   onClick={() => handleDelete(r.id_ruangan)}
                   className="w-10 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 transition-colors"
@@ -601,6 +686,7 @@ export default function RuanganPage() {
                   <th className="p-4 font-semibold">Nama Ruangan</th>
                   <th className="p-4 font-semibold">Gedung</th>
                   <th className="p-4 font-semibold">Lantai</th>
+                  <th className="p-4 font-semibold">Denah Lantai</th>
                   <th className="p-4 font-semibold">Jurusan/Prodi</th>
                   <th className="p-4 font-semibold text-center">Pin</th>
                   <th className="p-4 font-semibold text-center">Aksi</th>
@@ -615,6 +701,35 @@ export default function RuanganPage() {
                     <td className="p-4 font-medium">{r.nama_ruangan}</td>
                     <td className="p-4">{r.bangunan?.nama || "-"}</td>
                     <td className="p-4">Lt. {r.nomor_lantai}</td>
+                    <td className="p-4">
+                      {(() => {
+                        const lantaiPath = getLantaiGambarForRuangan(
+                          r.id_bangunan,
+                          r.nomor_lantai
+                        );
+                        return lantaiPath ? (
+                          <div className="w-20 h-16 bg-gray-100 dark:bg-gray-900/50 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                            <img
+                              src={
+                                lantaiPath.startsWith("/img")
+                                  ? lantaiPath // Path dari public folder Next.js
+                                  : `${
+                                      process.env.NEXT_PUBLIC_API_BASE_URL || ""
+                                    }/${lantaiPath.replace(/^\//, "")}`
+                              }
+                              alt={`Lantai ${r.nomor_lantai}`}
+                              className="w-full h-full object-contain p-1"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        );
+                      })()}
+                    </td>
                     <td className="p-4">
                       <div className="text-sm">
                         <div className="font-medium">{r.nama_jurusan}</div>
@@ -648,13 +763,13 @@ export default function RuanganPage() {
                         >
                           <FaImages />
                         </button>
-                        <Link
-                          href={`/dashboard/ruangan/edit/${r.id_ruangan}`}
+                        <button
+                          onClick={() => handleOpenEdit(r)}
                           className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <FaEdit />
-                        </Link>
+                        </button>
                         <button
                           onClick={() => handleDelete(r.id_ruangan)}
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
@@ -729,6 +844,25 @@ export default function RuanganPage() {
           </div>
         </div>
       )}
+
+      {/* Main Form Modal */}
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={handleCloseModal}
+        title={
+          modalState.type === "add"
+            ? "Tambah Ruangan Baru"
+            : "Edit Data Ruangan"
+        }
+        size="full"
+      >
+        <RuanganForm
+          isEdit={modalState.type === "edit"}
+          initialData={modalState.data}
+          onSuccess={handleSuccess}
+          onCancel={handleCloseModal}
+        />
+      </Modal>
     </div>
   );
 }
