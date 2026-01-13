@@ -10,6 +10,7 @@ import {
   FaLayerGroup,
   FaFileImage,
 } from "react-icons/fa";
+import { useToast } from "@/components/ToastProvider";
 
 interface LantaiFormProps {
   initialData?: any;
@@ -25,6 +26,7 @@ export default function LantaiForm({
   onCancel,
 }: LantaiFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [bangunanList, setBangunanList] = useState<any[]>([]);
 
@@ -60,12 +62,12 @@ export default function LantaiForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.id_bangunan || !formData.nomor_lantai) {
-      alert("Mohon lengkapi data wajib");
+      showToast("Mohon lengkapi data wajib", "warning");
       return;
     }
 
     if (!isEdit && !file) {
-      alert("Pilih file denah lantai");
+      showToast("Pilih file denah lantai", "warning");
       return;
     }
 
@@ -77,7 +79,7 @@ export default function LantaiForm({
       formDataUpload.append("id_bangunan", formData.id_bangunan);
       formDataUpload.append("nomor_lantai", formData.nomor_lantai.toString());
       if (file) {
-        formDataUpload.append("file", file);
+        formDataUpload.append("gambar_lantai", file);
       }
 
       // Special handling for Lantai:
@@ -117,9 +119,7 @@ export default function LantaiForm({
         // Or we tell user "Upload file to replace".
 
         if (!file && isEdit) {
-          alert(
-            "Fitur edit metadata tanpa ubah file belum didukung sepenuhnya. Silakan upload file baru jika ingin mengubah."
-          );
+          showToast("Upload file baru untuk mengubah denah lantai", "warning");
           // Alternatively, just warn and return.
           // Or if `file` is null, maybe we shouldn't allow submit.
           setLoading(false);
@@ -139,16 +139,16 @@ export default function LantaiForm({
         if (onSuccess) {
           onSuccess();
         } else {
-          alert("Data lantai berhasil disimpan");
+          showToast("Data lantai berhasil disimpan", "success");
           router.push("/dashboard/lantai");
         }
       } else {
         const err = await res.json();
-        alert(`Gagal menyimpan: ${err.message || err.error}`);
+        showToast(`Gagal menyimpan: ${err.message || err.error}`, "error");
       }
     } catch (error) {
       console.error("Error saving lantai:", error);
-      alert("Terjadi kesalahan saat menyimpan");
+      showToast("Terjadi kesalahan saat menyimpan", "error");
     } finally {
       setLoading(false);
     }
@@ -166,7 +166,7 @@ export default function LantaiForm({
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (!selectedFile.type.includes("svg")) {
-        alert("Harap pilih file SVG untuk denah lantai");
+        showToast("Harap pilih file SVG untuk denah lantai", "warning");
         // return; // Allow user to upload other formats if they really want, but warn relevantly?
         // backend expects SVG for 'format: svg' if we look at controller, but image/png is also used for thumbnails?
         // Controller says `if (!allowedTypes...)`? No, controller `addLantaiGambar` sets `format: "svg"`.
@@ -184,9 +184,13 @@ export default function LantaiForm({
   );
   const maxLantai = selectedBangunan ? selectedBangunan.lantai : 10;
 
+  // Content-only component - Modal wrapper will be provided by parent (Modal.tsx)
+  // Layout: Left column (form) + Right column (preview)
   return (
-    <div className="w-full h-full flex justify-center p-4 lg:p-6 overflow-y-auto">
-      <div className="w-full max-w-2xl flex flex-col gap-4">
+    <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+      {/* Left Column: Form Inputs */}
+      <div className="w-full lg:w-1/3 flex flex-col gap-4">
+        {/* Page Header (only show if not in modal mode) */}
         {!onCancel && (
           <div className="flex items-center gap-4 mb-2 shrink-0">
             <button
@@ -195,19 +199,18 @@ export default function LantaiForm({
             >
               <FaArrowLeft />
             </button>
-            <h1 className="text-2xl font-bold font-gray-800 dark:text-white">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
               {isEdit ? "Edit Lantai" : "Tambah Lantai"}
             </h1>
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2 text-gray-800 dark:text-white">
-            <FaCity className="text-primary" /> Target
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Pilih Gedung */}
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 Gedung *
               </label>
               <div className="relative">
@@ -219,11 +222,11 @@ export default function LantaiForm({
                       id_bangunan: e.target.value,
                     })
                   }
-                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none"
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none text-gray-800 dark:text-white"
                   required
                   disabled={isEdit}
                 >
-                  <option value="">-- Pilih Gedung --</option>
+                  <option value="" disabled hidden></option>
                   {bangunanList.map((b) => (
                     <option key={b.id_bangunan} value={b.id_bangunan}>
                       {b.nama}
@@ -233,24 +236,155 @@ export default function LantaiForm({
                 <FaCity className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
               </div>
             </div>
-          </div>
 
-          <div className="pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={handleSubmit}
-              disabled={loading || (!file && !isEdit)}
-              className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {loading ? (
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <FaSave className="text-xl" />{" "}
-                  {isEdit ? "Simpan Perubahan" : "Terbitkan Lantai"}
-                </>
+            {/* Nomor Lantai */}
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                Nomor Lantai *
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.nomor_lantai}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      nomor_lantai: parseInt(e.target.value) || 1,
+                    })
+                  }
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none text-gray-800 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  required
+                  disabled={!selectedBangunan || isEdit}
+                >
+                  <option value="" disabled hidden></option>
+                  {selectedBangunan &&
+                    Array.from({ length: maxLantai }, (_, i) => i + 1).map(
+                      (num) => (
+                        <option key={num} value={num}>
+                          Lantai {num}
+                        </option>
+                      )
+                    )}
+                </select>
+                <FaLayerGroup className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              </div>
+              {selectedBangunan && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Gedung ini memiliki {maxLantai} lantai
+                </p>
               )}
-            </button>
-          </div>
+            </div>
+
+            {/* Upload File SVG */}
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                File Denah Lantai (SVG) *
+              </label>
+              <input
+                type="file"
+                accept=".svg,image/svg+xml"
+                onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
+                disabled={!formData.id_bangunan || !formData.nomor_lantai}
+              />
+              <label
+                htmlFor="file-upload"
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg transition bg-gray-50 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300 ${
+                  !formData.id_bangunan || !formData.nomor_lantai
+                    ? "border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed"
+                    : "border-gray-300 dark:border-gray-600 hover:border-primary dark:hover:border-primary cursor-pointer"
+                }`}
+                onClick={(e) => {
+                  if (!formData.id_bangunan || !formData.nomor_lantai) {
+                    e.preventDefault();
+                    showToast(
+                      "Pilih gedung dan lantai terlebih dahulu",
+                      "warning"
+                    );
+                  }
+                }}
+              >
+                <FaUpload
+                  className={
+                    !formData.id_bangunan || !formData.nomor_lantai
+                      ? "text-gray-400"
+                      : "text-primary"
+                  }
+                />
+                <span className="text-sm">
+                  {!formData.id_bangunan || !formData.nomor_lantai
+                    ? "Pilih gedung dan lantai dahulu"
+                    : file
+                    ? file.name
+                    : "Klik untuk upload file SVG"}
+                </span>
+              </label>
+
+              <p className="text-xs text-gray-500">
+                <FaFileImage className="inline mr-1" />
+                Format: SVG | Pastikan file berisi denah lantai yang jelas
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="submit"
+                disabled={loading || (!file && !isEdit && !preview)}
+                className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {loading ? (
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <FaSave className="text-xl" />{" "}
+                    {isEdit ? "Simpan Perubahan" : "Tambah Lantai"}
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Right Column: SVG Preview */}
+      <div className="w-full lg:w-2/3 flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 shrink-0">
+          <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            <FaFileImage className="text-primary" /> Preview Denah Lantai
+          </h3>
+          {preview && (
+            <div className="text-xs px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <span className="text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span> File
+                Terpilih
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Preview Canvas */}
+        <div className="flex-1 bg-slate-100 dark:bg-slate-900 relative w-full h-full overflow-hidden flex items-center justify-center p-6">
+          {preview ? (
+            <div className="relative w-full h-full shadow-lg bg-white overflow-hidden flex items-center justify-center">
+              <img
+                src={preview}
+                alt="Preview denah lantai"
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 flex flex-col items-center justify-center h-full">
+              <div className="w-20 h-20 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <FaLayerGroup className="text-4xl opacity-50" />
+              </div>
+              <p className="font-medium">Upload File SVG</p>
+              <p className="text-sm opacity-70">
+                Preview denah akan muncul di sini
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

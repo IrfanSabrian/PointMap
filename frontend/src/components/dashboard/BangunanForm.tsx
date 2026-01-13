@@ -14,6 +14,7 @@ import {
   FaImage,
   FaUpload,
 } from "react-icons/fa";
+import { useToast } from "@/components/ToastProvider";
 
 // Import MapEditor for drawing building polygons
 const MapEditor = dynamic(() => import("@/components/MapEditor"), {
@@ -39,6 +40,7 @@ export default function BangunanForm({
   onCancel,
 }: BangunanFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const mapRef = useRef<any>(null); // Ref to access LeafletMap methods
 
@@ -91,19 +93,20 @@ export default function BangunanForm({
     e.preventDefault();
 
     if (!formData.nama) {
-      alert("Nama gedung wajib diisi");
+      showToast("Nama gedung wajib diisi", "warning");
       return;
     }
 
     if (!drawnGeoJSON) {
-      alert("Harap gambar gedung di peta terlebih dahulu");
+      showToast("Harap gambar gedung di peta terlebih dahulu", "warning");
       return;
     }
 
     // Validate geometry structure
     if (!drawnGeoJSON.type || !drawnGeoJSON.geometry) {
-      alert(
-        "Geometry tidak valid. Pastikan Anda telah menggambar polygon gedung dengan benar."
+      showToast(
+        "Geometry tidak valid. Pastikan Anda telah menggambar polygon gedung dengan benar.",
+        "error"
       );
       console.error("Invalid geometry structure:", drawnGeoJSON);
       return;
@@ -114,7 +117,10 @@ export default function BangunanForm({
       drawnGeoJSON.geometry.type !== "Polygon" &&
       drawnGeoJSON.geometry.type !== "MultiPolygon"
     ) {
-      alert("Tipe geometry harus berupa Polygon atau MultiPolygon");
+      showToast(
+        "Tipe geometry harus berupa Polygon atau MultiPolygon",
+        "error"
+      );
       console.error("Invalid geometry type:", drawnGeoJSON.geometry.type);
       return;
     }
@@ -124,8 +130,9 @@ export default function BangunanForm({
       !drawnGeoJSON.geometry.coordinates ||
       drawnGeoJSON.geometry.coordinates.length === 0
     ) {
-      alert(
-        "Koordinat geometry kosong. Pastikan polygon telah digambar dengan benar."
+      showToast(
+        "Koordinat geometry kosong. Pastikan polygon telah digambar dengan benar.",
+        "error"
       );
       console.error("Missing coordinates:", drawnGeoJSON.geometry);
       return;
@@ -141,6 +148,13 @@ export default function BangunanForm({
 
       const method = isEdit ? "PUT" : "POST";
 
+      console.log("🏗️ Building operation:", {
+        mode: isEdit ? "EDIT" : "ADD",
+        id: initialData?.id_bangunan,
+        url: url,
+        method: method,
+      });
+
       // Extract geometry dari Feature GeoJSON
       // Jika drawnGeoJSON adalah Feature, ambil hanya geometry-nya
       let geometryToSave;
@@ -152,7 +166,7 @@ export default function BangunanForm({
       ) {
         geometryToSave = drawnGeoJSON;
       } else {
-        alert("Format geometry tidak valid");
+        showToast("Format geometry tidak valid", "error");
         console.error("Invalid geometry format:", drawnGeoJSON);
         setLoading(false);
         return;
@@ -180,6 +194,16 @@ export default function BangunanForm({
         geometryToSave.coordinates[0]?.length || 0
       );
 
+      // Validate token exists
+      if (!token) {
+        showToast("Sesi Anda telah berakhir. Silakan login kembali.", "error");
+        window.location.href = "/login";
+        setLoading(false);
+        return;
+      }
+
+      console.log("🔑 Token exists:", token ? "Yes" : "No");
+
       const res = await fetch(url, {
         method,
         headers: {
@@ -192,6 +216,19 @@ export default function BangunanForm({
       if (!res.ok) {
         const errorBody = await res.text();
         console.error("❌ Failed to save building:", res.status, errorBody);
+
+        // Handle authentication errors
+        if (res.status === 401 || res.status === 403) {
+          showToast(
+            "Sesi Anda telah berakhir atau tidak valid. Silakan login kembali.",
+            "error"
+          );
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          setLoading(false);
+          return;
+        }
+
         throw new Error(`Gagal menyimpan data: ${res.status} - ${errorBody}`);
       }
 
@@ -217,7 +254,7 @@ export default function BangunanForm({
         );
       }
 
-      alert("Data berhasil disimpan!");
+      showToast("Data berhasil disimpan!", "success");
 
       // Dispatch event untuk memberitahu komponen lain bahwa data bangunan telah berubah
       window.dispatchEvent(new CustomEvent("bangunan-data-changed"));
@@ -230,7 +267,7 @@ export default function BangunanForm({
       }
     } catch (error) {
       console.error("Error saving:", error);
-      alert("Terjadi kesalahan saat menyimpan data");
+      showToast("Terjadi kesalahan saat menyimpan data", "error");
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@ import {
   FaThLarge,
   FaLayerGroup,
 } from "react-icons/fa";
+import { useToast } from "@/components/ToastProvider";
 
 // Pagination Component
 function Pagination({
@@ -54,6 +55,7 @@ function Pagination({
 }
 
 export default function LantaiPage() {
+  const { showToast } = useToast();
   const [lantai, setLantai] = useState<any[]>([]);
   const [filteredLantai, setFilteredLantai] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,9 +135,9 @@ export default function LantaiPage() {
       if (res.ok) {
         setLantai(lantai.filter((l) => l.id_lantai_gambar !== deleteModal.id));
         setDeleteModal({ isOpen: false, id: null });
-        alert("Gambar lantai berhasil dihapus");
+        showToast("Gambar lantai berhasil dihapus", "success");
       } else {
-        alert("Gagal menghapus image");
+        showToast("Gagal menghapus gambar", "error");
       }
     } catch (error) {
       console.error("Error deleting floor image:", error);

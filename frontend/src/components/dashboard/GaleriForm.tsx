@@ -12,6 +12,7 @@ import {
   FaCity,
   FaDoorOpen,
 } from "react-icons/fa";
+import { useToast } from "@/components/ToastProvider";
 
 interface GaleriFormProps {
   onSuccess?: () => void;
@@ -20,6 +21,7 @@ interface GaleriFormProps {
 
 export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
   const [bangunanList, setBangunanList] = useState<any[]>([]);
@@ -102,7 +104,7 @@ export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRuangan || files.length === 0) {
-      alert("Pilih ruangan dan minimal satu foto");
+      showToast("Pilih ruangan dan minimal satu foto", "warning");
       return;
     }
 
@@ -130,16 +132,16 @@ export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
       if (res.ok) {
         if (onSuccess) onSuccess();
         else {
-          alert("Foto berhasil diupload");
+          showToast("Foto berhasil diupload", "success");
           router.push("/dashboard/galeri");
         }
       } else {
         const err = await res.json();
-        alert(`Gagal upload: ${err.message || err.error}`);
+        showToast(`Gagal upload: ${err.message || err.error}`, "error");
       }
     } catch (error) {
       console.error("Error uploading gallery:", error);
-      alert("Terjadi kesalahan saat upload");
+      showToast("Terjadi kesalahan saat upload", "error");
     } finally {
       setLoading(false);
     }
@@ -165,7 +167,7 @@ export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition appearance-none"
                   required
                 >
-                  <option value="">-- Pilih Gedung --</option>
+                  <option value="" disabled hidden></option>
                   {bangunanList.map((b) => (
                     <option key={b.id_bangunan} value={b.id_bangunan}>
                       {b.nama}
@@ -188,7 +190,7 @@ export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 >
-                  <option value="">-- Pilih Ruangan --</option>
+                  <option value="" disabled hidden></option>
                   {ruanganList.map((r) => (
                     <option key={r.id_ruangan} value={r.id_ruangan}>
                       {r.nama_ruangan}{" "}

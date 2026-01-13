@@ -183,6 +183,18 @@ const connectDB = async (retries = 5) => {
   }
 };
 
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("🔥 Global Error:", err.message);
+  // Multer error handling
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ error: "File terlalu besar (Maks 10MB)" });
+  }
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error",
+  });
+});
+
 // Start server
 const startServer = async () => {
   const PORT = process.env.PORT || 3001;

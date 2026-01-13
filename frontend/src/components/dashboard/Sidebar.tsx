@@ -57,8 +57,8 @@ export default function Sidebar() {
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: FaHome },
     { name: "Manajemen Gedung", path: "/dashboard/bangunan", icon: FaBuilding },
-    { name: "Manajemen Ruangan", path: "/dashboard/ruangan", icon: FaDoorOpen },
     { name: "Manajemen Lantai", path: "/dashboard/lantai", icon: FaLayerGroup },
+    { name: "Manajemen Ruangan", path: "/dashboard/ruangan", icon: FaDoorOpen },
   ];
 
   const isActive = (path: string) => {

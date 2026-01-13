@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "./theme-provider";
 import { useEffect, useState } from "react";
+import { ToastProvider } from "@/components/ToastProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,7 +58,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${inter.variable} ${oswald.variable} antialiased`}
       >
-        <ThemeRegistry>{mounted ? children : null}</ThemeRegistry>
+        <ThemeRegistry>
+          <ToastProvider>{mounted ? children : null}</ToastProvider>
+        </ThemeRegistry>
         <script
           type="text/javascript"
           dangerouslySetInnerHTML={{

@@ -6,11 +6,10 @@ import {
   faSyncAlt,
   faGlobe,
   faLayerGroup,
-  faChevronLeft,
   faEye,
   faEyeSlash,
+  faLocationArrow,
 } from "@fortawesome/free-solid-svg-icons";
-import { kategoriStyle } from "../../../lib/map/styles";
 
 type SearchFeature = {
   properties?: Record<string, any>;
@@ -25,6 +24,8 @@ type Props = {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onReset: () => void;
+  onLocateMe: () => void; // GPS handler
+  isLocating?: boolean; // GPS loading state
 
   // layer & basemap
   onToggleLayer: () => void;
@@ -45,10 +46,7 @@ type Props = {
 };
 
 export default function MapControlsPanel(props: Props) {
-  const [showLegend, setShowLegend] = React.useState(false);
   const [showLayerControl, setShowLayerControl] = React.useState(false);
-  const legendRef = useRef<HTMLDivElement>(null);
-  const legendToggleRef = useRef<HTMLButtonElement>(null);
   const layerControlRef = useRef<HTMLDivElement>(null);
   const layerControlToggleRef = useRef<HTMLButtonElement>(null);
 
@@ -60,6 +58,8 @@ export default function MapControlsPanel(props: Props) {
     onZoomIn,
     onZoomOut,
     onReset,
+    onLocateMe,
+    isLocating = false,
     onToggleLayer,
     onToggleBasemap,
     bangunanVisible,
@@ -73,26 +73,6 @@ export default function MapControlsPanel(props: Props) {
     onSelectSearchResult,
     isHighlightActive,
   } = props;
-
-  // Handle clicking outside legend to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        showLegend &&
-        legendRef.current &&
-        !legendRef.current.contains(event.target as Node) &&
-        legendToggleRef.current &&
-        !legendToggleRef.current.contains(event.target as Node)
-      ) {
-        setShowLegend(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showLegend]);
 
   // Handle clicking outside layer control to close it
   useEffect(() => {
@@ -306,22 +286,22 @@ export default function MapControlsPanel(props: Props) {
           </>
         )}
 
-        {/* Legend Toggle Button - Posisi di bawah tombol layer (jika ada) atau di atas tombol + */}
+        {/* GPS Button - Available for all users */}
         <button
-          ref={legendToggleRef}
-          data-control="legend-toggle"
-          onClick={() => setShowLegend(!showLegend)}
+          data-control="locate-me"
+          onClick={onLocateMe}
+          disabled={isLocating}
           className={`flex items-center justify-center rounded-lg shadow-lg text-sm font-semibold border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/30 cursor-pointer touch-manipulation w-11 h-11 sm:w-12 sm:h-12 sm:px-3 sm:py-2 ${
             isDark
-              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white"
-              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
+              ? "bg-gray-800 border-gray-700 hover:bg-gray-700 text-white disabled:opacity-50"
+              : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700 disabled:opacity-50"
           }`}
-          title={showLegend ? "Sembunyikan Legend" : "Tampilkan Legend"}
+          title={isLocating ? "Mencari lokasi..." : "Cari Lokasi Saya"}
         >
           <FontAwesomeIcon
-            icon={faChevronLeft}
-            className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${
-              showLegend ? "rotate-180" : ""
+            icon={faLocationArrow}
+            className={`w-3 h-3 sm:w-4 sm:h-4 ${
+              isLocating ? "animate-pulse" : ""
             }`}
           />
         </button>
@@ -368,40 +348,6 @@ export default function MapControlsPanel(props: Props) {
             />
           </button>
         </div>
-
-        {/* Legend Box */}
-        {showLegend && (
-          <div
-            ref={legendRef}
-            className={`absolute right-full top-0 mr-2 p-2 sm:p-4 rounded-lg shadow-lg border min-w-[220px] sm:min-w-[240px] ${
-              isDark
-                ? "bg-gray-800 border-gray-700 text-white"
-                : "bg-white border-gray-200 text-gray-900"
-            }`}
-          >
-            <div className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 border-b pb-1.5 sm:pb-2">
-              Legend Peta
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-2 text-xs sm:text-sm">
-              {Object.entries(kategoriStyle).map(([kategori, style]) => (
-                <div
-                  key={kategori}
-                  className="flex items-center gap-1.5 sm:gap-2"
-                >
-                  <div
-                    className="w-3 h-3 sm:w-4 sm:h-4 rounded-sm border border-gray-300 flex-shrink-0"
-                    style={{
-                      backgroundColor: style.fillColor as string,
-                      opacity: style.fillOpacity,
-                    }}
-                  ></div>
-                  <span className="text-xs truncate">{kategori}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Layer Control Box */}
         {showLayerControl && (

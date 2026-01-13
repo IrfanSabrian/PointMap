@@ -10,6 +10,7 @@ import {
   FaLayerGroup,
   FaDoorOpen,
 } from "react-icons/fa";
+import { useToast } from "@/components/ToastProvider";
 
 interface RuanganFormProps {
   initialData?: any;
@@ -25,6 +26,7 @@ export default function RuanganForm({
   onCancel,
 }: RuanganFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [bangunanList, setBangunanList] = useState<any[]>([]);
   const [lantaiList, setLantaiList] = useState<any[]>([]);
@@ -162,7 +164,7 @@ export default function RuanganForm({
       !formData.id_bangunan ||
       !formData.nomor_lantai
     ) {
-      alert("Mohon lengkapi data wajib (Nama, Gedung, Lantai)");
+      showToast("Mohon lengkapi data wajib (Nama, Gedung, Lantai)", "warning");
       return;
     }
 
@@ -188,16 +190,16 @@ export default function RuanganForm({
         if (onSuccess) {
           onSuccess();
         } else {
-          alert("Data ruangan berhasil disimpan");
+          showToast("Data ruangan berhasil disimpan", "success");
           router.push("/dashboard/ruangan");
         }
       } else {
         const err = await res.json();
-        alert(`Gagal menyimpan: ${err.message || err.error}`);
+        showToast(`Gagal menyimpan: ${err.message || err.error}`, "error");
       }
     } catch (error) {
       console.error("Error saving ruangan:", error);
-      alert("Terjadi kesalahan saat menyimpan");
+      showToast("Terjadi kesalahan saat menyimpan", "error");
     } finally {
       setLoading(false);
     }
@@ -378,7 +380,7 @@ export default function RuanganForm({
                     className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none"
                     required
                   >
-                    <option value="">-- Pilih Gedung --</option>
+                    <option value="" disabled hidden></option>
                     {bangunanList.map((b) => (
                       <option key={b.id_bangunan} value={b.id_bangunan}>
                         {b.nama}
@@ -410,7 +412,7 @@ export default function RuanganForm({
                       }
                       required
                     >
-                      <option value="">-- Pilih --</option>
+                      <option value="" disabled hidden></option>
                       {lantaiList.map((l) => {
                         // Extract number: Try to find 'Lt' followed by dots/digits, or just digits
                         const match =

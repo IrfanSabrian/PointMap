@@ -27,7 +27,7 @@ import {
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { geojsonBangunanUrl, geojsonStatisUrl } from "../lib/map/constants";
+import { geojsonBangunanUrl } from "../lib/map/constants";
 import { kategoriStyle, defaultStyle } from "../lib/map/styles";
 import { BASEMAPS } from "../lib/map/basemaps";
 import MapControlsPanel from "./map/LeafletMap/MapControlsPanel";
@@ -163,6 +163,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     });
     const [isMobile, setIsMobile] = useState(false);
 
+    // GPS state
+    const [userLocation, setUserLocation] = useState<{
+      lat: number;
+      lng: number;
+    } | null>(null);
+    const [isLocating, setIsLocating] = useState(false);
+    const userMarkerRef = useRef<L.Marker | null>(null);
+
     // Notification system state
     const [notification, setNotification] = useState<{
       type: "success" | "error";
@@ -262,6 +270,99 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
     };
 
+    // GPS: Fungsi untuk mendapatkan lokasi pengguna
+    const handleLocateMe = useCallback(() => {
+      const map = mapRefs.leafletMapRef.current;
+      if (!map) return;
+
+      if (!navigator.geolocation) {
+        showNotification(
+          "error",
+          "GPS Tidak Tersedia",
+          "Browser Anda tidak mendukung geolocation."
+        );
+        return;
+      }
+
+      setIsLocating(true);
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const userPos = { lat: latitude, lng: longitude };
+          setUserLocation(userPos);
+
+          // Hapus marker lama jika ada
+          if (userMarkerRef.current) {
+            map.removeLayer(userMarkerRef.current);
+          }
+
+          // Buat custom icon untuk user location
+          const userIcon = L.divIcon({
+            className: "user-location-marker",
+            html: `
+              <div style="
+                width: 20px;
+                height: 20px;
+                background-color: #3b82f6;
+                border: 3px solid white;
+                border-radius: 50%;
+                box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+              "></div>
+            `,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+          });
+
+          // Tambah marker baru
+          const marker = L.marker([latitude, longitude], {
+            icon: userIcon,
+            zIndexOffset: 1000,
+          }).addTo(map);
+
+          marker.bindPopup("<b>Lokasi Anda</b>").openPopup();
+          userMarkerRef.current = marker;
+
+          // Pan dan zoom ke lokasi user
+          map.setView([latitude, longitude], 18, {
+            animate: true,
+            duration: 1,
+          });
+
+          setIsLocating(false);
+          showNotification(
+            "success",
+            "Lokasi Ditemukan",
+            "Peta telah dipusatkan pada lokasi Anda."
+          );
+        },
+        (error) => {
+          setIsLocating(false);
+          let errorMessage = "Tidak dapat mendapatkan lokasi Anda.";
+
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage =
+                "Izin lokasi ditolak. Silakan aktifkan izin lokasi.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Informasi lokasi tidak tersedia.";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Permintaan lokasi timeout.";
+              break;
+          }
+
+          showNotification("error", "GPS Error", errorMessage);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    }, [showNotification]);
+
     // Routing function removed
 
     // Mobile detection effect
@@ -283,6 +384,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         return;
       }
 
+      // Commented out to prevent 404 error - static geojson file has been removed
+      /*
       fetch(geojsonStatisUrl)
         .then((res) => {
           if (!res.ok) {
@@ -303,6 +406,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         .catch((error) => {
           features.setNonBangunanFeatures([]);
         });
+      */
+      features.setNonBangunanFeatures([]);
     }, [initialFeature]);
 
     // Load data bangunan dari API
@@ -6167,8 +6272,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             if (map) map.setZoom(Math.max(map.getZoom() - 1, map.getMinZoom()));
           }}
           onReset={handleResetZoom}
+          onLocateMe={handleLocateMe}
+          isLocating={isLocating}
+          onToggleLayer={() => {
+            config.setLayerVisible(!config.layerVisible);
+          }}
           onToggleBasemap={handleToggleBasemap}
-          onToggleBangunan={toggleBangunanLayer}
+          bangunanVisible={layerVisibility.bangunanLayerVisible}
+          onToggleBangunan={(visible) => {
+            layerVisibility.setBangunanLayerVisible(visible);
+          }}
           searchText={searchText}
           onSearchTextChange={(value) => {
             setSearchText(value);

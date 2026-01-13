@@ -92,22 +92,26 @@ export const addLantaiGambar = async (req, res) => {
     // Generate nama file sesuai pola
     const nama_file = `Lt${nomor_lantai}.svg`;
 
-    // Path untuk menyimpan file
-    const uploadDir = path.join(__dirname, "../uploads/floor-plans");
+    // Path untuk menyimpan file di frontend/public/img/{id_bangunan}/lantai/
+    const uploadDir = path.join(
+      __dirname,
+      "../../frontend/public/img",
+      id_bangunan.toString(),
+      "lantai"
+    );
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    // Generate unique filename to avoid conflicts between buildings
-    const fileName = `${id_bangunan}_${nama_file}`;
-    const filePath = path.join(uploadDir, fileName);
+    // Path file lengkap
+    const filePath = path.join(uploadDir, nama_file);
 
     // Move uploaded file to final location
     fs.copyFileSync(req.file.path, filePath);
     fs.unlinkSync(req.file.path); // Delete temp file
 
-    // Path untuk database (relative path untuk serving via express.static)
-    const dbPath = `uploads/floor-plans/${fileName}`;
+    // Path untuk database (relative path untuk frontend)
+    const dbPath = `/img/${id_bangunan}/lantai/${nama_file}`;
 
     // Cek apakah sudah ada gambar untuk lantai ini
     const existingLantai = await LantaiGambar.findOne({
@@ -126,11 +130,16 @@ export const addLantaiGambar = async (req, res) => {
       ) {
         const oldFilePath = path.join(
           __dirname,
-          "..",
+          "../..",
+          "frontend/public",
           existingLantai.path_file
         );
         if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (e) {
+            console.error("Error deleting old file:", e);
+          }
         }
       }
 
@@ -200,7 +209,8 @@ export const deleteLantaiGambar = async (req, res) => {
     ) {
       const filePath = path.join(
         __dirname,
-        "..",
+        "../..",
+        "frontend/public",
         deletedLantaiGambar.path_file
       );
       if (fs.existsSync(filePath)) {
