@@ -17,6 +17,8 @@ const oswald = {
   variable: "--font-oswald",
 };
 
+import { CampusProvider } from "@/context/CampusContext";
+
 export default function RootLayout({
   children,
 }: {
@@ -58,9 +60,11 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${inter.variable} ${oswald.variable} antialiased`}
       >
-        <ThemeRegistry>
-          <ToastProvider>{mounted ? children : null}</ToastProvider>
-        </ThemeRegistry>
+        <CampusProvider>
+          <ThemeRegistry>
+            <ToastProvider>{mounted ? children : null}</ToastProvider>
+          </ThemeRegistry>
+        </CampusProvider>
         <script
           type="text/javascript"
           dangerouslySetInnerHTML={{

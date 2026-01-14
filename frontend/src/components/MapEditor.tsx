@@ -5,6 +5,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+import type { Campus } from "@/config/campusConfig";
+import { DEFAULT_CAMPUS } from "@/config/campusConfig";
 
 interface MapEditorProps {
   isDark?: boolean;
@@ -13,6 +15,7 @@ interface MapEditorProps {
   mode?: "polygon" | "marker"; // polygon for buildings, marker for rooms
   className?: string;
   isEdit?: boolean;
+  campus?: Campus;
 }
 
 export default function MapEditor({
@@ -22,6 +25,7 @@ export default function MapEditor({
   mode = "polygon",
   className = "",
   isEdit = false,
+  campus = DEFAULT_CAMPUS,
 }: MapEditorProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -33,9 +37,11 @@ export default function MapEditor({
 
     // Initialize map
     const map = L.map(mapContainerRef.current, {
-      center: [-0.0545, 109.3465],
-      zoom: 18,
+      center: [campus.latitude, campus.longitude],
+      zoom: campus.zoom,
       zoomControl: true,
+      maxZoom: campus.maxZoom, // Set max zoom limit on map instance
+      minZoom: 2,
     });
 
     // Add basemap (Always Satellite)
@@ -44,10 +50,19 @@ export default function MapEditor({
 
     const basemapLayer = L.tileLayer(basemapUrl, {
       attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
-      maxZoom: 19,
+      maxZoom: campus.maxZoom, // User can zoom up to this level
+      maxNativeZoom: campus.maxNativeZoom, // Tiles are only available up to this level (prevents grey tiles)
     }).addTo(map);
 
     basemapLayerRef.current = basemapLayer;
+
+    // Add zoom event listener for debugging
+    map.on("zoomend", () => {
+      const currentZoom = map.getZoom();
+      console.log(
+        `📍 Current zoom: ${currentZoom} / Max: ${campus.maxZoom} / Native: ${campus.maxNativeZoom}`
+      );
+    });
 
     // Add Geoman controls
     map.pm.addControls({
@@ -184,6 +199,15 @@ export default function MapEditor({
 
     mapRef.current = map;
 
+    // Explicitly set max zoom (redundant but ensures it's applied)
+    map.setMaxZoom(campus.maxZoom);
+
+    console.log("🗺️ MapEditor initialized:", {
+      campus: campus.name,
+      maxZoom: campus.maxZoom,
+      currentMaxZoom: map.getMaxZoom(),
+    });
+
     // Cleanup
     return () => {
       if (mapRef.current) {
@@ -191,7 +215,7 @@ export default function MapEditor({
         mapRef.current = null;
       }
     };
-  }, [isDark, mode]);
+  }, [isDark, mode, campus, initialGeometry, onGeometryChange, isEdit]); // Added all dependencies
 
   return (
     <div className="relative w-full h-full">

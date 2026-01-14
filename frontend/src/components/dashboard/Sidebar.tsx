@@ -14,6 +14,8 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { useTheme } from "next-themes";
+import { useCampus } from "@/hooks/useCampus";
+import SidebarCampusSwitcher from "@/components/dashboard/SidebarCampusSwitcher";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -22,6 +24,12 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [userInfo, setUserInfo] = useState<{ username?: string } | null>(null);
+  const { selectedCampus, setSelectedCampus } = useCampus();
+
+  // Debug log
+  useEffect(() => {
+    console.log("📍 Sidebar: selectedCampus is now", selectedCampus.name);
+  }, [selectedCampus]);
 
   useEffect(() => {
     // Check screen size
@@ -98,6 +106,15 @@ export default function Sidebar() {
               <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
               PointMap Admin
             </span>
+          </div>
+
+          {/* Campus Selector */}
+          <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-800">
+            <SidebarCampusSwitcher
+              selectedCampus={selectedCampus}
+              onCampusChange={setSelectedCampus}
+              isDark={theme === "dark"}
+            />
           </div>
 
           {/* Navigation */}

@@ -14,6 +14,10 @@ const Bangunan = sequelize.define(
     lantai: DataTypes.INTEGER,
     geometri: DataTypes.TEXT,
     thumbnail: DataTypes.STRING,
+    kategori_kampus: {
+      type: DataTypes.STRING,
+      defaultValue: "Politeknik Negeri Pontianak",
+    },
   },
   {
     tableName: "bangunan",

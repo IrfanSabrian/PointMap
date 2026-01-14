@@ -61,12 +61,9 @@ export function setupAutoLogout(token: string, onExpire?: () => void) {
       // ignore
     }
     // Optional: redirect to login
-    try {
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-    } catch (_err) {
-      // ignore
-    }
+    // REMOVED: potentially causes redirect loops on public pages
+    // if (typeof window !== "undefined") {
+    //   window.location.href = "/login";
+    // }
   }, msUntilExpiry);
 }

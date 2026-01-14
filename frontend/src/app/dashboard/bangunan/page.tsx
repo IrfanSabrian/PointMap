@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import Modal from "@/components/dashboard/Modal";
@@ -16,6 +16,7 @@ import {
   FaBuilding,
   FaLayerGroup,
 } from "react-icons/fa";
+import { useCampus } from "@/hooks/useCampus";
 
 // Pagination Component
 function Pagination({
@@ -63,31 +64,34 @@ export default function BangunanPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid"); // Default to grid for better aesthetics
+  const { selectedCampus } = useCampus();
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const fetchBangunan = async () => {
-    try {
-      setIsLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setBangunan(data);
-      }
-    } catch (error) {
-      console.error("Error fetching buildings:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Fetch ALL buildings once on mount
   useEffect(() => {
+    const fetchBangunan = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          console.log("✅ [BANGUNAN] Loaded", data.length, "buildings");
+          setBangunan(data);
+        }
+      } catch (error) {
+        console.error("❌ [BANGUNAN] Fetch error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchBangunan();
-  }, []);
+  }, []); // Fetch once on mount only
 
   // Check for edit query param
   useEffect(() => {
@@ -125,7 +129,17 @@ export default function BangunanPage() {
 
   const handleSuccess = () => {
     handleCloseModal();
-    fetchBangunan(); // Refresh list
+    // Refetch to update list
+    const refetch = async () => {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setBangunan(data);
+      }
+    };
+    refetch();
   };
 
   const [deleteModal, setDeleteModal] = useState<{
@@ -169,9 +183,27 @@ export default function BangunanPage() {
     }
   };
 
-  const filteredBangunan = bangunan.filter((b) =>
-    b.nama.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // CLIENT-SIDE FILTERING: Filter by campus AND search
+  // This will re-run whenever selectedCampus.name or searchTerm changes
+  const filteredBangunan = useMemo(() => {
+    console.log(
+      "🔍 [FILTER] Campus:",
+      selectedCampus.name,
+      "| Search:",
+      searchTerm || "none"
+    );
+
+    const result = bangunan.filter((b) => {
+      const matchesCampus = b.kategori_kampus === selectedCampus.name;
+      const matchesSearch = b.nama
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      return matchesCampus && matchesSearch;
+    });
+
+    console.log("✅ [FILTER] Result:", result.length, "buildings");
+    return result;
+  }, [bangunan, selectedCampus.name, searchTerm]);
 
   // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;

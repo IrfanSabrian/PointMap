@@ -14,6 +14,7 @@ import {
   FaImages,
   FaTimes, // Added for Modal close
 } from "react-icons/fa";
+import { useCampus } from "@/hooks/useCampus";
 
 // Interface for Pagination
 function Pagination({
@@ -319,6 +320,7 @@ export default function RuanganPage() {
   const [selectedBangunan, setSelectedBangunan] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
   const [lantaiGambar, setLantaiGambar] = useState<any[]>([]); // State untuk menyimpan gambar lantai
+  const { selectedCampus } = useCampus();
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -377,9 +379,13 @@ export default function RuanganPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        const campusParam = encodeURIComponent(selectedCampus.name);
+        console.log("🏢 Ruangan page: Fetching for", selectedCampus.name);
         const [resRuangan, resBangunan, resLantaiGambar] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`),
-          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`),
+          fetch(
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan?kampus=${campusParam}`
+          ),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`),
         ]);
 
@@ -389,10 +395,18 @@ export default function RuanganPage() {
           const dataLantaiGambar = resLantaiGambar.ok
             ? await resLantaiGambar.json()
             : [];
-          setRuangan(dataRuangan);
-          setFilteredRuangan(dataRuangan);
+
+          // Filter ruangan based on bangunan from selected campus
+          const bangunanIds = dataBangunan.map((b: any) => b.id_bangunan);
+          const filteredRuanganData = dataRuangan.filter((r: any) =>
+            bangunanIds.includes(r.id_bangunan)
+          );
+
+          setRuangan(filteredRuanganData);
+          setFilteredRuangan(filteredRuanganData);
           setBangunanList(dataBangunan);
           setLantaiGambar(dataLantaiGambar);
+          console.log("✅ Fetched", filteredRuanganData.length, "ruangan");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -402,7 +416,7 @@ export default function RuanganPage() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedCampus.name]); // Fetch when campus name changes
 
   useEffect(() => {
     let result = ruangan;

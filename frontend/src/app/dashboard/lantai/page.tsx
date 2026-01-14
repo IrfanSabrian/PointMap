@@ -14,6 +14,7 @@ import {
   FaLayerGroup,
 } from "react-icons/fa";
 import { useToast } from "@/components/ToastProvider";
+import { useCampus } from "@/hooks/useCampus";
 
 // Pagination Component
 function Pagination({
@@ -57,11 +58,13 @@ function Pagination({
 export default function LantaiPage() {
   const { showToast } = useToast();
   const [lantai, setLantai] = useState<any[]>([]);
+  const [allLantai, setAllLantai] = useState<any[]>([]); // Store ALL lantai
   const [filteredLantai, setFilteredLantai] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [bangunanList, setBangunanList] = useState<any[]>([]);
   const [selectedBangunan, setSelectedBangunan] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
+  const { selectedCampus } = useCampus();
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +80,7 @@ export default function LantaiPage() {
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Fetch ALL data once on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -89,8 +93,8 @@ export default function LantaiPage() {
         if (resLantai.ok && resBangunan.ok) {
           const dataLantai = await resLantai.json();
           const dataBangunan = await resBangunan.json();
-          setLantai(dataLantai);
-          setFilteredLantai(dataLantai);
+
+          setAllLantai(dataLantai);
           setBangunanList(dataBangunan);
         }
       } catch (error) {
@@ -101,16 +105,29 @@ export default function LantaiPage() {
     };
 
     fetchData();
-  }, []);
+  }, []); // Fetch once on mount only
 
+  // CLIENT-SIDE FILTERING: by campus and selected building
   useEffect(() => {
-    let result = lantai;
+    // Filter bangunan by campus first
+    const campusBangunan = bangunanList.filter(
+      (b) => b.kategori_kampus === selectedCampus.name
+    );
+    const campusBangunanIds = campusBangunan.map((b) => b.id_bangunan);
+
+    // Filter lantai by campus bangunan
+    let result = allLantai.filter((l) =>
+      campusBangunanIds.includes(l.id_bangunan)
+    );
+
+    // Then filter by selected building if any
     if (selectedBangunan) {
       result = result.filter((l) => l.id_bangunan == selectedBangunan);
     }
+
     setFilteredLantai(result);
     setCurrentPage(1); // Reset page on filter
-  }, [selectedBangunan, lantai]);
+  }, [selectedCampus.name, selectedBangunan, allLantai, bangunanList]);
 
   const handleDelete = (id: number) => {
     setDeleteModal({ isOpen: true, id });

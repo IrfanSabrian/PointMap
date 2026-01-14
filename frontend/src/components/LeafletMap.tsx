@@ -67,10 +67,13 @@ interface LeafletMapProps {
   initialLat?: number;
   initialLng?: number;
   initialZoom?: number;
+  maxZoom?: number; // Max zoom level from campus config (UI)
+  maxNativeZoom?: number; // Max native zoom level from campus config (Data)
   className?: string;
   isDashboard?: boolean;
   onGeometryChange?: (geometry: any) => void;
   initialFeature?: any;
+  campusFilter?: string;
 }
 
 export interface LeafletMapRef {
@@ -92,10 +95,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       initialLat = -0.0545,
       initialLng = 109.3465,
       initialZoom = 18,
+      maxZoom = 19, // Default max zoom if not provided
+      maxNativeZoom = 18, // Default native zoom
       className = "",
       isDashboard = false,
       onGeometryChange,
       initialFeature,
+      campusFilter,
     },
     ref
   ) => {
@@ -323,10 +329,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           marker.bindPopup("<b>Lokasi Anda</b>").openPopup();
           userMarkerRef.current = marker;
 
-          // Pan dan zoom ke lokasi user
-          map.setView([latitude, longitude], 18, {
+          // Pan dan zoom ke lokasi user with smooth flyTo animation
+          map.flyTo([latitude, longitude], 18, {
             animate: true,
-            duration: 1,
+            duration: 2.5, // Slower duration for "flying" effect
+            easeLinearity: 0.25,
           });
 
           setIsLocating(false);
@@ -424,7 +431,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       }
 
       loading.setIsLoadingData(true);
-      fetch(geojsonBangunanUrl, {
+
+      // Build URL with campus filter if provided
+      const url = campusFilter
+        ? `${geojsonBangunanUrl}?kampus=${encodeURIComponent(campusFilter)}`
+        : geojsonBangunanUrl;
+
+      fetch(url, {
         headers: { "ngrok-skip-browser-warning": "true" },
       })
         .then((res) => {
@@ -446,7 +459,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           features.setBangunanFeatures([]);
         })
         .finally(() => loading.setIsLoadingData(false));
-    }, [initialFeature]);
+    }, [initialFeature, campusFilter]);
 
     // Load data ruangan dari API
     useEffect(() => {
@@ -701,6 +714,31 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // setAllFeatures([...features.bangunanFeatures, ...features.ruanganFeatures]); // Removed as per new_code
     }, [features.bangunanFeatures, features.ruanganFeatures]);
 
+    // Pan map when coordinates change (e.g., campus switch)
+    useEffect(() => {
+      const map = mapRefs.leafletMapRef.current;
+      if (!map || initialFeature) return; // Don't pan if editing a specific feature
+
+      // Get maxZoom for the current campus context if available
+      // Note: We might need to pass maxZoom as a prop or lookup from config based on lat/lng
+      // For now, let's assume standard maxZoom or use a safe default if switching
+      const targetZoom = initialZoom || 18;
+
+      // Update map maxZoom if needed (though usually static, some campuses might differ)
+      // If we had variable maxZoom passed as prop:
+      // map.setMaxZoom(newMaxZoom);
+
+      // Use flyTo for smooth animation between campuses
+      map.flyTo([initialLat, initialLng], targetZoom, {
+        animate: true,
+        duration: 2.5, // Slower duration for "flying" effect
+        easeLinearity: 0.25,
+      });
+
+      // Force restriction of zoom if it exceeds bounds (prevent "grey tiles")
+      map.setMaxZoom(19); // Ensure global max zoom is enforced
+    }, [initialLat, initialLng, initialZoom, initialFeature]);
+
     // Inisialisasi map hanya sekali
     useEffect(() => {
       if (!mapRefs.mapRef.current || mapRefs.leafletMapRef.current) return;
@@ -709,7 +747,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         zoom: initialZoom,
         zoomControl: false,
         attributionControl: false,
-        maxZoom: 19,
+        maxZoom: maxZoom, // Use campus-specific max zoom
         minZoom: 2,
         // Touch handling configuration to prevent console warnings
         touchZoom: true,
@@ -774,7 +812,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const bm = BASEMAPS.find((b) => b.key === config.basemap) || BASEMAPS[1];
       const tileLayer = L.tileLayer(bm.url, {
         attribution: bm.attribution,
-        maxZoom: 19,
+        maxZoom: maxZoom, // Use max zoom from props
+        maxNativeZoom: maxNativeZoom, // Use native zoom from props
       });
       tileLayer.addTo(map);
       mapRefs.basemapLayerRef.current = tileLayer;
@@ -3809,11 +3848,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       const bm = BASEMAPS.find((b) => b.key === config.basemap) || BASEMAPS[1];
       const tileLayer = L.tileLayer(bm.url, {
         attribution: bm.attribution,
-        maxZoom: 19,
+        maxZoom: maxZoom, // Use max zoom from props (21)
+        maxNativeZoom: maxNativeZoom, // Use native zoom from props (19)
       });
       tileLayer.addTo(map);
       mapRefs.basemapLayerRef.current = tileLayer;
-    }, [config.basemap]);
+    }, [config.basemap, maxZoom, maxNativeZoom]); // Update dependency array
 
     // Update non-bangunan layer jika data berubah
     useEffect(() => {
@@ -4754,15 +4794,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (!map) {
         return;
       }
-      // Fallback ke posisi awal
-      const initialPosition = L.latLng(initialLat, initialLng);
-      map.setView(initialPosition, initialZoom, {
+      // Use flyTo for smooth animation matching campus switch
+      map.flyTo([initialLat, initialLng], initialZoom, {
         animate: true,
-        duration: 0.5,
+        duration: 2.5, // Slower duration for "flying" effect
+        easeLinearity: 0.25,
       });
       console.log(
         "Reset to initial position:",
-        initialPosition,
+        [initialLat, initialLng],
         "zoom:",
         initialZoom
       );

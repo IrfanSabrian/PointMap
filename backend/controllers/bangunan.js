@@ -6,10 +6,18 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// GET semua bangunan
+// GET semua bangunan (with optional campus filter)
 export const getAllBangunan = async (req, res) => {
   try {
-    const data = await Bangunan.findAll();
+    const { kampus } = req.query;
+
+    // Build query options
+    const queryOptions = {};
+    if (kampus) {
+      queryOptions.where = { kategori_kampus: kampus };
+    }
+
+    const data = await Bangunan.findAll(queryOptions);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -33,7 +41,7 @@ export const getBangunanById = async (req, res) => {
 // CREATE bangunan baru
 export const createBangunan = async (req, res) => {
   try {
-    const { nama, interaksi, lantai, geometri } = req.body;
+    const { nama, interaksi, lantai, geometri, kategori_kampus } = req.body;
 
     // Validasi data wajib
     if (!nama || !geometri) {
@@ -48,6 +56,7 @@ export const createBangunan = async (req, res) => {
       lantai: lantai || 1,
       geometri:
         typeof geometri === "string" ? geometri : JSON.stringify(geometri),
+      kategori_kampus: kategori_kampus || "Politeknik Negeri Pontianak",
     });
 
     res.status(201).json({
@@ -63,7 +72,26 @@ export const createBangunan = async (req, res) => {
 export const updateBangunan = async (req, res) => {
   try {
     const id = req.params.id;
-    const { nama, interaksi, lantai, thumbnail, geometri } = req.body;
+    const { nama, interaksi, lantai, thumbnail, geometri, kategori_kampus } =
+      req.body;
+
+    console.log("🏗️ UPDATE BANGUNAN REQUEST:");
+    console.log("  - ID:", id);
+    console.log("  - Body Keys:", Object.keys(req.body));
+    console.log("  - nama:", nama);
+    console.log("  - interaksi:", interaksi);
+    console.log("  - lantai:", lantai);
+    console.log("  - kategori_kampus:", kategori_kampus);
+    console.log("  - geometri present:", !!geometri);
+    console.log("  - thumbnail present:", !!thumbnail);
+
+    // Check if building exists first
+    const existingBangunan = await Bangunan.findByPk(id);
+    console.log("  - Building exists:", !!existingBangunan);
+    if (!existingBangunan) {
+      console.log("❌ Building not found in database with ID:", id);
+      return res.status(404).json({ error: "Bangunan tidak ditemukan" });
+    }
 
     // Hanya update field yang dikirim (tidak undefined)
     const updateData = {};
@@ -71,24 +99,41 @@ export const updateBangunan = async (req, res) => {
     if (interaksi !== undefined) updateData.interaksi = interaksi;
     if (lantai !== undefined) updateData.lantai = lantai;
     if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+    if (kategori_kampus !== undefined)
+      updateData.kategori_kampus = kategori_kampus;
     if (geometri !== undefined) {
       updateData.geometri =
         typeof geometri === "string" ? geometri : JSON.stringify(geometri);
     }
 
+    console.log("  - Update fields:", Object.keys(updateData));
+
+    // If there are no fields to update, just return the existing building
+    if (Object.keys(updateData).length === 0) {
+      console.log("⚠️ No fields to update, returning existing building");
+      return res.json({
+        message: "Bangunan berhasil diperbarui",
+        data: existingBangunan,
+      });
+    }
+
     const [updated] = await Bangunan.update(updateData, {
       where: { id_bangunan: id },
     });
-    if (updated) {
-      const updatedBangunan = await Bangunan.findByPk(id);
-      res.json({
-        message: "Bangunan berhasil diperbarui",
-        data: updatedBangunan,
-      });
-    } else {
-      res.status(404).json({ error: "Bangunan tidak ditemukan" });
-    }
+
+    console.log("  - Rows updated:", updated);
+
+    // Get the updated building regardless of whether rows were affected
+    // (Sequelize returns 0 if values are the same, but we still want to return success)
+    const updatedBangunan = await Bangunan.findByPk(id);
+
+    console.log("✅ Building update completed:", id);
+    res.json({
+      message: "Bangunan berhasil diperbarui",
+      data: updatedBangunan,
+    });
   } catch (err) {
+    console.error("❌ Error updating building:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -200,7 +245,15 @@ export const deleteBangunan = async (req, res) => {
 
 export const getBangunanGeoJSON = async (req, res) => {
   try {
-    const bangunan = await Bangunan.findAll();
+    const { kampus } = req.query;
+
+    // Build query options
+    const queryOptions = {};
+    if (kampus) {
+      queryOptions.where = { kategori_kampus: kampus };
+    }
+
+    const bangunan = await Bangunan.findAll(queryOptions);
     const features = bangunan.map((b) => ({
       type: "Feature",
       geometry: JSON.parse(b.geometri),
@@ -210,6 +263,7 @@ export const getBangunanGeoJSON = async (req, res) => {
         interaksi: b.interaksi,
         lantai: b.lantai,
         thumbnail: b.thumbnail,
+        kategori_kampus: b.kategori_kampus,
       },
     }));
     res.json({

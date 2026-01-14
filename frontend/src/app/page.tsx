@@ -4,7 +4,14 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FiSun, FiMoon } from "react-icons/fi";
-import { FaBuilding, FaDoorOpen, FaLayerGroup, FaImages } from "react-icons/fa";
+import {
+  FaBuilding,
+  FaDoorOpen,
+  FaLayerGroup,
+  FaImages,
+  FaMapMarkedAlt,
+} from "react-icons/fa";
+import { FiArrowUpRight } from "react-icons/fi";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -12,6 +19,8 @@ import { useTheme } from "next-themes";
 import React from "react";
 import ParticlesCustom from "@/components/ParticlesCustom";
 import dynamic from "next/dynamic";
+import CampusSelector from "@/components/CampusSelector";
+import { DEFAULT_CAMPUS, CAMPUSES } from "@/config/campusConfig";
 
 const LeafletMap = dynamic(() => import("@/components/LeafletMap"), {
   ssr: false,
@@ -32,12 +41,28 @@ export default function Home() {
     lantai: 0,
     gallery: 0,
   });
-
-
+  // Use local state for Homepage to keep it separate from Dashboard context
+  const [selectedCampus, setSelectedCampus] = useState(DEFAULT_CAMPUS);
 
   const { theme, setTheme } = useTheme();
   const [weatherDesc, setWeatherDesc] = useState("");
   const [weatherIcon, setWeatherIcon] = useState("");
+
+  /* New Slider Images */
+  const heroImages = [
+    "/Slider/polnep.webp",
+    "/Slider/sanggau.webp",
+    "/Slider/kapuashulu.webp",
+    "/Slider/sukamara.webp",
+  ];
+  const [currentHeroImage, setCurrentHeroImage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentHeroImage((prev) => (prev + 1) % heroImages.length);
+    }, 5000); // Switch every 5 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const weatherDescID = (desc: string) => {
     const map: Record<string, string> = {
@@ -79,12 +104,14 @@ export default function Home() {
     }
 
     // Check Google Translate cookie to sync toggle state
-    const cookies = document.cookie.split(';');
-    const googtransCookie = cookies.find(c => c.trim().startsWith('googtrans='));
+    const cookies = document.cookie.split(";");
+    const googtransCookie = cookies.find((c) =>
+      c.trim().startsWith("googtrans=")
+    );
     if (googtransCookie) {
-      const value = googtransCookie.split('=')[1];
+      const value = googtransCookie.split("=")[1];
       // Cookie format is /id/en for translation to English
-      setIsEnglish(value === '/id/en');
+      setIsEnglish(value === "/id/en");
     }
   }, [theme]);
 
@@ -177,22 +204,24 @@ export default function Home() {
   const toggleLanguage = () => {
     const newLang = !isEnglish;
     setIsEnglish(newLang);
-    
+
     // Give Google Translate time to initialize
     setTimeout(() => {
       // Method 1: Try to find and trigger the dropdown
-      const selectElement = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+      const selectElement = document.querySelector(
+        ".goog-te-combo"
+      ) as HTMLSelectElement;
       if (selectElement) {
-        selectElement.value = newLang ? 'en' : 'id';
+        selectElement.value = newLang ? "en" : "id";
         // Trigger change event
-        const event = new Event('change', { bubbles: true });
+        const event = new Event("change", { bubbles: true });
         selectElement.dispatchEvent(event);
         return;
       }
 
       // Method 2: Try to manipulate Google Translate cookie directly
       const domain = window.location.hostname;
-      
+
       if (newLang) {
         // Set cookie to translate to English
         document.cookie = `googtrans=/id/en; path=/`;
@@ -205,17 +234,19 @@ export default function Home() {
         document.cookie = `googtrans=/auto/auto; path=/`;
         document.cookie = `googtrans=/auto/auto; path=/; domain=${domain}`;
       }
-      
+
       // Reload page to apply translation
       window.location.reload();
     }, 100);
   };
 
   const scrollToMap = () => {
-    mapArea.current?.scrollIntoView({ behavior: "smooth" });
+    if (mapArea.current) {
+      const top =
+        mapArea.current.getBoundingClientRect().top + window.scrollY - 50;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
   };
-
-
 
   useEffect(() => {
     fetchCuaca();
@@ -243,7 +274,6 @@ export default function Home() {
       } ${isDark ?? false ? "dark" : ""}`}
     >
       {/* Area hover atas untuk munculkan navbar - hanya aktif di luar hero section */}
-
 
       {/* NAVBAR */}
       <nav
@@ -351,7 +381,9 @@ export default function Home() {
                   className="w-5 h-5"
                   style={{
                     filter:
-                      isDark || !isScrolled ? "brightness(0) invert(1)" : "none",
+                      isDark || !isScrolled
+                        ? "brightness(0) invert(1)"
+                        : "none",
                   }}
                 />
               </span>
@@ -404,7 +436,8 @@ export default function Home() {
             className="relative w-14 h-7 bg-gray-200 rounded-full cursor-pointer flex items-center px-1 transition-colors duration-300"
             onClick={toggleLanguage}
             style={{
-              backgroundColor: isDark || !isScrolled ? "rgba(255,255,255,0.2)" : "#e5e7eb",
+              backgroundColor:
+                isDark || !isScrolled ? "rgba(255,255,255,0.2)" : "#e5e7eb",
             }}
             title={isEnglish ? "Switch to Indonesia" : "Switch to English"}
           >
@@ -415,11 +448,7 @@ export default function Home() {
               }`}
             >
               <img
-                src={
-                  isEnglish
-                    ? "/flags/usa.svg"
-                    : "/flags/indonesia.svg"
-                }
+                src={isEnglish ? "/flags/usa.svg" : "/flags/indonesia.svg"}
                 alt={isEnglish ? "English" : "Indonesia"}
                 className="w-full h-full object-cover"
               />
@@ -427,126 +456,149 @@ export default function Home() {
           </div>
 
           {/* Hidden Google Translate Element */}
-          <div id="google_translate_element" style={{ position: 'absolute', left: '-9999px' }}></div>
-
+          <div
+            id="google_translate_element"
+            style={{ position: "absolute", left: "-9999px" }}
+          ></div>
         </div>
       </nav>
 
       {/* HERO SECTION */}
-      <section className="hero-section relative flex flex-col lg:flex-row items-center justify-between min-h-screen w-full pt-24 sm:pt-28 lg:pt-32 pb-8 lg:pb-0 px-4 sm:px-6 lg:px-16 overflow-hidden gap-8 lg:gap-12">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/Slider/Background1.jpg"
-            alt="Background"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/60" />
+      <section className="hero-section relative flex flex-col justify-between min-h-screen w-full pt-32 pb-8 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black">
+        <div className="absolute inset-0 z-0 opacity-60">
+          <div className="relative w-full h-full">
+            {heroImages.map((img, index) => (
+              <div
+                key={img}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                  index === currentHeroImage ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <img
+                  src={img}
+                  alt={`Background ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
         </div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col items-center justify-center text-center px-4 h-full">
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 drop-shadow-lg">
-            PointMap
+        {/* Vertical Pagination Indicators */}
+        <div className="absolute right-8 top-1/2 transform -translate-y-1/2 z-20 flex flex-col gap-4">
+          {heroImages.map((_, idx) => (
+            <div
+              key={idx}
+              className={`w-1 transition-all duration-300 rounded-full ${
+                idx === currentHeroImage
+                  ? "h-12 bg-white"
+                  : "h-6 bg-white/20 hover:bg-white/40"
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col items-start justify-start text-left">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 tracking-tight max-w-4xl">
+            PointMap <br />
+            <span className="text-lg md:text-2xl font-normal text-gray-300 block mt-2 tracking-widest uppercase">
+              Polnep Interactive Map
+            </span>
           </h1>
-          <p className="text-xl md:text-2xl text-blue-300 mb-6 font-medium drop-shadow-md">
-            Polnep Interactive Map
+
+          <p className="text-lg md:text-xl text-gray-200 mb-12 font-light max-w-2xl leading-relaxed">
+            Platform peta interaktif untuk menjelajahi setiap sudut kampus.
+            Temukan gedung, ruangan, dan fasilitas kampus dengan visualisasi
+            peta digital yang presisi dan informatif.
           </p>
-          <p className="text-gray-200 text-lg max-w-2xl mb-12 leading-relaxed drop-shadow-sm">
-            Sarana pemetaan digital interaktif yang mendukung kegiatan eksplorasi
-            dan navigasi kawasan kampus Politeknik Negeri Pontianak secara
-            informatif dan terarah.
-          </p>
+        </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-5xl">
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
-                <FaBuilding />
-              </div>
-              <div className="text-left">
-                <h3 className="text-2xl font-bold text-white">
-                  {stats.bangunan}
-                </h3>
-                <p className="text-xs text-gray-300 uppercase tracking-wider">
-                  Bangunan
-                </p>
-              </div>
-            </div>
+        {/* Campus Selection Cards */}
+        <div className="w-full max-w-7xl mx-auto px-4 mt-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              {
+                campus: CAMPUSES[0],
+                img: "/Slider/polnep.webp",
+                label: "Kampus Utama",
+                desc: "Jl. Ahmad Yani",
+              },
+              {
+                campus: CAMPUSES[1],
+                img: "/Slider/sanggau.webp",
+                label: "PSDKU Sanggau",
+                desc: "Kab. Sanggau",
+              },
+              {
+                campus: CAMPUSES[2],
+                img: "/Slider/kapuashulu.webp",
+                label: "PDD Kapuas Hulu",
+                desc: "Kab. Kapuas Hulu",
+              },
+              {
+                campus: CAMPUSES[3],
+                img: "/Slider/sukamara.webp",
+                label: "PSDKU Sukamara",
+                desc: "Kab. Sukamara",
+              },
+            ].map((item, idx) => (
+              <button
+                key={item.campus.id}
+                onClick={() => {
+                  setSelectedCampus(item.campus);
+                  setTimeout(scrollToMap, 100);
+                }}
+                className={`
+                    group relative overflow-hidden rounded-xl cursor-pointer text-left h-36 w-full
+                    border transition-all duration-300
+                    ${
+                      selectedCampus.id === item.campus.id
+                        ? "border-transparent"
+                        : "border-white/10 hover:border-white/30"
+                    }
+                  `}
+              >
+                {/* Background Image */}
+                <div className="absolute inset-0 bg-gray-900 overflow-hidden">
+                  <img
+                    src={item.img}
+                    alt={item.campus.name}
+                    className="w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-110 transition-all duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+                </div>
 
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
-                <FaDoorOpen />
-              </div>
-              <div className="text-left">
-                <h3 className="text-2xl font-bold text-white">
-                  {stats.ruangan}
-                </h3>
-                <p className="text-xs text-gray-300 uppercase tracking-wider">
-                  Ruangan
-                </p>
-              </div>
-            </div>
+                {/* Content */}
+                <div className="absolute inset-0 p-5 flex flex-col justify-between items-start relative z-10 pointer-events-none h-full">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-1 drop-shadow-md">
+                      {item.label}
+                    </p>
+                    <h3 className="text-white font-bold text-lg leading-tight drop-shadow-md pr-8">
+                      {item.campus.shortName
+                        .replace("Polnep ", "")
+                        .replace("PSDKU ", "")
+                        .replace("PDD ", "")}
+                    </h3>
+                  </div>
 
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
-                <FaLayerGroup />
-              </div>
-              <div className="text-left">
-                <h3 className="text-2xl font-bold text-white">
-                  {stats.lantai}
-                </h3>
-                <p className="text-xs text-gray-300 uppercase tracking-wider">
-                  Lantai
-                </p>
-              </div>
-            </div>
+                  <p className="text-xs text-white flex items-center gap-2 font-medium drop-shadow-md mt-auto">
+                    <FaMapMarkedAlt className="text-white" />
+                    {item.desc}
+                  </p>
+                </div>
 
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-white text-2xl">
-                <FaImages />
-              </div>
-              <div className="text-left">
-                <h3 className="text-2xl font-bold text-white">
-                  {stats.gallery}
-                </h3>
-                <p className="text-xs text-gray-300 uppercase tracking-wider">
-                  Galeri
-                </p>
-              </div>
-            </div>
+                {/* Arrow Icon - Absolute Corner */}
+                <div className="absolute top-0 right-0 z-20">
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-md flex items-center justify-center text-white rounded-bl-xl border-l border-b border-white/20 group-hover:bg-white/30 group-hover:scale-105 transition-all duration-300">
+                    <FiArrowUpRight className="w-5 h-5" />
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
-
-        {/* Tombol Scroll absolut di tengah bawah hero section */}
-        <button
-          onClick={scrollToMap}
-          className="scroll-button absolute left-1/2 -translate-x-1/2 bottom-8 sm:bottom-10 lg:bottom-6 z-30 flex flex-col items-center group focus:outline-none"
-          style={{ background: "none", border: "none" }}
-          aria-label="Scroll ke bawah"
-        >
-          <span
-            className="text-xs lg:text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark font-medium transition-colors"
-            style={{
-              color: isDark ? "#d1d5db" : "#374151",
-            }}
-          >
-            Scroll
-          </span>
-          <svg
-            className="w-5 h-5 lg:w-6 lg:h-6 text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-primary-dark animate-bounce mt-0.5 transition-colors"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            style={{
-              color: isDark ? "#d1d5db" : "#374151",
-            }}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
       </section>
 
       {/* MAP / CANVAS AREA */}
@@ -556,8 +608,15 @@ export default function Home() {
         style={{ position: "relative", zIndex: 1 }}
       >
         <div className="w-full">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold text-left py-3 px-6 shadow rounded-t-2xl flex items-center justify-between border border-primary/20 dark:border-transparent">
+          <div className="bg-primary text-white text-lg md:text-xl font-bold py-3 px-6 shadow rounded-t-2xl flex items-center justify-between border border-primary/20 dark:border-transparent">
             <span>Polnep Interactive Map</span>
+            {isClient && (
+              <CampusSelector
+                selectedCampus={selectedCampus}
+                onCampusChange={setSelectedCampus}
+                isDark={true}
+              />
+            )}
           </div>
         </div>
 
@@ -565,14 +624,18 @@ export default function Home() {
           className={`w-full h-[300px] md:h-[500px] lg:h-[600px] relative bg-white rounded-b-2xl overflow-hidden transition-all duration-200`}
           style={{ minHeight: 300, height: "100%", maxHeight: 600 }}
         >
-          <LeafletMap
-            initialLat={-0.0545}
-            initialLng={109.3465}
-            initialZoom={17}
-            className="w-full h-full"
-            isDark={isDark ?? false}
-            isDashboard={false}
-          />
+          {isClient && (
+            <LeafletMap
+              initialLat={selectedCampus.latitude}
+              initialLng={selectedCampus.longitude}
+              initialZoom={selectedCampus.zoom}
+              maxZoom={selectedCampus.maxZoom}
+              className="w-full h-full"
+              isDark={isDark ?? false}
+              isDashboard={false}
+              campusFilter={selectedCampus.name}
+            />
+          )}
         </div>
       </section>
 

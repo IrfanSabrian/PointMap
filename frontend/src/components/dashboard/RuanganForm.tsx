@@ -561,7 +561,7 @@ export default function RuanganForm({
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-shadow duration-300 flex items-center justify-center gap-2"
           >
             {loading ? (
               "Menyimpan..."

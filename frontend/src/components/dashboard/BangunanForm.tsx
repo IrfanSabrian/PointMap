@@ -15,6 +15,7 @@ import {
   FaUpload,
 } from "react-icons/fa";
 import { useToast } from "@/components/ToastProvider";
+import { useCampus } from "@/hooks/useCampus";
 
 // Import MapEditor for drawing building polygons
 const MapEditor = dynamic(() => import("@/components/MapEditor"), {
@@ -43,12 +44,13 @@ export default function BangunanForm({
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const mapRef = useRef<any>(null); // Ref to access LeafletMap methods
+  const { selectedCampus } = useCampus();
 
   const [formData, setFormData] = useState({
     nama: initialData?.nama || "",
     interaksi: initialData?.interaksi || "Noninteraktif",
     lantai: initialData?.lantai || 1,
-    geometri: initialData?.geometri || null,
+    kategori_kampus: initialData?.kategori_kampus || selectedCampus.name,
   });
 
   const [thumbnail, setThumbnail] = useState<File | null>(null);
@@ -185,8 +187,10 @@ export default function BangunanForm({
         nama: bodyData.nama,
         interaksi: bodyData.interaksi,
         lantai: bodyData.lantai,
+        kategori_kampus: bodyData.kategori_kampus,
         geometri: geometryToSave, // Log as object for better readability
       });
+      console.log("🗺️ Full body data keys:", Object.keys(bodyData));
       console.log("🗺️ Geometry string length:", geometriString.length);
       console.log("🗺️ Geometry type:", geometryToSave.type);
       console.log(
@@ -442,7 +446,7 @@ export default function BangunanForm({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:bg-primary-dark transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2 shrink-0 mt-auto"
+          className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-shadow duration-300 flex items-center justify-center gap-2 shrink-0 mt-auto"
         >
           {loading ? (
             "Menyimpan..."
@@ -502,6 +506,7 @@ export default function BangunanForm({
             onGeometryChange={(geo: any) => setDrawnGeoJSON(geo)}
             initialGeometry={drawnGeoJSON}
             isEdit={isEdit}
+            campus={selectedCampus}
           />
         </div>
 
