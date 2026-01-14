@@ -13,8 +13,10 @@ import {
   FaThLarge,
   FaImages,
   FaTimes, // Added for Modal close
+  FaSave,
 } from "react-icons/fa";
 import { useCampus } from "@/hooks/useCampus";
+import { useToast } from "@/components/ToastProvider";
 
 // Interface for Pagination
 function Pagination({
@@ -67,19 +69,23 @@ function RoomGalleryModal({
 }) {
   const [images, setImages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pending Upload State
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const { showToast } = useToast();
 
   const fetchImages = async () => {
     try {
       setLoading(true);
-      // Fetch all galleries and filter (optimize this if backend supports /api/gallery/ruangan/:id)
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/gallery`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`
       );
       if (res.ok) {
         const data = await res.json();
-        // Filter by roomId
         const roomImages = data.filter((img: any) => img.id_ruangan === roomId);
         setImages(roomImages);
       }
@@ -92,21 +98,50 @@ function RoomGalleryModal({
 
   useEffect(() => {
     fetchImages();
+    // Reset pending on room change
+    setPendingFiles([]);
+    setPendingPreviews([]);
   }, [roomId]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setPendingFiles((prev) => [...prev, ...newFiles]);
+
+      newFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPendingPreviews((prev) => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Reset input value so same file can be selected again if needed (though we append)
+      e.target.value = "";
+    }
+  };
+
+  const removePending = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+    setPendingPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSave = async () => {
+    if (pendingFiles.length === 0) return;
 
     setUploading(true);
     const formData = new FormData();
-    formData.append("file", e.target.files[0]);
-    formData.append("id_ruangan", roomId.toString());
-    formData.append("deskripsi", `Foto ${roomName}`);
+    formData.append("ruanganId", roomId.toString());
+
+    pendingFiles.forEach((file) => {
+      formData.append("gallery", file);
+    });
 
     try {
       const token = localStorage.getItem("token");
+      // Use the correct endpoint for batch upload
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/gallery`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery/upload`,
         {
           method: "POST",
           headers: {
@@ -117,13 +152,26 @@ function RoomGalleryModal({
       );
 
       if (res.ok) {
+        showToast("Foto berhasil diupload", "success");
+        setPendingFiles([]);
+        setPendingPreviews([]);
         fetchImages(); // Refresh list
       } else {
-        alert("Gagal mengupload foto");
+        const err = await res.json();
+        showToast(
+          `Gagal upload: ${
+            err.error ||
+            err.message ||
+            err.details ||
+            "Kesalahan tidak diketahui"
+          }`,
+          "error"
+        );
+        console.error("Upload error details:", err);
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Terjadi kesalahan saat upload");
+      showToast("Terjadi kesalahan saat upload", "error");
     } finally {
       setUploading(false);
     }
@@ -135,7 +183,7 @@ function RoomGalleryModal({
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/gallery/${deleteId}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery/${deleteId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -144,9 +192,13 @@ function RoomGalleryModal({
       if (res.ok) {
         setImages(images.filter((img) => img.id_gallery !== deleteId));
         setDeleteId(null);
+        showToast("Foto berhasil dihapus", "success");
+      } else {
+        showToast("Gagal menghapus foto", "error");
       }
     } catch (err) {
       console.error(err);
+      showToast("Terjadi kesalahan saat menghapus", "error");
     }
   };
 
@@ -175,101 +227,144 @@ function RoomGalleryModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900/50">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="animate-spin w-10 h-10 border-4 border-blue-500 rounded-full border-t-transparent mb-4"></div>
-              <p className="text-gray-500 animate-pulse">Memuat foto...</p>
-            </div>
-          ) : images.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-              <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                <FaImages className="text-3xl opacity-50" />
+          {/* Section: Existing Images */}
+          <div className="mb-8">
+            <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+              Foto Tersimpan
+            </h4>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-10">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 rounded-full border-t-transparent mb-4"></div>
+                <p className="text-gray-500 animate-pulse">Memuat foto...</p>
               </div>
-              <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
-                Belum ada foto
-              </p>
-              <p className="text-sm mt-1">
-                Upload foto baru untuk menampilkan di sini
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {images.map((img) => (
-                <div
-                  key={img.id_gallery}
-                  className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800"
-                >
-                  <img
-                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL || ""}${
-                      img.path_file.startsWith("/") ? "" : "/"
-                    }${img.path_file}`}
-                    alt="Gallery"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+            ) : images.length === 0 ? (
+              <div className="text-center text-gray-400 py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
+                <p className="text-sm">Belum ada foto tersimpan</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {images.map((img) => (
+                  <div
+                    key={img.id_gallery}
+                    className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800"
+                  >
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_API_BASE_URL || ""}${
+                        img.path_file.startsWith("/") ? "" : "/"
+                      }${img.path_file}`}
+                      alt="Gallery"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                      <button
+                        onClick={() =>
+                          window.open(
+                            `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}${
+                              img.path_file.startsWith("/") ? "" : "/"
+                            }${img.path_file}`,
+                            "_blank"
+                          )
+                        }
+                        className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 backdrop-blur-sm transition-all transform hover:scale-110"
+                        title="Lihat"
+                      >
+                        <FaImages />
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(img.id_gallery)}
+                        className="p-2 bg-red-500/80 text-white rounded-full hover:bg-red-600 backdrop-blur-sm transition-all transform hover:scale-110"
+                        title="Hapus"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section: Pending Uploads */}
+          {pendingFiles.length > 0 && (
+            <div className="mb-6 animate-fade-in">
+              <h4 className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                Siap Diupload ({pendingFiles.length})
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                {pendingPreviews.map((src, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group aspect-square rounded-lg overflow-hidden border border-blue-200 dark:border-blue-800 shadow-md"
+                  >
+                    <img
+                      src={src}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
                     <button
-                      onClick={() =>
-                        window.open(
-                          `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}${
-                            img.path_file.startsWith("/") ? "" : "/"
-                          }${img.path_file}`,
-                          "_blank"
-                        )
-                      }
-                      className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 backdrop-blur-sm transition-all transform hover:scale-110"
-                      title="Lihat"
+                      onClick={() => removePending(idx)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <FaImages />
-                    </button>
-                    <button
-                      onClick={() => setDeleteId(img.id_gallery)}
-                      className="p-2 bg-red-500/80 text-white rounded-full hover:bg-red-600 backdrop-blur-sm transition-all transform hover:scale-110"
-                      title="Hapus"
-                    >
-                      <FaTrash />
+                      <FaTimes className="text-xs" />
                     </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        <div className="p-5 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-2xl">
+        {/* Footer: Upload Actions */}
+        <div className="p-5 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-2xl flex flex-col sm:flex-row gap-4">
           <label
-            className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+            className={`flex-1 flex flex-col items-center justify-center h-20 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
               uploading
                 ? "border-gray-300 bg-gray-50 cursor-not-allowed"
-                : "border-blue-300 bg-blue-50/30 hover:bg-blue-50 hover:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-blue-500"
+                : "border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-900/50 dark:hover:border-gray-500"
             }`}
           >
-            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-              {uploading ? (
-                <>
-                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 rounded-full border-t-transparent mb-2"></div>
-                  <p className="text-sm text-gray-500">Mengupload...</p>
-                </>
-              ) : (
-                <>
-                  <FaPlus className="w-8 h-8 mb-3 text-blue-500" />
-                  <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-semibold">Klik untuk upload</span>{" "}
-                    atau drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    PNG, JPG, GIF (MAX. 5MB)
-                  </p>
-                </>
-              )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                <FaPlus className="text-gray-500 dark:text-gray-300" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Tambah Foto
+                </p>
+                <p className="text-xs text-gray-500">Klik atau Drag & Drop</p>
+              </div>
             </div>
             <input
               type="file"
               accept="image/*"
+              multiple
               className="hidden"
-              onChange={handleUpload}
+              onChange={handleFileSelect}
               disabled={uploading}
             />
           </label>
+
+          {/* Save Button */}
+          {pendingFiles.length > 0 && (
+            <button
+              onClick={handleSave}
+              disabled={uploading}
+              className="flex-none px-8 py-2 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all flex items-center justify-center gap-2"
+            >
+              {uploading ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white rounded-full border-t-transparent"></div>
+                  <span>Mengupload...</span>
+                </>
+              ) : (
+                <>
+                  <FaSave />
+                  <span>Simpan {pendingFiles.length} Foto</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Nested Delete Confirmation for Image */}
@@ -321,6 +416,7 @@ export default function RuanganPage() {
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
   const [lantaiGambar, setLantaiGambar] = useState<any[]>([]); // State untuk menyimpan gambar lantai
   const { selectedCampus } = useCampus();
+  const { showToast } = useToast();
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -352,7 +448,12 @@ export default function RuanganPage() {
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`
       );
       if (res.ok) {
-        setRuangan(await res.json());
+        const data = await res.json();
+        const bangunanIds = bangunanList.map((b) => b.id_bangunan);
+        const filteredData = data.filter((r: any) =>
+          bangunanIds.includes(r.id_bangunan)
+        );
+        setRuangan(filteredData);
       }
     };
     fetchData();
@@ -464,9 +565,9 @@ export default function RuanganPage() {
       if (res.ok) {
         setRuangan(ruangan.filter((r) => r.id_ruangan !== deleteModal.id));
         setDeleteModal({ isOpen: false, id: null });
-        alert("Ruangan berhasil dihapus");
+        showToast("Ruangan berhasil dihapus", "success");
       } else {
-        alert("Gagal menghapus ruangan");
+        showToast("Gagal menghapus ruangan", "error");
       }
     } catch (error) {
       console.error("Error deleting room:", error);

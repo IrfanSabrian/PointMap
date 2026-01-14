@@ -3,10 +3,19 @@ import Ruangan from "../models/Ruangan.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import cloudinary from "../config/cloudinary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Define Frontend Public Path
+// backend/controllers -> backend -> .. -> frontend -> public
+const FRONTEND_PUBLIC_PATH = path.join(
+  __dirname,
+  "..",
+  "..",
+  "frontend",
+  "public"
+);
 
 // GET semua gallery
 export const getAllRuanganGallery = async (req, res) => {
@@ -74,9 +83,15 @@ export const uploadGallery = async (req, res) => {
   try {
     const { ruanganId } = req.body;
 
-    // Cek apakah ruangan ada
+    // Cek apakah ruangan ada untuk mendapatkan ID Bangunan
     const ruangan = await Ruangan.findByPk(ruanganId);
     if (!ruangan) {
+      // Clean up uploaded files
+      if (req.files) {
+        req.files.forEach((file) => {
+          if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
+      }
       return res.status(404).json({ error: "Ruangan tidak ditemukan" });
     }
 
@@ -87,67 +102,55 @@ export const uploadGallery = async (req, res) => {
 
     const uploadedFiles = [];
 
-    for (const file of req.files) {
-      // Validasi tipe file
-      const allowedTypes = [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ];
-      if (!allowedTypes.includes(file.mimetype)) {
-        // Hapus file yang tidak valid
-        fs.unlinkSync(file.path);
-        continue;
-      }
+    // 1. Tentukan folder target: frontend/public/img/{bangunanId}/ruangan/{ruanganId}
+    const relativeDir = path.join(
+      "img",
+      String(ruangan.id_bangunan),
+      "ruangan",
+      String(ruanganId)
+    );
+    const targetDir = path.join(FRONTEND_PUBLIC_PATH, relativeDir);
 
-      // Cek file yang sudah ada di DB untuk menentukan nomor berikutnya
-      const existingRecords = await RuanganGallery.findAll({
-        where: { id_ruangan: ruanganId },
-        order: [["created_at", "ASC"]],
-      });
-      const existingNumbers = existingRecords
-        .map((rec) => {
-          const match = rec.nama_file?.match(/gallery(\d+)\.jpg/);
-          return match ? parseInt(match[1]) : 0;
-        })
-        .filter((n) => n > 0)
-        .sort((a, b) => a - b);
+    // 2. Buat folder jika belum ada (recursive)
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    for (const file of req.files) {
+      // 3. Tentukan nama file berikutnya (Sequential: gallery1, gallery2, ...)
+      const ext = path.extname(file.originalname).toLowerCase(); // Simpan ekstensi asli
 
       let nextNumber = 1;
-      if (existingNumbers.length > 0) {
-        for (let i = 1; i <= Math.max(...existingNumbers) + 1; i++) {
-          if (!existingNumbers.includes(i)) {
-            nextNumber = i;
-            break;
-          }
-        }
-      }
+      // Cek apakah file gallery{N}.ext sudah ada. Kita cek semua kemungkinan 'gallery' pattern.
+      // Cara paling aman: list semua file di folder, filter yang depannya 'gallery', ambil angkanya, cari max.
 
-      // Generate nama file berurutan dan upload ke Cloudinary
-      const fileName = `gallery${nextNumber}.jpg`;
-      const folder = `img/${ruangan.id_bangunan}/ruangan/${ruanganId}`;
-      const publicId = fileName.replace(/\.[^.]+$/, "");
-
-      const uploadResult = await cloudinary.uploader.upload(file.path, {
-        folder,
-        public_id: publicId,
-        overwrite: true,
-        resource_type: "image",
-        format: "jpg",
+      const filesInDir = fs.readdirSync(targetDir);
+      const numbers = filesInDir.map((f) => {
+        const match = f.match(/^gallery(\d+)\./);
+        return match ? parseInt(match[1]) : 0;
       });
 
-      // Hapus file sementara
-      if (file?.path && fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
+      if (numbers.length > 0) {
+        nextNumber = Math.max(...numbers) + 1;
       }
 
-      // Simpan ke database dgn URL Cloudinary
+      const newFileName = `gallery${nextNumber}${ext}`;
+      const targetPath = path.join(targetDir, newFileName);
+
+      // 4. Pindahkan file dari temp storage (uploads/) ke target folder
+      // Menggunakan copyFileSync + unlinkSync agar aman lintas partisi, atau renameSync jika satu partisi.
+      // Kita pakai copy + unlink untuk keamanan.
+      fs.copyFileSync(file.path, targetPath);
+      fs.unlinkSync(file.path); // Hapus file temp
+
+      // 5. Simpan path ke Database: img/{bangunanId}/ruangan/{ruanganId}/galleryN.ext
+      // Gunakan forward slash '/' agar konsisten di URL
+      const dbPath = `img/${ruangan.id_bangunan}/ruangan/${ruanganId}/${newFileName}`;
+
       const galleryData = await RuanganGallery.create({
         id_ruangan: ruanganId,
-        nama_file: fileName,
-        path_file: uploadResult.secure_url,
+        nama_file: newFileName,
+        path_file: dbPath,
       });
 
       uploadedFiles.push(galleryData);
@@ -158,7 +161,21 @@ export const uploadGallery = async (req, res) => {
       data: uploadedFiles,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("🔥 Error uploading gallery:", err);
+    // Cleanup any files that might have been uploaded if DB op fails
+    if (req.files) {
+      req.files.forEach((file) => {
+        if (fs.existsSync(file.path)) {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {}
+        }
+      });
+    }
+    res.status(500).json({
+      error: err.message || "Terjadi kesalahan internal pada server",
+      details: String(err),
+    });
   }
 };
 
@@ -171,8 +188,6 @@ export const reorderGallery = async (req, res) => {
       return res.status(400).json({ error: "Urutan gallery tidak valid" });
     }
 
-    // Untuk saat ini, kita hanya mengembalikan data yang sudah diurutkan
-    // karena tidak ada field urutan di database
     const galleryData = await RuanganGallery.findAll({
       where: { id_ruangan: ruanganId },
       include: [
@@ -182,10 +197,9 @@ export const reorderGallery = async (req, res) => {
           attributes: ["id_ruangan", "nama_ruangan"],
         },
       ],
-      order: [["id_gallery", "ASC"]], // Urutkan berdasarkan ID
+      order: [["id_gallery", "ASC"]],
     });
 
-    // Filter dan urutkan berdasarkan galleryOrder yang diberikan
     const orderedGallery = galleryOrder
       .map((id) => galleryData.find((item) => item.id_gallery == id))
       .filter(Boolean);
@@ -211,25 +225,20 @@ export const deleteGallery = async (req, res) => {
       return res.status(404).json({ error: "Gallery tidak ditemukan" });
     }
 
-    // Jika path_file adalah URL Cloudinary, hapus asset di Cloudinary
-    if (gallery.path_file?.includes("res.cloudinary.com")) {
-      try {
-        // Derive public_id from URL: folder/.../name.ext -> folder/.../name
-        const url = new URL(gallery.path_file);
-        const parts = url.pathname.split("/").filter(Boolean);
-        const uploadIdx = parts.findIndex((p) => p === "upload");
-        let publicParts =
-          uploadIdx >= 0 ? parts.slice(uploadIdx + 1) : parts.slice(1);
-        // remove version segment if present (v123...)
-        if (publicParts[0] && /^v\d+/.test(publicParts[0])) {
-          publicParts = publicParts.slice(1);
+    // Hapus file fisik jika ada
+    if (gallery.path_file) {
+      // path_file contohnya: "img/27/ruangan/2/gallery1.jpg"
+      // Kita perlu resolve ini relatif terhadap folder PUBLIC frontend
+
+      const relativePath = gallery.path_file;
+      const absolutePath = path.join(FRONTEND_PUBLIC_PATH, relativePath);
+
+      if (fs.existsSync(absolutePath)) {
+        try {
+          fs.unlinkSync(absolutePath);
+        } catch (e) {
+          console.warn(`Failed to delete file ${absolutePath}:`, e);
         }
-        const last = publicParts.pop() || "";
-        const baseName = last.replace(/\.[^.]+$/, "");
-        const publicId = [...publicParts, baseName].join("/");
-        await cloudinary.uploader.destroy(publicId);
-      } catch (e) {
-        // ignore cleanup errors
       }
     }
 

@@ -258,7 +258,7 @@ export default function BangunanForm({
         );
       }
 
-      showToast("Data berhasil disimpan!", "success");
+      showToast("Data gedung berhasil disimpan!", "success");
 
       // Dispatch event untuk memberitahu komponen lain bahwa data bangunan telah berubah
       window.dispatchEvent(new CustomEvent("bangunan-data-changed"));

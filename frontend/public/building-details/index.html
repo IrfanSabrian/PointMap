@@ -3410,10 +3410,11 @@
             e.preventDefault();
             e.stopPropagation();
 
-            // Show user-friendly message
-            const message =
-              'Tombol "All Levels" hanya tersedia dalam mode 2.5D. Silakan ubah ke mode 2.5D terlebih dahulu.';
-            alert(message);
+            // Tampilkan notifikasi yang lebih bagus
+            showNotification(
+              'Tombol "All Levels" hanya tersedia dalam mode 2.5D. Silakan ubah ke mode 2.5D terlebih dahulu.',
+              "info"
+            );
 
             // Optionally, you could show a more elegant notification here
             console.log(
@@ -3547,6 +3548,64 @@
           console.error("Building element not found");
         }
       };
+
+      // Fungsi notifikasi custom
+      function showNotification(message, type = "info") {
+        // Cek container
+        let container = document.querySelector(".notification-container");
+        if (!container) {
+          container = document.createElement("div");
+          container.className = "notification-container";
+          document.body.appendChild(container);
+        }
+
+        // Tentukan icon dan title berdasarkan type
+        let icon = "fa-info-circle";
+        let title = "Info";
+
+        if (type === "success") {
+          icon = "fa-check-circle";
+          title = "Berhasil";
+        } else if (type === "error") {
+          icon = "fa-times-circle";
+          title = "Gagal";
+        } else if (type === "warning") {
+          icon = "fa-exclamation-circle";
+          title = "Perhatian";
+        }
+
+        // Buat elemen notifikasi
+        const notification = document.createElement("div");
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+          <div class="notification-icon">
+            <i class="fas ${icon}"></i>
+          </div>
+          <div class="notification-content">
+            <div class="notification-title">${title}</div>
+            <div class="notification-message">${message}</div>
+          </div>
+          <button class="notification-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+          </button>
+        `;
+
+        // Tambahkan ke container
+        container.appendChild(notification);
+
+        // Hapus otomatis setelah 5 detik
+        setTimeout(() => {
+          if (notification.parentElement) {
+            // Animasi keluar
+            notification.style.animation = "slideDown 0.5s ease-in-out reverse";
+            notification.style.opacity = "0";
+            notification.style.transform = "translateX(-50%) translateY(-100%)";
+            setTimeout(() => {
+              notification.remove();
+            }, 500);
+          }
+        }, 5000);
+      }
     </script>
   </body>
 </html>

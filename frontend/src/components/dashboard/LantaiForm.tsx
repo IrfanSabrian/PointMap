@@ -11,6 +11,7 @@ import {
   FaFileImage,
 } from "react-icons/fa";
 import { useToast } from "@/components/ToastProvider";
+import { useCampus } from "@/hooks/useCampus";
 
 interface LantaiFormProps {
   initialData?: any;
@@ -27,6 +28,7 @@ export default function LantaiForm({
 }: LantaiFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { selectedCampus } = useCampus();
   const [loading, setLoading] = useState(false);
   const [bangunanList, setBangunanList] = useState<any[]>([]);
 
@@ -136,10 +138,10 @@ export default function LantaiForm({
       });
 
       if (res.ok) {
+        showToast("Data lantai berhasil disimpan", "success");
         if (onSuccess) {
           onSuccess();
         } else {
-          showToast("Data lantai berhasil disimpan", "success");
           router.push("/dashboard/lantai");
         }
       } else {
@@ -227,11 +229,13 @@ export default function LantaiForm({
                   disabled={isEdit}
                 >
                   <option value="" disabled hidden></option>
-                  {bangunanList.map((b) => (
-                    <option key={b.id_bangunan} value={b.id_bangunan}>
-                      {b.nama}
-                    </option>
-                  ))}
+                  {bangunanList
+                    .filter((b) => b.kategori_kampus === selectedCampus.name)
+                    .map((b) => (
+                      <option key={b.id_bangunan} value={b.id_bangunan}>
+                        {b.nama}
+                      </option>
+                    ))}
                 </select>
                 <FaCity className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
               </div>

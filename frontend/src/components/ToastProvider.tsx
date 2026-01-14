@@ -84,16 +84,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="fixed top-5 right-5 flex flex-col gap-2 w-full max-w-sm pointer-events-none"
-            style={{ zIndex: 99999999 }} // Force z-index via style
+            className="fixed top-20 right-4 flex flex-col gap-2 w-[calc(100vw-2rem)] max-w-md pointer-events-none"
+            style={{ zIndex: 99999 }}
           >
             {toasts.map((toast) => (
               <div
                 key={toast.id}
-                className={`transition-all duration-300 ease-in-out pointer-events-auto transform ${
+                className={`transition-all duration-500 transform pointer-events-auto ${
                   toast.visible
-                    ? "opacity-100 translate-y-0 scale-100"
-                    : "opacity-0 -translate-y-4 scale-95"
+                    ? "opacity-100 translate-x-0"
+                    : "opacity-0 translate-x-full"
                 }`}
               >
                 <Toast

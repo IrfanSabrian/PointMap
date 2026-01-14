@@ -11,6 +11,7 @@ import {
   FaDoorOpen,
 } from "react-icons/fa";
 import { useToast } from "@/components/ToastProvider";
+import { useCampus } from "@/hooks/useCampus";
 
 interface RuanganFormProps {
   initialData?: any;
@@ -27,6 +28,7 @@ export default function RuanganForm({
 }: RuanganFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { selectedCampus } = useCampus();
   const [loading, setLoading] = useState(false);
   const [bangunanList, setBangunanList] = useState<any[]>([]);
   const [lantaiList, setLantaiList] = useState<any[]>([]);
@@ -187,10 +189,10 @@ export default function RuanganForm({
       });
 
       if (res.ok) {
+        showToast("Data ruangan berhasil disimpan", "success");
         if (onSuccess) {
           onSuccess();
         } else {
-          showToast("Data ruangan berhasil disimpan", "success");
           router.push("/dashboard/ruangan");
         }
       } else {
@@ -381,11 +383,13 @@ export default function RuanganForm({
                     required
                   >
                     <option value="" disabled hidden></option>
-                    {bangunanList.map((b) => (
-                      <option key={b.id_bangunan} value={b.id_bangunan}>
-                        {b.nama}
-                      </option>
-                    ))}
+                    {bangunanList
+                      .filter((b) => b.kategori_kampus === selectedCampus.name)
+                      .map((b) => (
+                        <option key={b.id_bangunan} value={b.id_bangunan}>
+                          {b.nama}
+                        </option>
+                      ))}
                   </select>
                   <FaCity className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
                 </div>

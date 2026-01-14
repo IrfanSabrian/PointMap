@@ -32,6 +32,12 @@ export default function MapEditor({
   const drawnLayerRef = useRef<L.Layer | null>(null);
   const basemapLayerRef = useRef<L.TileLayer | null>(null);
 
+  // Sync callback ref
+  const onGeometryChangeRef = useRef(onGeometryChange);
+  useEffect(() => {
+    onGeometryChangeRef.current = onGeometryChange;
+  }, [onGeometryChange]);
+
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -79,6 +85,21 @@ export default function MapEditor({
       cutPolygon: false,
       removalMode: !isEdit,
     });
+
+    // Helper to handle geometry updates
+    const handleLayerUpdate = (layer: any) => {
+      if (!layer || !layer.toGeoJSON) return;
+
+      // Update ref to current layer
+      drawnLayerRef.current = layer;
+
+      const geoJson = layer.toGeoJSON();
+      // console.log("🔄 Layer updated:", geoJson.geometry.type);
+
+      if (onGeometryChangeRef.current) {
+        onGeometryChangeRef.current(geoJson);
+      }
+    };
 
     // Load initial geometry if provided
     if (initialGeometry) {
@@ -136,9 +157,25 @@ export default function MapEditor({
 
           // Enable PM for editing if supported on this layer
           if (isEdit && (layer as any).pm) {
-            (layer as any).pm.enable({
+            const pmLayer = layer as any;
+            pmLayer.pm.enable({
               allowEditing: true,
-              allowRemoval: false, // We don't want to remove the initial layer in edit mode usually, or maybe we do?
+              allowRemoval: false, // Prevent removal of initial layer unless needed
+            });
+
+            // Listen to changes on the layer directly for reliability
+            const updateEvents = [
+              "pm:edit",
+              "pm:markerdragend",
+              "pm:dragend",
+              "pm:vertexadded",
+              "pm:vertexremoved",
+              "pm:cut",
+              "pm:rotateend",
+            ];
+
+            updateEvents.forEach((event) => {
+              layer.on(event, () => handleLayerUpdate(layer));
             });
           }
         });
@@ -158,17 +195,12 @@ export default function MapEditor({
       const layer = e.layer;
 
       // Remove previous drawn layer
-      if (drawnLayerRef.current) {
+      if (drawnLayerRef.current && drawnLayerRef.current !== layer) {
         map.removeLayer(drawnLayerRef.current);
       }
 
-      drawnLayerRef.current = layer;
-
-      // Convert to GeoJSON and notify parent
-      const geoJson = layer.toGeoJSON();
-      if (onGeometryChange) {
-        onGeometryChange(geoJson);
-      }
+      // Handle the new layer
+      handleLayerUpdate(layer);
 
       // Enable editing for this layer
       if (layer.pm) {
@@ -176,24 +208,39 @@ export default function MapEditor({
           allowEditing: true,
           allowRemoval: true,
         });
+
+        // Attach listeners to new layer too
+        const updateEvents = [
+          "pm:edit",
+          "pm:markerdragend",
+          "pm:dragend",
+          "pm:vertexadded",
+          "pm:vertexremoved",
+          "pm:cut",
+          "pm:rotateend",
+        ];
+
+        updateEvents.forEach((event) => {
+          layer.on(event, () => handleLayerUpdate(layer));
+        });
       }
     });
 
-    // Handle editing
+    // Global edit handler as fallback (using e.layer)
     map.on("pm:edit", (e: any) => {
-      if (drawnLayerRef.current) {
-        const geoJson = (drawnLayerRef.current as any).toGeoJSON();
-        if (onGeometryChange) {
-          onGeometryChange(geoJson);
-        }
+      if (e.layer) {
+        handleLayerUpdate(e.layer);
       }
     });
 
     // Handle removal
     map.on("pm:remove", (e: any) => {
-      drawnLayerRef.current = null;
-      if (onGeometryChange) {
-        onGeometryChange(null);
+      // Only nullify if the removed layer is the current one
+      if (e.layer === drawnLayerRef.current) {
+        drawnLayerRef.current = null;
+        if (onGeometryChangeRef.current) {
+          onGeometryChangeRef.current(null);
+        }
       }
     });
 
@@ -202,11 +249,7 @@ export default function MapEditor({
     // Explicitly set max zoom (redundant but ensures it's applied)
     map.setMaxZoom(campus.maxZoom);
 
-    console.log("🗺️ MapEditor initialized:", {
-      campus: campus.name,
-      maxZoom: campus.maxZoom,
-      currentMaxZoom: map.getMaxZoom(),
-    });
+    console.log("🗺️ MapEditor using stable initialization");
 
     // Cleanup
     return () => {
@@ -215,7 +258,8 @@ export default function MapEditor({
         mapRef.current = null;
       }
     };
-  }, [isDark, mode, campus, initialGeometry, onGeometryChange, isEdit]); // Added all dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDark, mode, campus, isEdit]); // Removed onGeometryChange and initialGeometry from dependencies
 
   return (
     <div className="relative w-full h-full">

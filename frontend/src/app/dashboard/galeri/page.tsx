@@ -11,12 +11,14 @@ import {
   FaBuilding,
   FaDoorOpen,
 } from "react-icons/fa";
+import { useToast } from "@/components/ToastProvider";
 
 export default function GaleriPage() {
   const [galleryItems, setGalleryItems] = useState<any[]>([]);
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const { showToast } = useToast();
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,7 +33,7 @@ export default function GaleriPage() {
     try {
       setIsLoading(true);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/gallery`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`
       );
       if (res.ok) {
         const data = await res.json();
@@ -74,7 +76,7 @@ export default function GaleriPage() {
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/gallery/${id}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery/${id}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -84,9 +86,9 @@ export default function GaleriPage() {
       if (res.ok) {
         const newItems = galleryItems.filter((item) => item.id_gallery !== id);
         setGalleryItems(newItems);
-        // Alert?
+        showToast("Foto berhasil dihapus", "success");
       } else {
-        alert("Gagal menghapus foto");
+        showToast("Gagal menghapus foto", "error");
       }
     } catch (error) {
       console.error("Error deleting:", error);

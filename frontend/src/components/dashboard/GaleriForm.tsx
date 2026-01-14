@@ -119,7 +119,7 @@ export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
       });
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/gallery/upload`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery/upload`,
         {
           method: "POST",
           headers: {
@@ -130,14 +130,23 @@ export default function GaleriForm({ onSuccess, onCancel }: GaleriFormProps) {
       );
 
       if (res.ok) {
+        showToast("Foto berhasil diupload", "success");
         if (onSuccess) onSuccess();
         else {
-          showToast("Foto berhasil diupload", "success");
           router.push("/dashboard/galeri");
         }
       } else {
         const err = await res.json();
-        showToast(`Gagal upload: ${err.message || err.error}`, "error");
+        showToast(
+          `Gagal upload: ${
+            err.error ||
+            err.message ||
+            err.details ||
+            "Kesalahan tidak diketahui"
+          }`,
+          "error"
+        );
+        console.error("Upload error details:", err);
       }
     } catch (error) {
       console.error("Error uploading gallery:", error);

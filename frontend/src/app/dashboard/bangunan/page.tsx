@@ -17,6 +17,7 @@ import {
   FaLayerGroup,
 } from "react-icons/fa";
 import { useCampus } from "@/hooks/useCampus";
+import { useToast } from "@/components/ToastProvider";
 
 // Pagination Component
 function Pagination({
@@ -65,6 +66,7 @@ export default function BangunanPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid"); // Default to grid for better aesthetics
   const { selectedCampus } = useCampus();
+  const { showToast } = useToast();
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,11 +175,11 @@ export default function BangunanPage() {
         setDeleteModal({ isOpen: false, id: null });
       } else {
         const err = await res.json();
-        alert(`Gagal menghapus: ${err.message || err.error}`);
+        showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
       }
     } catch (error) {
       console.error("Error deleting building:", error);
-      alert("Terjadi kesalahan saat menghapus");
+      showToast("Terjadi kesalahan saat menghapus", "error");
     } finally {
       setIsDeleting(false);
     }

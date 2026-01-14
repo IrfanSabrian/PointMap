@@ -150,7 +150,9 @@ export default function LantaiPage() {
       );
 
       if (res.ok) {
-        setLantai(lantai.filter((l) => l.id_lantai_gambar !== deleteModal.id));
+        setAllLantai(
+          allLantai.filter((l) => l.id_lantai_gambar !== deleteModal.id)
+        );
         setDeleteModal({ isOpen: false, id: null });
         showToast("Gambar lantai berhasil dihapus", "success");
       } else {
@@ -178,8 +180,7 @@ export default function LantaiPage() {
       );
       if (res.ok) {
         const data = await res.json();
-        setLantai(data);
-        setFilteredLantai(data); // Re-apply filter if needed, but for now reset
+        setAllLantai(data); // Update source of truth, useEffect will handle filtering
       }
     };
     fetchData();
@@ -227,11 +228,13 @@ export default function LantaiPage() {
             onChange={(e) => setSelectedBangunan(e.target.value)}
           >
             <option value="">Semua Gedung</option>
-            {bangunanList.map((b) => (
-              <option key={b.id_bangunan} value={b.id_bangunan}>
-                {b.nama}
-              </option>
-            ))}
+            {bangunanList
+              .filter((b) => b.kategori_kampus === selectedCampus.name)
+              .map((b) => (
+                <option key={b.id_bangunan} value={b.id_bangunan}>
+                  {b.nama}
+                </option>
+              ))}
           </select>
         </div>
 

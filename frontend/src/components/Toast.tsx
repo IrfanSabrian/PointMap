@@ -30,17 +30,24 @@ export default function Toast({
   }, [duration, onClose]);
 
   const bgColors = {
-    success: "bg-white dark:bg-gray-800 border-l-green-500",
-    error: "bg-white dark:bg-gray-800 border-l-red-500",
-    warning: "bg-white dark:bg-gray-800 border-l-yellow-500",
-    info: "bg-white dark:bg-gray-800 border-l-blue-500",
+    success: "bg-green-50 border-green-500",
+    error: "bg-red-50 border-red-500",
+    warning: "bg-yellow-50 border-yellow-500",
+    info: "bg-blue-50 border-blue-500",
   };
 
   const iconColors = {
-    success: "text-green-500",
-    error: "text-red-500",
-    warning: "text-yellow-500",
-    info: "text-blue-500",
+    success: "text-green-600",
+    error: "text-red-600",
+    warning: "text-yellow-600",
+    info: "text-blue-600",
+  };
+
+  const textColors = {
+    success: "text-green-800",
+    error: "text-red-800",
+    warning: "text-yellow-800",
+    info: "text-blue-800",
   };
 
   const icons = {
@@ -52,15 +59,26 @@ export default function Toast({
 
   return (
     <div
-      className={`rounded-lg shadow-2xl border-l-[6px] p-4 flex items-center gap-4 min-w-[300px] pointer-events-auto backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 ${bgColors[type]} ring-1 ring-black/5 dark:ring-white/10`}
+      className={`rounded-lg shadow-lg border-l-4 p-4 flex items-center gap-3 ${bgColors[type]}`}
     >
-      <div className={`text-2xl ${iconColors[type]}`}>{icons[type]}</div>
-      <div className="flex-1">
-        <div className="text-sm font-medium">{message}</div>
+      <div className={`text-xl ${iconColors[type]} animate-pulse`}>
+        {icons[type]}
+      </div>
+      <div className={`flex-1 ${textColors[type]}`}>
+        <div className="font-semibold text-sm">
+          {type === "success"
+            ? "Berhasil"
+            : type === "error"
+            ? "Gagal"
+            : type === "warning"
+            ? "Perhatian"
+            : "Info"}
+        </div>
+        <div className="text-xs opacity-90">{message}</div>
       </div>
       <button
         onClick={onClose}
-        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg transition-colors"
+        className="text-gray-400 hover:text-gray-600 text-lg"
       >
         ×
       </button>
