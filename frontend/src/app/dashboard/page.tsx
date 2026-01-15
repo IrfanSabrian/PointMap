@@ -118,18 +118,18 @@ export default function DashboardStats() {
       shadow: "shadow-blue-500/30",
     },
     {
-      label: "Total Ruangan",
-      value: stats.ruangan,
-      icon: FaDoorOpen,
-      color: "from-green-500 to-green-600",
-      shadow: "shadow-green-500/30",
-    },
-    {
       label: "Total Lantai",
       value: stats.lantai,
       icon: FaLayerGroup,
       color: "from-purple-500 to-purple-600",
       shadow: "shadow-purple-500/30",
+    },
+    {
+      label: "Total Ruangan",
+      value: stats.ruangan,
+      icon: FaDoorOpen,
+      color: "from-green-500 to-green-600",
+      shadow: "shadow-green-500/30",
     },
     {
       label: "Total Galeri",
