@@ -557,31 +557,29 @@ Setiap halaman dan modal dirancang dengan pendekatan sederhana namun fungsional,
 Gambar 3.4 Halaman Beranda
 
 2. Bangunan di klik
-Saat pengguna mengklik bangunan pada peta, muncul popup berisi nama bangunan, gambar thumbnail, serta tombol Detail Bangunan dan Rute.
+   Saat pengguna mengklik bangunan pada peta, muncul popup berisi nama bangunan, gambar thumbnail, serta tombol Detail Bangunan dan Rute.
 
 Gambar 3.5 Halaman Beranda Bangunan diklik
 
 3. Detail Bangunan di klik
-Menampilkan peta dalam mode 2.5D, dengan kontrol untuk mengganti tampilan lantai antara mode 2.5D dan 2D. Di sisi kanan terdapat daftar lantai beserta list ruangan yang ada pada lantai yang dipilih. Halaman ini tidak menampilkan informasi gedung, hanya daftar ruangan untuk dipilih.
+   Menampilkan peta dalam mode 2.5D, dengan kontrol untuk mengganti tampilan lantai antara mode 2.5D dan 2D. Di sisi kanan terdapat daftar lantai beserta list ruangan yang ada pada lantai yang dipilih. Halaman ini tidak menampilkan informasi gedung, hanya daftar ruangan untuk dipilih.
 
 Gambar 3.6 Halaman Beranda Detail Bangunan
 
 4. Ruangan di klik
-Saat salah satu ruangan pada daftar dipilih, akan muncul tampilan yang berisi informasi singkat ruangan, seperti nama, kapasitas, dan deskripsi singkat. Bagian ini juga menampilkan galeri foto ruangan tersebut.
+   Saat salah satu ruangan pada daftar dipilih, akan muncul tampilan yang berisi informasi singkat ruangan, seperti nama, kapasitas, dan deskripsi singkat. Bagian ini juga menampilkan galeri foto ruangan tersebut.
 
 Gambar 3.7 Halaman Beranda Detail Ruangan
 
 5. Rute di klik
-Saat tombol Rute pada popup bangunan ditekan, tampil modal pengaturan rute untuk memilih mode transportasi (Jalan Kaki atau Kendaraan) dan lokasi awal dari daftar atau menggunakan Lokasi Saya (GPS).
+   Saat tombol Rute pada popup bangunan ditekan, tampil modal pengaturan rute untuk memilih mode transportasi (Jalan Kaki atau Kendaraan) dan lokasi awal dari daftar atau menggunakan Lokasi Saya (GPS).
 
 Gambar 3.8 Halaman Beranda Modal Rute
 
 6. Instruksi Navigasi
-Setelah rute ditampilkan, pengguna dapat membuka panel Instruksi Navigasi yang berisi daftar langkah perjalanan. Panel ini memiliki tombol Next dan Prev untuk berpindah antar langkah, serta menampilkan estimasi jarak (meter) dan waktu tempuh (menit) untuk setiap segmen rute.
+   Setelah rute ditampilkan, pengguna dapat membuka panel Instruksi Navigasi yang berisi daftar langkah perjalanan. Panel ini memiliki tombol Next dan Prev untuk berpindah antar langkah, serta menampilkan estimasi jarak (meter) dan waktu tempuh (menit) untuk setiap segmen rute.
 
 Gambar 3.9 Halaman Beranda Instruksi Navigasi
-
-
 
 7. Login
    Halaman untuk autentikasi admin. Terdapat kolom username, password, tombol Login, serta pesan peringatan jika kredensial tidak valid.
@@ -625,45 +623,79 @@ Basis data yang digunakan dalam sistem PointMap dirancang untuk menangani berbag
 Gambar 3.19 Desain Basis Data
 
 1. Entitas dan Atribut
-   a) Tabel admin
-   Tabel ini menyimpan data administrator yang memiliki hak akses penuh terhadap sistem, termasuk kemampuan untuk mengelola data bangunan, ruangan, gambar, dan galeri. Atribut yang digunakan meliputi:
 
-1) id_admin sebagai primary key,
-2) username untuk nama pengguna,
-3) password untuk sandi yang disimpan dalam bentuk terenkripsi.
+   a) Tabel admin
+   Tabel ini menyimpan data administrator yang memiliki hak akses penuh terhadap sistem, termasuk kemampuan untuk mengelola data bangunan, lantai, ruangan, dan galeri. Atribut yang digunakan meliputi:
+
+   1. id_admin sebagai primary key (INT, AUTO_INCREMENT)
+   2. username untuk nama pengguna (VARCHAR 50, UNIQUE)
+   3. password untuk sandi yang disimpan dalam bentuk terenkripsi menggunakan bcrypt (VARCHAR 100)
+
    b) Tabel bangunan
    Tabel ini menyimpan data utama mengenai setiap bangunan yang ada di lingkungan kampus. Atribut penting meliputi:
-4) nama bangunan,
-5) interaksi yang menentukan jenis tampilan interaktif (misalnya 2D atau 2.5D),
-6) lantai sebagai jumlah lantai gedung,
-7) geometri yang menyimpan data spasial/geometrik dalam format teks (misalnya GeoJSON),
-8) serta thumbnail sebagai gambar representasi bangunan.
+
+   1. id_bangunan sebagai primary key (INT, AUTO_INCREMENT)
+   2. nama bangunan (VARCHAR 100)
+   3. interaksi yang menentukan jenis bangunan menggunakan ENUM dengan nilai 'Interaktif' atau 'Noninteraktif'
+   4. lantai sebagai jumlah lantai gedung (INT)
+   5. geometri yang menyimpan data geometrik dalam format GeoJSON tipe Polygon (TEXT)
+   6. thumbnail sebagai path file gambar representasi bangunan (VARCHAR 500)
+   7. kategori_kampus untuk menentukan lokasi kampus dengan nilai default 'Politeknik Negeri Pontianak' (VARCHAR 100). Nilai yang mungkin: Politeknik Negeri Pontianak, PSDKU Polnep Sanggau, PDD Polnep Kapuas Hulu, atau PSDKU Polnep Sukamara
+
    c) Tabel lantai_gambar
-   Menyimpan data gambar visual per lantai gedung dalam bentuk file (umumnya SVG) untuk ditampilkan saat pengguna memilih tampilan 2.5D. Gambar ini berkaitan langsung dengan entitas bangunan, dan memiliki atribut seperti:
-9) nama_file dan path_file sebagai informasi lokasi penyimpanan,
-10) serta created_at sebagai penanda waktu unggah.
-    d) Tabel ruangan
-    Merupakan entitas penting yang merepresentasikan ruangan dalam setiap bangunan. Tabel ini menyimpan informasi seperti:
-11) nama_ruangan dan nomor_lantai,
-12) id_bangunan sebagai foreign key,
-13) afiliasi nama_jurusan dan nama_prodi,
-14) serta atribut visual seperti posisi_x, posisi_y, dan pin_style untuk keperluan rendering di peta interaktif.
-    e) Tabel ruangan_gallery
-    Tabel ini digunakan untuk menyimpan dokumentasi berupa gambar atau foto dari masing-masing ruangan. Setiap entri memiliki:
-15) nama_file dan path_file,
-16) serta timestamp created_at untuk penanda waktu unggah,
-17) dan id_ruangan sebagai foreign key yang mengacu ke entitas ruangan.
+   Menyimpan data gambar denah per lantai gedung dalam bentuk file SVG untuk ditampilkan saat pengguna memilih mode 2D atau 2.5D. Gambar ini berkaitan langsung dengan entitas bangunan, dan memiliki atribut seperti:
 
-2. Relasi Antar entitas
-   Relasi antar tabel dirancang dengan memperhatikan integritas referensial melalui penggunaan foreign key. Setiap foreign key diberikan aturan cascade delete agar ketika entitas induk (seperti bangunan) dihapus, maka seluruh entitas yang bergantung padanya (seperti ruangan dan gambar lantai) juga akan terhapus secara otomatis. Pendekatan ini bertujuan untuk menjaga konsistensi dan integritas data serta mencegah adanya data yang tidak lagi memiliki referensi (orphan record).
+   1. id_lantai_gambar sebagai primary key (INT, AUTO_INCREMENT)
+   2. id_bangunan sebagai foreign key yang mengacu ke tabel bangunan (INT, NOT NULL)
+   3. nama_file untuk identifikasi file denah (VARCHAR 255), contoh: Lt1.svg, Lt2.svg
+   4. path_file sebagai path lengkap file SVG (VARCHAR 500)
+   5. created_at sebagai penanda waktu unggah (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+
+   d) Tabel ruangan
+   Merupakan entitas penting yang merepresentasikan ruangan dalam setiap bangunan. Tabel ini menyimpan informasi seperti:
+
+   1. id_ruangan sebagai primary key (INT, AUTO_INCREMENT)
+   2. nama_ruangan untuk identitas ruangan (VARCHAR 100, NOT NULL)
+   3. nomor_lantai untuk menentukan lantai tempat ruangan berada (INT, NOT NULL)
+   4. id_bangunan sebagai foreign key yang mengacu ke tabel bangunan (INT, NOT NULL)
+   5. nama_jurusan untuk afiliasi jurusan yang menempati ruangan (VARCHAR 100, opsional)
+   6. nama_prodi untuk afiliasi program studi (VARCHAR 100, opsional)
+   7. pin_style sebagai kategori style marker dengan nilai default 'default' (VARCHAR 50), contoh nilai: default, ruang_kelas, kantor, laboratorium
+   8. posisi_x sebagai koordinat horizontal (dalam persen 0-100) pin marker pada denah SVG (DECIMAL 10,2)
+   9. posisi_y sebagai koordinat vertikal (dalam persen 0-100) pin marker pada denah SVG (DECIMAL 10,2)
+
+   e) Tabel ruangan_gallery
+   Tabel ini digunakan untuk menyimpan dokumentasi berupa foto dari masing-masing ruangan. Setiap entri memiliki:
+
+   1. id_gallery sebagai primary key (INT, AUTO_INCREMENT)
+   2. id_ruangan sebagai foreign key yang mengacu ke entitas ruangan (INT, NOT NULL)
+   3. nama_file untuk identifikasi file foto (VARCHAR 255)
+   4. path_file sebagai path lengkap file gambar (VARCHAR 500)
+   5. created_at sebagai timestamp penanda waktu unggah (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+
+2. Relasi Antar Entitas
+   Relasi antar tabel dirancang dengan memperhatikan integritas referensial melalui penggunaan foreign key. Setiap foreign key diberikan aturan CASCADE DELETE agar ketika entitas induk dihapus, maka seluruh entitas yang bergantung padanya juga akan terhapus secara otomatis. Pendekatan ini bertujuan untuk menjaga konsistensi dan integritas data serta mencegah adanya data yang tidak lagi memiliki referensi (orphan record).
+
    Adapun relasi antar entitas dalam sistem ini adalah sebagai berikut:
-   a) Kolom id_bangunan pada tabel lantai_gambar memiliki relasi ke kolom id_bangunan pada tabel bangunan, dengan aturan penghapusan cascade.
-   b) Kolom id_bangunan pada tabel ruangan memiliki relasi ke kolom id_bangunan pada tabel bangunan, juga dengan aturan penghapusan cascade.
-   c) Kolom id_ruangan pada tabel ruangan_gallery memiliki relasi ke kolom id_ruangan pada tabel ruangan, dengan aturan penghapusan cascade.
-   Dengan skema ini, seluruh data yang memiliki keterkaitan secara logis akan tetap terjaga relasinya selama sistem dijalankan, dan akan dibersihkan secara otomatis ketika data induk dihapus.
+   a) Tabel bangunan ke lantai_gambar: Relasi One-to-Many  
+    Kolom id_bangunan pada tabel lantai_gambar memiliki relasi foreign key ke kolom id_bangunan pada tabel bangunan. Satu bangunan dapat memiliki banyak denah lantai. Aturan: ON DELETE CASCADE.
 
-3. Diagram Entitas Relasi (ERD)
+   b) Tabel bangunan ke ruangan: Relasi One-to-Many  
+    Kolom id_bangunan pada tabel ruangan memiliki relasi foreign key ke kolom id_bangunan pada tabel bangunan. Satu bangunan dapat memiliki banyak ruangan. Aturan: ON DELETE CASCADE.
+
+   c) Tabel ruangan ke ruangan_gallery: Relasi One-to-Many  
+    Kolom id_ruangan pada tabel ruangan_gallery memiliki relasi foreign key ke kolom id_ruangan pada tabel ruangan. Satu ruangan dapat memiliki banyak foto galeri. Aturan: ON DELETE CASCADE.
+
+   d) Tabel admin: Standalone  
+    Tabel admin tidak memiliki relasi foreign key dengan tabel lain. Tabel ini berfungsi secara independen untuk keperluan autentikasi dan otorisasi administrator sistem.
+
+   Dengan skema ini, seluruh data yang memiliki keterkaitan secara logis akan tetap terjaga relasinya selama sistem dijalankan, dan akan dibersihkan secara otomatis ketika data induk dihapus. Struktur relasi membentuk hierarki sebagai berikut: tabel bangunan memiliki relasi ke tabel lantai_gambar, serta tabel bangunan memiliki relasi ke tabel ruangan yang kemudian memiliki relasi ke tabel ruangan_gallery.
+
+3. Diagram Entitas Relasi (ERD)  
    Untuk memberikan gambaran visual terhadap struktur basis data dan hubungan antar entitas, berikut ditampilkan diagram Entity Relationship Diagram (ERD) yang merepresentasikan desain logis dari sistem PointMap.
+
+4. Indeks Basis Data  
+   Untuk meningkatkan performa query, terutama filtering berdasarkan kampus, ditambahkan indeks pada kolom kategori_kampus di tabel bangunan dengan nama idx_bangunan_kampus. Indeks ini mempercepat pencarian dan filtering bangunan berdasarkan kategori kampus tertentu.
 
 3.4 Pengkodean
 Tahap pengkodean merupakan proses penerjemahan hasil perancangan sistem ke dalam bentuk kode program yang dapat dijalankan oleh komputer. Seluruh rancangan modul, alur kerja, serta antarmuka yang telah disusun pada tahap desain diimplementasikan menggunakan bahasa pemrograman dan teknologi yang telah ditentukan pada tahap sebelumnya.
@@ -677,9 +709,7 @@ Gambar 3.20 Struktur File Backend
 A. /config/
 Folder konfigurasi yang berisi file-file konfigurasi sistem:
 
-1. cloudinary.js
-   Konfigurasi Cloudinary untuk penyimpanan dan pengelolaan gambar dengan optimasi otomatis
-2. db.js
+1. db.js
    Konfigurasi database MySQL dengan Sequelize ORM, connection pooling, dan error handling
 
 Gambar 3.21 Struktur File Backend /config/
@@ -690,7 +720,7 @@ Folder yang berisi logika bisnis aplikasi:
 1. auth.js
    Controller untuk autentikasi admin dengan JWT, password hashing, dan session management.
 2. bangunan.js
-   Controller untuk manajemen data gedung dengan CRUD operations, validasi file upload, dan integrasi Cloudinary untuk thumbnail management.
+   Controller untuk manajemen data gedung dengan CRUD operations dan validasi file upload untuk thumbnail management.
 3. lantaiGambar.js
    Controller untuk manajemen gambar lantai dengan upload dan kompresi otomatis.
 4. maintenance.js
@@ -743,30 +773,15 @@ E. /routes/
    Rute manajemen galeri foto ruangan.
 
 Gambar 3.25 Struktur File Backend /routes/
-F. /scripts/
 
-1. migrateToCloudinary.js
-   Script migrasi gambar dari local storage ke Cloudinary.
-2. resetAutoIncrement.js
-   Script reset auto increment database untuk development.
-
-Gambar 3.26 Struktur File Backend /scripts/
-G. /tools/
-
-1. hash_password.js
-   Tool untuk hashing password admin dengan bcrypt.
-
-Gambar 3.27 Struktur File Backend /tools/
-H. File utama
+F. File utama
 
 1. server.js
    Entry point aplikasi dengan konfigurasi Express dan middleware.
 2. package.json
    Dependencies dan script npm
-3. debug-db.js
-   Script debugging untuk koneksi database
 
-Gambar 3.28 Struktur File Backend File Utama
+Gambar 3.26 Struktur File Backend File Utama
 3.4.2 Struktur File Frontend
 Frontend aplikasi PointMap dibangun dengan framework Next.js 14 dan TypeScript untuk mendukung pengembangan yang terstruktur. Styling antarmuka menggunakan Tailwind CSS, sedangkan fitur peta interaktif diimplementasikan dengan Leaflet.
 A. /src/app/
@@ -787,39 +802,62 @@ A. /src/app/
 7. dashboard/page.tsx
    Dashboard admin dengan visualisasi data bangunan dan ruangan, serta integrasi peta interaktif.
 
-Gambar 3.29 Struktur File Frontend
+Gambar 3.27 Struktur File Frontend
 
 B. /src/components/
-a) LeafletMap.tsx
-Komponen utama peta interaktif dengan Leaflet yang mengintegrasikan semua fitur peta, routing, dan manajemen data bangunan/ruangan.
-b) ParticlesCustom.tsx
-Komponen animasi particles untuk latar belakang dengan efek polkadot (mode terang) dan bintang (mode gelap).
-c) map/LeafletMap/BuildingDetailModal.tsx
-Modal detail gedung dengan desain responsif, fitur edit thumbnail, lantai, dan navigasi rute.
-d) map/LeafletMap/EditLantaiImageUploader.tsx
-Uploader gambar lantai dengan fitur drag-and-drop, manajemen lantai, dan integrasi dengan data ruangan.
-e) map/LeafletMap/EditRuanganForm.tsx
-Formulir edit ruangan dengan dynamic fields, pin positioning, dan validasi input.
-f) map/LeafletMap/MapControlsPanel.tsx
-Panel kontrol peta dengan pengaturan layer, basemap switching, search functionality, dan legend.
-g) map/LeafletMap/Navigation.tsx
-Komponen navigasi dengan kontrol rute step-by-step, estimasi waktu dan jarak, serta mode transportasi.
 
-Gambar 3.30 Struktur File Frontend /src/components/
+a) LeafletMap.tsx
+Komponen utama peta interaktif dengan Leaflet yang mengintegrasikan semua fitur peta dan manajemen data bangunan/ruangan
+b) ParticlesCustom.tsx
+Komponen animasi particles untuk latar belakang dengan efek polkadot (mode terang) dan bintang (mode gelap)
+c) CampusSelector.tsx  
+ Komponen dropdown selector untuk memilih kampus aktif dengan styling responsif
+d) DashboardMap.tsx
+Komponen peta khusus untuk tampilan dashboard admin dengan fitur edit dan management
+e) MapEditor.tsx
+Komponen editor peta untuk menambah/edit geometri bangunan dengan drawing tools dan polygon editor
+f) Toast.tsx dan ToastProvider.tsx
+Komponen notifikasi toast untuk menampilkan feedback ke user dengan animasi dan auto-dismiss
+g) dashboard/BangunanForm.tsx
+Form manajemen gedung dengan upload thumbnail dan geometri drawing
+h) dashboard/LantaiForm.tsx
+Form manajemen lantai dengan SVG upload dan preview
+i) dashboard/RuanganForm.tsx
+Form manajemen ruangan dengan pin positioning di denah lantai
+j) dashboard/GaleriForm.tsx
+Form manajemen galeri foto ruangan dengan image upload
+k) dashboard/Modal.tsx
+Komponen modal reusable untuk dashboard dengan backdrop dan close handler
+l) dashboard/Sidebar.tsx
+Sidebar navigasi dashboard dengan menu dan logout
+m) dashboard/SidebarCampusSwitcher.tsx
+Komponen switcher kampus di sidebar dashboard
+n) map/LeafletMap/BuildingDetailModal.tsx
+Modal detail gedung dengan desain responsif dan fitur edit
+o) map/LeafletMap/DrawingSidebar.tsx
+Sidebar untuk drawing tools dan layer management di MapEditor
+p) map/LeafletMap/EditLantaiImageUploader.tsx
+Uploader gambar lantai dengan manajemen file SVG
+q) map/LeafletMap/EditRuanganForm.tsx
+Form edit ruangan dengan dynamic fields dan validasi
+r) map/LeafletMap/MapControlsPanel.tsx
+Panel kontrol peta dengan layer switching, search, dan legend
+
+Gambar 3.28 Struktur File Frontend /src/components/
 C. /src/hooks/
 
 1. auth/useAuth.ts
-   Hook untuk mengelola status autentikasi dan manajemen token dengan fitur auto-logout, role-based access control, dan state management untuk login/logout.
-2. gps/useGps.ts
-   Hook untuk melacak posisi GPS menggunakan Web Geolocation API dengan fitur live tracking, device orientation (heading), campus boundary detection, dan troubleshooting GPS.
+   Hook untuk mengelola status autentikasi dan manajemen token dengan fitur auto-logout, role-based access control, dan state management untuk login/logout
+2. useCampus.ts
+   Hook untuk mengelola state kampus yang dipilih dengan context API, mendukung multi-campus filtering dan state persistence
 3. map/useFeatureSearch.ts
-   Hook untuk pencarian fitur peta dengan autocomplete yang mendukung pencarian bangunan dan ruangan dengan display type dan informasi tambahan.
-4. routing/useRouteDrawing.ts
-   Hook untuk menggambar rute dengan alat interaktif menggunakan Leaflet polyline, dengan fungsi addRouteLine dan removeRouteLine.
-5. routing/useRouting.ts
-   Hook utama untuk algoritma routing dengan state management untuk route steps, active step index, estimasi waktu dan jarak, serta mode transportasi (jalan kaki/kendaraan).
+   Hook untuk pencarian fitur peta dengan autocomplete yang mendukung pencarian bangunan dan ruangan dengan display type dan informasi tambahan
+4. map/useMapRefs.ts
+   Hook untuk mengelola referensi Leaflet map instance, markers, dan layers dengan cleanup otomatis
+5. map/useMapState.ts
+   Hook untuk mengelola state peta termasuk posisi, zoom level, selected features, dan mode tampilan (2D/2.5D)
 
-Gambar 3.31 Struktur File Frontend /src/hooks/
+Gambar 3.29 Struktur File Frontend /src/hooks/
 D. /src/lib/
 
 1. auth.ts
@@ -835,7 +873,7 @@ D. /src/lib/
 6. routeSteps.ts
    Utility untuk navigasi langkah demi langkah dengan fitur perhitungan sudut belok, bearing calculation, dan instruksi navigasi yang detail.
 
-Gambar 3.32 Struktur File Frontend /src/lib/
+Gambar 3.30 Struktur File Frontend /src/lib/
 E. /src/services/
 
 1. bangunan.ts
@@ -845,13 +883,13 @@ E. /src/services/
 3. ruangan.ts
    Service untuk operasi ruangan dengan CRUD operations (createRuangan, updateRuangan, getRuanganByBangunan, deleteRuangan) dan integrasi dengan data bangunan.
 
-Gambar 3.33 Struktur File Frontend /src/services/
+Gambar 3.31 Struktur File Frontend /src/services/
 F. /src/types/
 
 1. map.ts
    Tipe data (types) untuk peta, routing, dan fitur geografis, termasuk interface FeatureProperties untuk properti umum fitur peta (bangunan/ruangan), FeatureFixed yang extends GeoJSON. Feature, dan alias FeatureType yang digunakan di komponen.
 
-Gambar 3.34 Struktur File Frontend /src/types/
+Gambar 3.32 Struktur File Frontend /src/types/
 G. /public/
 
 1. geojson/
@@ -863,7 +901,7 @@ G. /public/
 4. building-details/
    Halaman detail gedung yang berdiri sendiri dengan file HTML, CSS, dan JavaScript terpisah untuk fungsionalitas yang independen.
 
-Gambar 3.35 Struktur File Frontend /public/
+Gambar 3.33 Struktur File Frontend /public/
 H. File Konfigurasi
 
 1. next.config.ts
@@ -875,7 +913,7 @@ H. File Konfigurasi
 4. package.json
    Daftar dependencies dan skrip npm, termasuk library untuk peta (Leaflet, ESRI), UI components (FontAwesome, React Icons), routing (Dijkstra), dan development tools.
 
-Gambar 3.36 Struktur File Konfigurasi Frontend
+Gambar 3.34 Struktur File Konfigurasi Frontend
 
 BAB IV
 HASIL DAN PEMBAHASAN
@@ -1140,7 +1178,5 @@ DAFTAR PUSTAKA
 [14] “ArcGIS Pro Esri Indonesia.” http://esriindonesia.co.id/id/arcgis-pro
 
 LAMPIRAN
-
-
 
 1. Hasil Plagiarisme

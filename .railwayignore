@@ -1,9 +1,0 @@
-frontend/
-frontend-structure.md
-GPS_LIVE_TRACKING_FEATURE.md
-extract_all_bangunan.js
-pointMap.sql
-backend-structure.md
-.git/
-node_modules/
-*.log
