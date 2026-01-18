@@ -28,10 +28,17 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import { geojsonBangunanUrl } from "../lib/map/constants";
-import { kategoriStyle, defaultStyle } from "../lib/map/styles";
 import { BASEMAPS } from "../lib/map/basemaps";
 import MapControlsPanel from "./map/LeafletMap/MapControlsPanel";
 import DrawingSidebar from "./map/LeafletMap/DrawingSidebar";
+
+// Building style (semua geometry adalah bangunan)
+const buildingStyle: L.PathOptions = {
+  color: "#1e40af",
+  weight: 2,
+  fillColor: "#3b82f6",
+  fillOpacity: 0.4,
+};
 
 import { useFeatureSearch } from "@/hooks/map/useFeatureSearch";
 import BuildingDetailModal from "./map/LeafletMap/BuildingDetailModal";
@@ -80,7 +87,7 @@ export interface LeafletMapRef {
   highlightFeature: (
     featureType: string,
     featureId: number,
-    featureName: string
+    featureName: string,
   ) => void;
 
   toggleBangunanLayer: (show: boolean) => void;
@@ -103,7 +110,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       initialFeature,
       campusFilter,
     },
-    ref
+    ref,
   ) => {
     // ==================== INITIALIZE CUSTOM HOOKS ====================
     // Map State Management (75 states organized in 11 categories)
@@ -164,7 +171,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       showNotification(
         "error",
         "Sesi berakhir",
-        "Token kedaluwarsa. Anda telah keluar otomatis."
+        "Token kedaluwarsa. Anda telah keluar otomatis.",
       );
     });
     const [isMobile, setIsMobile] = useState(false);
@@ -208,11 +215,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Auto hide after 4 seconds
         setTimeout(() => {
           setNotification((prev) =>
-            prev ? { ...prev, visible: false } : null
+            prev ? { ...prev, visible: false } : null,
           );
         }, 4000);
       },
-      []
+      [],
     );
 
     const hideNotification = useCallback(() => {
@@ -228,7 +235,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           onConfirm,
         });
       },
-      []
+      [],
     );
 
     const hideConfirmation = useCallback(() => {
@@ -259,7 +266,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (selectedRuangan) {
         setTimeout(() => {
           const iframe = document.querySelector(
-            'iframe[title="Building Detail"]'
+            'iframe[title="Building Detail"]',
           ) as HTMLIFrameElement | null;
           if (iframe && iframe.contentWindow) {
             iframe.contentWindow.postMessage(
@@ -269,7 +276,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 ruanganNama: selectedRuangan.properties?.nama,
                 ruanganLantai: selectedRuangan.properties?.lantai,
               },
-              "*"
+              "*",
             );
           }
         }, 500); // Tunggu modal terbuka
@@ -285,7 +292,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "GPS Tidak Tersedia",
-          "Browser Anda tidak mendukung geolocation."
+          "Browser Anda tidak mendukung geolocation.",
         );
         return;
       }
@@ -340,7 +347,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "success",
             "Lokasi Ditemukan",
-            "Peta telah dipusatkan pada lokasi Anda."
+            "Peta telah dipusatkan pada lokasi Anda.",
           );
         },
         (error) => {
@@ -366,7 +373,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 0,
-        }
+        },
       );
     }, [showNotification]);
 
@@ -606,7 +613,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         const jumlahLantai =
           Number(features.selectedFeature.properties?.lantai) || 0;
         const iframe = document.querySelector(
-          'iframe[title="Building Detail"]'
+          'iframe[title="Building Detail"]',
         ) as HTMLIFrameElement | null;
         if (iframe && namaGedung && jumlahLantai > 0) {
           let count = 0;
@@ -618,7 +625,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   namaGedung,
                   jumlahLantai,
                 },
-                "*"
+                "*",
               );
 
               count++;
@@ -841,13 +848,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       // Layer non-bangunan (ditambahkan lebih dulu)
       const nonBangunanLayer = L.geoJSON(undefined, {
-        style: (feature) => {
-          const kategori =
-            feature &&
-            feature.properties &&
-            (feature.properties as FeatureProperties).kategori;
-          return kategoriStyle[kategori as string] || defaultStyle;
-        },
+        style: () => buildingStyle,
         onEachFeature: (feature, layer) => {
           // Enable PM for existing Polnep geojson shapes but keep it disabled by default
           if ((layer as any).pm) {
@@ -880,7 +881,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
                     }
-                  }
+                  },
                 );
               }
 
@@ -890,7 +891,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
                     }
-                  }
+                  },
                 );
               }
 
@@ -913,7 +914,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                   console.log(
                     "✅ Edit enabled for Polnep geojson layer:",
-                    feature.properties?.id || "unknown"
+                    feature.properties?.id || "unknown",
                   );
                 } else if (mapRefs.drawingModeRef.current === "scale") {
                   (layer as any).pm.enable({
@@ -921,7 +922,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   });
                   console.log(
                     "✅ Scale enabled for Polnep geojson layer:",
-                    feature.properties?.id || "unknown"
+                    feature.properties?.id || "unknown",
                   );
                 } else if (mapRefs.drawingModeRef.current === "drag") {
                   // First, disable drag on all other layers
@@ -948,7 +949,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                   console.log(
                     "✅ Drag enabled for Polnep geojson layer:",
-                    feature.properties?.id || "unknown"
+                    feature.properties?.id || "unknown",
                   );
 
                   // Store the dragged shape and show confirmation
@@ -956,7 +957,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   drawing.setOriginalShapePosition(
                     (layer as any).getLatLngs
                       ? (layer as any).getLatLngs()
-                      : null
+                      : null,
                   );
                   drawing.setShowDragConfirmation(true);
                 } else if (mapRefs.drawingModeRef.current === "remove") {
@@ -967,20 +968,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                   console.log(
                     "✅ Remove enabled for Polnep geojson layer:",
-                    feature.properties?.id || "unknown"
+                    feature.properties?.id || "unknown",
                   );
                 }
               } catch (error) {
                 console.log(
                   "❌ Error enabling PM for Polnep geojson layer:",
-                  error
+                  error,
                 );
               }
             });
 
             console.log(
               "✅ PM enabled for Polnep geojson layer:",
-              feature.properties?.id || "unknown"
+              feature.properties?.id || "unknown",
             );
           }
 
@@ -1005,9 +1006,9 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       nonBangunanLayer.addTo(map);
       mapRefs.nonBangunanLayerRef.current = nonBangunanLayer;
 
-      // Layer bangunan (di atas non-bangunan)
+      // Layer bangunan (di atas  non-bangunan)
       const bangunanLayer = L.geoJSON(undefined, {
-        style: () => kategoriStyle["Bangunan"] || defaultStyle,
+        style: () => buildingStyle,
         onEachFeature: (feature, layer) => {
           // Enable PM for existing building shapes but keep it disabled by default
           if ((layer as any).pm) {
@@ -1040,7 +1041,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
                     }
-                  }
+                  },
                 );
               }
 
@@ -1050,7 +1051,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (otherLayer.pm && otherLayer !== layer) {
                       otherLayer.pm.disable();
                     }
-                  }
+                  },
                 );
               }
 
@@ -1073,7 +1074,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                   console.log(
                     "✅ Edit enabled for building layer:",
-                    feature.properties?.nama || feature.properties?.id
+                    feature.properties?.nama || feature.properties?.id,
                   );
                 } else if (mapRefs.drawingModeRef.current === "scale") {
                   (layer as any).pm.enable({
@@ -1081,7 +1082,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   });
                   console.log(
                     "✅ Scale enabled for building layer:",
-                    feature.properties?.nama || feature.properties?.id
+                    feature.properties?.nama || feature.properties?.id,
                   );
                 } else if (mapRefs.drawingModeRef.current === "drag") {
                   // First, disable drag on all other layers
@@ -1108,7 +1109,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                   console.log(
                     "✅ Drag enabled for building layer:",
-                    feature.properties?.nama || feature.properties?.id
+                    feature.properties?.nama || feature.properties?.id,
                   );
 
                   // Store the dragged shape and show confirmation
@@ -1116,7 +1117,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   drawing.setOriginalShapePosition(
                     (layer as any).getLatLngs
                       ? (layer as any).getLatLngs()
-                      : null
+                      : null,
                   );
                   drawing.setShowDragConfirmation(true);
                 } else if (mapRefs.drawingModeRef.current === "remove") {
@@ -1127,7 +1128,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                   console.log(
                     "✅ Remove enabled for building layer:",
-                    feature.properties?.nama || feature.properties?.id
+                    feature.properties?.nama || feature.properties?.id,
                   );
                 }
               } catch (error) {
@@ -1137,7 +1138,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             console.log(
               "✅ PM enabled for building layer:",
-              feature.properties?.nama || feature.properties?.id
+              feature.properties?.nama || feature.properties?.id,
             );
           }
 
@@ -1159,7 +1160,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               if (mapRefs.drawingModeRef.current && drawing.activeShape) {
                 console.log(
                   "🚫 Building click blocked - drawing mode active with active shape:",
-                  mapRefs.drawingModeRef.current
+                  mapRefs.drawingModeRef.current,
                 );
                 return;
               }
@@ -1185,7 +1186,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Clear highlight dari bangunan sebelumnya jika ada
               if (features.selectedFeature?.properties?.id) {
                 clearBangunanHighlightById(
-                  features.selectedFeature.properties.id
+                  features.selectedFeature.properties.id,
                 );
               }
               if (highlight.searchHighlightedId) {
@@ -1230,7 +1231,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   buildingId: (feature as FeatureFixed).properties?.id,
                   buildingName: (feature as FeatureFixed).properties?.nama,
                 },
-                "*"
+                "*",
               );
             });
             // Ubah cursor pointer untuk interaktif
@@ -1369,7 +1370,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (otherLayer.pm && otherLayer !== newLayer) {
                       otherLayer.pm.disable();
                     }
-                  }
+                  },
                 );
               }
 
@@ -1379,7 +1380,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (otherLayer.pm && otherLayer !== newLayer) {
                       otherLayer.pm.disable();
                     }
-                  }
+                  },
                 );
               }
 
@@ -1478,7 +1479,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   // Store the dragged shape and show confirmation
                   drawing.setDraggedShape(newLayer);
                   drawing.setOriginalShapePosition(
-                    newLayer.getLatLngs ? newLayer.getLatLngs() : null
+                    newLayer.getLatLngs ? newLayer.getLatLngs() : null,
                   );
                   drawing.setShowDragConfirmation(true);
                 } else if (mapRefs.drawingModeRef.current === "remove") {
@@ -1655,7 +1656,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "📝 Edit mode - clickedLayer:",
-              clickedLayer?.constructor?.name
+              clickedLayer?.constructor?.name,
             );
 
             // Check if this layer has our selective editing click handler
@@ -1668,12 +1669,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   handler.fn &&
                   handler.fn
                     .toString()
-                    .includes("mapRefs.drawingModeRef.current")
+                    .includes("mapRefs.drawingModeRef.current"),
               );
 
             if (hasSelectiveEditing) {
               console.log(
-                "✅ Layer has selective editing - letting selective editing handle it"
+                "✅ Layer has selective editing - letting selective editing handle it",
               );
               return; // Let the selective editing click handler take over
             }
@@ -1695,14 +1696,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             } else {
               console.log(
-                "⚠️ Layer doesn't have valid pm.enable method, trying fallback..."
+                "⚠️ Layer doesn't have valid pm.enable method, trying fallback...",
               );
               // Fallback: find layer by click point
               const clickPoint = map.containerPointToLatLng(e.containerPoint);
               console.log(
                 "📍 Click point:",
                 clickPoint.lat.toFixed(4),
-                clickPoint.lng.toFixed(4)
+                clickPoint.lng.toFixed(4),
               );
 
               // Look for individual shapes, not layer groups
@@ -1711,7 +1712,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 if (layer && (layer as any)._layers) {
                   console.log(
                     "🔍 Skipping layer group:",
-                    layer.constructor.name
+                    layer.constructor.name,
                   );
                   return;
                 }
@@ -1729,12 +1730,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (bounds.contains(clickPoint)) {
                       console.log(
                         "🎯 Found individual shape at click point:",
-                        layer.constructor.name
+                        layer.constructor.name,
                       );
                       console.log("🔍 Shape PM object:", (layer as any).pm);
                       console.log(
                         "🔍 Shape PM enable method:",
-                        typeof (layer as any).pm.enable
+                        typeof (layer as any).pm.enable,
                       );
 
                       console.log("🔍 Trying to enable edit mode...");
@@ -1750,12 +1751,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             otherLayer.pm.disable();
                             console.log(
                               "🔒 Disabled other layer:",
-                              otherLayer.constructor.name
+                              otherLayer.constructor.name,
                             );
                           } catch (error) {
                             console.log(
                               "⚠️ Could not disable other layer:",
-                              error
+                              error,
                             );
                           }
                         }
@@ -1764,26 +1765,26 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       // Check if this is a real Leaflet-Geoman layer
                       const pmObject = (layer as any).pm;
                       const availableMethods = Object.getOwnPropertyNames(
-                        pmObject
+                        pmObject,
                       ).filter((name) => typeof pmObject[name] === "function");
 
                       console.log("🔍 Available PM methods:", availableMethods);
                       console.log(
                         "🔍 PM object type:",
-                        pmObject.constructor.name
+                        pmObject.constructor.name,
                       );
                       console.log("🔍 Layer type:", layer.constructor.name);
                       console.log(
                         "🔍 Layer instanceof L.Path:",
-                        layer instanceof (L as any).Path
+                        layer instanceof (L as any).Path,
                       );
                       console.log(
                         "🔍 Layer instanceof L.Polygon:",
-                        layer instanceof (L as any).Polygon
+                        layer instanceof (L as any).Polygon,
                       );
                       console.log(
                         "🔍 Layer instanceof L.Polyline:",
-                        layer instanceof (L as any).Polyline
+                        layer instanceof (L as any).Polyline,
                       );
 
                       // Check if this is a real Leaflet shape
@@ -1808,39 +1809,39 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                         if (isFromGeoJSON) {
                           console.log(
-                            "✅ This is a GeoJSON layer, allowing selective editing"
+                            "✅ This is a GeoJSON layer, allowing selective editing",
                           );
                           // Don't return - allow GeoJSON layers to be edited through selective editing
                         }
 
                         console.log(
-                          "✅ This is a real Leaflet shape, trying to enable..."
+                          "✅ This is a real Leaflet shape, trying to enable...",
                         );
 
                         // Log the specific shape type for better debugging
                         if (layer instanceof (L as any).Polyline) {
                           console.log(
-                            "📏 This is a POLYLINE - will restrict vertex addition"
+                            "📏 This is a POLYLINE - will restrict vertex addition",
                           );
                         } else if (layer instanceof (L as any).Polygon) {
                           console.log(
-                            "🔷 This is a POLYGON - standard editing allowed"
+                            "🔷 This is a POLYGON - standard editing allowed",
                           );
                         } else if (layer instanceof (L as any).Circle) {
                           console.log(
-                            "⭕ This is a CIRCLE - standard editing allowed"
+                            "⭕ This is a CIRCLE - standard editing allowed",
                           );
                         } else if (layer instanceof (L as any).CircleMarker) {
                           console.log(
-                            "🔵 This is a CIRCLE MARKER - standard editing allowed"
+                            "🔵 This is a CIRCLE MARKER - standard editing allowed",
                           );
                         } else if (layer instanceof (L as any).Rectangle) {
                           console.log(
-                            "⬜ This is a RECTANGLE - standard editing allowed"
+                            "⬜ This is a RECTANGLE - standard editing allowed",
                           );
                         } else {
                           console.log(
-                            "📐 This is a generic PATH - standard editing allowed"
+                            "📐 This is a generic PATH - standard editing allowed",
                           );
                         }
 
@@ -1858,13 +1859,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               allowMiddleMarkers: false, // CRITICAL: Prevent middle markers for vertex addition
                             });
                             console.log(
-                              "✅ Method 1: pm.enable with edit mode (no rotate/scale, no add/remove vertices)"
+                              "✅ Method 1: pm.enable with edit mode (no rotate/scale, no add/remove vertices)",
                             );
 
                             // For polyline, use simple approach with allowMiddleMarkers: false
                             if (layer instanceof (L as any).Polyline) {
                               console.log(
-                                "🔒 Adding simple polyline vertex protection..."
+                                "🔒 Adding simple polyline vertex protection...",
                               );
 
                               // Store original latlngs to prevent vertex addition
@@ -1874,7 +1875,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 originalLatLngs.length;
 
                               console.log(
-                                `💾 Stored original polyline with ${originalLatLngs.length} vertices`
+                                `💾 Stored original polyline with ${originalLatLngs.length} vertices`,
                               );
 
                               // Simple interval to monitor vertex count
@@ -1889,18 +1890,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                       layer._originalLatLngs.length
                                     ) {
                                       console.log(
-                                        `🚫 VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`
+                                        `🚫 VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`,
                                       );
 
                                       // Restore original vertices
                                       layer.setLatLngs(layer._originalLatLngs);
                                       console.log(
-                                        "🔄 Polyline restored to original state"
+                                        "🔄 Polyline restored to original state",
                                       );
                                     }
                                   }
                                 },
-                                100
+                                100,
                               ); // Check every 100ms
 
                               // Store the interval ID for cleanup
@@ -1911,10 +1912,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               layer.on("remove", () => {
                                 if (layer._vertexProtectionInterval) {
                                   clearInterval(
-                                    layer._vertexProtectionInterval
+                                    layer._vertexProtectionInterval,
                                   );
                                   console.log(
-                                    "🧹 Vertex protection interval cleaned up for polyline"
+                                    "🧹 Vertex protection interval cleaned up for polyline",
                                   );
                                 }
                               });
@@ -1922,16 +1923,16 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               layer.on("pm:disable", () => {
                                 if (layer._vertexProtectionInterval) {
                                   clearInterval(
-                                    layer._vertexProtectionInterval
+                                    layer._vertexProtectionInterval,
                                   );
                                   console.log(
-                                    "🧹 Vertex protection interval cleaned up when polyline disabled"
+                                    "🧹 Vertex protection interval cleaned up when polyline disabled",
                                   );
                                 }
                               });
 
                               console.log(
-                                "🔒 Simple polyline vertex protection activated!"
+                                "🔒 Simple polyline vertex protection activated!",
                               );
                             }
                           }
@@ -1947,7 +1948,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
                               });
                               console.log(
-                                "✅ Method 2: pm.enableEdit for polyline (no add/remove vertices)"
+                                "✅ Method 2: pm.enableEdit for polyline (no add/remove vertices)",
                               );
 
                               // Apply additional protection for polyline
@@ -1955,7 +1956,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 const originalLatLngs = layer.getLatLngs();
                                 layer._originalLatLngs = originalLatLngs;
                                 console.log(
-                                  `💾 Method 2: Stored original polyline with ${originalLatLngs.length} vertices`
+                                  `💾 Method 2: Stored original polyline with ${originalLatLngs.length} vertices`,
                                 );
 
                                 const vertexProtectionInterval = setInterval(
@@ -1967,18 +1968,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                         layer._originalLatLngs.length
                                       ) {
                                         console.log(
-                                          `🚫 Method 2: VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`
+                                          `🚫 Method 2: VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`,
                                         );
                                         layer.setLatLngs(
-                                          layer._originalLatLngs
+                                          layer._originalLatLngs,
                                         );
                                         console.log(
-                                          "🔄 Method 2: Polyline restored to original state"
+                                          "🔄 Method 2: Polyline restored to original state",
                                         );
                                       }
                                     }
                                   },
-                                  50
+                                  50,
                                 );
 
                                 layer._vertexProtectionInterval =
@@ -1987,7 +1988,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             } else {
                               pmObject.enableEdit();
                               console.log(
-                                "✅ Method 2: pm.enableEdit for other shapes"
+                                "✅ Method 2: pm.enableEdit for other shapes",
                               );
                             }
                           }
@@ -2021,7 +2022,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
                               });
                               console.log(
-                                "✅ Method 6: pm.enable('edit') for polyline (no add/remove vertices)"
+                                "✅ Method 6: pm.enable('edit') for polyline (no add/remove vertices)",
                               );
 
                               // Apply additional protection for polyline
@@ -2029,7 +2030,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 const originalLatLngs = layer.getLatLngs();
                                 layer._originalLatLngs = originalLatLngs;
                                 console.log(
-                                  `💾 Method 6: Stored original polyline with ${originalLatLngs.length} vertices`
+                                  `💾 Method 6: Stored original polyline with ${originalLatLngs.length} vertices`,
                                 );
 
                                 const vertexProtectionInterval = setInterval(
@@ -2041,18 +2042,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                         layer._originalLatLngs.length
                                       ) {
                                         console.log(
-                                          `🚫 Method 6: VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`
+                                          `🚫 Method 6: VERTEX ADDITION DETECTED! Current: ${currentLatLngs.length}, Original: ${layer._originalLatLngs.length}`,
                                         );
                                         layer.setLatLngs(
-                                          layer._originalLatLngs
+                                          layer._originalLatLngs,
                                         );
                                         console.log(
-                                          "🔄 Method 6: Polyline restored to original state"
+                                          "🔄 Method 6: Polyline restored to original state",
                                         );
                                       }
                                     }
                                   },
-                                  50
+                                  50,
                                 );
 
                                 layer._vertexProtectionInterval =
@@ -2063,7 +2064,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                                 allowMiddleMarkers: false, // CRITICAL: Prevent middle markers
                               });
                               console.log(
-                                "✅ Method 6: pm.enable('edit') for other shapes"
+                                "✅ Method 6: pm.enable('edit') for other shapes",
                               );
                             }
                           }
@@ -2074,42 +2075,42 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         // Check if any method worked
                         setTimeout(() => {
                           console.log(
-                            "🔍 Checking if mode was actually enabled..."
+                            "🔍 Checking if mode was actually enabled...",
                           );
                           console.log(
                             "Layer PM enabled:",
                             pmObject.enabled
                               ? pmObject.enabled()
-                              : "No enabled method"
+                              : "No enabled method",
                           );
                           console.log(
                             "Layer PM editing:",
                             pmObject.editing
                               ? pmObject.editing()
-                              : "No editing method"
+                              : "No editing method",
                           );
                           console.log(
                             "Layer PM scaling:",
                             pmObject.scaling
                               ? pmObject.scaling()
-                              : "No scaling method"
+                              : "No scaling method",
                           );
                           console.log(
                             "Layer PM dragging:",
                             pmObject.dragging
                               ? pmObject.dragging()
-                              : "No dragging method"
+                              : "No dragging method",
                           );
                           console.log(
                             "Layer PM rotating:",
                             pmObject.rotating
                               ? pmObject.rotating()
-                              : "No rotating method"
+                              : "No rotating method",
                           );
                         }, 100);
                       } else {
                         console.log(
-                          "❌ This is NOT a real Leaflet shape, cannot enable editing"
+                          "❌ This is NOT a real Leaflet shape, cannot enable editing",
                         );
                       }
 
@@ -2119,24 +2120,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       // Verify if mode was actually enabled
                       setTimeout(() => {
                         console.log(
-                          "🔍 Checking if mode was actually enabled..."
+                          "🔍 Checking if mode was actually enabled...",
                         );
                         console.log(
                           "Layer PM enabled:",
-                          (layer as any).pm.enabled()
+                          (layer as any).pm.enabled(),
                         );
                         // Check if vertices are visible
                         console.log(
                           "🔍 Layer element:",
                           layer.getElement
                             ? layer.getElement()
-                            : "No getElement method"
+                            : "No getElement method",
                         );
                         console.log(
                           "🔍 Layer bounds:",
                           layer.getBounds
                             ? layer.getBounds()
-                            : "No getBounds method"
+                            : "No getBounds method",
                         );
                       }, 100);
                     }
@@ -2150,19 +2151,19 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "🔄 Scale mode - clickedLayer:",
-              clickedLayer?.constructor?.name
+              clickedLayer?.constructor?.name,
             );
             console.log(
               "🔍 Clicked layer type:",
-              clickedLayer?.constructor?.name
+              clickedLayer?.constructor?.name,
             );
             console.log(
               "🔍 Has getBounds method:",
-              typeof clickedLayer?.getBounds === "function"
+              typeof clickedLayer?.getBounds === "function",
             );
             console.log(
               "🔍 Has getLatLngs method:",
-              typeof clickedLayer?.getLatLngs === "function"
+              typeof clickedLayer?.getLatLngs === "function",
             );
 
             // Check if this layer has our selective editing click handler
@@ -2174,12 +2175,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   handler.fn &&
                   handler.fn
                     .toString()
-                    .includes("mapRefs.drawingModeRef.current")
+                    .includes("mapRefs.drawingModeRef.current"),
               );
 
             if (hasSelectiveEditing) {
               console.log(
-                "✅ Layer has selective editing - letting selective editing handle it"
+                "✅ Layer has selective editing - letting selective editing handle it",
               );
               return; // Let the selective editing click handler take over
             }
@@ -2197,7 +2198,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             } else {
               console.log(
-                "⚠️ Layer doesn't have valid pm.enable method, trying fallback..."
+                "⚠️ Layer doesn't have valid pm.enable method, trying fallback...",
               );
               // Fallback: find layer by click point
               const clickPoint = map.containerPointToLatLng(e.containerPoint);
@@ -2213,15 +2214,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (bounds.contains(clickPoint)) {
                       console.log(
                         "🎯 Found layer at click point:",
-                        layer.constructor.name
+                        layer.constructor.name,
                       );
                       console.log(
                         "🔍 Fallback layer PM object:",
-                        (layer as any).pm
+                        (layer as any).pm,
                       );
                       console.log(
                         "🔍 Fallback layer PM enable method:",
-                        typeof (layer as any).pm.enable
+                        typeof (layer as any).pm.enable,
                       );
 
                       console.log("🔍 Trying to enable rotate mode...");
@@ -2237,12 +2238,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             otherLayer.pm.disable();
                             console.log(
                               "🔒 Disabled other layer:",
-                              otherLayer.constructor.name
+                              otherLayer.constructor.name,
                             );
                           } catch (error) {
                             console.log(
                               "⚠️ Could not disable other layer:",
-                              error
+                              error,
                             );
                           }
                         }
@@ -2251,18 +2252,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       // Check if this is a real Leaflet-Geoman layer
                       const pmObject = (layer as any).pm;
                       const availableMethods = Object.getOwnPropertyNames(
-                        pmObject
+                        pmObject,
                       ).filter((name) => typeof pmObject[name] === "function");
 
                       console.log("🔍 Available PM methods:", availableMethods);
                       console.log(
                         "🔍 PM object type:",
-                        pmObject.constructor.name
+                        pmObject.constructor.name,
                       );
                       console.log("🔍 Layer type:", layer.constructor.name);
                       console.log(
                         "🔍 Layer instanceof L.Path:",
-                        layer instanceof (L as any).Path
+                        layer instanceof (L as any).Path,
                       );
 
                       // Check if this is a real Leaflet shape
@@ -2287,13 +2288,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                         if (isFromGeoJSON) {
                           console.log(
-                            "❌ This is a GeoJSON layer, cannot be rotated"
+                            "❌ This is a GeoJSON layer, cannot be rotated",
                           );
                           return;
                         }
 
                         console.log(
-                          "✅ This is a real Leaflet shape, trying to enable rotate..."
+                          "✅ This is a real Leaflet shape, trying to enable rotate...",
                         );
 
                         try {
@@ -2318,7 +2319,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         }
                       } else {
                         console.log(
-                          "❌ This is NOT a real Leaflet shape, cannot enable rotating"
+                          "❌ This is NOT a real Leaflet shape, cannot enable rotating",
                         );
                       }
                     }
@@ -2332,7 +2333,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "🚚 Drag mode - clickedLayer:",
-              clickedLayer?.constructor?.name
+              clickedLayer?.constructor?.name,
             );
 
             // Check if this layer has our selective editing click handler
@@ -2344,12 +2345,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   handler.fn &&
                   handler.fn
                     .toString()
-                    .includes("mapRefs.drawingModeRef.current")
+                    .includes("mapRefs.drawingModeRef.current"),
               );
 
             if (hasSelectiveEditing) {
               console.log(
-                "✅ Layer has selective editing - letting selective editing handle it"
+                "✅ Layer has selective editing - letting selective editing handle it",
               );
               return; // Let the selective editing click handler take over
             }
@@ -2437,7 +2438,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               }
             } else {
               console.log(
-                "⚠️ Layer doesn't have valid pm.enable method, trying fallback..."
+                "⚠️ Layer doesn't have valid pm.enable method, trying fallback...",
               );
               // Fallback: find layer by click point
               const clickPoint = map.containerPointToLatLng(e.containerPoint);
@@ -2453,15 +2454,15 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     if (bounds.contains(clickPoint)) {
                       console.log(
                         "🎯 Found layer at click point:",
-                        layer.constructor.name
+                        layer.constructor.name,
                       );
                       console.log(
                         "🔍 Fallback layer PM object:",
-                        (layer as any).pm
+                        (layer as any).pm,
                       );
                       console.log(
                         "🔍 Fallback layer PM enable method:",
-                        typeof (layer as any).pm.enable
+                        typeof (layer as any).pm.enable,
                       );
 
                       console.log("🔍 Trying to enable drag mode...");
@@ -2477,12 +2478,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             otherLayer.pm.disable();
                             console.log(
                               "🔒 Disabled other layer:",
-                              otherLayer.constructor.name
+                              otherLayer.constructor.name,
                             );
                           } catch (error) {
                             console.log(
                               "⚠️ Could not disable other layer:",
-                              error
+                              error,
                             );
                           }
                         }
@@ -2491,18 +2492,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       // Check if this is a real Leaflet-Geoman layer
                       const pmObject = (layer as any).pm;
                       const availableMethods = Object.getOwnPropertyNames(
-                        pmObject
+                        pmObject,
                       ).filter((name) => typeof pmObject[name] === "function");
 
                       console.log("🔍 Available PM methods:", availableMethods);
                       console.log(
                         "🔍 PM object type:",
-                        pmObject.constructor.name
+                        pmObject.constructor.name,
                       );
                       console.log("🔍 Layer type:", layer.constructor.name);
                       console.log(
                         "🔍 Layer instanceof L.Path:",
-                        layer instanceof (L as any).Path
+                        layer instanceof (L as any).Path,
                       );
 
                       // Check if this is a real Leaflet shape
@@ -2527,13 +2528,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
                         if (isFromGeoJSON) {
                           console.log(
-                            "❌ This is a GeoJSON layer, cannot be dragged"
+                            "❌ This is a GeoJSON layer, cannot be dragged",
                           );
                           return;
                         }
 
                         console.log(
-                          "✅ This is a real Leaflet shape, trying to enable drag..."
+                          "✅ This is a real Leaflet shape, trying to enable drag...",
                         );
 
                         try {
@@ -2562,13 +2563,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                             }
 
                             console.log(
-                              "✅ Method 1: pm.enable with drag mode (no edit/scale/rotate)"
+                              "✅ Method 1: pm.enable with drag mode (no edit/scale/rotate)",
                             );
 
                             // Store the dragged shape and show confirmation
                             drawing.setDraggedShape(layer);
                             drawing.setOriginalShapePosition(
-                              layer.getLatLngs ? layer.getLatLngs() : null
+                              layer.getLatLngs ? layer.getLatLngs() : null,
                             );
                             drawing.setShowDragConfirmation(true);
                           }
@@ -2593,24 +2594,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         // Check if any method worked
                         setTimeout(() => {
                           console.log(
-                            "🔍 Checking if drag mode was actually enabled..."
+                            "🔍 Checking if drag mode was actually enabled...",
                           );
                           console.log(
                             "Layer PM enabled:",
                             pmObject.enabled
                               ? pmObject.enabled()
-                              : "No enabled method"
+                              : "No enabled method",
                           );
                           console.log(
                             "Layer PM dragging:",
                             pmObject.dragging
                               ? pmObject.dragging()
-                              : "No dragging method"
+                              : "No dragging method",
                           );
                         }, 100);
                       } else {
                         console.log(
-                          "❌ This is NOT a real Leaflet shape, cannot enable dragging"
+                          "❌ This is NOT a real Leaflet shape, cannot enable dragging",
                         );
                       }
 
@@ -2620,24 +2621,24 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                       // Verify if mode was actually enabled
                       setTimeout(() => {
                         console.log(
-                          "🔍 Checking if drag mode was actually enabled..."
+                          "🔍 Checking if drag mode was actually enabled...",
                         );
                         console.log(
                           "Layer PM enabled:",
-                          (layer as any).pm.enabled()
+                          (layer as any).pm.enabled(),
                         );
                         // Check if vertices are visible
                         console.log(
                           "🔍 Layer element:",
                           layer.getElement
                             ? layer.getElement()
-                            : "No getElement method"
+                            : "No getElement method",
                         );
                         console.log(
                           "🔍 Layer bounds:",
                           layer.getBounds
                             ? layer.getBounds()
-                            : "No getBounds method"
+                            : "No getBounds method",
                         );
                       }, 100);
                     }
@@ -2651,7 +2652,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const clickedLayer = e.target || e.layer || e.sourceTarget;
             console.log(
               "🗑️ Remove mode - clickedLayer:",
-              clickedLayer?.constructor?.name
+              clickedLayer?.constructor?.name,
             );
 
             // Check if this layer has our selective editing click handler
@@ -2663,12 +2664,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   handler.fn &&
                   handler.fn
                     .toString()
-                    .includes("mapRefs.drawingModeRef.current")
+                    .includes("mapRefs.drawingModeRef.current"),
               );
 
             if (hasSelectiveEditing) {
               console.log(
-                "✅ Layer has selective editing - letting selective editing handle it"
+                "✅ Layer has selective editing - letting selective editing handle it",
               );
               return; // Let the selective editing click handler take over
             }
@@ -2689,7 +2690,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   } catch (error) {
                     console.log("❌ Error removing layer:", error);
                   }
-                }
+                },
               );
             } else {
               console.log("❌ No layer clicked for removal");
@@ -2706,7 +2707,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           console.log(
             "🎯 PM click event - mode:",
-            mapRefs.drawingModeRef.current
+            mapRefs.drawingModeRef.current,
           );
 
           if (mapRefs.drawingModeRef.current === "edit") {
@@ -2771,7 +2772,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Store the dragged shape and show confirmation
               drawing.setDraggedShape(e.target);
               drawing.setOriginalShapePosition(
-                e.target.getLatLngs ? e.target.getLatLngs() : null
+                e.target.getLatLngs ? e.target.getLatLngs() : null,
               );
               drawing.setShowDragConfirmation(true);
             } catch (error) {
@@ -2785,7 +2786,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           if (e.layer && (e.layer as any).pm) {
             console.log(
               "➕ New layer added with pm:",
-              e.layer.constructor.name
+              e.layer.constructor.name,
             );
           }
         });
@@ -3006,7 +3007,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 (map as any).pm.enableDraw();
               }
               console.log(
-                "Polyline drawing mode activated - click 2 points to create a straight line"
+                "Polyline drawing mode activated - click 2 points to create a straight line",
               );
             } catch (error) {
               console.log("Polyline drawing not available:", error);
@@ -3071,7 +3072,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           if (otherLayer.pm && otherLayer !== circleMarker) {
                             otherLayer.pm.disable();
                           }
-                        }
+                        },
                       );
                     }
 
@@ -3081,7 +3082,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           if (otherLayer.pm && otherLayer !== circleMarker) {
                             otherLayer.pm.disable();
                           }
-                        }
+                        },
                       );
                     }
 
@@ -3183,7 +3184,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                         drawing.setOriginalShapePosition(
                           circleMarker.getLatLng
                             ? circleMarker.getLatLng()
-                            : null
+                            : null,
                         );
                         drawing.setShowDragConfirmation(true);
                       } else if (mapRefs.drawingModeRef.current === "remove") {
@@ -3203,7 +3204,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     } catch (error) {
                       console.log(
                         "❌ Error enabling PM for circle marker:",
-                        error
+                        error,
                       );
                     }
                   });
@@ -3227,7 +3228,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               };
 
               console.log(
-                "Circle marker mode activated - click on map to place markers, click tool again to finish"
+                "Circle marker mode activated - click on map to place markers, click tool again to finish",
               );
             } catch (error) {
               console.log("Circle marker mode not available:", error);
@@ -3304,7 +3305,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             }
             // Don't enable global removal mode - just set flag for click handler
             console.log(
-              "Remove mode activated - click on a layer to remove it"
+              "Remove mode activated - click on a layer to remove it",
             );
             // Cursor sudah di-set di atas dengan setDrawingCursor()
             break;
@@ -3434,11 +3435,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const handleCanvasClick = (e: Event) => {
             // Cek apakah klik di luar container
             const container = document.querySelector(
-              '[data-container="building-detail"]'
+              '[data-container="building-detail"]',
             );
             // Cek apakah modal route sedang terbuka
             const routeModal = document.querySelector(
-              '[data-modal="route-modal"]'
+              '[data-modal="route-modal"]',
             );
 
             // Cek apakah klik terjadi di dalam area peta (canvas peta)
@@ -3605,11 +3606,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const handleCanvasClick = (e: Event) => {
             // Cek apakah klik di luar container
             const container = document.querySelector(
-              '[data-container="building-detail"]'
+              '[data-container="building-detail"]',
             );
             // Cek apakah modal route sedang terbuka
             const routeModal = document.querySelector(
-              '[data-modal="route-modal"]'
+              '[data-modal="route-modal"]',
             );
 
             // Cek apakah klik terjadi di dalam area peta (canvas peta)
@@ -3646,7 +3647,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           // Tambahkan efek shake saat mencoba menggeser peta ketika highlight aktif
           const mapContainer = document.querySelector(
-            ".leaflet-container"
+            ".leaflet-container",
           ) as HTMLElement | null;
           let isPointerDown = false;
           let lastX = 0;
@@ -3671,10 +3672,10 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           const tryShake = (target: Element | null) => {
             const container = document.querySelector(
-              '[data-container="building-detail"]'
+              '[data-container="building-detail"]',
             );
             const routeModal = document.querySelector(
-              '[data-modal="route-modal"]'
+              '[data-modal="route-modal"]',
             );
             const isMapControl = isTargetMapControl(target as Element);
             if (container && !routeModal && !isMapControl && !shakeCooldown) {
@@ -3770,32 +3771,32 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               mapContainer.removeEventListener(
                 "mousedown",
                 onMouseDown as any,
-                true
+                true,
               );
               mapContainer.removeEventListener(
                 "mousemove",
                 onMouseMove as any,
-                true
+                true,
               );
               mapContainer.removeEventListener(
                 "mouseup",
                 onMouseUp as any,
-                true
+                true,
               );
               mapContainer.removeEventListener(
                 "touchstart",
                 onTouchStart as any,
-                true
+                true,
               );
               mapContainer.removeEventListener(
                 "touchmove",
                 onTouchMove as any,
-                true
+                true,
               );
               mapContainer.removeEventListener(
                 "touchend",
                 onTouchEnd as any,
-                true
+                true,
               );
             }
             document.removeEventListener("mousemove", onMouseMove as any, true);
@@ -4044,15 +4045,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           (layer as any)._isHighlighted
         ) {
           // Reset ke style default
-          const kategori =
-            (layer as any).feature?.properties?.kategori || "Bangunan";
-          const defaultStyle = kategoriStyle[kategori] || {
-            color: "#adb5bd",
-            fillColor: "#adb5bd",
-            fillOpacity: 0.5,
-          };
-
-          (layer as any).setStyle(defaultStyle);
+          (layer as any).setStyle(buildingStyle);
 
           // Hapus CSS class highlight
           if ((layer as any)._path) {
@@ -4078,13 +4071,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           f.geometry.type === "Polygon" &&
           f.properties?.id == featureId
         ) {
-          const kategori = f.properties?.kategori || "Bangunan";
-          const style = kategoriStyle[kategori] || {
-            color: "#adb5bd",
-            fillColor: "#adb5bd",
-            fillOpacity: 0.5,
-          };
-          (layer as any).setStyle(style);
+          (layer as any).setStyle(buildingStyle);
           if ((layer as any)._path) {
             (layer as any)._path.classList.remove("building-highlight");
           }
@@ -4099,7 +4086,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Blokir jika highlight aktif - user harus close container dulu
       if (highlight.isHighlightActive) {
         console.log(
-          "⚠️ Container detail sedang terbuka, tutup dulu untuk memilih bangunan lain"
+          "⚠️ Container detail sedang terbuka, tutup dulu untuk memilih bangunan lain",
         );
         return;
       }
@@ -4111,7 +4098,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (feature.properties?.displayType === "ruangan") {
         const bangunanId = feature.properties?.bangunan_id;
         const bangunan = features.bangunanFeatures.find(
-          (b) => b.properties?.id === bangunanId
+          (b) => b.properties?.id === bangunanId,
         );
 
         if (bangunan && bangunan.geometry) {
@@ -4129,7 +4116,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             const lngs = allCoords.map((c) => c[0]);
             const bounds = L.latLngBounds(
               [Math.min(...lats), Math.min(...lngs)],
-              [Math.max(...lats), Math.max(...lngs)]
+              [Math.max(...lats), Math.max(...lngs)],
             );
 
             // Zoom ke bangunan dengan animasi smooth
@@ -4157,7 +4144,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   roomId: feature.properties?.id,
                   roomName: feature.properties?.nama,
                 },
-                "*"
+                "*",
               );
 
               map.off("moveend", onMoveEnd);
@@ -4180,14 +4167,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 roomId: feature.properties?.id,
                 roomName: feature.properties?.nama,
               },
-              "*"
+              "*",
             );
           }
         } else {
           // Jika bangunan tidak ditemukan, tetap buka modal dengan ruangan yang dipilih
           console.warn(
             "Bangunan tidak ditemukan untuk ruangan:",
-            feature.properties?.nama
+            feature.properties?.nama,
           );
           openBuildingDetailModal(feature);
           // Tetap nonaktifkan interaksi peta saat modal ruangan dibuka
@@ -4199,7 +4186,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               roomId: feature.properties?.id,
               roomName: feature.properties?.nama,
             },
-            "*"
+            "*",
           );
         }
       } else if (feature.geometry) {
@@ -4217,7 +4204,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const lngs = allCoords.map((c) => c[0]);
           const bounds = L.latLngBounds(
             [Math.min(...lats), Math.min(...lngs)],
-            [Math.max(...lats), Math.max(...lngs)]
+            [Math.max(...lats), Math.max(...lngs)],
           );
 
           // Zoom ke lokasi dengan animasi smooth
@@ -4273,7 +4260,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
     const handleToggleBasemap = () => {
       if (config.isSatellite) {
         config.setBasemap(
-          isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
+          (isDark ?? false) ? "alidade_smooth_dark" : "esri_topo",
         );
         config.setIsSatellite(false);
       } else {
@@ -4356,7 +4343,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           fillOpacity: 0,
           className: "rectangle-border",
           interactive: false,
-        }
+        },
       );
 
       rectangleBorder.addTo(mapRefs.leafletMapRef.current);
@@ -4380,7 +4367,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               fillOpacity: 0,
               className: "rectangle-border",
               interactive: false,
-            }
+            },
           );
 
           // Remove old border and add new one
@@ -4493,7 +4480,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Reset editing state when changing drawing mode
       if (drawing.isEditingShape && drawing.editingShape) {
         console.log(
-          "🔄 Resetting previous editing shape when changing drawing mode"
+          "🔄 Resetting previous editing shape when changing drawing mode",
         );
         // Don't disable PM - just reset state
         drawing.setIsEditingShape(false);
@@ -4504,7 +4491,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // Reset drag state when changing drawing mode
       if (drawing.draggedShape) {
         console.log(
-          "🔄 Resetting previous dragged shape when changing drawing mode"
+          "🔄 Resetting previous dragged shape when changing drawing mode",
         );
         // Don't disable PM - just reset state
         drawing.setDraggedShape(null);
@@ -4533,7 +4520,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (drawing.activeShape) {
           console.log(
             "🔄 Resetting drawing.activeShape after edit save:",
-            drawing.activeShape
+            drawing.activeShape,
           );
           resetShapeVisualFeedback(drawing.activeShape);
           drawing.setActiveShape(null);
@@ -4628,7 +4615,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           if (drawing.activeShape) {
             console.log(
               "🔄 Resetting drawing.activeShape after edit cancel:",
-              drawing.activeShape
+              drawing.activeShape,
             );
             resetShapeVisualFeedback(drawing.activeShape);
             drawing.setActiveShape(null);
@@ -4776,7 +4763,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       // mapRefs.isDrawingEnabledRef.current = false;
 
       console.log(
-        "✅ Drag cancelled and reverted - buildings can now be clicked"
+        "✅ Drag cancelled and reverted - buildings can now be clicked",
       );
     };
 
@@ -4804,14 +4791,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         "Reset to initial position:",
         [initialLat, initialLng],
         "zoom:",
-        initialZoom
+        initialZoom,
       );
     };
 
     useEffect(() => {
       if (!config.isSatellite && isDark !== undefined) {
         config.setBasemap(
-          isDark ?? false ? "alidade_smooth_dark" : "esri_topo"
+          (isDark ?? false) ? "alidade_smooth_dark" : "esri_topo",
         );
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4871,7 +4858,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "Akses Ditolak",
-          "Anda harus login terlebih dahulu untuk mengedit bangunan."
+          "Anda harus login terlebih dahulu untuk mengedit bangunan.",
         );
         return;
       }
@@ -4890,7 +4877,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "Akses Ditolak",
-          "Anda harus login terlebih dahulu untuk mengedit bangunan."
+          "Anda harus login terlebih dahulu untuk mengedit bangunan.",
         );
         return;
       }
@@ -4909,7 +4896,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "Akses Ditolak",
-          "Anda harus login terlebih dahulu untuk mengedit bangunan."
+          "Anda harus login terlebih dahulu untuk mengedit bangunan.",
         );
         return;
       }
@@ -4930,7 +4917,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "Akses Ditolak",
-          "Anda harus login terlebih dahulu untuk mengedit lantai."
+          "Anda harus login terlebih dahulu untuk mengedit lantai.",
         );
         return;
       }
@@ -4939,13 +4926,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         // Ambil data lantai gambar yang sudah ada
         const data = await getLantaiGambarByBangunan(
           Number(features.selectedFeature.properties.id),
-          token
+          token,
         );
         lantai.setLantaiGambarData(data || []);
 
         // Ambil data ruangan untuk menghitung jumlah ruangan per lantai
         await fetchRuanganByBangunan(
-          Number(features.selectedFeature.properties.id)
+          Number(features.selectedFeature.properties.id),
         );
 
         // Reset state
@@ -4981,7 +4968,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Error",
-            "Tidak ada file yang dipilih untuk lantai ini!"
+            "Tidak ada file yang dipilih untuk lantai ini!",
           );
           return;
         }
@@ -4991,7 +4978,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
@@ -5001,7 +4988,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         formData.append("nomor_lantai", lantaiNumber.toString());
         formData.append(
           "id_bangunan",
-          String(features.selectedFeature?.properties?.id)
+          String(features.selectedFeature?.properties?.id),
         );
 
         await createLantaiGambar(
@@ -5010,14 +4997,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             lantaiNumber,
             bangunanId: Number(features.selectedFeature?.properties?.id),
           },
-          token
+          token,
         );
 
         // Refresh data lantai gambar
         if (features.selectedFeature?.properties?.id) {
           const data = await getLantaiGambarByBangunan(
             Number(features.selectedFeature.properties.id),
-            token
+            token,
           );
           lantai.setLantaiGambarData(data || []);
 
@@ -5058,13 +5045,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Berhasil",
-          `Gambar lantai ${lantaiNumber} berhasil disimpan!`
+          `Gambar lantai ${lantaiNumber} berhasil disimpan!`,
         );
       } catch (error) {
         showNotification(
           "error",
           "Gagal",
-          "Gagal menyimpan gambar lantai. Silakan coba lagi."
+          "Gagal menyimpan gambar lantai. Silakan coba lagi.",
         );
       }
     };
@@ -5077,20 +5064,20 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
 
         // Cari lantai yang akan dihapus untuk validasi
         const lantaiToDelete = lantai.lantaiGambarData.find(
-          (l) => l.id_lantai_gambar === lantaiGambarId
+          (l) => l.id_lantai_gambar === lantaiGambarId,
         );
         if (!lantaiToDelete) {
           showNotification(
             "error",
             "Data Error",
-            "Data lantai tidak ditemukan."
+            "Data lantai tidak ditemukan.",
           );
           return;
         }
@@ -5100,18 +5087,18 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           ...lantai.lantaiGambarData.map((l) => {
             const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
             return match ? parseInt(match[1]) : 0;
-          })
+          }),
         );
 
         const currentLantaiNumber = parseInt(
-          lantaiToDelete.nama_file.match(/Lt(\d+)\.svg/i)?.[1] || "0"
+          lantaiToDelete.nama_file.match(/Lt(\d+)\.svg/i)?.[1] || "0",
         );
 
         if (currentLantaiNumber !== maxLantaiNumber) {
           showNotification(
             "error",
             "Tidak Bisa Dihapus",
-            `Lantai ${currentLantaiNumber} tidak bisa dihapus karena bukan lantai teratas. Hapus lantai ${maxLantaiNumber} terlebih dahulu.`
+            `Lantai ${currentLantaiNumber} tidak bisa dihapus karena bukan lantai teratas. Hapus lantai ${maxLantaiNumber} terlebih dahulu.`,
           );
           return;
         }
@@ -5165,7 +5152,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             showNotification(
               "error",
               "Update tidak lengkap",
-              "Gambar lantai berhasil dihapus tapi gagal update jumlah lantai di bangunan"
+              "Gambar lantai berhasil dihapus tapi gagal update jumlah lantai di bangunan",
             );
           }
         }
@@ -5173,13 +5160,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Berhasil dihapus",
-          "Gambar lantai berhasil dihapus!"
+          "Gambar lantai berhasil dihapus!",
         );
       } catch (error) {
         showNotification(
           "error",
           "Gagal dihapus",
-          "Gagal menghapus gambar lantai: " + (error as Error).message
+          "Gagal menghapus gambar lantai: " + (error as Error).message,
         );
       }
     };
@@ -5192,7 +5179,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
@@ -5201,7 +5188,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Data Error",
-            "ID bangunan tidak ditemukan."
+            "ID bangunan tidak ditemukan.",
           );
           return;
         }
@@ -5213,14 +5200,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           ...lantai.lantaiGambarData.map((l) => {
             const match = (l?.nama_file || "").match(/Lt(\d+)\.svg/i);
             return match ? parseInt(match[1]) : 0;
-          })
+          }),
         );
 
         if (lantaiNumber !== maxLantaiNumber) {
           showNotification(
             "error",
             "Tidak Bisa Dihapus",
-            `Lantai ${lantaiNumber} tidak bisa dihapus karena bukan lantai teratas. Hapus lantai ${maxLantaiNumber} terlebih dahulu.`
+            `Lantai ${lantaiNumber} tidak bisa dihapus karena bukan lantai teratas. Hapus lantai ${maxLantaiNumber} terlebih dahulu.`,
           );
           return;
         }
@@ -5240,7 +5227,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
             showNotification(
               "error",
               "Gagal hapus gambar",
-              "Gagal menghapus gambar lantai dari Cloudinary"
+              "Gagal menghapus gambar lantai dari Cloudinary",
             );
             return;
           }
@@ -5248,7 +5235,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
         // Hapus semua ruangan di lantai tersebut
         const ruanganDiLantai = ruangan.ruanganList.filter(
-          (ruangan) => ruangan.nomor_lantai === lantaiNumber
+          (ruangan) => ruangan.nomor_lantai === lantaiNumber,
         );
 
         for (const ruangan of ruanganDiLantai) {
@@ -5258,7 +5245,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           } catch (error) {
             console.error(
               `Gagal menghapus ruangan ${ruangan.nama_ruangan}:`,
-              error
+              error,
             );
           }
         }
@@ -5289,7 +5276,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Update tidak lengkap",
-            "Lantai berhasil dihapus tapi gagal update jumlah lantai di bangunan"
+            "Lantai berhasil dihapus tapi gagal update jumlah lantai di bangunan",
           );
         }
 
@@ -5315,14 +5302,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Berhasil dihapus",
-          `Lantai ${lantaiNumber} dan semua ruangan di dalamnya berhasil dihapus! Jumlah lantai tersisa: ${jumlahLantaiTersisa}`
+          `Lantai ${lantaiNumber} dan semua ruangan di dalamnya berhasil dihapus! Jumlah lantai tersisa: ${jumlahLantaiTersisa}`,
         );
       } catch (error) {
         console.error("Error dalam handleDeleteLantai:", error);
         showNotification(
           "error",
           "Gagal dihapus",
-          "Gagal menghapus lantai: " + (error as Error).message
+          "Gagal menghapus lantai: " + (error as Error).message,
         );
       }
     };
@@ -5338,7 +5325,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         if (token) {
           const lantaiData = await getLantaiGambarByBangunan(
             Number(features.selectedFeature.properties.id),
-            token
+            token,
           );
           lantai.setLantaiGambarData(lantaiData || []);
 
@@ -5404,12 +5391,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                     nomor_lantai: newLantaiNumber,
                     id_bangunan: bangunanId,
                   },
-                  token
+                  token,
                 );
               } catch (error) {
                 console.error(
                   `Gagal update nama file lantai ${currentNumber}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -5424,14 +5411,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Renumbering Selesai",
-          "Nomor lantai telah diurutkan ulang setelah penghapusan."
+          "Nomor lantai telah diurutkan ulang setelah penghapusan.",
         );
       } catch (error) {
         console.error("Error renumbering lantai:", error);
         showNotification(
           "error",
           "Renumbering Gagal",
-          "Gagal mengurutkan ulang nomor lantai, tapi penghapusan tetap berhasil."
+          "Gagal mengurutkan ulang nomor lantai, tapi penghapusan tetap berhasil.",
         );
       }
     };
@@ -5453,7 +5440,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
@@ -5491,13 +5478,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Berhasil dibuat",
-          "Ruangan berhasil dibuat!"
+          "Ruangan berhasil dibuat!",
         );
       } catch (error) {
         showNotification(
           "error",
           "Gagal dibuat",
-          "Gagal membuat ruangan: " + (error as Error).message
+          "Gagal membuat ruangan: " + (error as Error).message,
         );
       } finally {
         loading.setIsSaving(false);
@@ -5523,7 +5510,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "Gagal mengambil data",
-          "Gagal mengambil data ruangan: " + (error as Error).message
+          "Gagal mengambil data ruangan: " + (error as Error).message,
         );
         return [];
       }
@@ -5544,7 +5531,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       try {
         await fetchRuanganByBangunan(
-          Number(features.selectedFeature.properties.id)
+          Number(features.selectedFeature.properties.id),
         );
 
         // Jika ada lantaiNumber, set lantai untuk ruangan baru
@@ -5594,7 +5581,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
       try {
         await fetchRuanganByBangunan(
-          Number(features.selectedFeature.properties.id)
+          Number(features.selectedFeature.properties.id),
         );
 
         // Set ruangan yang akan diedit
@@ -5624,7 +5611,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
@@ -5644,28 +5631,28 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
               // Refresh data ruangan
               await fetchRuanganByBangunan(
-                Number(features.selectedFeature?.properties?.id)
+                Number(features.selectedFeature?.properties?.id),
               );
 
               showNotification(
                 "success",
                 "Berhasil dihapus",
-                "Ruangan berhasil dihapus!"
+                "Ruangan berhasil dihapus!",
               );
             } catch (error) {
               showNotification(
                 "error",
                 "Gagal dihapus",
-                "Gagal menghapus ruangan: " + (error as Error).message
+                "Gagal menghapus ruangan: " + (error as Error).message,
               );
             }
-          }
+          },
         );
       } catch (error) {
         showNotification(
           "error",
           "Error",
-          "Terjadi kesalahan: " + (error as Error).message
+          "Terjadi kesalahan: " + (error as Error).message,
         );
       }
     };
@@ -5685,7 +5672,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
@@ -5708,7 +5695,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         await updateRuangan(
           ruangan.selectedRuanganForEdit.id_ruangan,
           ruanganData,
-          token
+          token,
         );
 
         // Reset form dan modal
@@ -5727,13 +5714,13 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Berhasil diperbarui",
-          "Ruangan berhasil diperbarui!"
+          "Ruangan berhasil diperbarui!",
         );
       } catch (error) {
         showNotification(
           "error",
           "Gagal diperbarui",
-          "Gagal memperbarui ruangan: " + (error as Error).message
+          "Gagal memperbarui ruangan: " + (error as Error).message,
         );
       } finally {
         loading.setIsSaving(false);
@@ -5756,7 +5743,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           showNotification(
             "error",
             "Token Error",
-            "Token tidak ditemukan. Silakan login ulang."
+            "Token tidak ditemukan. Silakan login ulang.",
           );
           return;
         }
@@ -5782,7 +5769,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           await updateBangunan(
             features.selectedFeature.properties.id,
             updateData,
-            token
+            token,
           );
 
           // Update local state
@@ -5802,7 +5789,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           const result = await uploadBangunanThumbnail(
             Number(features.selectedFeature.properties.id),
             edit.selectedFile,
-            token
+            token,
           );
 
           // Update local state
@@ -5845,7 +5832,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "success",
           "Berhasil diperbarui",
-          "Berhasil menyimpan perubahan!"
+          "Berhasil menyimpan perubahan!",
         );
 
         // Refresh data bangunan
@@ -5853,7 +5840,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           // Trigger re-render dengan data baru
           const currentFeatures = [...features.bangunanFeatures];
           const updatedIndex = currentFeatures.findIndex(
-            (f) => f.properties?.id === features.selectedFeature?.properties?.id
+            (f) =>
+              f.properties?.id === features.selectedFeature?.properties?.id,
           );
           if (updatedIndex !== -1) {
             currentFeatures[updatedIndex] = features.selectedFeature;
@@ -5864,7 +5852,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         showNotification(
           "error",
           "Gagal diperbarui",
-          "Gagal menyimpan perubahan. Silakan coba lagi."
+          "Gagal menyimpan perubahan. Silakan coba lagi.",
         );
       } finally {
         loading.setIsSaving(false);
@@ -5945,14 +5933,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
             // Cari ruangan di data ruangan
             const selectedRuangan = features.ruanganFeatures.find(
-              (r) => r.properties?.id === Number(featureId)
+              (r) => r.properties?.id === Number(featureId),
             );
 
             if (selectedRuangan) {
               // Cari bangunan yang berisi ruangan ini
               const bangunanId = selectedRuangan.properties?.bangunan_id;
               const bangunan = features.bangunanFeatures.find(
-                (b) => b.properties?.id === Number(bangunanId)
+                (b) => b.properties?.id === Number(bangunanId),
               );
 
               if (bangunan && bangunan.geometry) {
@@ -5970,7 +5958,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   const lngs = allCoords.map((c) => c[0]);
                   const bounds = L.latLngBounds(
                     [Math.min(...lats), Math.min(...lngs)],
-                    [Math.max(...lats), Math.max(...lngs)]
+                    [Math.max(...lats), Math.max(...lngs)],
                   );
 
                   // Zoom ke bangunan, lalu buka detail bangunan dengan ruangan yang di-highlight
@@ -6002,7 +5990,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 // Jika bangunan tidak ditemukan, tetap buka modal dengan ruangan yang dipilih
                 console.warn(
                   "Bangunan tidak ditemukan untuk ruangan:",
-                  selectedRuangan.properties?.nama
+                  selectedRuangan.properties?.nama,
                 );
                 openBuildingDetailModal(selectedRuangan);
               }
@@ -6024,7 +6012,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       highlightFeature: (
         featureType: string,
         featureId: number,
-        featureName: string
+        featureName: string,
       ) => {
         // Implementation
 
@@ -6064,14 +6052,14 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
 
           // Cari ruangan di data ruangan
           const selectedRuangan = features.ruanganFeatures.find(
-            (r) => r.properties?.id === featureId
+            (r) => r.properties?.id === featureId,
           );
 
           if (selectedRuangan) {
             // Cari bangunan yang berisi ruangan ini
             const bangunanId = selectedRuangan.properties?.bangunan_id;
             const bangunan = features.bangunanFeatures.find(
-              (b) => b.properties?.id === Number(bangunanId)
+              (b) => b.properties?.id === Number(bangunanId),
             );
 
             if (bangunan && bangunan.geometry) {
@@ -6094,7 +6082,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                 const lngs = allCoords.map((c) => c[0]);
                 const bounds = L.latLngBounds(
                   [Math.min(...lats), Math.min(...lngs)],
-                  [Math.max(...lats), Math.max(...lngs)]
+                  [Math.max(...lats), Math.max(...lngs)],
                 );
 
                 // Zoom ke bangunan, lalu buka detail bangunan dengan ruangan yang di-highlight
@@ -6126,7 +6114,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Jika bangunan tidak ditemukan, tetap buka modal dengan ruangan yang dipilih
               console.warn(
                 "Bangunan tidak ditemukan untuk ruangan:",
-                selectedRuangan.properties?.nama
+                selectedRuangan.properties?.nama,
               );
               openBuildingDetailModal(selectedRuangan);
             }
@@ -6157,14 +6145,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
           (layer as any).feature.geometry.type === "Polygon" &&
           (layer as any).feature.properties?.id
         ) {
-          const kategori =
-            (layer as any).feature?.properties?.kategori || "Bangunan";
-          const defaultStyle = kategoriStyle[kategori] || {
-            color: "#adb5bd",
-            fillColor: "#adb5bd",
-            fillOpacity: 0.5,
-          };
-          (layer as any).setStyle(defaultStyle);
+          (layer as any).setStyle(buildingStyle);
         }
       });
 
@@ -6207,11 +6188,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       let feature = null;
       if (type === "bangunan") {
         feature = features.bangunanFeatures.find(
-          (b: FeatureType) => b.properties.id == id
+          (b: FeatureType) => b.properties.id == id,
         );
       } else if (type === "ruangan") {
         feature = features.ruanganFeatures.find(
-          (r: FeatureType) => r.properties.id == id
+          (r: FeatureType) => r.properties.id == id,
         );
       }
       if (!feature || !feature.geometry) return null;
@@ -6255,7 +6236,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
       if (features.selectedFeature) {
         console.log(
           "DEBUG features.selectedFeature kategori:",
-          features.selectedFeature?.properties?.kategori
+          features.selectedFeature?.properties?.kategori,
         );
       }
     }, [features.selectedFeature]);
@@ -6363,7 +6344,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               // Hapus highlight seperti saat klik bangunan (prioritas ke yang sedang ditampilkan)
               if (features.selectedFeature?.properties?.id) {
                 clearBangunanHighlightById(
-                  features.selectedFeature.properties.id
+                  features.selectedFeature.properties.id,
                 );
               }
               if (highlight.searchHighlightedId) {
@@ -6384,7 +6365,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   mapRefs.leafletMapRef.current
                 ) {
                   mapRefs.leafletMapRef.current.removeLayer(
-                    mapRefs.navigationMarkerRef.current
+                    mapRefs.navigationMarkerRef.current,
                   );
                   mapRefs.navigationMarkerRef.current = null;
                 }
@@ -6403,11 +6384,11 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               edit.setIsEditingName(true);
               edit.setIsEditingInteraksi(true);
               edit.setEditName(
-                features.selectedFeature?.properties?.nama || ""
+                features.selectedFeature?.properties?.nama || "",
               );
               edit.setEditInteraksi(
                 features.selectedFeature?.properties?.interaksi ||
-                  "Noninteraktif"
+                  "Noninteraktif",
               );
             }}
           />
@@ -6434,12 +6415,12 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                   {edit.isEditingName && edit.isEditingInteraksi
                     ? "Nama & Interaksi"
                     : edit.isEditingName
-                    ? "Nama"
-                    : edit.isEditingThumbnail
-                    ? "Thumbnail"
-                    : edit.isEditingInteraksi
-                    ? "Interaksi"
-                    : "Lantai"}{" "}
+                      ? "Nama"
+                      : edit.isEditingThumbnail
+                        ? "Thumbnail"
+                        : edit.isEditingInteraksi
+                          ? "Interaksi"
+                          : "Lantai"}{" "}
                   Bangunan
                 </h3>
                 <button
@@ -6488,7 +6469,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {(edit.selectedFile.size / 1024 / 1024).toFixed(
-                                  2
+                                  2,
                                 )}{" "}
                                 MB
                               </p>
@@ -6518,7 +6499,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
                           <img
                             src={`${
                               features.selectedFeature?.properties?.thumbnail?.startsWith(
-                                "http"
+                                "http",
                               )
                                 ? ""
                                 : "/"
@@ -6877,8 +6858,8 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               animation.isBuildingDetailFadingOut
                 ? "opacity-0"
                 : animation.isBuildingDetailFadingIn
-                ? "opacity-0 animate-fade-in"
-                : "opacity-100"
+                  ? "opacity-0 animate-fade-in"
+                  : "opacity-100"
             }`}
             style={{
               cursor: drawing.drawingMode ? "crosshair" : "default",
@@ -6888,7 +6869,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
               src={`/building-details/index.html?id=${
                 features.selectedFeature?.properties?.id || "45"
               }&apiUrl=${encodeURIComponent(
-                process.env.NEXT_PUBLIC_API_BASE_URL as string
+                process.env.NEXT_PUBLIC_API_BASE_URL as string,
               )}`}
               title="Building Detail"
               className="w-full h-full border-0 bg-white dark:bg-gray-900"
@@ -6995,7 +6976,7 @@ const LeafletMap = forwardRef<LeafletMapRef, LeafletMapProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
 LeafletMap.displayName = "LeafletMap";

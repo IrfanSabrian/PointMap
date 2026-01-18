@@ -214,17 +214,18 @@ Gambar 3.22 Struktur File Backend /controllers/ 40
 Gambar 3.23 Struktur File Backend /middlewares/ 40
 Gambar 3.24 Struktur File Backend /models/ 41
 Gambar 3.25 Struktur File Backend /routes/ 42
-Gambar 3.26 Struktur File Backend /scripts/ 43
-Gambar 3.27 Struktur File Backend /tools/ 43
-Gambar 3.28 Struktur File Backend File Utama 44
-Gambar 3.29 Struktur File Frontend 45
-Gambar 3.30 Struktur File Frontend /src/components/ 47
-Gambar 3.31 Struktur File Frontend /src/hooks/ 48
-Gambar 3.32 Struktur File Frontend /src/lib/ 50
-Gambar 3.33 Struktur File Frontend /src/services/ 51
-Gambar 3.34 Struktur File Frontend /src/types/ 52
-Gambar 3.35 Struktur File Frontend /public/ 52
-Gambar 3.36 Struktur File Konfigurasi Frontend 53
+Gambar 3.26 Struktur File Backend /tools/ 43
+Gambar 3.27 Struktur File Backend File Utama 44
+Gambar 3.28 Struktur File Frontend 45
+Gambar 3.29 Struktur File Frontend /src/components/ 47
+Gambar 3.30 Struktur File Frontend /src/config/ 48
+Gambar 3.31 Struktur File Frontend /src/context/ 49
+Gambar 3.32 Struktur File Frontend /src/hooks/ 50
+Gambar 3.33 Struktur File Frontend /src/lib/ 51
+Gambar 3.34 Struktur File Frontend /src/services/ 52
+Gambar 3.35 Struktur File Frontend /src/types/ 53
+Gambar 3.36 Struktur File Frontend /public/ 54
+Gambar 3.37 Struktur File Konfigurasi Frontend 55
 Gambar 4.1 Halaman Beranda Light Mode 59
 Gambar 4.2 Halaman Beranda Dark Mode 60
 Gambar 4.3 Tampilan Canvas Peta Satelit dan Warna Kategori 61
@@ -626,14 +627,12 @@ Gambar 3.19 Desain Basis Data
 
    a) Tabel admin
    Tabel ini menyimpan data administrator yang memiliki hak akses penuh terhadap sistem, termasuk kemampuan untuk mengelola data bangunan, lantai, ruangan, dan galeri. Atribut yang digunakan meliputi:
-
    1. id_admin sebagai primary key (INT, AUTO_INCREMENT)
    2. username untuk nama pengguna (VARCHAR 50, UNIQUE)
    3. password untuk sandi yang disimpan dalam bentuk terenkripsi menggunakan bcrypt (VARCHAR 100)
 
    b) Tabel bangunan
    Tabel ini menyimpan data utama mengenai setiap bangunan yang ada di lingkungan kampus. Atribut penting meliputi:
-
    1. id_bangunan sebagai primary key (INT, AUTO_INCREMENT)
    2. nama bangunan (VARCHAR 100)
    3. interaksi yang menentukan jenis bangunan menggunakan ENUM dengan nilai 'Interaktif' atau 'Noninteraktif'
@@ -644,7 +643,6 @@ Gambar 3.19 Desain Basis Data
 
    c) Tabel lantai_gambar
    Menyimpan data gambar denah per lantai gedung dalam bentuk file SVG untuk ditampilkan saat pengguna memilih mode 2D atau 2.5D. Gambar ini berkaitan langsung dengan entitas bangunan, dan memiliki atribut seperti:
-
    1. id_lantai_gambar sebagai primary key (INT, AUTO_INCREMENT)
    2. id_bangunan sebagai foreign key yang mengacu ke tabel bangunan (INT, NOT NULL)
    3. nama_file untuk identifikasi file denah (VARCHAR 255), contoh: Lt1.svg, Lt2.svg
@@ -653,7 +651,6 @@ Gambar 3.19 Desain Basis Data
 
    d) Tabel ruangan
    Merupakan entitas penting yang merepresentasikan ruangan dalam setiap bangunan. Tabel ini menyimpan informasi seperti:
-
    1. id_ruangan sebagai primary key (INT, AUTO_INCREMENT)
    2. nama_ruangan untuk identitas ruangan (VARCHAR 100, NOT NULL)
    3. nomor_lantai untuk menentukan lantai tempat ruangan berada (INT, NOT NULL)
@@ -666,7 +663,6 @@ Gambar 3.19 Desain Basis Data
 
    e) Tabel ruangan_gallery
    Tabel ini digunakan untuk menyimpan dokumentasi berupa foto dari masing-masing ruangan. Setiap entri memiliki:
-
    1. id_gallery sebagai primary key (INT, AUTO_INCREMENT)
    2. id_ruangan sebagai foreign key yang mengacu ke entitas ruangan (INT, NOT NULL)
    3. nama_file untuk identifikasi file foto (VARCHAR 255)
@@ -725,7 +721,6 @@ Folder yang berisi logika bisnis aplikasi:
    Controller untuk manajemen gambar lantai dengan upload dan kompresi otomatis.
 4. maintenance.js
    Controller untuk database maintenance termasuk reset auto-increment dan reordering ID untuk tabel ruangan, ruangan_gallery, dan lantai_gambar.
-
 5. ruangan.js
    Controller untuk manajemen data ruangan dengan fitur CRUD lengkap, pin positioning untuk tampilan 2.5D, dan integrasi dengan bangunan.
 6. ruanganGallery.js
@@ -774,14 +769,21 @@ E. /routes/
 
 Gambar 3.25 Struktur File Backend /routes/
 
-F. File utama
+F. /tools/
+
+1. hash_password.js
+   Utility script untuk meng-generate hash password menggunakan bcrypt sebelum menyimpan kredensial admin ke database. Script ini dijalankan secara manual di terminal dan tidak termasuk dalam runtime aplikasi.
+
+Gambar 3.26 Struktur File Backend /tools/
+
+G. File utama
 
 1. server.js
    Entry point aplikasi dengan konfigurasi Express dan middleware.
 2. package.json
    Dependencies dan script npm
 
-Gambar 3.26 Struktur File Backend File Utama
+Gambar 3.27 Struktur File Backend File Utama
 3.4.2 Struktur File Frontend
 Frontend aplikasi PointMap dibangun dengan framework Next.js 14 dan TypeScript untuk mendukung pengembangan yang terstruktur. Styling antarmuka menggunakan Tailwind CSS, sedangkan fitur peta interaktif diimplementasikan dengan Leaflet.
 A. /src/app/
@@ -799,66 +801,90 @@ A. /src/app/
    Provider untuk pengaturan dark/light mode switching menggunakan next-themes.
 6. login/page.tsx
    Halaman login admin dengan validasi formulir yang aman dan background design yang menarik.
-7. dashboard/page.tsx
-   Dashboard admin dengan visualisasi data bangunan dan ruangan, serta integrasi peta interaktif.
+7. dashboard/
+   Folder routing untuk dashboard admin dengan struktur:
+   - layout.tsx: Layout khusus dashboard dengan sidebar dan navigasi
+   - page.tsx: Halaman utama dashboard dengan visualisasi data bangunan dan ruangan, serta integrasi peta interaktif
+   - bangunan/page.tsx: Halaman manajemen data bangunan
+   - lantai/page.tsx: Halaman manajemen data lantai
+   - ruangan/page.tsx: Halaman manajemen data ruangan
+   - galeri/page.tsx: Halaman manajemen galeri foto
 
-Gambar 3.27 Struktur File Frontend
+Gambar 3.28 Struktur File Frontend
 
 B. /src/components/
 
-a) LeafletMap.tsx
-Komponen utama peta interaktif dengan Leaflet yang mengintegrasikan semua fitur peta dan manajemen data bangunan/ruangan
-b) ParticlesCustom.tsx
-Komponen animasi particles untuk latar belakang dengan efek polkadot (mode terang) dan bintang (mode gelap)
-c) CampusSelector.tsx  
- Komponen dropdown selector untuk memilih kampus aktif dengan styling responsif
-d) DashboardMap.tsx
-Komponen peta khusus untuk tampilan dashboard admin dengan fitur edit dan management
-e) MapEditor.tsx
-Komponen editor peta untuk menambah/edit geometri bangunan dengan drawing tools dan polygon editor
-f) Toast.tsx dan ToastProvider.tsx
-Komponen notifikasi toast untuk menampilkan feedback ke user dengan animasi dan auto-dismiss
-g) dashboard/BangunanForm.tsx
-Form manajemen gedung dengan upload thumbnail dan geometri drawing
-h) dashboard/LantaiForm.tsx
-Form manajemen lantai dengan SVG upload dan preview
-i) dashboard/RuanganForm.tsx
-Form manajemen ruangan dengan pin positioning di denah lantai
-j) dashboard/GaleriForm.tsx
-Form manajemen galeri foto ruangan dengan image upload
-k) dashboard/Modal.tsx
-Komponen modal reusable untuk dashboard dengan backdrop dan close handler
-l) dashboard/Sidebar.tsx
-Sidebar navigasi dashboard dengan menu dan logout
-m) dashboard/SidebarCampusSwitcher.tsx
-Komponen switcher kampus di sidebar dashboard
-n) map/LeafletMap/BuildingDetailModal.tsx
-Modal detail gedung dengan desain responsif dan fitur edit
-o) map/LeafletMap/DrawingSidebar.tsx
-Sidebar untuk drawing tools dan layer management di MapEditor
-p) map/LeafletMap/EditLantaiImageUploader.tsx
-Uploader gambar lantai dengan manajemen file SVG
-q) map/LeafletMap/EditRuanganForm.tsx
-Form edit ruangan dengan dynamic fields dan validasi
-r) map/LeafletMap/MapControlsPanel.tsx
-Panel kontrol peta dengan layer switching, search, dan legend
+1. dashboard/BangunanForm.tsx
+   Form manajemen gedung dengan upload thumbnail dan geometri drawing.
+2. dashboard/GaleriForm.tsx
+   Form manajemen galeri foto ruangan dengan image upload.
+3. dashboard/LantaiForm.tsx
+   Form manajemen lantai dengan SVG upload dan preview.
+4. dashboard/Modal.tsx
+   Komponen modal reusable untuk dashboard dengan backdrop dan close handler.
+5. dashboard/RuanganForm.tsx
+   Form manajemen ruangan dengan pin positioning di denah lantai.
+6. dashboard/Sidebar.tsx
+   Sidebar navigasi dashboard dengan menu dan logout.
+7. dashboard/SidebarCampusSwitcher.tsx
+   Komponen switcher kampus di sidebar dashboard.
+8. map/LeafletMap/BuildingDetailModal.tsx
+   Modal detail gedung dengan desain responsif dan fitur edit.
+9. map/LeafletMap/DrawingSidebar.tsx
+   Sidebar untuk drawing tools dan layer management di MapEditor.
+10. map/LeafletMap/EditLantaiImageUploader.tsx
+    Uploader gambar lantai dengan manajemen file SVG.
+11. map/LeafletMap/EditRuanganForm.tsx
+    Form edit ruangan dengan dynamic fields dan validasi.
+12. map/LeafletMap/MapControlsPanel.tsx
+    Panel kontrol peta dengan layer switching, search, dan legend.
+13. CampusSelector.tsx
+    Komponen dropdown selector untuk memilih kampus aktif dengan styling responsif.
+14. DashboardMap.tsx
+    Komponen peta khusus untuk tampilan dashboard admin dengan fitur edit dan management.
+15. LeafletMap.tsx
+    Komponen utama peta interaktif dengan Leaflet yang mengintegrasikan semua fitur peta dan manajemen data bangunan/ruangan.
+16. MapEditor.tsx
+    Komponen editor peta untuk menambah/edit geometri bangunan dengan drawing tools dan polygon editor.
+17. ParticlesCustom.tsx
+    Komponen animasi particles untuk latar belakang dengan efek polkadot (mode terang) dan bintang (mode gelap).
+18. Toast.tsx
+    Komponen notifikasi toast untuk menampilkan pesan feedback ke user.
+19. ToastProvider.tsx
+    Provider untuk manajemen state toast secara global dengan animasi dan auto-dismiss.
 
-Gambar 3.28 Struktur File Frontend /src/components/
-C. /src/hooks/
+Gambar 3.29 Struktur File Frontend /src/components/
+
+C. /src/config/
+
+1. campusConfig.ts
+   Konfigurasi data kampus multi-lokasi yang berisi informasi nama kampus, koordinat center map, dan level zoom default untuk setiap kampus (Pontianak, Sanggau, Kapuas Hulu, Sukamara).
+
+Gambar 3.30 Struktur File Frontend /src/config/
+
+D. /src/context/
+
+1. CampusContext.tsx
+   React Context Provider untuk manajemen state kampus yang dipilih secara global, memungkinkan komponen di seluruh aplikasi mengakses dan mengubah kampus aktif.
+
+Gambar 3.31 Struktur File Frontend /src/context/
+
+E. /src/hooks/
 
 1. auth/useAuth.ts
-   Hook untuk mengelola status autentikasi dan manajemen token dengan fitur auto-logout, role-based access control, dan state management untuk login/logout
+   Hook untuk mengelola status autentikasi dan manajemen token dengan fitur auto-logout, role-based access control, dan state management untuk login/logout.
 2. useCampus.ts
-   Hook untuk mengelola state kampus yang dipilih dengan context API, mendukung multi-campus filtering dan state persistence
+   Hook untuk mengelola state kampus yang dipilih dengan context API, mendukung multi-campus filtering dan state persistence.
 3. map/useFeatureSearch.ts
-   Hook untuk pencarian fitur peta dengan autocomplete yang mendukung pencarian bangunan dan ruangan dengan display type dan informasi tambahan
+   Hook untuk pencarian fitur peta dengan autocomplete yang mendukung pencarian bangunan dan ruangan dengan display type dan informasi tambahan.
 4. map/useMapRefs.ts
-   Hook untuk mengelola referensi Leaflet map instance, markers, dan layers dengan cleanup otomatis
+   Hook untuk mengelola referensi Leaflet map instance, markers, dan layers dengan cleanup otomatis.
 5. map/useMapState.ts
-   Hook untuk mengelola state peta termasuk posisi, zoom level, selected features, dan mode tampilan (2D/2.5D)
+   Hook untuk mengelola state peta termasuk posisi, zoom level, selected features, dan mode tampilan (2D/2.5D).
 
-Gambar 3.29 Struktur File Frontend /src/hooks/
-D. /src/lib/
+Gambar 3.32 Struktur File Frontend /src/hooks/
+
+F. /src/lib/
 
 1. auth.ts
    Fungsi autentikasi dan validasi dengan praktik keamanan, termasuk JWT token validation, auto-logout scheduling, dan localStorage management.
@@ -866,15 +892,10 @@ D. /src/lib/
    Konfigurasi layer peta dasar dari berbagai penyedia (Esri Satellite, Esri Topographic, Dark Carto, OpenStreetMap) tanpa memerlukan API key.
 3. map/constants.ts
    Konstanta untuk peta dan routing, termasuk endpoint GeoJSON bangunan dari backend dan file GeoJSON statis untuk layer referensi.
-4. map/styles.ts
-   Gaya (style) untuk fitur peta dengan dukungan tema, termasuk konfigurasi style per kategori (Bangunan, Trotoar, Jalan, Lahan, Parkir, Kanopi, Kolam, Paving, Taman) dan style default.
-5. routing.ts
-   Algoritma routing utama menggunakan algoritma custom dengan fitur findNearestPoint, calculateDistance (Haversine formula), dan integrasi OSRM untuk rute dunia nyata.
-6. routeSteps.ts
-   Utility untuk navigasi langkah demi langkah dengan fitur perhitungan sudut belok, bearing calculation, dan instruksi navigasi yang detail.
 
-Gambar 3.30 Struktur File Frontend /src/lib/
-E. /src/services/
+Gambar 3.33 Struktur File Frontend /src/lib/
+
+G. /src/services/
 
 1. bangunan.ts
    Service untuk operasi gedung dengan fungsi updateBangunan dan uploadBangunanThumbnail, termasuk error handling dan JWT authentication.
@@ -883,26 +904,27 @@ E. /src/services/
 3. ruangan.ts
    Service untuk operasi ruangan dengan CRUD operations (createRuangan, updateRuangan, getRuanganByBangunan, deleteRuangan) dan integrasi dengan data bangunan.
 
-Gambar 3.31 Struktur File Frontend /src/services/
-F. /src/types/
+Gambar 3.34 Struktur File Frontend /src/services/
+
+H. /src/types/
 
 1. map.ts
    Tipe data (types) untuk peta, routing, dan fitur geografis, termasuk interface FeatureProperties untuk properti umum fitur peta (bangunan/ruangan), FeatureFixed yang extends GeoJSON. Feature, dan alias FeatureType yang digunakan di komponen.
 
-Gambar 3.32 Struktur File Frontend /src/types/
-G. /public/
+Gambar 3.35 Struktur File Frontend /src/types/
 
-1. geojson/
-   File GeoJSON untuk data peta kampus.
-2. img/
+I. /public/
+
+1. img/
    Gambar gedung, lantai, dan ruangan dengan optimasi.
-3. Slider/
+2. Slider/
    Gambar latar belakang slider dengan transisi halus (smooth transitions).
-4. building-details/
+3. building-details/
    Halaman detail gedung yang berdiri sendiri dengan file HTML, CSS, dan JavaScript terpisah untuk fungsionalitas yang independen.
 
-Gambar 3.33 Struktur File Frontend /public/
-H. File Konfigurasi
+Gambar 3.36 Struktur File Frontend /public/
+
+J. File Konfigurasi
 
 1. next.config.ts
    Konfigurasi Next.js dengan konfigurasi default dan opsi yang dapat dikustomisasi.
@@ -913,7 +935,7 @@ H. File Konfigurasi
 4. package.json
    Daftar dependencies dan skrip npm, termasuk library untuk peta (Leaflet, ESRI), UI components (FontAwesome, React Icons), routing (Dijkstra), dan development tools.
 
-Gambar 3.34 Struktur File Konfigurasi Frontend
+Gambar 3.37 Struktur File Konfigurasi Frontend
 
 BAB IV
 HASIL DAN PEMBAHASAN
