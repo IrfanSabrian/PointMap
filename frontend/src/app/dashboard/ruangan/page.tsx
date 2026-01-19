@@ -17,6 +17,8 @@ import {
 } from "react-icons/fa";
 import { useCampus } from "@/hooks/useCampus";
 import { useToast } from "@/components/ToastProvider";
+import { Fancybox } from "@fancyapps/ui";
+import "@fancyapps/ui/dist/fancybox/fancybox.css";
 
 // Interface for Pagination
 function Pagination({
@@ -82,7 +84,7 @@ function RoomGalleryModal({
     try {
       setLoading(true);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -102,6 +104,15 @@ function RoomGalleryModal({
     setPendingFiles([]);
     setPendingPreviews([]);
   }, [roomId]);
+
+  // Initialize Fancybox
+  useEffect(() => {
+    Fancybox.bind("[data-fancybox='room-gallery']", {});
+
+    return () => {
+      Fancybox.destroy();
+    };
+  }, [images]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -148,7 +159,7 @@ function RoomGalleryModal({
             Authorization: `Bearer ${token}`,
           },
           body: formData,
-        }
+        },
       );
 
       if (res.ok) {
@@ -165,7 +176,7 @@ function RoomGalleryModal({
             err.details ||
             "Kesalahan tidak diketahui"
           }`,
-          "error"
+          "error",
         );
         console.error("Upload error details:", err);
       }
@@ -187,7 +198,7 @@ function RoomGalleryModal({
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       if (res.ok) {
         setImages(images.filter((img) => img.id_gallery !== deleteId));
@@ -248,36 +259,29 @@ function RoomGalleryModal({
                     key={img.id_gallery}
                     className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800"
                   >
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_API_BASE_URL || ""}${
-                        img.path_file.startsWith("/") ? "" : "/"
-                      }${img.path_file}`}
-                      alt="Gallery"
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
-                      <button
-                        onClick={() =>
-                          window.open(
-                            `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}${
-                              img.path_file.startsWith("/") ? "" : "/"
-                            }${img.path_file}`,
-                            "_blank"
-                          )
-                        }
-                        className="p-2 bg-white/20 text-white rounded-full hover:bg-white/40 backdrop-blur-sm transition-all transform hover:scale-110"
-                        title="Lihat"
-                      >
-                        <FaImages />
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(img.id_gallery)}
-                        className="p-2 bg-red-500/80 text-white rounded-full hover:bg-red-600 backdrop-blur-sm transition-all transform hover:scale-110"
-                        title="Hapus"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
+                    <a
+                      href={`${img.path_file.startsWith("/") ? "" : "/"}${img.path_file}`}
+                      data-fancybox="room-gallery"
+                      data-caption="Gallery Image"
+                      className="block w-full h-full cursor-pointer"
+                    >
+                      <img
+                        src={`${img.path_file.startsWith("/") ? "" : "/"}${img.path_file}`}
+                        alt="Gallery"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeleteId(img.id_gallery);
+                      }}
+                      className="absolute top-2 right-2 p-2 bg-red-500/90 text-white rounded-full hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-10"
+                      title="Hapus"
+                    >
+                      <FaTrash className="text-xs" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -445,13 +449,13 @@ export default function RuanganPage() {
     // Refresh data
     const fetchData = async () => {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`,
       );
       if (res.ok) {
         const data = await res.json();
         const bangunanIds = bangunanList.map((b) => b.id_bangunan);
         const filteredData = data.filter((r: any) =>
-          bangunanIds.includes(r.id_bangunan)
+          bangunanIds.includes(r.id_bangunan),
         );
         setRuangan(filteredData);
       }
@@ -485,7 +489,7 @@ export default function RuanganPage() {
         const [resRuangan, resBangunan, resLantaiGambar] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`),
           fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan?kampus=${campusParam}`
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan?kampus=${campusParam}`,
           ),
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`),
         ]);
@@ -500,7 +504,7 @@ export default function RuanganPage() {
           // Filter ruangan based on bangunan from selected campus
           const bangunanIds = dataBangunan.map((b: any) => b.id_bangunan);
           const filteredRuanganData = dataRuangan.filter((r: any) =>
-            bangunanIds.includes(r.id_bangunan)
+            bangunanIds.includes(r.id_bangunan),
           );
 
           setRuangan(filteredRuanganData);
@@ -534,7 +538,7 @@ export default function RuanganPage() {
         (r) =>
           r.nama_ruangan.toLowerCase().includes(lower) ||
           r.nama_jurusan?.toLowerCase().includes(lower) ||
-          r.nama_prodi?.toLowerCase().includes(lower)
+          r.nama_prodi?.toLowerCase().includes(lower),
       );
     }
 
@@ -559,7 +563,7 @@ export default function RuanganPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (res.ok) {
@@ -584,11 +588,11 @@ export default function RuanganPage() {
   // Helper function untuk mendapatkan gambar lantai
   const getLantaiGambarForRuangan = (
     id_bangunan: number,
-    nomor_lantai: number
+    nomor_lantai: number,
   ) => {
     const lantaiFile = `Lt${nomor_lantai}.svg`;
     const gambar = lantaiGambar.find(
-      (lg) => lg.id_bangunan === id_bangunan && lg.nama_file === lantaiFile
+      (lg) => lg.id_bangunan === id_bangunan && lg.nama_file === lantaiFile,
     );
     return gambar?.path_file;
   };
@@ -717,7 +721,7 @@ export default function RuanganPage() {
               {(() => {
                 const lantaiPath = getLantaiGambarForRuangan(
                   r.id_bangunan,
-                  r.nomor_lantai
+                  r.nomor_lantai,
                 );
                 return lantaiPath ? (
                   <div className="px-4 pt-2 pb-3 bg-white dark:bg-gray-800/50">
@@ -820,7 +824,7 @@ export default function RuanganPage() {
                       {(() => {
                         const lantaiPath = getLantaiGambarForRuangan(
                           r.id_bangunan,
-                          r.nomor_lantai
+                          r.nomor_lantai,
                         );
                         return lantaiPath ? (
                           <div className="w-20 h-16 bg-gray-100 dark:bg-gray-900/50 rounded overflow-hidden border border-gray-200 dark:border-gray-700">

@@ -33,7 +33,7 @@ export default function GaleriPage() {
     try {
       setIsLoading(true);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -63,7 +63,7 @@ export default function GaleriPage() {
           (item.ruangan?.nama_ruangan &&
             item.ruangan.nama_ruangan.toLowerCase().includes(lower)) ||
           (item.ruangan?.bangunan?.nama &&
-            item.ruangan.bangunan.nama.toLowerCase().includes(lower))
+            item.ruangan.bangunan.nama.toLowerCase().includes(lower)),
       );
     }
     setFilteredItems(result);
@@ -80,7 +80,7 @@ export default function GaleriPage() {
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       if (res.ok) {
@@ -104,7 +104,7 @@ export default function GaleriPage() {
   const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE);
   const paginatedItems = filteredItems.slice(
     (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    currentPage * PAGE_SIZE,
   );
 
   return (
@@ -155,13 +155,7 @@ export default function GaleriPage() {
                 className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700 aspect-square"
               >
                 <img
-                  src={
-                    item.filename.startsWith("http")
-                      ? item.filename
-                      : `${
-                          process.env.NEXT_PUBLIC_API_BASE_URL
-                        }/${item.filename.replace(/^\//, "")}`
-                  }
+                  src={`${item.path_file.startsWith("/") ? "" : "/"}${item.path_file}`}
                   alt={item.deskripsi || "Foto Ruangan"}
                   className="w-full h-full object-cover"
                 />

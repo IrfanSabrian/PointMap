@@ -106,7 +106,7 @@ export default function Home() {
     // Check Google Translate cookie to sync toggle state
     const cookies = document.cookie.split(";");
     const googtransCookie = cookies.find((c) =>
-      c.trim().startsWith("googtrans=")
+      c.trim().startsWith("googtrans="),
     );
     if (googtransCookie) {
       const value = googtransCookie.split("=")[1];
@@ -209,7 +209,7 @@ export default function Home() {
     setTimeout(() => {
       // Method 1: Try to find and trigger the dropdown
       const selectElement = document.querySelector(
-        ".goog-te-combo"
+        ".goog-te-combo",
       ) as HTMLSelectElement;
       if (selectElement) {
         selectElement.value = newLang ? "en" : "id";
@@ -268,10 +268,10 @@ export default function Home() {
   return (
     <div
       className={`min-h-screen transition-colors ${
-        isDark ?? false
+        (isDark ?? false)
           ? "bg-background-dark"
           : "bg-gradient-to-tr from-background via-surface to-accent"
-      } ${isDark ?? false ? "dark" : ""}`}
+      } ${(isDark ?? false) ? "dark" : ""}`}
     >
       {/* Area hover atas untuk munculkan navbar - hanya aktif di luar hero section */}
 
@@ -299,7 +299,7 @@ export default function Home() {
                 logo.classList.add("animate-bounceIn");
                 setTimeout(
                   () => logo.classList.remove("animate-bounceIn"),
-                  600
+                  600,
                 );
               }
             }}
@@ -406,7 +406,7 @@ export default function Home() {
                 icon.classList.add("animate-spin-fast");
                 setTimeout(
                   () => icon.classList.remove("animate-spin-fast"),
-                  500
+                  500,
                 );
               }
               toggleDark();
@@ -515,8 +515,8 @@ export default function Home() {
         </div>
 
         {/* Campus Selection Cards */}
-        <div className="w-full max-w-7xl mx-auto px-4 mt-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="w-full max-w-7xl mx-auto px-0 sm:px-4 mt-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             {[
               {
                 campus: CAMPUSES[0],
@@ -550,7 +550,7 @@ export default function Home() {
                   setTimeout(scrollToMap, 100);
                 }}
                 className={`
-                    group relative overflow-hidden rounded-xl cursor-pointer text-left h-36 w-full
+                    group relative overflow-hidden rounded-lg sm:rounded-xl cursor-pointer text-left h-28 sm:h-32 md:h-36 w-full
                     border transition-all duration-300
                     ${
                       selectedCampus.id === item.campus.id
@@ -570,12 +570,12 @@ export default function Home() {
                 </div>
 
                 {/* Content */}
-                <div className="absolute inset-0 p-5 flex flex-col justify-between items-start relative z-10 pointer-events-none h-full">
+                <div className="absolute inset-0 p-3 sm:p-4 md:p-5 flex flex-col justify-between items-start relative z-10 pointer-events-none h-full">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-1 drop-shadow-md">
+                    <p className="text-[10px] sm:text-xs uppercase tracking-wider text-blue-400 font-bold mb-0.5 sm:mb-1 drop-shadow-md">
                       {item.label}
                     </p>
-                    <h3 className="text-white font-bold text-lg leading-tight drop-shadow-md pr-8">
+                    <h3 className="text-white font-bold text-sm sm:text-base md:text-lg leading-tight drop-shadow-md pr-6 sm:pr-8">
                       {item.campus.shortName
                         .replace("Polnep ", "")
                         .replace("PSDKU ", "")
@@ -583,16 +583,16 @@ export default function Home() {
                     </h3>
                   </div>
 
-                  <p className="text-xs text-white flex items-center gap-2 font-medium drop-shadow-md mt-auto">
-                    <FaMapMarkedAlt className="text-white" />
+                  <p className="text-[10px] sm:text-xs text-white flex items-center gap-1 sm:gap-2 font-medium drop-shadow-md mt-auto">
+                    <FaMapMarkedAlt className="text-white text-[10px] sm:text-xs" />
                     {item.desc}
                   </p>
                 </div>
 
                 {/* Arrow Icon - Absolute Corner */}
                 <div className="absolute top-0 right-0 z-20">
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-md flex items-center justify-center text-white rounded-bl-xl border-l border-b border-white/20 group-hover:bg-white/30 group-hover:scale-105 transition-all duration-300">
-                    <FiArrowUpRight className="w-5 h-5" />
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white/20 backdrop-blur-md flex items-center justify-center text-white rounded-bl-xl border-l border-b border-white/20 group-hover:bg-white/30 group-hover:scale-105 transition-all duration-300">
+                    <FiArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                 </div>
               </button>
