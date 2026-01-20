@@ -171,20 +171,28 @@ export const uploadThumbnail = async (req, res) => {
       });
     }
 
-    // Path untuk menyimpan file
-    const uploadDir = path.join(__dirname, "../uploads/thumbnails");
+    // Path untuk menyimpan file di frontend/public/img/{id_bangunan}/
+    const uploadDir = path.join(
+      __dirname,
+      "../../frontend/public/img",
+      id.toString(),
+    );
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
     // Generate filename
     const fileExt = path.extname(req.file.originalname);
-    const fileName = `bangunan_${id}_thumbnail${fileExt}`;
+    const fileName = `thumbnail${fileExt}`;
     const filePath = path.join(uploadDir, fileName);
 
     // Hapus thumbnail lama jika ada
     if (bangunan.thumbnail && !bangunan.thumbnail.startsWith("http")) {
-      const oldFilePath = path.join(__dirname, "..", bangunan.thumbnail);
+      const oldFilePath = path.join(
+        __dirname,
+        "../../frontend/public",
+        bangunan.thumbnail.replace(/^\//, ""),
+      );
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
       }
@@ -194,13 +202,13 @@ export const uploadThumbnail = async (req, res) => {
     fs.copyFileSync(req.file.path, filePath);
     fs.unlinkSync(req.file.path); // Delete temp file
 
-    // Path untuk database (relative path untuk serving via express.static)
-    const dbPath = `uploads/thumbnails/${fileName}`;
+    // Path untuk database (relative path untuk frontend)
+    const dbPath = `/img/${id}/${fileName}`;
 
     // Simpan path ke database
     await Bangunan.update(
       { thumbnail: dbPath },
-      { where: { id_bangunan: id } }
+      { where: { id_bangunan: id } },
     );
 
     // Ambil data bangunan yang sudah diupdate

@@ -6,9 +6,8 @@ import {
   faSyncAlt,
   faGlobe,
   faLayerGroup,
-  faEye,
-  faEyeSlash,
   faLocationArrow,
+  faBan,
 } from "@fortawesome/free-solid-svg-icons";
 
 type SearchFeature = {
@@ -175,7 +174,7 @@ export default function MapControlsPanel(props: Props) {
                     ? `${searchResults.length} hasil ditemukan`
                     : `Menampilkan ${Math.min(
                         searchResults.length,
-                        10
+                        10,
                       )} bangunan`}
                 </div>
                 {searchResults.map((feature, index) => (
@@ -383,10 +382,20 @@ export default function MapControlsPanel(props: Props) {
                       : "Tampilkan Bangunan"
                   }
                 >
-                  <FontAwesomeIcon
-                    icon={bangunanVisible ? faEye : faEyeSlash}
-                    className="w-2.5 h-2.5 sm:w-3 sm:h-3"
-                  />
+                  <div className="relative w-2.5 h-2.5 sm:w-3 sm:h-3">
+                    {/* Layer group icon - always visible */}
+                    <FontAwesomeIcon
+                      icon={faLayerGroup}
+                      className="w-full h-full"
+                    />
+                    {/* Ban icon overlay when layer is hidden */}
+                    {!bangunanVisible && (
+                      <FontAwesomeIcon
+                        icon={faBan}
+                        className="w-full h-full absolute inset-0 scale-150"
+                      />
+                    )}
+                  </div>
                 </button>
               </div>
             </div>
@@ -412,10 +421,17 @@ export default function MapControlsPanel(props: Props) {
                 : "bg-white border-gray-200 hover:bg-gray-100 text-gray-700"
             }`}
           >
-            <FontAwesomeIcon
-              icon={faLayerGroup}
-              className="w-4 h-4 sm:w-5 sm:h-5"
-            />
+            <div className="relative w-4 h-4 sm:w-5 sm:h-5">
+              {/* Layer group icon - always visible */}
+              <FontAwesomeIcon icon={faLayerGroup} className="w-full h-full" />
+              {/* Ban icon overlay when layer is hidden */}
+              {!layerVisible && (
+                <FontAwesomeIcon
+                  icon={faBan}
+                  className="w-full h-full absolute inset-0 scale-150"
+                />
+              )}
+            </div>
           </button>
           <button
             data-control="toggle-basemap"

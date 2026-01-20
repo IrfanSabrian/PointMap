@@ -1474,7 +1474,9 @@
         height: 100%;
         width: 0%;
         background: #007bff;
-        transition: width 0.3s ease, background-color 0.3s ease;
+        transition:
+          width 0.3s ease,
+          background-color 0.3s ease;
         border-radius: 3px;
       }
 
@@ -1682,7 +1684,10 @@
             class="detail-icon detail-icon--prev"
             href="#"
             title="Kembali"
-            onclick="window.parent.postMessage('close-buildingdetail', '*'); return false;"
+            onclick="
+              window.parent.postMessage('close-buildingdetail', '*');
+              return false;
+            "
           >
             <i class="fas fa-arrow-left"></i>
             <span style="margin-left: 0.5em; vertical-align: middle"
@@ -1784,7 +1789,7 @@
         try {
           console.log(
             "Refreshing global gallery data for building:",
-            buildingId
+            buildingId,
           );
 
           // Fetch data gallery terbaru untuk semua ruangan di bangunan ini
@@ -1804,7 +1809,7 @@
             window.ruanganGalleryData = newGalleryData;
             console.log(
               "Updated window.ruanganGalleryData:",
-              window.ruanganGalleryData
+              window.ruanganGalleryData,
             );
 
             // Re-render bangunan dengan data gallery terbaru
@@ -1818,7 +1823,7 @@
                 window.buildingData,
                 window.ruanganData,
                 window.lantaiGambarData || {},
-                newGalleryData
+                newGalleryData,
               );
 
               console.log("Building re-rendered successfully");
@@ -1860,7 +1865,7 @@
                 "Content-Type": "application/json",
               },
               credentials: "include",
-            }
+            },
           );
           if (!buildingResponse.ok) {
             throw new Error(`HTTP error! status: ${buildingResponse.status}`);
@@ -1878,7 +1883,7 @@
                 "Content-Type": "application/json",
               },
               credentials: "include",
-            }
+            },
           );
           if (!ruanganResponse.ok) {
             throw new Error(`HTTP error! status: ${ruanganResponse.status}`);
@@ -1903,14 +1908,14 @@
                   "Content-Type": "application/json",
                 },
                 credentials: "include",
-              }
+              },
             );
             if (lantaiResponse.ok) {
               lantaiGambarData = await lantaiResponse.json();
             } else {
               console.error(
                 "Failed to load lantai gambar data:",
-                lantaiResponse.status
+                lantaiResponse.status,
               );
             }
           } catch (error) {
@@ -1928,7 +1933,7 @@
                   "Content-Type": "application/json",
                 },
                 credentials: "include",
-              }
+              },
             );
             if (galleryResponse.ok) {
               ruanganGalleryData = await galleryResponse.json();
@@ -1942,13 +1947,13 @@
               console.log("window.ruanganData:", window.ruanganData);
               console.log(
                 "window.ruanganGalleryData:",
-                window.ruanganGalleryData
+                window.ruanganGalleryData,
               );
               console.log("window.lantaiGambarData:", window.lantaiGambarData);
             } else {
               console.error(
                 "Failed to load gallery data:",
-                galleryResponse.status
+                galleryResponse.status,
               );
             }
           } catch (error) {
@@ -1966,7 +1971,7 @@
             buildingData,
             ruanganData,
             lantaiGambarData,
-            ruanganGalleryData
+            ruanganGalleryData,
           );
         } catch (error) {
           console.error("Error loading building data:", error);
@@ -2003,7 +2008,7 @@
           }
 
           const errorUrl = `error.html?id=${buildingId}&name=${encodeURIComponent(
-            buildingName
+            buildingName,
           )}&error=${encodeURIComponent(error.message)}`;
 
           window.location.href = errorUrl;
@@ -2038,15 +2043,15 @@
                 pinHeightPercent / 2,
                 Math.min(
                   ruangan.fallback_position.top,
-                  100 - pinHeightPercent / 2
-                )
+                  100 - pinHeightPercent / 2,
+                ),
               );
               const fallbackLeft = Math.max(
                 pinWidthPercent / 2,
                 Math.min(
                   ruangan.fallback_position.left,
-                  100 - pinWidthPercent / 2
-                )
+                  100 - pinWidthPercent / 2,
+                ),
               );
               top = `${fallbackTop}vmin`;
               left = `${fallbackLeft}vmin`;
@@ -2071,7 +2076,7 @@
             // Validate coordinates
             if (isNaN(topPercent) || isNaN(leftPercent)) {
               console.error(
-                `Invalid coordinates for ${pinClass}: top="${top}", left="${left}" -> topPercent=${topPercent}, leftPercent=${leftPercent}`
+                `Invalid coordinates for ${pinClass}: top="${top}", left="${left}" -> topPercent=${topPercent}, leftPercent=${leftPercent}`,
               );
               return;
             }
@@ -2135,7 +2140,7 @@
           console.log(
             `✅ Applied pin CSS for ${
               Object.keys(window.pinCoordinates || {}).length
-            } pins with precise positioning`
+            } pins with precise positioning`,
           );
         }
       }
@@ -2165,7 +2170,7 @@
         buildingData,
         ruanganData,
         lantaiGambarData,
-        ruanganGalleryData
+        ruanganGalleryData,
       ) {
         const levelsContainer = document.getElementById("levels-container");
         const contentArea = document.getElementById("content-area");
@@ -2190,7 +2195,7 @@
 
           // Cari data lantai dari API
           const lantaiData = lantaiGambarData.find(
-            (item) => item.nama_file === `Lt${lantai}.svg`
+            (item) => item.nama_file === `Lt${lantai}.svg`,
           );
 
           // Tentukan path SVG berdasarkan data dari API atau fallback
@@ -2230,7 +2235,7 @@
           ruanganLantai.forEach((ruangan, ruanganIndex) => {
             const spaceId = `${lantai}.${String(ruanganIndex + 1).padStart(
               2,
-              "0"
+              "0",
             )}`;
 
             // Data untuk konten
@@ -2262,7 +2267,7 @@
           ruanganLantai.forEach((ruangan, ruanganIndex) => {
             const spaceId = `${lantai}.${String(ruanganIndex + 1).padStart(
               2,
-              "0"
+              "0",
             )}`;
 
             const pinElement = document.createElement("a");
@@ -2270,12 +2275,12 @@
             pinElement.setAttribute("data-space", spaceId);
             pinElement.setAttribute(
               "data-pin-style",
-              ruangan.pin_style || "default"
+              ruangan.pin_style || "default",
             );
             pinElement.setAttribute("href", "#");
             pinElement.setAttribute(
               "aria-label",
-              `Pin untuk ${ruangan.nama_ruangan}`
+              `Pin untuk ${ruangan.nama_ruangan}`,
             );
             pinElement.style.cursor = "pointer"; // Ensure cursor shows it's clickable
 
@@ -2298,7 +2303,7 @@
           contentItems,
           buildingData.nama,
           ruanganGalleryData,
-          buildingData
+          buildingData,
         );
 
         // Render spaces list
@@ -2344,7 +2349,7 @@
         items,
         buildingName,
         ruanganGalleryData,
-        buildingData
+        buildingData,
       ) {
         const contentArea = document.getElementById("content-area");
 
@@ -2380,7 +2385,7 @@
                           const ruanganGallery = ruanganGalleryData.filter(
                             (gallery) =>
                               gallery.ruangan &&
-                              gallery.ruangan.nama_ruangan === item.title
+                              gallery.ruangan.nama_ruangan === item.title,
                           );
 
                           if (ruanganGallery.length > 0) {
@@ -2402,8 +2407,15 @@
                                     src="${getImageUrl(firstImage.path_file)}" 
                                     alt="${item.title}"
                                     class="room-thumbnail"
-                                    onError="this.src='../img/default/ruangan/thumbnail.jpg'"
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                                   />
+                                  <!-- Placeholder saat gambar tidak tersedia -->
+                                  <div class="image-placeholder" style="display:none; position:absolute; inset:0; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem; background:linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius:12px;">
+                                    <svg style="width:2.5rem; height:2.5rem; color:#9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <span style="font-size:0.75rem; color:#9ca3af; font-weight:500;">Gambar tidak tersedia</span>
+                                  </div>
                                   <div class="gallery-overlay">
                                     <div class="gallery-indicator">
                                       <i class="fas fa-images"></i>
@@ -2421,35 +2433,24 @@
                                 <a href="${getImageUrl(gallery.path_file)}" 
                                    data-fancybox="gallery-${item.space}"
                                    data-caption="${item.title} - Foto ${
-                                    index + 2
-                                  }"
+                                     index + 2
+                                   }"
                                    style="display: none;">
                                 </a>
-                              `
+                              `,
                                 )
                                 .join("")}
                             `;
                           } else {
-                            // Fallback ke path berdasarkan ID ruangan
+                            // Tidak ada gallery - tampilkan placeholder saja
                             return `
-                              <div class="gallery-container">
-                                <a href="../img/${buildingData.id_bangunan}/ruangan/${item.ruangan.id_ruangan}/gallery1.jpg" 
-                                   data-fancybox="gallery-${item.space}"
-                                   data-caption="${item.title} - Foto 1"
-                                   class="gallery-link">
-                                  <img 
-                                    src="../img/${buildingData.id_bangunan}/ruangan/${item.ruangan.id_ruangan}/gallery1.jpg" 
-                                    alt="${item.title}"
-                                    class="room-thumbnail"
-                                    onError="this.src='../img/default/ruangan/thumbnail.jpg'"
-                                  />
-                                  <div class="gallery-overlay">
-                                    <div class="gallery-indicator">
-                                      <i class="fas fa-images"></i>
-                                      <span class="gallery-count" data-room="${item.title}" data-building="${buildingName}">3</span>
-                                    </div>
-                                  </div>
-                                </a>
+                              <div class="gallery-container" style="position:relative;">
+                                <div class="image-placeholder" style="display:flex; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem; background:linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius:12px; border:2px dashed #d1d5db;">
+                                  <svg style="width:3rem; height:3rem; color:#9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                  </svg>
+                                  <span style="font-size:0.875rem; color:#9ca3af; font-weight:500; text-align:center;">Tidak ada galeri</span>
+                                </div>
                               </div>
                             `;
                           }
@@ -2469,7 +2470,7 @@
         const closeButton = document.createElement("button");
         closeButton.setAttribute(
           "class",
-          "boxbutton boxbutton--dark content__button content__button--hidden"
+          "boxbutton boxbutton--dark content__button content__button--hidden",
         );
         closeButton.setAttribute("aria-label", "Close details");
         closeButton.innerHTML = '<i class="fas fa-times"></i>';
@@ -2492,7 +2493,7 @@
 
         levels.forEach((level) => {
           const items = spacesListData.filter(
-            (item) => item.level === parseInt(level)
+            (item) => item.level === parseInt(level),
           );
           if (items.length > 0) {
             html += `<div class="list__level-title">Lantai ${level}</div>`;
@@ -2518,7 +2519,7 @@
 
         // Sembunyikan seluruh container buildingdetails-main
         const buildingDetailsMain = document.querySelector(
-          ".buildingdetails-main"
+          ".buildingdetails-main",
         );
         if (buildingDetailsMain) {
           buildingDetailsMain.style.display = "none";
@@ -2578,7 +2579,7 @@
           ) {
             const roomGallery = window.ruanganGalleryData.filter(
               (gallery) =>
-                gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+                gallery.ruangan && gallery.ruangan.nama_ruangan === roomName,
             );
 
             if (roomGallery.length > 0) {
@@ -2613,7 +2614,7 @@
             ) {
               const roomGallery = window.ruanganGalleryData.find(
                 (gallery) =>
-                  gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+                  gallery.ruangan && gallery.ruangan.nama_ruangan === roomName,
               );
               if (roomGallery && roomGallery.path_file) {
                 img.src = getImageUrl(roomGallery.path_file);
@@ -2668,7 +2669,7 @@
 
           // Hapus semua hidden gallery links yang ada
           const hiddenLinks = container.querySelectorAll(
-            'a[style*="display: none"]'
+            'a[style*="display: none"]',
           );
           hiddenLinks.forEach((link) => link.remove());
 
@@ -2679,7 +2680,7 @@
           ) {
             const roomGallery = window.ruanganGalleryData.filter(
               (gallery) =>
-                gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+                gallery.ruangan && gallery.ruangan.nama_ruangan === roomName,
             );
 
             if (roomGallery.length > 1) {
@@ -2692,7 +2693,7 @@
                 link.setAttribute("data-fancybox", `gallery-${spaceId}`);
                 link.setAttribute(
                   "data-caption",
-                  `${roomName} - Foto ${index + 2}`
+                  `${roomName} - Foto ${index + 2}`,
                 );
                 link.style.display = "none";
                 container.appendChild(link);
@@ -2728,7 +2729,7 @@
             ) {
               const roomGallery = window.ruanganGalleryData.find(
                 (gallery) =>
-                  gallery.ruangan && gallery.ruangan.nama_ruangan === roomName
+                  gallery.ruangan && gallery.ruangan.nama_ruangan === roomName,
               );
               if (roomGallery && roomGallery.path_file) {
                 img.src = getImageUrl(roomGallery.path_file);
@@ -2755,7 +2756,7 @@
 
         // Tampilkan kembali container buildingdetails-main
         const buildingDetailsMain = document.querySelector(
-          ".buildingdetails-main"
+          ".buildingdetails-main",
         );
         if (buildingDetailsMain) {
           buildingDetailsMain.style.display = "block";
@@ -2776,7 +2777,7 @@
         pins.forEach(function (pin, index) {
           const spaceRef = pin.getAttribute("data-space");
           const contentItem = contentEl.querySelector(
-            '.content__item[data-space="' + spaceRef + '"]'
+            '.content__item[data-space="' + spaceRef + '"]',
           );
 
           if (contentItem) {
@@ -2800,7 +2801,7 @@
 
               // Find and click the corresponding list item (same as original main.js)
               const listItem = document.querySelector(
-                'li[data-space="' + spaceRef + '"]'
+                'li[data-space="' + spaceRef + '"]',
               );
 
               if (listItem) {
@@ -2814,7 +2815,7 @@
               } else {
                 // Alternative: try to find any element with this data-space
                 const anyElement = document.querySelector(
-                  '[data-space="' + spaceRef + '"]'
+                  '[data-space="' + spaceRef + '"]',
                 );
                 if (anyElement) {
                   anyElement.click();
@@ -2843,7 +2844,7 @@
           "Yakin ingin menghapus gambar ini?",
           () => {
             performDeleteGalleryImage(galleryId, roomId);
-          }
+          },
         );
       }
 
@@ -2851,7 +2852,7 @@
       async function deleteGalleryImageWithLoading(
         galleryId,
         roomId,
-        buttonElement
+        buttonElement,
       ) {
         // Disable button and show loading
         const originalButtonHTML = buttonElement.innerHTML;
@@ -2880,14 +2881,14 @@
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("token")}`,
               },
-            }
+            },
           );
 
           if (response.ok) {
             showNotification(
               "success",
               "Gambar Dihapus",
-              "Gambar berhasil dihapus dari gallery!"
+              "Gambar berhasil dihapus dari gallery!",
             );
 
             // Auto refresh gallery images immediately
@@ -2901,23 +2902,22 @@
             if (buildingId) {
               console.log("Calling refreshGlobalGalleryData (delete)...");
               try {
-                const refreshResult = await refreshGlobalGalleryData(
-                  buildingId
-                );
+                const refreshResult =
+                  await refreshGlobalGalleryData(buildingId);
                 console.log("Refresh result (delete):", refreshResult);
                 if (refreshResult) {
                   console.log(
-                    "✅ Global gallery data refreshed successfully (delete)"
+                    "✅ Global gallery data refreshed successfully (delete)",
                   );
                 } else {
                   console.error(
-                    "❌ Failed to refresh global gallery data (delete)"
+                    "❌ Failed to refresh global gallery data (delete)",
                   );
                 }
               } catch (refreshError) {
                 console.error(
                   "❌ Error during refresh (delete):",
-                  refreshError
+                  refreshError,
                 );
               }
             } else {
@@ -2927,7 +2927,7 @@
             showNotification(
               "success",
               "Gallery Diperbarui",
-              "Gallery telah diperbarui setelah penghapusan"
+              "Gallery telah diperbarui setelah penghapusan",
             );
           } else {
             throw new Error("Gagal menghapus gambar");
@@ -2937,7 +2937,7 @@
           showNotification(
             "error",
             "Gagal Dihapus",
-            "Gagal menghapus gambar: " + error.message
+            "Gagal menghapus gambar: " + error.message,
           );
         }
       }
@@ -3210,7 +3210,7 @@
       async function addMoreFiles() {
         const fileInput = document.getElementById("addGalleryImage");
         const addMoreBtn = document.querySelector(
-          "#editGalleryModal .btn-add-more"
+          "#editGalleryModal .btn-add-more",
         );
         const doneBtn = document.querySelector("#editGalleryModal .btn-done");
         const saveBtn = document.querySelector("#editGalleryModal .btn-save");
@@ -3235,7 +3235,7 @@
 
         // Remove any existing progress container
         const progressContainer = document.querySelector(
-          ".upload-progress-container"
+          ".upload-progress-container",
         );
         if (progressContainer) {
           progressContainer.remove();
@@ -3293,7 +3293,7 @@
 
         // Ensure All Levels button is enabled by default
         const allLevelsBtn = document.querySelector(
-          ".buildingnav__button--all-levels"
+          ".buildingnav__button--all-levels",
         );
         if (allLevelsBtn) {
           allLevelsBtn.style.opacity = "1";
@@ -3307,7 +3307,7 @@
         viewToggleBtn.addEventListener("click", function () {
           const isCurrently2D = building.classList.contains("building--2d");
           const allLevelsBtn = document.querySelector(
-            ".buildingnav__button--all-levels"
+            ".buildingnav__button--all-levels",
           );
 
           console.log("Current building classes:", building.className);
@@ -3379,7 +3379,7 @@
           console.warn(
             "Failed to initialize view toggle after",
             maxAttempts,
-            "attempts"
+            "attempts",
           );
           return;
         }
@@ -3390,7 +3390,7 @@
         if (building && viewToggleBtn) {
           console.log(
             "Successfully initialized view toggle on attempt",
-            initAttempts + 1
+            initAttempts + 1,
           );
           initializeViewToggle();
         } else {
@@ -3413,12 +3413,12 @@
             // Tampilkan notifikasi yang lebih bagus
             showNotification(
               'Tombol "All Levels" hanya tersedia dalam mode 2.5D. Silakan ubah ke mode 2.5D terlebih dahulu.',
-              "info"
+              "info",
             );
 
             // Optionally, you could show a more elegant notification here
             console.log(
-              "All Levels button clicked while in 2D mode - action prevented"
+              "All Levels button clicked while in 2D mode - action prevented",
             );
           }
         }
@@ -3471,7 +3471,7 @@
           building.classList.remove("building--2d");
           console.log(
             "Building classes after removing 2D:",
-            building.className
+            building.className,
           );
         } else {
           console.error("Building element not found");
@@ -3485,7 +3485,7 @@
         // Check if our CSS file is loaded
         const styleSheets = Array.from(document.styleSheets);
         const ourCSS = styleSheets.find(
-          (sheet) => sheet.href && sheet.href.includes("style.css")
+          (sheet) => sheet.href && sheet.href.includes("style.css"),
         );
 
         if (ourCSS) {
@@ -3537,7 +3537,7 @@
               console.log(`Level ${index + 1} classes:`, level.className);
               console.log(
                 `Level ${index + 1} transform:`,
-                level.style.transform
+                level.style.transform,
               );
             });
           }

@@ -608,14 +608,16 @@ export default function Home() {
         style={{ position: "relative", zIndex: 1 }}
       >
         <div className="w-full">
-          <div className="bg-primary text-white text-lg md:text-xl font-bold py-3 px-6 shadow rounded-t-2xl flex items-center justify-between border border-primary/20 dark:border-transparent">
-            <span>Polnep Interactive Map</span>
+          <div className="bg-primary text-white text-lg md:text-xl font-bold py-3 px-4 sm:px-6 shadow rounded-t-2xl flex flex-col sm:flex-row items-center sm:items-center justify-between gap-2 sm:gap-4 border border-primary/20 dark:border-transparent">
+            <span className="hidden sm:block">Polnep Interactive Map</span>
             {isClient && (
-              <CampusSelector
-                selectedCampus={selectedCampus}
-                onCampusChange={setSelectedCampus}
-                isDark={true}
-              />
+              <div className="self-end sm:self-auto w-full sm:w-auto">
+                <CampusSelector
+                  selectedCampus={selectedCampus}
+                  onCampusChange={setSelectedCampus}
+                  isDark={true}
+                />
+              </div>
             )}
           </div>
         </div>

@@ -55,7 +55,7 @@ export default function BangunanForm({
 
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
-    initialData?.thumbnail || null
+    initialData?.thumbnail || null,
   );
 
   // State for drawing
@@ -108,7 +108,7 @@ export default function BangunanForm({
     if (!drawnGeoJSON.type || !drawnGeoJSON.geometry) {
       showToast(
         "Geometry tidak valid. Pastikan Anda telah menggambar polygon gedung dengan benar.",
-        "error"
+        "error",
       );
       console.error("Invalid geometry structure:", drawnGeoJSON);
       return;
@@ -121,7 +121,7 @@ export default function BangunanForm({
     ) {
       showToast(
         "Tipe geometry harus berupa Polygon atau MultiPolygon",
-        "error"
+        "error",
       );
       console.error("Invalid geometry type:", drawnGeoJSON.geometry.type);
       return;
@@ -134,7 +134,7 @@ export default function BangunanForm({
     ) {
       showToast(
         "Koordinat geometry kosong. Pastikan polygon telah digambar dengan benar.",
-        "error"
+        "error",
       );
       console.error("Missing coordinates:", drawnGeoJSON.geometry);
       return;
@@ -195,7 +195,7 @@ export default function BangunanForm({
       console.log("🗺️ Geometry type:", geometryToSave.type);
       console.log(
         "🗺️ Coordinates count:",
-        geometryToSave.coordinates[0]?.length || 0
+        geometryToSave.coordinates[0]?.length || 0,
       );
 
       // Validate token exists
@@ -225,7 +225,7 @@ export default function BangunanForm({
         if (res.status === 401 || res.status === 403) {
           showToast(
             "Sesi Anda telah berakhir atau tidak valid. Silakan login kembali.",
-            "error"
+            "error",
           );
           localStorage.removeItem("token");
           window.location.href = "/login";
@@ -254,7 +254,7 @@ export default function BangunanForm({
               Authorization: `Bearer ${token}`,
             },
             body: formDataUpload,
-          }
+          },
         );
       }
 
@@ -398,15 +398,7 @@ export default function BangunanForm({
                     if (thumbnailPreview.startsWith("data:"))
                       return thumbnailPreview;
 
-                    // If it's an absolute URL from backend (3001), convert to relative or frontend (3000)
-                    if (thumbnailPreview.includes("localhost:3001")) {
-                      return thumbnailPreview.replace(
-                        "localhost:3001",
-                        "localhost:3000"
-                      );
-                    }
-
-                    // If it is already http/https (but not 3001), use it
+                    // If it is http/https, use it
                     if (thumbnailPreview.startsWith("http"))
                       return thumbnailPreview;
 

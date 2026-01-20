@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { Fancybox } from "@fancyapps/ui";
@@ -31,6 +31,10 @@ export default function BuildingDetailModal(props: Props) {
     onEditNameAndInteraksi,
   } = props;
 
+  // State to track if image loaded successfully
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   // Initialize Fancybox when component mounts
   useEffect(() => {
     Fancybox.bind("[data-fancybox]", {});
@@ -40,6 +44,12 @@ export default function BuildingDetailModal(props: Props) {
       Fancybox.destroy();
     };
   }, []);
+
+  // Reset image state when selectedFeature changes
+  useEffect(() => {
+    setImageError(false);
+    setImageLoaded(false);
+  }, [selectedFeature?.properties?.id]);
 
   // Handle click outside to close - DISABLED
   // Popup sekarang hanya tertutup saat user klik tombol close
@@ -65,6 +75,27 @@ export default function BuildingDetailModal(props: Props) {
   // }, [onClose]);
 
   if (!selectedFeature) return null;
+
+  // Construct thumbnail URL
+  const getThumbnailUrl = () => {
+    if (selectedFeature.properties?.thumbnail) {
+      // If thumbnail path exists in database
+      const thumbPath = selectedFeature.properties.thumbnail;
+      // If it's already a full URL, use as is
+      if (thumbPath.startsWith("http")) {
+        return `${thumbPath}?v=${Date.now()}`;
+      }
+      // If it's a relative path, ensure it starts with /
+      return `${thumbPath.startsWith("/") ? "" : "/"}${thumbPath}?v=${Date.now()}`;
+    }
+    // Fallback: try to load from /img/{id}/thumbnail.jpg
+    if (selectedFeature.properties?.id) {
+      return `/img/${selectedFeature.properties.id}/thumbnail.jpg?v=${Date.now()}`;
+    }
+    return null;
+  };
+
+  const thumbnailUrl = getThumbnailUrl();
 
   return (
     <div
@@ -111,68 +142,69 @@ export default function BuildingDetailModal(props: Props) {
 
         <div className="px-2 pt-1.5 sm:px-4 sm:pt-2">
           <div className="relative">
-            <a
-              href={
-                selectedFeature.properties?.thumbnail
-                  ? `${
-                      selectedFeature.properties.thumbnail.startsWith("http")
-                        ? ""
-                        : "/"
-                    }${selectedFeature.properties.thumbnail}?v=${Date.now()}`
-                  : selectedFeature.properties?.id
-                  ? `/img/${
-                      selectedFeature.properties.id
-                    }/thumbnail.jpg?v=${Date.now()}`
-                  : "/img/default/thumbnail.jpg"
-              }
-              data-fancybox="building-thumbnail"
-              data-caption={selectedFeature.properties?.nama || "Bangunan"}
-              className="block cursor-pointer group relative"
-            >
-              <img
-                src={
-                  selectedFeature.properties?.thumbnail
-                    ? `${
-                        selectedFeature.properties.thumbnail.startsWith("http")
-                          ? ""
-                          : "/"
-                      }${selectedFeature.properties.thumbnail}?v=${Date.now()}`
-                    : selectedFeature.properties?.id
-                    ? `/img/${
-                        selectedFeature.properties.id
-                      }/thumbnail.jpg?v=${Date.now()}`
-                    : "/img/default/thumbnail.jpg"
-                }
-                alt={selectedFeature.properties?.nama || "Bangunan"}
-                className="w-full h-20 sm:h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700 transition-transform duration-200 group-hover:scale-105"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    "/img/default/thumbnail.jpg";
-                }}
-              />
-              {/* Hover overlay to indicate clickable */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-lg flex items-center justify-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 dark:bg-gray-800/90 rounded-full p-2">
-                  <svg
-                    className="w-4 h-4 text-gray-700 dark:text-gray-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
-                    />
-                  </svg>
-                </div>
+            {thumbnailUrl && !imageError ? (
+              <a
+                href={thumbnailUrl}
+                data-fancybox="building-thumbnail"
+                data-caption={selectedFeature.properties?.nama || "Bangunan"}
+                className="block cursor-pointer group relative"
+              >
+                <img
+                  src={thumbnailUrl}
+                  alt={selectedFeature.properties?.nama || "Bangunan"}
+                  className="w-full h-20 sm:h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700 transition-transform duration-200 group-hover:scale-105"
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => {
+                    setImageError(true);
+                    setImageLoaded(false);
+                  }}
+                />
+                {/* Hover overlay to indicate clickable */}
+                {imageLoaded && (
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 dark:bg-gray-800/90 rounded-full p-2">
+                      <svg
+                        className="w-4 h-4 text-gray-700 dark:text-gray-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </a>
+            ) : (
+              // Placeholder when no image
+              <div className="w-full h-20 sm:h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center gap-1 sm:gap-2">
+                <svg
+                  className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 dark:text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+                <span className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 font-medium">
+                  Tidak ada gambar
+                </span>
               </div>
-            </a>
+            )}
             {isDashboard && isLoggedIn && (
               <button
                 onClick={onEditThumbnail}
-                className="absolute top-2 right-2 text-white hover:text-primary dark:hover:text-primary-dark transition-colors z-20 p-1"
+                className="absolute top-2 right-2 text-white hover:text-primary dark:hover:text-primary-dark transition-colors z-20 p-1 bg-black/40 hover:bg-black/60 rounded-md"
                 title="Edit thumbnail"
               >
                 <i className="fas fa-edit text-sm"></i>
