@@ -59,6 +59,103 @@ function Pagination({
   );
 }
 
+// Gallery Image Item Component
+function GalleryImageItem({
+  img,
+  onDelete,
+}: {
+  img: any;
+  onDelete: (id: number) => void;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  // Construct proper image path
+  const getImagePath = () => {
+    if (!img.path_file) return null;
+    const path = img.path_file;
+    // If it's already a full URL, use as is
+    if (path.startsWith("http")) {
+      return `${path}?v=${Date.now()}`;
+    }
+    // If it's a relative path, ensure it starts with /
+    return `${path.startsWith("/") ? "" : "/"}${path}?v=${Date.now()}`;
+  };
+
+  const imagePath = getImagePath();
+
+  return (
+    <div
+      key={img.id_gallery}
+      className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800"
+    >
+      {imagePath && !imgError ? (
+        <>
+          <a
+            href={imagePath}
+            data-fancybox="room-gallery"
+            data-caption="Gallery Image"
+            className="block w-full h-full cursor-pointer"
+          >
+            <img
+              src={imagePath}
+              alt="Gallery"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              onLoad={() => setImgLoaded(true)}
+              onError={() => {
+                setImgError(true);
+                setImgLoaded(false);
+              }}
+            />
+          </a>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(img.id_gallery);
+            }}
+            className="absolute top-2 right-2 p-2 bg-red-500/90 text-white rounded-full hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-10"
+            title="Hapus"
+          >
+            <FaTrash className="text-xs" />
+          </button>
+        </>
+      ) : (
+        // Placeholder when image failed to load
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-600">
+          <svg
+            className="w-8 h-8 text-gray-400 dark:text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-medium text-center px-2">
+            Gambar tidak tersedia
+          </span>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(img.id_gallery);
+            }}
+            className="absolute top-2 right-2 p-2 bg-red-500/90 text-white rounded-full hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-10"
+            title="Hapus"
+          >
+            <FaTrash className="text-xs" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Modal for Gallery Management
 function RoomGalleryModal({
   roomId,
@@ -257,96 +354,13 @@ function RoomGalleryModal({
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {images.map((img) => {
-                  // Component state for each image
-                  const [imgError, setImgError] = React.useState(false);
-                  const [imgLoaded, setImgLoaded] = React.useState(false);
-
-                  // Construct proper image path
-                  const getImagePath = () => {
-                    if (!img.path_file) return null;
-                    const path = img.path_file;
-                    // If it's already a full URL, use as is
-                    if (path.startsWith("http")) {
-                      return `${path}?v=${Date.now()}`;
-                    }
-                    // If it's a relative path, ensure it starts with /
-                    return `${path.startsWith("/") ? "" : "/"}${path}?v=${Date.now()}`;
-                  };
-
-                  const imagePath = getImagePath();
-
-                  return (
-                    <div
-                      key={img.id_gallery}
-                      className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800"
-                    >
-                      {imagePath && !imgError ? (
-                        <>
-                          <a
-                            href={imagePath}
-                            data-fancybox="room-gallery"
-                            data-caption="Gallery Image"
-                            className="block w-full h-full cursor-pointer"
-                          >
-                            <img
-                              src={imagePath}
-                              alt="Gallery"
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                              onLoad={() => setImgLoaded(true)}
-                              onError={() => {
-                                setImgError(true);
-                                setImgLoaded(false);
-                              }}
-                            />
-                          </a>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setDeleteId(img.id_gallery);
-                            }}
-                            className="absolute top-2 right-2 p-2 bg-red-500/90 text-white rounded-full hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-10"
-                            title="Hapus"
-                          >
-                            <FaTrash className="text-xs" />
-                          </button>
-                        </>
-                      ) : (
-                        // Placeholder when image failed to load
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-600">
-                          <svg
-                            className="w-8 h-8 text-gray-400 dark:text-gray-500"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                          <span className="text-xs text-gray-400 dark:text-gray-500 font-medium text-center px-2">
-                            Gambar tidak tersedia
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setDeleteId(img.id_gallery);
-                            }}
-                            className="absolute top-2 right-2 p-2 bg-red-500/90 text-white rounded-full hover:bg-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-10"
-                            title="Hapus"
-                          >
-                            <FaTrash className="text-xs" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {images.map((img) => (
+                  <GalleryImageItem
+                    key={img.id_gallery}
+                    img={img}
+                    onDelete={setDeleteId}
+                  />
+                ))}
               </div>
             )}
           </div>

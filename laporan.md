@@ -1096,8 +1096,6 @@ Berdasarkan skenario pengujian Detail Bangunan – Mode 2.5D & Floor Navigation,
 
    Gambar 4.25 Detail Bangunan - Tampilan Awal 2.5D
 
-   Gambar 4.26 Toggle Button untuk Beralih 2D/2.5D
-
    Gambar 4.27 Detail Bangunan Mode 2.5D
 
    Gambar 4.28 Detail Bangunan Mode 2D
