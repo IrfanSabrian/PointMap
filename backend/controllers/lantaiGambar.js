@@ -97,23 +97,19 @@ export const addLantaiGambar = async (req, res) => {
       __dirname,
       "../../frontend/public/img",
       id_bangunan.toString(),
-      "lantai"
+      "lantai",
     );
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    // Path file lengkap
+    // Path file lengkap untuk file baru
     const filePath = path.join(uploadDir, nama_file);
-
-    // Move uploaded file to final location
-    fs.copyFileSync(req.file.path, filePath);
-    fs.unlinkSync(req.file.path); // Delete temp file
 
     // Path untuk database (relative path untuk frontend)
     const dbPath = `/img/${id_bangunan}/lantai/${nama_file}`;
 
-    // Cek apakah sudah ada gambar untuk lantai ini
+    // ⚠️ PENTING: Cek apakah sudah ada gambar untuk lantai ini SEBELUM menyimpan file baru
     const existingLantai = await LantaiGambar.findOne({
       where: {
         id_bangunan: id_bangunan,
@@ -121,9 +117,8 @@ export const addLantaiGambar = async (req, res) => {
       },
     });
 
-    let result;
+    // Hapus file lama jika ada (sebelum menyimpan file baru)
     if (existingLantai) {
-      // Hapus file lama jika ada dan berbeda
       if (
         existingLantai.path_file &&
         !existingLantai.path_file.startsWith("http")
@@ -132,21 +127,32 @@ export const addLantaiGambar = async (req, res) => {
           __dirname,
           "../..",
           "frontend/public",
-          existingLantai.path_file
+          existingLantai.path_file.replace(/^\//, ""),
         );
-        if (fs.existsSync(oldFilePath)) {
+
+        // Cek apakah file lama berbeda dengan file baru (path berbeda)
+        // Jika sama, tidak perlu hapus karena akan ditimpa
+        if (fs.existsSync(oldFilePath) && oldFilePath !== filePath) {
           try {
             fs.unlinkSync(oldFilePath);
+            console.log("✅ Old file deleted:", oldFilePath);
           } catch (e) {
-            console.error("Error deleting old file:", e);
+            console.error("⚠️ Error deleting old file:", e);
           }
         }
       }
+    }
 
+    // Sekarang simpan file baru (menimpa jika nama sama, atau buat baru)
+    fs.copyFileSync(req.file.path, filePath);
+    fs.unlinkSync(req.file.path); // Delete temp file
+
+    let result;
+    if (existingLantai) {
       // Update jika sudah ada
       await LantaiGambar.update(
         { path_file: dbPath },
-        { where: { id_lantai_gambar: existingLantai.id_lantai_gambar } }
+        { where: { id_lantai_gambar: existingLantai.id_lantai_gambar } },
       );
       result = await LantaiGambar.findByPk(existingLantai.id_lantai_gambar);
     } else {
@@ -178,7 +184,7 @@ export const updateLantaiGambar = async (req, res) => {
     const { id_bangunan, nama_file, path_file } = req.body;
     const [updated] = await LantaiGambar.update(
       { id_bangunan, nama_file, path_file },
-      { where: { id_lantai_gambar: id } }
+      { where: { id_lantai_gambar: id } },
     );
     if (updated) {
       const updatedLantaiGambar = await LantaiGambar.findByPk(id);
@@ -211,7 +217,7 @@ export const deleteLantaiGambar = async (req, res) => {
         __dirname,
         "../..",
         "frontend/public",
-        deletedLantaiGambar.path_file
+        deletedLantaiGambar.path_file,
       );
       if (fs.existsSync(filePath)) {
         try {

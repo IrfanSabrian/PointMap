@@ -41,14 +41,14 @@ export default function LantaiForm({
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(
-    initialData?.path_file || null
+    initialData?.path_file || null,
   );
 
   useEffect(() => {
     const fetchBangunan = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -84,50 +84,22 @@ export default function LantaiForm({
         formDataUpload.append("gambar_lantai", file);
       }
 
-      // Special handling for Lantai:
-      // The backend `addLantaiGambar` works as create OR update if existing.
-      // But `updateLantaiGambar` is simple update.
-      // If adding new floor image, use POST /api/lantai-gambar
-      // If editing, usually we replace the file.
+      // Always use POST endpoint for both create and edit
+      // The backend addLantaiGambar has upsert logic:
+      // - Checks if (id_bangunan, nama_file) combination exists
+      // - If exists: updates the path_file
+      // - If not: creates new record
+      // This is perfect for both create and edit with file upload
 
-      let url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`;
-      let method = "POST";
-
-      if (isEdit) {
-        url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/${initialData.id_lantai_gambar}`;
-        // Wait, updateLantaiGambar doesn't handle file upload in the controller logic displayed in previous step?
-        // updateLantaiGambar takes req.body {id_bangunan, nama_file, path_file}.
-        // It does NOT invoke multer or cloudinary upload.
-        // So for EDITING a file, we might actually need to use 'addLantaiGambar' (POST) which has logic:
-        // "existingLantai = findOne... if existing -> update else create".
-        // So even for Edit, we can use POST if we want to replace the file.
-        // However, if we just want to change building or floor number without changing file?
-        // The UI flow for "Edit" usually implies changing metadata or file.
-        // Since logic determines "update if exists", using POST seems to be the way to "Upload/Replace" floor image.
-        // `initialData` has `id_lantai_gambar`.
-
-        // If we use the POST endpoint, it will replace the image for (Bangunan X, Lantai Y).
-        // This fits "Edit" if we are replacing content.
-        // But if we want to change building/floor number of an EXISTING record, that might collide.
-        // Let's stick to POST for create/replace because usually we upload a file.
-        // If `isEdit` is true, we might be navigating to `edit/[id]`.
-        // Let's use POST for both for now as it handles upsert based on (bangunan, file name).
-        // But `file` is required in POST?
-        // `if (!req.file) return 400`.
-        // So if editing without changing file, we can't use POST.
-
-        // If editing and NO file selected: we can't do much with current backend `updateLantaiGambar` unless we manually pass path_file, which user doesn't know.
-        // Ideally, backend should support file update in PUT or we just always require file upload for simplicity in this version.
-        // Or we tell user "Upload file to replace".
-
-        if (!file && isEdit) {
-          showToast("Upload file baru untuk mengubah denah lantai", "warning");
-          // Alternatively, just warn and return.
-          // Or if `file` is null, maybe we shouldn't allow submit.
-          setLoading(false);
-          return;
-        }
+      // For edit mode without new file, we require user to upload
+      if (isEdit && !file) {
+        showToast("Upload file baru untuk mengubah denah lantai", "warning");
+        setLoading(false);
+        return;
       }
+
+      const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`;
+      const method = "POST";
 
       const res = await fetch(url, {
         method,
@@ -182,7 +154,7 @@ export default function LantaiForm({
   };
 
   const selectedBangunan = bangunanList.find(
-    (b) => b.id_bangunan == formData.id_bangunan
+    (b) => b.id_bangunan == formData.id_bangunan,
   );
   const maxLantai = selectedBangunan ? selectedBangunan.lantai : 10;
 
@@ -266,7 +238,7 @@ export default function LantaiForm({
                         <option key={num} value={num}>
                           Lantai {num}
                         </option>
-                      )
+                      ),
                     )}
                 </select>
                 <FaLayerGroup className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
@@ -303,7 +275,7 @@ export default function LantaiForm({
                     e.preventDefault();
                     showToast(
                       "Pilih gedung dan lantai terlebih dahulu",
-                      "warning"
+                      "warning",
                     );
                   }
                 }}
@@ -319,11 +291,10 @@ export default function LantaiForm({
                   {!formData.id_bangunan || !formData.nomor_lantai
                     ? "Pilih gedung dan lantai dahulu"
                     : file
-                    ? file.name
-                    : "Klik untuk upload file SVG"}
+                      ? file.name
+                      : "Klik untuk upload file SVG"}
                 </span>
               </label>
-
               <p className="text-xs text-gray-500">
                 <FaFileImage className="inline mr-1" />
                 Format: SVG | Pastikan file berisi denah lantai yang jelas
@@ -334,7 +305,11 @@ export default function LantaiForm({
             <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="submit"
-                disabled={loading || (!file && !isEdit && !preview)}
+                disabled={
+                  loading ||
+                  (!file && !isEdit && !preview) || // For create: need file
+                  (isEdit && !file) // For edit: MUST have new file
+                }
                 className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {loading ? (
@@ -373,9 +348,28 @@ export default function LantaiForm({
           {preview ? (
             <div className="relative w-full h-full shadow-lg bg-white overflow-hidden flex items-center justify-center">
               <img
-                src={preview}
+                src={(() => {
+                  if (!preview) return "";
+
+                  // If it's a blob URL (from file input), use it directly
+                  if (preview.startsWith("blob:")) return preview;
+
+                  // If it's a data URL, use it directly
+                  if (preview.startsWith("data:")) return preview;
+
+                  // If it's http/https, use it directly
+                  if (preview.startsWith("http")) return preview;
+
+                  // For relative paths from database (/img/...)
+                  // Make sure it starts with / for frontend public folder
+                  return preview.startsWith("/") ? preview : `/${preview}`;
+                })()}
                 alt="Preview denah lantai"
                 className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  console.error("Failed to load image preview:", preview);
+                  // Don't set a fallback, just log the error
+                }}
               />
             </div>
           ) : (
