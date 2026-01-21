@@ -32,8 +32,9 @@ export default function GaleriPage() {
   const fetchGallery = async () => {
     try {
       setIsLoading(true);
+      const timestamp = new Date().getTime();
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery?_t=${timestamp}`,
       );
       if (res.ok) {
         const data = await res.json();

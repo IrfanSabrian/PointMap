@@ -1,86 +1,51 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1188 683">
-  <!-- Generator: Adobe Illustrator 29.5.1, SVG Export Plug-In . SVG Version: 2.1.0 Build 141)  -->
-  <defs>
-    <style>
-      .st0 {
-        fill: none;
-        stroke-linecap: square;
-        stroke-miterlimit: 12.5;
-        stroke-width: 2.69px;
-      }
-
-      .st0, .st1, .st2, .st3 {
-        stroke: #000;
-      }
-
-      .st1 {
-        fill: #7a7a7a;
-      }
-
-      .st2 {
-        stroke-miterlimit: 10;
-      }
-
-      .st2, .st4 {
-        fill: #fff;
-      }
-
-      .st3 {
-        fill: #bcbcbc;
-      }
-
-      .st5, .st4 {
-        isolation: isolate;
-      }
-
-      .st4 {
-        font-family: MyriadPro-Regular, 'Myriad Pro';
-        font-size: 19.73px;
-      }
-    </style>
-  </defs>
-  <rect class="st2" width="1188" height="683"/>
-  <rect class="st3" x="756" y="467" width="432" height="216"/>
-  <g>
-    <rect class="st1" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="29.83" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="59.67" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="89.5" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="119.33" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="149.17" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="179" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="208.83" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="238.67" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="268.5" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="298.33" y="575" width="29.83" height="108"/>
-    <rect class="st1" x="328.17" y="575" width="29.83" height="108"/>
-  </g>
-  <rect class="st3" y="467" width="286" height="108"/>
-  <rect class="st3" width="394" height="467"/>
-  <rect class="st3" x="394" width="396" height="395"/>
-  <polygon class="st3" points="790 467 1188 467 1188 0 790 0 790 391.27 790 467"/>
-  <g>
-    <circle cx="125.3" cy="515.66" r="3.66"/>
-    <path d="M124.79,542.53v12.73c-.02,2.32-3.46,2.32-3.49,0v-12.73h-4.5l4.84-17.01h-.79l-2.81,9.69c-.71,2.14-3.61,1.28-2.93-1.02l3.15-10.48c.36-1.2,1.88-3.33,4.5-3.38h5.07c2.55.05,4.07,2.2,4.5,3.38l3.15,10.48c.64,2.28-2.24,3.21-2.93,1.02l-2.81-9.69h-.9l4.96,17.01h-4.62v12.73c.04,2.32-3.39,2.3-3.38,0v-12.73h-1.02.01,0Z"/>
-    <circle cx="155.27" cy="515.66" r="3.66"/>
-    <path d="M151.38,520.34c-2.81,0-4.62,2.44-4.62,4.84v11.27c-.02,2.2,3.15,2.2,3.15,0v-10.36h.79v28.62c-.05,2.99,4.17,2.91,4.17,0v-16.67h.67v16.67c.05,2.91,4.3,2.99,4.28,0v-28.62h.79v10.36c-.04,2.22,3.12,2.22,3.15,0v-11.27c-.04-2.41-1.92-4.8-4.73-4.84h-7.66.01Z"/>
-    <rect x="138.42" y="512.45" width="4.17" height="44.27"/>
-  </g>
-  <path id="Pintu" class="st0" d="M790,398.23c37.32,0,67.57,30.25,67.57,67.55h-67.57v-67.55h0Z"/>
-  <path id="Pintu1" class="st0" d="M520,327.45c37.32,0,67.57,30.25,67.57,67.55h-67.57v-67.55h0Z"/>
-  <path id="Pintu2" class="st0" d="M601,395c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path id="Pintu3" class="st0" d="M218.45,548c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path id="Pintu4" class="st0" d="M326.45,467c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path id="Pintu5" class="st0" d="M520,615.45c37.32,0,67.57,30.25,67.57,67.55h-67.57v-67.55h0Z"/>
-  <path id="Pintu6" class="st0" d="M601,683c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path d="M151.1,665.31l.27-.25.03-6.54.02-6.54h50.99c55.6,0,51.61.04,51.88-.52.15-.33.16-27.66,0-27.99-.06-.13-.26-.3-.45-.39-.31-.12-5.53-.14-51.37-.14h-51.04l-.02-6.54-.03-6.54-.27-.25c-.33-.29-.95-.33-1.37-.08-.16.09-8.5,5.74-18.55,12.56s-19.11,12.97-20.17,13.67c-1.03.71-1.98,1.41-2.08,1.57-.22.3-.18.61.09.9.13.14,40.13,26.83,40.7,27.17.42.25,1.04.21,1.37-.08h0Z"/>
-  <g class="st5">
-    <g class="st5">
-      <g class="st5">
-        <text class="st4" transform="translate(183.39 643.6) scale(1.2 1)"><tspan x="0" y="0">UP</tspan></text>
-      </g>
-    </g>
-  </g>
-  <path id="Pintu7" class="st0" d="M823.77,467c0,37.32-30.25,67.57-67.55,67.57v-67.57h67.55Z"/>
+<svg width="1182" height="683" viewBox="0 0 1182 683" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_57_145)">
+<rect width="1182" height="683" fill="white"/>
+<rect x="0.5" y="0.5" width="393" height="466" stroke="black"/>
+<rect x="394.5" y="0.5" width="393" height="355" stroke="black"/>
+<rect x="788.5" y="0.5" width="393" height="466" stroke="black"/>
+<path d="M518 356.312L663.529 356.312V351.765L518 351.765V356.312Z" fill="white" stroke="black"/>
+<path d="M590.765 356.312V351.765M590.765 351.765C590.765 311.58 623.345 279 663.529 279V351.765M590.765 351.765C590.765 311.58 558.184 279 518 279V351.765" stroke="black" stroke-miterlimit="10"/>
+<path d="M518 683.312H663.529V678.765H518V683.312Z" fill="white" stroke="black"/>
+<path d="M590.765 683.312V678.765M590.765 678.765C590.765 638.58 623.345 606 663.529 606V678.765M590.765 678.765C590.765 638.58 558.184 606 518 606V678.765" stroke="black" stroke-miterlimit="10"/>
+<path d="M788 465.545L788.971 392L793.567 392.061L792.597 465.606L788 465.545Z" fill="white" stroke="black"/>
+<path d="M793.568 392.061C834.183 392.597 866.678 425.961 866.142 466.576L792.597 465.606" stroke="black" stroke-miterlimit="10"/>
+<path d="M764 468.032L764.971 541.577L769.567 541.516L768.597 467.971L764 468.032Z" fill="white" stroke="black"/>
+<path d="M769.568 541.516C810.183 540.98 842.678 507.615 842.142 467L768.597 467.971" stroke="black" stroke-miterlimit="10"/>
+<path d="M394.63 465.064V391.512H390.034V465.064H394.63Z" fill="white" stroke="black"/>
+<path d="M390.033 391.512C349.415 391.512 316.482 424.445 316.482 465.064H390.033" stroke="black" stroke-miterlimit="10"/>
+<path d="M185.148 575.552V502H180.551V575.552H185.148Z" fill="white" stroke="black"/>
+<path d="M180.551 502C139.933 502 107 534.933 107 575.552H180.551" stroke="black" stroke-miterlimit="10"/>
+<rect x="0.5" y="467.5" width="184" height="108" stroke="black"/>
+<rect x="764.5" y="467.5" width="417" height="215" stroke="black"/>
+<g opacity="0.3">
+<rect width="16" height="94" transform="matrix(-1 0 0 1 297 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 281 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 265 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 249 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 233 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 217 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 201 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 185 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 169 588.5)" stroke="black"/>
+<path d="M169 575.5H153V550.5" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 153 588.5)" stroke="black"/>
+<path d="M153 552V575.5H137V528.5" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 137 588.5)" stroke="black"/>
+<path d="M137 528.5L137 575.5H121L121 504" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 121 588.5)" stroke="black"/>
+<path d="M105 481.5L105 575.5H121L121 503.5" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 121 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 105 481.5)" stroke="black"/>
+<path d="M105 481.5L105 575.5H121L121 504.5" stroke="black"/>
+<path d="M169.5 575L105 481" stroke="black" stroke-dasharray="10 10"/>
+<path d="M80.6522 482H3.57628e-07L3.57628e-07 683H105L105 589H80.6522L80.6522 482Z" stroke="black"/>
+<path d="M61 643.5V644.5H60V643.5H61ZM61 528.5H60V527.5H61V528.5ZM139.179 528.5L129.179 534.274V522.726L139.179 528.5ZM352.5 643.5V644.5L61 644.5V643.5V642.5L352.5 642.5V643.5ZM61 643.5H60L60 528.5H61H62L62 643.5H61ZM61 528.5V527.5H130.179V528.5V529.5H61V528.5Z" fill="black"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_57_145">
+<rect width="1182" height="683" fill="white"/>
+</clipPath>
+</defs>
 </svg>

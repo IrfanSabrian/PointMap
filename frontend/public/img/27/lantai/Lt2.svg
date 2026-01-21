@@ -1,55 +1,70 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1200 800">
-  <!-- Generator: Adobe Illustrator 29.5.1, SVG Export Plug-In . SVG Version: 2.1.0 Build 141)  -->
-  <defs>
-    <style>
-      .st0 {
-        fill: none;
-        stroke-linecap: square;
-        stroke-miterlimit: 12.5;
-        stroke-width: 2.69px;
-      }
-
-      .st0, .st1, .st2 {
-        stroke: #000;
-      }
-
-      .st1 {
-        fill: #7a7a7a;
-      }
-
-      .st2 {
-        fill: #bcbcbc;
-      }
-    </style>
-  </defs>
-  <rect class="st2" x="849" y="508" width="351" height="292"/>
-  <rect class="st1" y="658" width="31" height="142"/>
-  <rect class="st1" x="31" y="658" width="31" height="142"/>
-  <rect class="st1" x="62" y="658" width="31" height="142"/>
-  <rect class="st1" x="93" y="658" width="31" height="142"/>
-  <rect class="st1" x="124" y="658" width="31" height="142"/>
-  <rect class="st1" x="155" y="658" width="31" height="142"/>
-  <rect class="st1" x="186" y="658" width="31" height="142"/>
-  <rect class="st1" x="217" y="658" width="31" height="142"/>
-  <rect class="st1" x="248" y="658" width="31" height="142"/>
-  <rect class="st1" x="279" y="658" width="31" height="142"/>
-  <rect class="st1" x="310" y="658" width="31" height="142"/>
-  <rect class="st1" x="341" y="658" width="31" height="142"/>
-  <rect class="st2" y="508" width="295.85" height="149.99"/>
-  <rect class="st2" width="365.23" height="508.31"/>
-  <rect class="st2" x="365.23" width="535.77" height="433"/>
-  <polygon class="st2" points="901 509 1200 509 1200 0 901 0 901 426.46 901 509"/>
-  <circle cx="125.54" cy="585.76" r="4.51"/>
-  <path d="M124.92,618.85v15.69c-.02,2.85-4.27,2.85-4.3,0v-15.69h-5.55l5.96-20.95h-.97l-3.47,11.94c-.87,2.64-4.45,1.57-3.61-1.25l3.88-12.91c.44-1.48,2.31-4.1,5.55-4.16h6.25c3.14.07,5.02,2.7,5.55,4.16l3.88,12.91c.79,2.81-2.76,3.96-3.61,1.25l-3.47-11.94h-1.11l6.11,20.95h-5.69v15.69c.04,2.85-4.18,2.84-4.16,0v-15.69h-1.25.01Z"/>
-  <circle cx="162.47" cy="585.76" r="4.51"/>
-  <path d="M157.67,591.51c-3.47,0-5.69,3-5.69,5.96v13.88c-.03,2.71,3.88,2.71,3.88,0v-12.77h.97v35.25c-.06,3.68,5.14,3.58,5.13,0v-20.54h.83v20.54c.07,3.58,5.3,3.68,5.28,0v-35.25h.97v12.77c-.04,2.73,3.84,2.73,3.88,0v-13.88c-.05-2.96-2.36-5.91-5.83-5.96h-9.44.01Z"/>
-  <rect x="141.71" y="581.8" width="5.13" height="54.54"/>
-  <path id="Pintu" class="st0" d="M901,440.75c37.32,0,67.57,30.25,67.57,67.55h-67.57v-67.55h0Z"/>
-  <path id="Pintu1" data-name="Pintu" class="st0" d="M583.65,365.45c37.32,0,67.57,30.25,67.57,67.55h-67.57v-67.55h0Z"/>
-  <path id="Pintu2" data-name="Pintu" class="st0" d="M662.23,433.78c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path id="Pintu3" data-name="Pintu" class="st0" d="M228.3,647.88c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path id="Pintu4" data-name="Pintu" class="st0" d="M296.68,508.31c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
-  <path id="Pintu5" data-name="Pintu" class="st0" d="M559.72,733.82c37.32,0,67.57,30.25,67.57,67.55h-67.57v-67.55h0Z"/>
-  <path id="Pintu6" data-name="Pintu" class="st0" d="M646.65,801.38c0-37.32,30.25-67.57,67.55-67.57v67.57h-67.55Z"/>
+<svg width="1182" height="683" viewBox="0 0 1182 683" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_57_262)">
+<rect width="1182" height="683" fill="white"/>
+<rect x="0.5" y="0.5" width="393" height="466" stroke="black"/>
+<rect x="394.5" y="0.5" width="393" height="355" stroke="black"/>
+<rect x="788.5" y="0.5" width="393" height="466" stroke="black"/>
+<path d="M518 356.312L663.529 356.312V351.765L518 351.765V356.312Z" fill="white" stroke="black"/>
+<path d="M590.765 356.312V351.765M590.765 351.765C590.765 311.58 623.345 279 663.529 279V351.765M590.765 351.765C590.765 311.58 558.184 279 518 279V351.765" stroke="black" stroke-miterlimit="10"/>
+<path d="M788 465.545L788.971 392L793.567 392.061L792.596 465.606L788 465.545Z" fill="white" stroke="black"/>
+<path d="M793.567 392.061C834.183 392.597 866.678 425.961 866.142 466.576L792.597 465.606" stroke="black" stroke-miterlimit="10"/>
+<path d="M764 468.032L764.971 541.577L769.568 541.516L768.597 467.971L764 468.032Z" fill="white" stroke="black"/>
+<path d="M769.568 541.516C810.183 540.98 842.678 507.615 842.142 467L768.597 467.971" stroke="black" stroke-miterlimit="10"/>
+<rect x="764.5" y="467.5" width="417" height="215" stroke="black"/>
+<path d="M394.63 465.064V391.512H390.033V465.064H394.63Z" fill="white" stroke="black"/>
+<path d="M390.033 391.512C349.414 391.512 316.482 424.445 316.482 465.064H390.033" stroke="black" stroke-miterlimit="10"/>
+<g opacity="0.3">
+<rect width="16" height="94" transform="matrix(-1 0 0 1 297 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 281 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 265 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 249 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 233 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 217 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 201 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 185 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 169 588.5)" stroke="black"/>
+<path d="M169 575.5H153V550.5" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 153 588.5)" stroke="black"/>
+<path d="M153 552V575.5H137V528.5" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 137 588.5)" stroke="black"/>
+<path d="M137 528.5L137 575.5H121L121 504" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 121 588.5)" stroke="black"/>
+<path d="M105 481.5L105 575.5H121L121 503.5" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 121 588.5)" stroke="black"/>
+<rect width="16" height="94" transform="matrix(-1 0 0 1 105 481.5)" stroke="black"/>
+<path d="M105 481.5L105 575.5H121L121 504.5" stroke="black"/>
+<path d="M169.5 575L105 481" stroke="black" stroke-dasharray="10 10"/>
+<path d="M80.6522 482H3.57628e-07L3.57628e-07 683H105L105 589H80.6522L80.6522 482Z" stroke="black"/>
+<path d="M61 643.5V644.5H60V643.5H61ZM61 528.5H60V527.5H61V528.5ZM139.179 528.5L129.179 534.274V522.726L139.179 528.5ZM352.5 643.5V644.5L61 644.5V643.5V642.5L352.5 642.5V643.5ZM61 643.5H60L60 528.5H61H62L62 643.5H61ZM61 528.5V527.5H130.179V528.5V529.5H61V528.5Z" fill="black"/>
+</g>
+<g opacity="0.15">
+<rect x="297" y="575.5" width="16" height="94" transform="rotate(180 297 575.5)" stroke="black"/>
+<rect x="281" y="575.5" width="16" height="94" transform="rotate(180 281 575.5)" stroke="black"/>
+<rect x="265" y="575.5" width="16" height="94" transform="rotate(180 265 575.5)" stroke="black"/>
+<rect x="249" y="575.5" width="16" height="94" transform="rotate(180 249 575.5)" stroke="black"/>
+<rect x="233" y="575.5" width="16" height="94" transform="rotate(180 233 575.5)" stroke="black"/>
+<rect x="217" y="575.5" width="16" height="94" transform="rotate(180 217 575.5)" stroke="black"/>
+<rect x="201" y="575.5" width="16" height="94" transform="rotate(180 201 575.5)" stroke="black"/>
+<rect x="185" y="575.5" width="16" height="94" transform="rotate(180 185 575.5)" stroke="black"/>
+<rect x="169" y="575.5" width="16" height="94" transform="rotate(180 169 575.5)" stroke="black"/>
+<path d="M169 588.5H153V613.5" stroke="black"/>
+<rect x="153" y="575.5" width="16" height="94" transform="rotate(180 153 575.5)" stroke="black"/>
+<path d="M153 612V588.5H137V635.5" stroke="black"/>
+<rect x="137" y="575.5" width="16" height="94" transform="rotate(180 137 575.5)" stroke="black"/>
+<path d="M137 635.5L137 588.5H121L121 660" stroke="black"/>
+<rect x="121" y="575.5" width="16" height="94" transform="rotate(180 121 575.5)" stroke="black"/>
+<path d="M105 682.5L105 588.5H121L121 660.5" stroke="black"/>
+<rect x="121" y="575.5" width="16" height="94" transform="rotate(180 121 575.5)" stroke="black"/>
+<rect x="105" y="682.5" width="16" height="94" transform="rotate(180 105 682.5)" stroke="black"/>
+<path d="M105 682.5L105 588.5H121L121 659.5" stroke="black"/>
+<path d="M169.5 589L105 683" stroke="black" stroke-dasharray="10 10"/>
+<path d="M80.6522 682H3.57628e-07L3.57628e-07 481H105L105 575H80.6522L80.6522 682Z" stroke="black"/>
+<path d="M61 520.5V519.5H60V520.5H61ZM61 635.5H60V636.5H61V635.5ZM139.179 635.5L129.179 629.726V641.274L139.179 635.5ZM352.5 520.5V519.5L61 519.5V520.5V521.5L352.5 521.5V520.5ZM61 520.5H60L60 635.5H61H62L62 520.5H61ZM61 635.5V636.5H130.179V635.5V634.5H61V635.5Z" fill="black"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_57_262">
+<rect width="1182" height="683" fill="white"/>
+</clipPath>
+</defs>
 </svg>

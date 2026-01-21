@@ -180,11 +180,11 @@ const getFallbackPinPosition = (lantai, index) => {
   return {
     top: Math.max(
       pinHeightPercent,
-      Math.min(fallback.top, 100 - pinHeightPercent)
+      Math.min(fallback.top, 100 - pinHeightPercent),
     ),
     left: Math.max(
       pinWidthPercent,
-      Math.min(fallback.left, 100 - pinWidthPercent)
+      Math.min(fallback.left, 100 - pinWidthPercent),
     ),
   };
 };
@@ -264,7 +264,7 @@ export const updateRuangan = async (req, res) => {
         posisi_x,
         posisi_y,
       },
-      { where: { id_ruangan: id } }
+      { where: { id_ruangan: id } },
     );
 
     if (updated) {
@@ -294,62 +294,31 @@ export const deleteRuangan = async (req, res) => {
   try {
     const id = req.params.id;
 
-    // Get all gallery items for this room before deleting
-    const galleryItems = await RuanganGallery.findAll({
+    // Check for gallery items
+    const galeriCount = await RuanganGallery.count({
       where: { id_ruangan: id },
     });
 
-    // Delete gallery items and their physical files
-    for (const galleryItem of galleryItems) {
-      try {
-        // Construct the full file path
-        const filePath = path.join(__dirname, "..", galleryItem.path_file);
-
-        // Check if file exists and delete it
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (fileError) {
-        // Continue with other files even if one fails
-      }
+    // If any gallery items exist, return error
+    if (galeriCount > 0) {
+      return res.status(400).json({
+        error:
+          "Tidak dapat menghapus ruangan karena masih memiliki foto galeri",
+        dependencies: {
+          galeri: galeriCount,
+        },
+        message: `Ruangan masih memiliki ${galeriCount} foto galeri`,
+      });
     }
 
-    // Delete all gallery items from database
-    await RuanganGallery.destroy({
-      where: { id_ruangan: id },
-    });
-
-    // Delete the room
+    // If no dependencies, proceed with delete
     const deleted = await Ruangan.destroy({
       where: { id_ruangan: id },
     });
 
     if (deleted) {
-      // Reset auto-increment setelah penghapusan
-      try {
-        await sequelize.query("ALTER TABLE ruangan AUTO_INCREMENT = 1");
-        await sequelize.query("ALTER TABLE ruangan_gallery AUTO_INCREMENT = 1");
-
-        // Reorder ID untuk tabel ruangan
-        await sequelize.query(`
-          SET @rank = 0;
-          UPDATE ruangan SET id_ruangan = (@rank := @rank + 1) ORDER BY id_ruangan;
-          ALTER TABLE ruangan AUTO_INCREMENT = (SELECT MAX(id_ruangan) + 1 FROM ruangan);
-        `);
-
-        // Reorder ID untuk tabel ruangan_gallery
-        await sequelize.query(`
-          SET @rank = 0;
-          UPDATE ruangan_gallery SET id_gallery = (@rank := @rank + 1) ORDER BY id_gallery;
-          ALTER TABLE ruangan_gallery AUTO_INCREMENT = (SELECT MAX(id_gallery) + 1 FROM ruangan_gallery);
-        `);
-      } catch (resetError) {
-        // Continue even if reset fails
-      }
-
       res.json({
         message: "Ruangan berhasil dihapus",
-        deletedGalleryCount: galleryItems.length,
       });
     } else {
       res.status(404).json({ error: "Ruangan tidak ditemukan" });

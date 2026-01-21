@@ -1096,14 +1096,14 @@ Berdasarkan skenario pengujian Detail Bangunan – Mode 2.5D & Floor Navigation,
 
    Gambar 4.25 Detail Bangunan - Tampilan Awal 2.5D
 
-   Gambar 4.26 Mode 2.5D dengan Efek Perspektif
+   Gambar 4.26 Toggle Button untuk Beralih 2D/2.5D
 
-   Gambar 4.27 Mode 2D Flat View
+   Gambar 4.27 Detail Bangunan Mode 2.5D
 
-   Gambar 4.28 Toggle Button untuk Beralih 2D/2.5D
+   Gambar 4.28 Detail Bangunan Mode 2D
 
 2. Floor Navigation
-   Dropdown dan list lantai memungkinkan perpindahan antar lantai secara instant dengan loading denah SVG yang cepat. Layout halaman responsive dan touch-friendly untuk penggunaan di perangkat mobile.
+   Dropdown dan list lantai memungkinkan perpindahan antar lantai secara instant dengan loading denah SVG yang cepat.
 
    Gambar 4.29 Dropdown Selector untuk Memilih Lantai
 

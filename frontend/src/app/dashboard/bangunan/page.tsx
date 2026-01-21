@@ -78,7 +78,7 @@ export default function BangunanPage() {
       try {
         setIsLoading(true);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -100,7 +100,7 @@ export default function BangunanPage() {
     const editId = searchParams.get("edit");
     if (editId && bangunan.length > 0) {
       const targetBangunan = bangunan.find(
-        (b) => b.id_bangunan === parseInt(editId) || b.id_bangunan === editId
+        (b) => b.id_bangunan === parseInt(editId) || b.id_bangunan === editId,
       );
       if (targetBangunan) {
         handleOpenEdit(targetBangunan);
@@ -129,19 +129,28 @@ export default function BangunanPage() {
     setModalState({ ...modalState, isOpen: false });
   };
 
-  const handleSuccess = () => {
-    handleCloseModal();
-    // Refetch to update list
-    const refetch = async () => {
+  const handleSuccess = async () => {
+    // Refresh data with cache busting
+    try {
+      setIsLoading(true); // Show loading state during refresh
+
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan?_t=${timestamp}`,
       );
+
       if (res.ok) {
         const data = await res.json();
         setBangunan(data);
+        // Toast is already shown by the form component, no need to show it again here
       }
-    };
-    refetch();
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsLoading(false);
+      handleCloseModal();
+    }
   };
 
   const [deleteModal, setDeleteModal] = useState<{
@@ -167,15 +176,30 @@ export default function BangunanPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (res.ok) {
         setBangunan(bangunan.filter((b) => b.id_bangunan !== deleteModal.id));
         setDeleteModal({ isOpen: false, id: null });
+        showToast("Gedung berhasil dihapus", "success");
       } else {
         const err = await res.json();
-        showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
+
+        // Handle dependency error with detailed message
+        if (err.dependencies) {
+          const { lantai, ruangan, galeri } = err.dependencies;
+          let detailMsg = "Gedung masih memiliki data:\n";
+          if (galeri > 0) detailMsg += `${galeri} Foto Galeri\n`;
+          if (ruangan > 0) detailMsg += `${ruangan} Ruangan\n`;
+          if (lantai > 0) detailMsg += `${lantai} Lantai`;
+
+          showToast(detailMsg, "error");
+        } else {
+          showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
+        }
+
+        setDeleteModal({ isOpen: false, id: null });
       }
     } catch (error) {
       console.error("Error deleting building:", error);
@@ -192,7 +216,7 @@ export default function BangunanPage() {
       "🔍 [FILTER] Campus:",
       selectedCampus.name,
       "| Search:",
-      searchTerm || "none"
+      searchTerm || "none",
     );
 
     const result = bangunan.filter((b) => {
@@ -212,7 +236,7 @@ export default function BangunanPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredBangunan.slice(
     indexOfFirstItem,
-    indexOfLastItem
+    indexOfLastItem,
   );
 
   // Reset page when search changes
@@ -318,13 +342,13 @@ export default function BangunanPage() {
                       b.thumbnail.startsWith("http")
                         ? b.thumbnail
                         : b.thumbnail.startsWith("/img") ||
-                          b.thumbnail.startsWith("img") ||
-                          b.thumbnail.startsWith("/building-details") ||
-                          b.thumbnail.startsWith("building-details")
-                        ? b.thumbnail
-                        : `${
-                            process.env.NEXT_PUBLIC_API_BASE_URL
-                          }/${b.thumbnail.replace(/^\//, "")}`
+                            b.thumbnail.startsWith("img") ||
+                            b.thumbnail.startsWith("/building-details") ||
+                            b.thumbnail.startsWith("building-details")
+                          ? b.thumbnail
+                          : `${
+                              process.env.NEXT_PUBLIC_API_BASE_URL
+                            }/${b.thumbnail.replace(/^\//, "")}`
                     }
                     alt={b.nama}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -407,13 +431,13 @@ export default function BangunanPage() {
                             b.thumbnail.startsWith("http")
                               ? b.thumbnail
                               : b.thumbnail.startsWith("/img") ||
-                                b.thumbnail.startsWith("img") ||
-                                b.thumbnail.startsWith("/building-details") ||
-                                b.thumbnail.startsWith("building-details")
-                              ? b.thumbnail
-                              : `${
-                                  process.env.NEXT_PUBLIC_API_BASE_URL
-                                }/${b.thumbnail.replace(/^\//, "")}`
+                                  b.thumbnail.startsWith("img") ||
+                                  b.thumbnail.startsWith("/building-details") ||
+                                  b.thumbnail.startsWith("building-details")
+                                ? b.thumbnail
+                                : `${
+                                    process.env.NEXT_PUBLIC_API_BASE_URL
+                                  }/${b.thumbnail.replace(/^\//, "")}`
                           }
                           alt={b.nama}
                           className="w-12 h-12 object-cover rounded-md bg-gray-200"

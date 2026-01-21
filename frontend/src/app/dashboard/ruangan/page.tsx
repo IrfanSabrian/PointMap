@@ -83,8 +83,11 @@ function RoomGalleryModal({
   const fetchImages = async () => {
     try {
       setLoading(true);
+
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery?_t=${timestamp}`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -505,12 +508,17 @@ export default function RuanganPage() {
     setModalState({ ...modalState, isOpen: false });
   };
 
-  const handleSuccess = () => {
-    // Refresh data
-    const fetchData = async () => {
+  const handleSuccess = async () => {
+    // Refresh data with cache busting
+    try {
+      setIsLoading(true); // Show loading state during refresh
+
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan?_t=${timestamp}`,
       );
+
       if (res.ok) {
         const data = await res.json();
         const bangunanIds = bangunanList.map((b) => b.id_bangunan);
@@ -518,10 +526,14 @@ export default function RuanganPage() {
           bangunanIds.includes(r.id_bangunan),
         );
         setRuangan(filteredData);
+        // Toast is already shown by the form component, no need to show it again here
       }
-    };
-    fetchData();
-    handleCloseModal();
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsLoading(false);
+      handleCloseModal();
+    }
   };
 
   // Gallery Modal State
@@ -631,7 +643,17 @@ export default function RuanganPage() {
         setDeleteModal({ isOpen: false, id: null });
         showToast("Ruangan berhasil dihapus", "success");
       } else {
-        showToast("Gagal menghapus ruangan", "error");
+        const err = await res.json();
+
+        // Handle dependency error with detailed message
+        if (err.dependencies) {
+          const { galeri } = err.dependencies;
+          showToast(`Ruangan masih memiliki ${galeri} Foto Galeri`, "error");
+        } else {
+          showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
+        }
+
+        setDeleteModal({ isOpen: false, id: null });
       }
     } catch (error) {
       console.error("Error deleting room:", error);

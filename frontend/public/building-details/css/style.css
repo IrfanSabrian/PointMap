@@ -6,8 +6,8 @@
 }
 
 .buildingdetail {
-  font-family: "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial,
-    sans-serif;
+  font-family:
+    "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: #515158;
   background: #f0f0f0;
   -webkit-font-smoothing: antialiased;
@@ -153,25 +153,27 @@
 
 .level {
   position: relative;
-  width: 100%;
-  height: 100%;
+  /* Fixed dimensions for consistent positioning */
+  width: 96vmin !important;
+  height: 64vmin !important;
   cursor: pointer;
   pointer-events: auto;
-  -webkit-transition: opacity 1s, -webkit-transform 1s;
-  transition: opacity 1s, transform 1s;
+  -webkit-transition:
+    opacity 1s,
+    -webkit-transform 1s;
+  transition:
+    opacity 1s,
+    transform 1s;
   -webkit-transition-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
   transition-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
   -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
   /* Ensure level doesn't clip pins */
   overflow: visible;
-  /* Allow content to determine size */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Ensure consistent sizing */
-  min-width: 200px;
-  min-height: 150px;
+  /* Center content */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .level::after {
@@ -185,8 +187,12 @@
   color: #7d7d86;
   -webkit-transform: rotateZ(45deg) rotateX(-70deg) translateZ(5vmin);
   transform: rotateZ(45deg) rotateX(-70deg) translateZ(5vmin);
-  -webkit-transition: -webkit-transform 1s, color 0.3s;
-  transition: transform 1s, color 0.3s;
+  -webkit-transition:
+    -webkit-transform 1s,
+    color 0.3s;
+  transition:
+    transform 1s,
+    color 0.3s;
   -webkit-transition-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
   transition-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
 }
@@ -307,8 +313,12 @@
 /* Navigation classes */
 .levels--open .level,
 .levels--open .level::after {
-  -webkit-transition: -webkit-transform 1s, opacity 1s;
-  transition: transform 1s, opacity 1s;
+  -webkit-transition:
+    -webkit-transform 1s,
+    opacity 1s;
+  transition:
+    transform 1s,
+    opacity 1s;
   -webkit-transition-delay: 0s;
   transition-delay: 0s;
 }
@@ -396,16 +406,12 @@
 .level img {
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  /* Preserve original aspect ratio and prevent stretching */
-  object-fit: contain;
-  /* Allow JavaScript to control size dynamically */
-  width: auto;
-  height: auto;
-  /* Ensure SVG maintains its original dimensions */
-  display: block;
-  /* Ensure image scales properly */
-  max-width: 100%;
-  max-height: 100%;
+  /* Fill container with contain to show complete image */
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  display: block !important;
 }
 
 .level:hover .map__outline,
@@ -440,23 +446,31 @@
 }
 
 .building.building--2d .level::after {
-  -webkit-transform: none !important;
-  transform: none !important;
+  -webkit-transform: translateX(-50%) !important;
+  transform: translateX(-50%) !important;
   color: #515158 !important;
   font-weight: bold !important;
-  top: -1em !important;
-  left: 0 !important;
+  /* Fixed positioning for consistent label placement */
+  position: absolute !important;
+  top: -2.5em !important;
+  left: 50% !important;
   text-align: center !important;
-  width: 100% !important;
+  white-space: nowrap !important;
+  width: auto !important;
 }
 
 .building.building--2d .level--current::after {
-  -webkit-transform: none !important;
-  transform: none !important;
+  -webkit-transform: translateX(-50%) !important;
+  transform: translateX(-50%) !important;
   color: #2c3e50 !important;
   font-weight: bold !important;
-  top: -1em !important;
-  width: 100% !important;
+  /* Fixed positioning for consistent label placement */
+  position: absolute !important;
+  top: -2.5em !important;
+  left: 50% !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  width: auto !important;
 }
 
 .building.building--2d .level--2,
@@ -478,6 +492,13 @@
   transform-style: flat !important;
   -webkit-perspective: none !important;
   perspective: none !important;
+  /* Force FIXED dimensions for all levels to prevent shifting */
+  width: 96vmin !important;
+  height: 64vmin !important;
+  /* Center content within the fixed container */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .building.building--2d .level:not(:first-child) {
@@ -531,6 +552,13 @@
   perspective: none !important;
   border-radius: 4px !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  /* Fill container while showing complete image */
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
 }
 
 /* Remove any remaining 3D effects completely */
@@ -908,8 +936,12 @@
   /* Initial transform for animation */
   -webkit-transform: translate3d(0, -100px, 0);
   transform: translate3d(0, -100px, 0);
-  -webkit-transition: opacity 0.3s, -webkit-transform 0.3s;
-  transition: opacity 0.3s, transform 0.3s;
+  -webkit-transition:
+    opacity 0.3s,
+    -webkit-transform 0.3s;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
   -webkit-transition-timing-function: cubic-bezier(0.2, 1, 0.3, 1);
   transition-timing-function: cubic-bezier(0.2, 1, 0.3, 1);
 }
@@ -922,8 +954,12 @@
   text-align: center;
   line-height: 1;
   /* Add outline/glow effect for better visibility */
-  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff,
-    1px 1px 0 #fff, 0 0 4px rgba(0, 0, 0, 0.8);
+  text-shadow:
+    -1px -1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px 1px 0 #fff,
+    0 0 4px rgba(0, 0, 0, 0.8);
 }
 
 /* Active state for pins - show icon when container is active */
@@ -1000,9 +1036,9 @@
   color: #1976d2; /* Blue */
 }
 
-/* Kantor */
-.pin[data-pin-style="kantor"]:focus .pin__icon i {
-  color: #388e3c; /* Green */
+/* Ruang Dosen */
+.pin[data-pin-style="ruang_dosen"]:focus .pin__icon i {
+  color: #43a047; /* Brighter Green */
 }
 
 /* Ruang Rapat */
@@ -1010,24 +1046,14 @@
   color: #f57c00; /* Orange */
 }
 
-/* Perpustakaan */
-.pin[data-pin-style="perpustakaan"]:focus .pin__icon i {
-  color: #7b1fa2; /* Purple */
-}
-
-/* Kantin */
-.pin[data-pin-style="kantin"]:focus .pin__icon i {
-  color: #c2185b; /* Pink */
-}
-
 /* Toilet */
 .pin[data-pin-style="toilet"]:focus .pin__icon i {
   color: #00796b; /* Teal */
 }
 
-/* Gudang */
-.pin[data-pin-style="gudang"]:focus .pin__icon i {
-  color: #5d4037; /* Brown */
+/* Ruang Peralatan */
+.pin[data-pin-style="ruang_peralatan"]:focus .pin__icon i {
+  color: #ffa726; /* Brighter Orange/Gold */
 }
 
 /* Pin container */
@@ -1107,9 +1133,9 @@
   color: #1976d2; /* Blue */
 }
 
-/* Kantor */
-.pin[data-pin-style="kantor"] .pin__icon i {
-  color: #388e3c; /* Green */
+/* Ruang Dosen */
+.pin[data-pin-style="ruang_dosen"] .pin__icon i {
+  color: #43a047; /* Brighter Green */
 }
 
 /* Ruang Rapat */
@@ -1117,24 +1143,14 @@
   color: #f57c00; /* Orange */
 }
 
-/* Perpustakaan */
-.pin[data-pin-style="perpustakaan"] .pin__icon i {
-  color: #7b1fa2; /* Purple */
-}
-
-/* Kantin */
-.pin[data-pin-style="kantin"] .pin__icon i {
-  color: #c2185b; /* Pink */
-}
-
 /* Toilet */
 .pin[data-pin-style="toilet"] .pin__icon i {
   color: #00796b; /* Teal */
 }
 
-/* Gudang */
-.pin[data-pin-style="gudang"] .pin__icon i {
-  color: #5d4037; /* Brown */
+/* Ruang Peralatan */
+.pin[data-pin-style="ruang_peralatan"] .pin__icon i {
+  color: #ffa726; /* Brighter Orange/Gold */
 }
 
 /* Hover effects with matching colors - darker shades based on pin_style */
@@ -1154,9 +1170,9 @@
   color: #0d47a1; /* Darker Blue */
 }
 
-/* Kantor */
-.pin[data-pin-style="kantor"]:hover .pin__icon i {
-  color: #1b5e20; /* Darker Green */
+/* Ruang Dosen */
+.pin[data-pin-style="ruang_dosen"]:hover .pin__icon i {
+  color: #2e7d32; /* Darker Green for hover */
 }
 
 /* Ruang Rapat */
@@ -1164,24 +1180,14 @@
   color: #e65100; /* Darker Orange */
 }
 
-/* Perpustakaan */
-.pin[data-pin-style="perpustakaan"]:hover .pin__icon i {
-  color: #4a148c; /* Darker Purple */
-}
-
-/* Kantin */
-.pin[data-pin-style="kantin"]:hover .pin__icon i {
-  color: #880e4f; /* Darker Pink */
-}
-
 /* Toilet */
 .pin[data-pin-style="toilet"]:hover .pin__icon i {
   color: #004d40; /* Darker Teal */
 }
 
-/* Gudang */
-.pin[data-pin-style="gudang"]:hover .pin__icon i {
-  color: #3e2723; /* Darker Brown */
+/* Ruang Peralatan */
+.pin[data-pin-style="ruang_peralatan"]:hover .pin__icon i {
+  color: #fb8c00; /* Darker Gold for hover */
 }
 
 /* Active state effects with matching colors - brighter shades based on pin_style */
@@ -1205,10 +1211,10 @@
   color: #2196f3; /* Brighter Blue */
 }
 
-/* Kantor */
-.pin[data-pin-style="kantor"].pin--active .pin__icon i,
-.pin[data-pin-style="kantor"]:active .pin__icon i {
-  color: #4caf50; /* Brighter Green */
+/* Ruang Dosen */
+.pin[data-pin-style="ruang_dosen"].pin--active .pin__icon i,
+.pin[data-pin-style="ruang_dosen"]:active .pin__icon i {
+  color: #66bb6a; /* Brighter Green active */
 }
 
 /* Ruang Rapat */
@@ -1217,39 +1223,35 @@
   color: #ff9800; /* Brighter Orange */
 }
 
-/* Perpustakaan */
-.pin[data-pin-style="perpustakaan"].pin--active .pin__icon i,
-.pin[data-pin-style="perpustakaan"]:active .pin__icon i {
-  color: #9c27b0; /* Brighter Purple */
-}
-
-/* Kantin */
-.pin[data-pin-style="kantin"].pin--active .pin__icon i,
-.pin[data-pin-style="kantin"]:active .pin__icon i {
-  color: #e91e63; /* Brighter Pink */
-}
-
 /* Toilet */
 .pin[data-pin-style="toilet"].pin--active .pin__icon i,
 .pin[data-pin-style="toilet"]:active .pin__icon i {
   color: #009688; /* Brighter Teal */
 }
 
-/* Gudang */
-.pin[data-pin-style="gudang"].pin--active .pin__icon i,
-.pin[data-pin-style="gudang"]:active .pin__icon i {
-  color: #795548; /* Brighter Brown */
+/* Ruang Peralatan */
+.pin[data-pin-style="ruang_peralatan"].pin--active .pin__icon i,
+.pin[data-pin-style="ruang_peralatan"]:active .pin__icon i {
+  color: #ffb74d; /* Brighter Gold active */
 }
 
 /* Smooth transitions for all pin states */
 .pin {
-  -webkit-transition: opacity 0.3s ease, transform 0.3s ease;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  -webkit-transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .pin__icon {
-  -webkit-transition: opacity 0.3s ease, transform 0.3s ease;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  -webkit-transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 /* Ensure pins stay within image bounds */

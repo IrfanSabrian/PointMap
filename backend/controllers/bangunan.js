@@ -1,4 +1,5 @@
 import Bangunan from "../models/Bangunan.js";
+import { LantaiGambar, Ruangan, RuanganGallery } from "../models/index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -235,6 +236,48 @@ export const deleteBangunan = async (req, res) => {
   try {
     const id = req.params.id;
 
+    // Check for dependencies before deleting
+    // 1. Check for Lantai
+    const lantaiCount = await LantaiGambar.count({
+      where: { id_bangunan: id },
+    });
+
+    // 2. Check for Ruangan
+    const ruanganCount = await Ruangan.count({
+      where: { id_bangunan: id },
+    });
+
+    // 3. Check for Galeri (in ruangan belonging to this bangunan)
+    const ruanganIds = await Ruangan.findAll({
+      where: { id_bangunan: id },
+      attributes: ["id_ruangan"],
+      raw: true,
+    });
+
+    let galeriCount = 0;
+    if (ruanganIds.length > 0) {
+      galeriCount = await RuanganGallery.count({
+        where: {
+          id_ruangan: ruanganIds.map((r) => r.id_ruangan),
+        },
+      });
+    }
+
+    // If any dependencies exist, return error with details
+    if (lantaiCount > 0 || ruanganCount > 0 || galeriCount > 0) {
+      return res.status(400).json({
+        error:
+          "Tidak dapat menghapus gedung karena masih memiliki data terkait",
+        dependencies: {
+          lantai: lantaiCount,
+          ruangan: ruanganCount,
+          galeri: galeriCount,
+        },
+        message: `Gedung masih berisi: ${galeriCount} galeri, ${ruanganCount} ruangan, ${lantaiCount} lantai`,
+      });
+    }
+
+    // If no dependencies, proceed with delete
     const deleted = await Bangunan.destroy({
       where: { id_bangunan: id },
     });

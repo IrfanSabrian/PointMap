@@ -1,4 +1,9 @@
-import { LantaiGambar, Bangunan } from "../models/index.js";
+import {
+  LantaiGambar,
+  Bangunan,
+  Ruangan,
+  RuanganGallery,
+} from "../models/index.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -203,11 +208,54 @@ export const updateLantaiGambar = async (req, res) => {
 export const deleteLantaiGambar = async (req, res) => {
   try {
     const id = req.params.id;
+
+    // First get the lantai data to know which floor and building
     const deletedLantaiGambar = await LantaiGambar.findByPk(id);
     if (!deletedLantaiGambar) {
       return res.status(404).json({ error: "Lantai gambar tidak ditemukan" });
     }
 
+    // Extract floor number from filename (e.g., "Lt1.svg" -> 1)
+    const floorNumber = parseInt(
+      deletedLantaiGambar.nama_file.replace(/\D/g, ""),
+    );
+
+    // Check for Ruangan on this specific floor
+    const ruanganOnFloor = await Ruangan.findAll({
+      where: {
+        id_bangunan: deletedLantaiGambar.id_bangunan,
+        nomor_lantai: floorNumber,
+      },
+      attributes: ["id_ruangan"],
+      raw: true,
+    });
+
+    const ruanganCount = ruanganOnFloor.length;
+
+    // Check for Galeri in those ruangan
+    let galeriCount = 0;
+    if (ruanganCount > 0) {
+      galeriCount = await RuanganGallery.count({
+        where: {
+          id_ruangan: ruanganOnFloor.map((r) => r.id_ruangan),
+        },
+      });
+    }
+
+    // If any dependencies exist, return error with details
+    if (ruanganCount > 0 || galeriCount > 0) {
+      return res.status(400).json({
+        error:
+          "Tidak dapat menghapus lantai karena masih memiliki data terkait",
+        dependencies: {
+          ruangan: ruanganCount,
+          galeri: galeriCount,
+        },
+        message: `Lantai ${floorNumber} masih berisi: ${galeriCount} galeri, ${ruanganCount} ruangan`,
+      });
+    }
+
+    // If no dependencies, proceed with delete
     // Hapus file lokal jika bukan URL Cloudinary
     if (
       deletedLantaiGambar.path_file &&

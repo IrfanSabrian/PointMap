@@ -41,12 +41,18 @@ export default function RuanganForm({
     nama_prodi: initialData?.nama_prodi || "",
     fungsi: initialData?.fungsi || "",
     pin_style: initialData?.pin_style || "default",
-    posisi_x: initialData?.posisi_x || null,
-    posisi_y: initialData?.posisi_y || null,
+    posisi_x:
+      initialData?.posisi_x !== undefined && initialData?.posisi_x !== null
+        ? parseFloat(initialData.posisi_x)
+        : null,
+    posisi_y:
+      initialData?.posisi_y !== undefined && initialData?.posisi_y !== null
+        ? parseFloat(initialData.posisi_y)
+        : null,
   });
 
   const [currentFloorImage, setCurrentFloorImage] = useState<string | null>(
-    null
+    null,
   );
   const [imageError, setImageError] = useState(false);
 
@@ -65,7 +71,7 @@ export default function RuanganForm({
     const fetchBangunan = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -89,7 +95,7 @@ export default function RuanganForm({
     const fetchLantaiGambar = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${formData.id_bangunan}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar/bangunan/${formData.id_bangunan}`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -111,7 +117,7 @@ export default function RuanganForm({
     if (!lantaiList.length) {
       console.log(
         "⚠️ No floor images available for building",
-        formData.id_bangunan
+        formData.id_bangunan,
       );
       setCurrentFloorImage(null);
       return;
@@ -123,7 +129,7 @@ export default function RuanganForm({
     console.log("   - Target Floor:", floorNum);
     console.log(
       "   - Available Files:",
-      lantaiList.map((l) => l.nama_file)
+      lantaiList.map((l) => l.nama_file),
     );
 
     let image = lantaiList.find((l) => l.nama_file === `Lt${floorNum}.svg`);
@@ -146,6 +152,53 @@ export default function RuanganForm({
       setImageDimensions(null);
     }
   }, [formData.nomor_lantai, lantaiList, formData.id_bangunan]);
+
+  // Update handleImageLoad to be available for useEffect
+  // Handler untuk menghitung dimensi gambar saat dimuat
+  const handleImageLoad = (
+    e:
+      | React.SyntheticEvent<HTMLImageElement>
+      | { currentTarget: HTMLImageElement },
+  ) => {
+    const img = e.currentTarget;
+    const containerRect = img.getBoundingClientRect();
+
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
+
+    if (!naturalWidth || !naturalHeight) return;
+
+    const containerAspectRatio = containerRect.width / containerRect.height;
+    const imageAspectRatio = naturalWidth / naturalHeight;
+
+    let displayedWidth, displayedHeight, offsetX, offsetY;
+
+    if (imageAspectRatio > containerAspectRatio) {
+      displayedWidth = containerRect.width;
+      displayedHeight = containerRect.width / imageAspectRatio;
+      offsetX = 0;
+      offsetY = (containerRect.height - displayedHeight) / 2;
+    } else {
+      displayedHeight = containerRect.height;
+      displayedWidth = containerRect.height * imageAspectRatio;
+      offsetX = (containerRect.width - displayedWidth) / 2;
+      offsetY = 0;
+    }
+
+    setImageDimensions({
+      displayedWidth,
+      displayedHeight,
+      offsetX,
+      offsetY,
+    });
+  };
+
+  // Ensure image dimensions are calculated if image is already loaded (cached)
+  useEffect(() => {
+    if (imageRef.current && imageRef.current.complete && currentFloorImage) {
+      handleImageLoad({ currentTarget: imageRef.current });
+    }
+  }, [currentFloorImage]);
 
   // Recalculate dimensions saat window resize
   useEffect(() => {
@@ -297,43 +350,8 @@ export default function RuanganForm({
     });
   };
 
-  // Handler untuk menghitung dimensi gambar saat dimuat
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const containerRect = img.getBoundingClientRect();
-
-    const naturalWidth = img.naturalWidth;
-    const naturalHeight = img.naturalHeight;
-
-    if (!naturalWidth || !naturalHeight) return;
-
-    const containerAspectRatio = containerRect.width / containerRect.height;
-    const imageAspectRatio = naturalWidth / naturalHeight;
-
-    let displayedWidth, displayedHeight, offsetX, offsetY;
-
-    if (imageAspectRatio > containerAspectRatio) {
-      displayedWidth = containerRect.width;
-      displayedHeight = containerRect.width / imageAspectRatio;
-      offsetX = 0;
-      offsetY = (containerRect.height - displayedHeight) / 2;
-    } else {
-      displayedHeight = containerRect.height;
-      displayedWidth = containerRect.height * imageAspectRatio;
-      offsetX = (containerRect.width - displayedWidth) / 2;
-      offsetY = 0;
-    }
-
-    setImageDimensions({
-      displayedWidth,
-      displayedHeight,
-      offsetX,
-      offsetY,
-    });
-  };
-
   const selectedBangunan = bangunanList.find(
-    (b) => b.id_bangunan == formData.id_bangunan
+    (b) => b.id_bangunan == formData.id_bangunan,
   );
   const maxLantai = selectedBangunan ? selectedBangunan.lantai : 10; // default 10 if not found
 
@@ -453,34 +471,30 @@ export default function RuanganForm({
                     >
                       <option value="default">Default</option>
                       <option value="ruang_kelas">Ruang Kelas</option>
-                      <option value="laboratorium">Laboratorium</option>
-                      <option value="kantor">Kantor</option>
+                      <option value="laboratorium">
+                        Laboratorium / Ruang Praktik
+                      </option>
+                      <option value="ruang_dosen">Ruang Dosen</option>
                       <option value="ruang_rapat">Ruang Rapat</option>
-                      <option value="perpustakaan">Perpustakaan</option>
-                      <option value="kantin">Kantin</option>
                       <option value="toilet">Toilet</option>
-                      <option value="gudang">Gudang</option>
+                      <option value="ruang_peralatan">Ruang Peralatan</option>
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                       <span
                         className={`block w-3 h-3 rounded-full ${
                           formData.pin_style === "laboratorium"
                             ? "bg-[#1976d2]"
-                            : formData.pin_style === "kantor"
-                            ? "bg-[#388e3c]"
-                            : formData.pin_style === "ruang_rapat"
-                            ? "bg-[#f57c00]"
-                            : formData.pin_style === "ruang_kelas"
-                            ? "bg-[#d32f2f]"
-                            : formData.pin_style === "perpustakaan"
-                            ? "bg-[#7b1fa2]"
-                            : formData.pin_style === "kantin"
-                            ? "bg-[#c2185b]"
-                            : formData.pin_style === "toilet"
-                            ? "bg-[#00796b]"
-                            : formData.pin_style === "gudang"
-                            ? "bg-[#5d4037]"
-                            : "bg-[#9e9e9e]"
+                            : formData.pin_style === "ruang_dosen"
+                              ? "bg-[#2e7d32]"
+                              : formData.pin_style === "ruang_rapat"
+                                ? "bg-[#f57c00]"
+                                : formData.pin_style === "ruang_kelas"
+                                  ? "bg-[#d32f2f]"
+                                  : formData.pin_style === "toilet"
+                                    ? "bg-[#00796b]"
+                                    : formData.pin_style === "ruang_peralatan"
+                                      ? "bg-[#ffb74d]"
+                                      : "bg-[#9e9e9e]"
                         }`}
                       ></span>
                     </div>
@@ -682,21 +696,17 @@ export default function RuanganForm({
                       className={`relative flex items-center justify-center ${
                         formData.pin_style === "laboratorium"
                           ? "text-[#1976d2]"
-                          : formData.pin_style === "kantor"
-                          ? "text-[#388e3c]"
-                          : formData.pin_style === "ruang_rapat"
-                          ? "text-[#f57c00]"
-                          : formData.pin_style === "ruang_kelas"
-                          ? "text-[#d32f2f]"
-                          : formData.pin_style === "perpustakaan"
-                          ? "text-[#7b1fa2]"
-                          : formData.pin_style === "kantin"
-                          ? "text-[#c2185b]"
-                          : formData.pin_style === "toilet"
-                          ? "text-[#00796b]"
-                          : formData.pin_style === "gudang"
-                          ? "text-[#5d4037]"
-                          : "text-[#9e9e9e]"
+                          : formData.pin_style === "ruang_dosen"
+                            ? "text-[#2e7d32]"
+                            : formData.pin_style === "ruang_rapat"
+                              ? "text-[#f57c00]"
+                              : formData.pin_style === "ruang_kelas"
+                                ? "text-[#d32f2f]"
+                                : formData.pin_style === "toilet"
+                                  ? "text-[#00796b]"
+                                  : formData.pin_style === "ruang_peralatan"
+                                    ? "text-[#ffb74d]"
+                                    : "text-[#9e9e9e]"
                       }`}
                     >
                       {/* Icon Container similar to public view */}

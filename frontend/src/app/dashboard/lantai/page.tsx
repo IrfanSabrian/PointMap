@@ -111,13 +111,13 @@ export default function LantaiPage() {
   useEffect(() => {
     // Filter bangunan by campus first
     const campusBangunan = bangunanList.filter(
-      (b) => b.kategori_kampus === selectedCampus.name
+      (b) => b.kategori_kampus === selectedCampus.name,
     );
     const campusBangunanIds = campusBangunan.map((b) => b.id_bangunan);
 
     // Filter lantai by campus bangunan
     let result = allLantai.filter((l) =>
-      campusBangunanIds.includes(l.id_bangunan)
+      campusBangunanIds.includes(l.id_bangunan),
     );
 
     // Then filter by selected building if any
@@ -146,17 +146,31 @@ export default function LantaiPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (res.ok) {
         setAllLantai(
-          allLantai.filter((l) => l.id_lantai_gambar !== deleteModal.id)
+          allLantai.filter((l) => l.id_lantai_gambar !== deleteModal.id),
         );
         setDeleteModal({ isOpen: false, id: null });
         showToast("Gambar lantai berhasil dihapus", "success");
       } else {
-        showToast("Gagal menghapus gambar", "error");
+        const err = await res.json();
+
+        // Handle dependency error with detailed message
+        if (err.dependencies) {
+          const { ruangan, galeri } = err.dependencies;
+          let detailMsg = "Lantai masih memiliki data:\n";
+          if (galeri > 0) detailMsg += `${galeri} Foto Galeri\n`;
+          if (ruangan > 0) detailMsg += `${ruangan} Ruangan`;
+
+          showToast(detailMsg, "error");
+        } else {
+          showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
+        }
+
+        setDeleteModal({ isOpen: false, id: null });
       }
     } catch (error) {
       console.error("Error deleting floor image:", error);
@@ -170,21 +184,28 @@ export default function LantaiPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredLantai.slice(indexOfFirstItem, indexOfLastItem);
 
-  const handleSuccess = () => {
-    // Refresh data
-    const fetchData = async () => {
-      // Re-fetch logic or just simple reload.
-      // Re-fetching better to keep state clean.
+  const handleSuccess = async () => {
+    // Refresh data with cache busting
+    try {
+      setIsLoading(true); // Show loading state during refresh
+
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar`
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar?_t=${timestamp}`,
       );
+
       if (res.ok) {
         const data = await res.json();
         setAllLantai(data); // Update source of truth, useEffect will handle filtering
+        // Toast is already shown by the form component, no need to show it again here
       }
-    };
-    fetchData();
-    handleCloseModal();
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsLoading(false);
+      handleCloseModal();
+    }
   };
 
   // Modal State
