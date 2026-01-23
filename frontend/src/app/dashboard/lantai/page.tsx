@@ -310,18 +310,16 @@ export default function LantaiPage() {
                   className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                  {l.bangunan?.nama || "Unknown"}
+                  {l.nama_file.replace(".svg", "").replace("Lt", "Lantai ")}
                 </div>
               </div>
 
               <div className="p-3">
                 <h3
                   className="text-sm font-bold text-gray-800 dark:text-white mb-3 truncate"
-                  title={l.nama_file
-                    .replace(".svg", "")
-                    .replace("Lt", "Lantai ")}
+                  title={l.bangunan?.nama || "Unknown"}
                 >
-                  {l.nama_file.replace(".svg", "").replace("Lt", "Lantai ")}
+                  {l.bangunan?.nama || "Unknown"}
                 </h3>
 
                 <div className="flex gap-2">
