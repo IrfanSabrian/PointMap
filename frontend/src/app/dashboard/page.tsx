@@ -26,11 +26,11 @@ export default function DashboardStats() {
 
   // Pagination State
   const [page, setPage] = useState(1);
-  const itemsPerPage = 4; // Display 4 items per page as requested
+  const itemsPerPage = 6; // Display 6 items per page for better fit
 
   const paginatedBuildings = recentBuildings.slice(
     (page - 1) * itemsPerPage,
-    page * itemsPerPage
+    page * itemsPerPage,
   );
 
   // Fetch Stats and Data for Widgets
@@ -53,14 +53,14 @@ export default function DashboardStats() {
       if (resBuildings.ok) {
         const buildings = await resBuildings.json();
         const sorted = [...buildings].sort(
-          (a: any, b: any) => b.id_bangunan - a.id_bangunan
+          (a: any, b: any) => b.id_bangunan - a.id_bangunan,
         );
         setRecentBuildings(sorted);
 
         localBuildingCount = buildings.length;
         localFloorCount = buildings.reduce(
           (sum: number, b: any) => sum + (parseInt(b.lantai) || 0),
-          0
+          0,
         );
         buildingIds = buildings.map((b: any) => b.id_bangunan);
       }
@@ -76,7 +76,7 @@ export default function DashboardStats() {
         const allRooms = await resRuangan.json();
         // Filter rooms where id_bangunan is in the current campus's building list
         const campusRooms = allRooms.filter((r: any) =>
-          buildingIds.includes(r.id_bangunan)
+          buildingIds.includes(r.id_bangunan),
         );
         localRoomCount = campusRooms.length;
         roomIds = campusRooms.map((r: any) => r.id_ruangan);
@@ -87,7 +87,7 @@ export default function DashboardStats() {
         const allGallery = await resGallery.json();
         // Filter gallery items where id_ruangan is in the current campus's room list
         const campusGallery = allGallery.filter((g: any) =>
-          roomIds.includes(g.id_ruangan)
+          roomIds.includes(g.id_ruangan),
         );
         localGalleryCount = campusGallery.length;
       }
@@ -237,7 +237,7 @@ export default function DashboardStats() {
                   {page} /{" "}
                   {Math.max(
                     1,
-                    Math.ceil(recentBuildings.length / itemsPerPage)
+                    Math.ceil(recentBuildings.length / itemsPerPage),
                   )}
                 </span>
                 <button
@@ -248,8 +248,8 @@ export default function DashboardStats() {
                     setPage((p) =>
                       Math.min(
                         Math.ceil(recentBuildings.length / itemsPerPage),
-                        p + 1
-                      )
+                        p + 1,
+                      ),
                     )
                   }
                   className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-300"
@@ -267,9 +267,9 @@ export default function DashboardStats() {
           </div>
 
           <div className="flex-1 overflow-y-auto min-h-0 p-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[360px]">
               {isLoading ? (
-                [1, 2, 3, 4].map((i) => (
+                [1, 2, 3, 4, 5, 6].map((i) => (
                   <div
                     key={i}
                     className="h-24 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse"
@@ -288,13 +288,13 @@ export default function DashboardStats() {
                             b.thumbnail.startsWith("http")
                               ? b.thumbnail
                               : b.thumbnail.startsWith("/img") ||
-                                b.thumbnail.startsWith("img") ||
-                                b.thumbnail.startsWith("/building-details") ||
-                                b.thumbnail.startsWith("building-details")
-                              ? b.thumbnail
-                              : `${
-                                  process.env.NEXT_PUBLIC_API_BASE_URL
-                                }/${b.thumbnail.replace(/^\//, "")}`
+                                  b.thumbnail.startsWith("img") ||
+                                  b.thumbnail.startsWith("/building-details") ||
+                                  b.thumbnail.startsWith("building-details")
+                                ? b.thumbnail
+                                : `${
+                                    process.env.NEXT_PUBLIC_API_BASE_URL
+                                  }/${b.thumbnail.replace(/^\//, "")}`
                           }
                           alt={b.nama}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -318,7 +318,7 @@ export default function DashboardStats() {
                             #{b.id_bangunan}
                           </span>
                         </div>
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                        <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs">
                           {/* Floors Badge */}
                           <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
                             <FaLayerGroup className="text-blue-500" />
@@ -370,7 +370,7 @@ export default function DashboardStats() {
         {/* Sidebar: Analytics Cards */}
         <div className="space-y-4 flex flex-col h-full overflow-hidden">
           {/* Card 1: Digitalisasi Kampus */}
-          <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 overflow-hidden shadow-lg flex-shrink-0">
+          <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 overflow-hidden shadow-lg flex-shrink-0 min-h-[180px]">
             <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-black/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
@@ -400,10 +400,10 @@ export default function DashboardStats() {
                   {recentBuildings.length > 0
                     ? Math.round(
                         (recentBuildings.filter(
-                          (b) => b.interaksi === "Interaktif"
+                          (b) => b.interaksi === "Interaktif",
                         ).length /
                           recentBuildings.length) *
-                          100
+                          100,
                       )
                     : 0}
                 </span>
@@ -418,7 +418,7 @@ export default function DashboardStats() {
                     width: `${
                       recentBuildings.length > 0
                         ? (recentBuildings.filter(
-                            (b) => b.interaksi === "Interaktif"
+                            (b) => b.interaksi === "Interaktif",
                           ).length /
                             recentBuildings.length) *
                           100
@@ -434,7 +434,7 @@ export default function DashboardStats() {
           </div>
 
           {/* Card 2: Visualisasi Gedung */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-pink-100 dark:border-pink-900/30 shadow-sm flex-shrink-0">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-pink-100 dark:border-pink-900/30 shadow-sm flex-shrink-0 min-h-[180px]">
             <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3">
               Visualisasi Gedung
             </h4>
@@ -479,7 +479,7 @@ export default function DashboardStats() {
                       ? Math.round(
                           (recentBuildings.filter((b) => b.thumbnail).length /
                             recentBuildings.length) *
-                            100
+                            100,
                         )
                       : 0}
                     %

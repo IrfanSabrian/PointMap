@@ -33,7 +33,7 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex justify-center mt-8 gap-2">
+    <div className="flex justify-center mt-6 gap-2">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
@@ -68,7 +68,7 @@ export default function LantaiPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 10;
 
   // Delete Modal State
   const [deleteModal, setDeleteModal] = useState<{
@@ -297,13 +297,13 @@ export default function LantaiPage() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in-up">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4 animate-fade-in-up">
           {currentItems.map((l) => (
             <div
               key={l.id_lantai_gambar}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all group overflow-hidden"
             >
-              <div className="aspect-[4/3] bg-gray-100 dark:bg-gray-700/50 relative flex items-center justify-center p-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="aspect-[16/9] bg-gray-100 dark:bg-gray-700/50 relative flex items-center justify-center p-3 border-b border-gray-100 dark:border-gray-700">
                 <img
                   src={l.path_file}
                   alt={l.nama_file}
@@ -314,29 +314,28 @@ export default function LantaiPage() {
                 </div>
               </div>
 
-              <div className="p-4">
+              <div className="p-3">
                 <h3
-                  className="font-bold text-gray-800 dark:text-white mb-1 truncate"
-                  title={l.nama_file}
+                  className="text-sm font-bold text-gray-800 dark:text-white mb-3 truncate"
+                  title={l.nama_file
+                    .replace(".svg", "")
+                    .replace("Lt", "Lantai ")}
                 >
-                  {l.nama_file}
+                  {l.nama_file.replace(".svg", "").replace("Lt", "Lantai ")}
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                  Gedung: {l.bangunan?.nama || "-"}
-                </p>
 
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleOpenEdit(l)}
-                    className="flex-1 text-center py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-sm font-medium transition-colors"
+                    className="flex-1 text-center py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-medium transition-colors"
                   >
-                    <FaEdit className="inline mr-1" /> Edit
+                    <FaEdit className="inline mr-1 text-xs" /> Edit
                   </button>
                   <button
                     onClick={() => handleDelete(l.id_lantai_gambar)}
-                    className="w-10 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                    className="w-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                   >
-                    <FaTrash />
+                    <FaTrash className="text-xs" />
                   </button>
                 </div>
               </div>

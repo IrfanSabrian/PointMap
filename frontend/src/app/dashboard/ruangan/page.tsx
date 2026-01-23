@@ -37,7 +37,7 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex justify-center mt-8 gap-2">
+    <div className="flex justify-center mt-6 gap-2">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
@@ -501,7 +501,7 @@ export default function RuanganPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 10;
 
   // Modal State
   const [modalState, setModalState] = useState<{
@@ -777,75 +777,25 @@ export default function RuanganPage() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in-up">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-fade-in-up">
           {currentItems.map((r) => (
             <div
               key={r.id_ruangan}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-300 group flex flex-col overflow-hidden"
             >
-              <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 flex justify-between items-start">
-                <div>
-                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md mb-2 inline-block">
-                    {r.bangunan?.nama || "Unknown"}
-                  </span>
-                  <h3
-                    className="font-bold text-gray-800 dark:text-white text-lg leading-tight line-clamp-1"
-                    title={r.nama_ruangan}
-                  >
-                    {r.nama_ruangan}
-                  </h3>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 block">
-                    Lantai {r.nomor_lantai}
-                  </span>
-                  {r.posisi_x ? (
-                    <span
-                      className="inline-block w-2.5 h-2.5 bg-green-500 rounded-full mt-1"
-                      title="Lokasi diset"
-                    ></span>
-                  ) : (
-                    <span
-                      className="inline-block w-2.5 h-2.5 bg-red-400 rounded-full mt-1"
-                      title="Lokasi belum diset"
-                    ></span>
-                  )}
-                </div>
+              <div className="p-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md mb-2 inline-block">
+                  {r.bangunan?.nama || "Unknown"} Lantai {r.nomor_lantai}
+                </span>
+                <h3
+                  className="font-bold text-gray-800 dark:text-white text-sm leading-tight line-clamp-1"
+                  title={r.nama_ruangan}
+                >
+                  {r.nama_ruangan}
+                </h3>
               </div>
 
-              {/* SVG Lantai Preview */}
-              {(() => {
-                const lantaiPath = getLantaiGambarForRuangan(
-                  r.id_bangunan,
-                  r.nomor_lantai,
-                );
-                return lantaiPath ? (
-                  <div className="px-4 pt-2 pb-3 bg-white dark:bg-gray-800/50">
-                    <div className="relative w-full h-32 bg-gray-100 dark:bg-gray-900/50 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                      <img
-                        src={
-                          lantaiPath.startsWith("/img")
-                            ? lantaiPath // Path dari public folder Next.js
-                            : `${
-                                process.env.NEXT_PUBLIC_API_BASE_URL || ""
-                              }/${lantaiPath.replace(/^\//, "")}`
-                        }
-                        alt={`Lantai ${r.nomor_lantai}`}
-                        className="w-full h-full object-contain p-2"
-                        onError={(e) => {
-                          // Hide image if failed to load
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                      <div className="absolute bottom-1 right-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
-                        Lantai {r.nomor_lantai}
-                      </div>
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-
-              <div className="p-4 flex-1">
+              <div className="p-3 flex-1">
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center gap-2">
                     <i className="fas fa-university w-5 text-gray-400"></i>

@@ -181,7 +181,7 @@ export default function GaleriPage() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex justify-center mt-8 gap-2">
+            <div className="flex justify-center mt-6 gap-2">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}

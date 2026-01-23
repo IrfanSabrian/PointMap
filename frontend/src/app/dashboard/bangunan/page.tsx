@@ -36,7 +36,7 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex justify-center mt-8 gap-2">
+    <div className="flex justify-center mt-6 gap-2">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
@@ -70,7 +70,7 @@ export default function BangunanPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 10;
 
   // Fetch ALL buildings once on mount
   useEffect(() => {
@@ -329,13 +329,13 @@ export default function BangunanPage() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in-up">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-fade-in-up">
           {currentItems.map((b) => (
             <div
               key={b.id_bangunan}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 group"
             >
-              <div className="relative h-48 bg-gray-200 dark:bg-gray-700 overflow-hidden">
+              <div className="relative h-32 bg-gray-200 dark:bg-gray-700 overflow-hidden">
                 {b.thumbnail ? (
                   <img
                     src={
@@ -371,14 +371,14 @@ export default function BangunanPage() {
                 </div>
               </div>
 
-              <div className="p-4">
+              <div className="p-3">
                 <h3
-                  className="text-lg font-bold text-gray-800 dark:text-white mb-1 line-clamp-1"
+                  className="text-sm font-bold text-gray-800 dark:text-white mb-1 line-clamp-1"
                   title={b.nama}
                 >
                   {b.nama}
                 </h3>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
                   <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs">
                     <FaLayerGroup className="text-xs" /> {b.lantai} Lantai
                   </span>
@@ -387,16 +387,16 @@ export default function BangunanPage() {
                 <div className="flex gap-2 mt-auto">
                   <button
                     onClick={() => handleOpenEdit(b)}
-                    className="flex-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
                   >
-                    <FaEdit /> Edit
+                    <FaEdit className="text-xs" /> Edit
                   </button>
                   <button
                     onClick={() => handleDelete(b.id_bangunan)}
-                    className="w-10 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 py-2 rounded-lg transition-colors flex items-center justify-center"
+                    className="w-8 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 py-1.5 rounded-lg transition-colors flex items-center justify-center"
                     title="Hapus"
                   >
-                    <FaTrash />
+                    <FaTrash className="text-xs" />
                   </button>
                 </div>
               </div>
