@@ -566,9 +566,11 @@ export default function RuanganPage() {
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     id: number | null;
+    name: string;
   }>({
     isOpen: false,
     id: null,
+    name: "",
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -638,8 +640,8 @@ export default function RuanganPage() {
     setCurrentPage(1); // Reset page on filter
   }, [searchTerm, selectedBangunan, ruangan]);
 
-  const handleDelete = (id: number) => {
-    setDeleteModal({ isOpen: true, id });
+  const handleDelete = (id: number, name: string) => {
+    setDeleteModal({ isOpen: true, id, name });
   };
 
   const confirmDelete = async () => {
@@ -660,7 +662,7 @@ export default function RuanganPage() {
 
       if (res.ok) {
         setRuangan(ruangan.filter((r) => r.id_ruangan !== deleteModal.id));
-        setDeleteModal({ isOpen: false, id: null });
+        setDeleteModal({ isOpen: false, id: null, name: "" });
         showToast("Ruangan berhasil dihapus", "success");
       } else {
         const err = await res.json();
@@ -673,7 +675,7 @@ export default function RuanganPage() {
           showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
         }
 
-        setDeleteModal({ isOpen: false, id: null });
+        setDeleteModal({ isOpen: false, id: null, name: "" });
       }
     } catch (error) {
       console.error("Error deleting room:", error);
@@ -839,7 +841,7 @@ export default function RuanganPage() {
                   <FaEdit className="inline mr-1" /> Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(r.id_ruangan)}
+                  onClick={() => handleDelete(r.id_ruangan, r.nama_ruangan)}
                   className="w-10 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 transition-colors"
                 >
                   <FaTrash />
@@ -942,7 +944,9 @@ export default function RuanganPage() {
                           <FaEdit />
                         </button>
                         <button
-                          onClick={() => handleDelete(r.id_ruangan)}
+                          onClick={() =>
+                            handleDelete(r.id_ruangan, r.nama_ruangan)
+                          }
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           title="Hapus"
                         >
@@ -980,7 +984,9 @@ export default function RuanganPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setDeleteModal({ isOpen: false, id: null })}
+            onClick={() =>
+              setDeleteModal({ isOpen: false, id: null, name: "" })
+            }
           ></div>
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative z-10 animate-scale-in transform transition-all">
             <div className="flex flex-col items-center text-center mb-6">
@@ -988,17 +994,20 @@ export default function RuanganPage() {
                 <FaTrash />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                Hapus Ruangan?
+                Hapus Ruangan {deleteModal.name}?
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Apakah Anda yakin ingin menghapus ruangan ini? Tindakan ini
-                tidak dapat dibatalkan.
+                Apakah Anda yakin ingin menghapus ruangan{" "}
+                <strong>{deleteModal.name}</strong>? Tindakan ini tidak dapat
+                dibatalkan.
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteModal({ isOpen: false, id: null })}
+                onClick={() =>
+                  setDeleteModal({ isOpen: false, id: null, name: "" })
+                }
                 className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                 disabled={isDeleting}
               >

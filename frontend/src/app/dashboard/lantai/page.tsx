@@ -77,9 +77,11 @@ export default function LantaiPage() {
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     id: number | null;
+    detail: string;
   }>({
     isOpen: false,
     id: null,
+    detail: "",
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -132,8 +134,8 @@ export default function LantaiPage() {
     setCurrentPage(1); // Reset page on filter
   }, [selectedCampus.name, selectedBangunan, allLantai, bangunanList]);
 
-  const handleDelete = (id: number) => {
-    setDeleteModal({ isOpen: true, id });
+  const handleDelete = (id: number, detail: string) => {
+    setDeleteModal({ isOpen: true, id, detail });
   };
 
   const confirmDelete = async () => {
@@ -156,7 +158,7 @@ export default function LantaiPage() {
         setAllLantai(
           allLantai.filter((l) => l.id_lantai_gambar !== deleteModal.id),
         );
-        setDeleteModal({ isOpen: false, id: null });
+        setDeleteModal({ isOpen: false, id: null, detail: "" });
         showToast("Gambar lantai berhasil dihapus", "success");
       } else {
         const err = await res.json();
@@ -173,7 +175,7 @@ export default function LantaiPage() {
           showToast(`Gagal menghapus: ${err.message || err.error}`, "error");
         }
 
-        setDeleteModal({ isOpen: false, id: null });
+        setDeleteModal({ isOpen: false, id: null, detail: "" });
       }
     } catch (error) {
       console.error("Error deleting floor image:", error);
@@ -337,7 +339,12 @@ export default function LantaiPage() {
                     <FaEdit className="inline mr-1 text-xs" /> Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(l.id_lantai_gambar)}
+                    onClick={() =>
+                      handleDelete(
+                        l.id_lantai_gambar,
+                        `${l.nama_file.replace("Lt", "Lantai ").replace(".svg", "")} - ${l.bangunan?.nama || "Unknown"}`,
+                      )
+                    }
                     className="w-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                   >
                     <FaTrash className="text-xs" />
@@ -386,7 +393,12 @@ export default function LantaiPage() {
                           <FaEdit />
                         </button>
                         <button
-                          onClick={() => handleDelete(l.id_lantai_gambar)}
+                          onClick={() =>
+                            handleDelete(
+                              l.id_lantai_gambar,
+                              `${l.nama_file.replace("Lt", "Lantai ").replace(".svg", "")} - ${l.bangunan?.nama || "Unknown"}`,
+                            )
+                          }
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                           title="Hapus"
                         >
@@ -415,7 +427,9 @@ export default function LantaiPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setDeleteModal({ isOpen: false, id: null })}
+            onClick={() =>
+              setDeleteModal({ isOpen: false, id: null, detail: "" })
+            }
           ></div>
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative z-10 animate-scale-in transform transition-all">
             <div className="flex flex-col items-center text-center mb-6">
@@ -426,14 +440,17 @@ export default function LantaiPage() {
                 Hapus Gambar Lantai?
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Apakah Anda yakin ingin menghapus gambar ini? Tindakan ini tidak
-                dapat dibatalkan.
+                Apakah Anda yakin ingin menghapus{" "}
+                <strong>{deleteModal.detail}</strong>? Tindakan ini tidak dapat
+                dibatalkan.
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteModal({ isOpen: false, id: null })}
+                onClick={() =>
+                  setDeleteModal({ isOpen: false, id: null, detail: "" })
+                }
                 className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                 disabled={isDeleting}
               >

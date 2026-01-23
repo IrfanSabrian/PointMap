@@ -26,7 +26,7 @@ export default function DashboardStats() {
 
   // Pagination State
   const [page, setPage] = useState(1);
-  const itemsPerPage = 10; // Display 10 items per page for better fit
+  const itemsPerPage = 6;
 
   const paginatedBuildings = recentBuildings.slice(
     (page - 1) * itemsPerPage,
@@ -267,9 +267,9 @@ export default function DashboardStats() {
           </div>
 
           <div className="flex-1 overflow-y-auto min-h-0 p-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[600px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[360px]">
               {isLoading ? (
-                Array.from({ length: 10 }).map((_, i) => (
+                Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
                     className="h-24 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse"
