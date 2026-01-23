@@ -66,6 +66,9 @@ export default function LantaiPage() {
   const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
   const { selectedCampus } = useCampus();
 
+  // Image cache busting - update this timestamp when data changes
+  const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -185,25 +188,29 @@ export default function LantaiPage() {
   const currentItems = filteredLantai.slice(indexOfFirstItem, indexOfLastItem);
 
   const handleSuccess = async () => {
-    // Refresh data with cache busting
+    // Refresh data with cache busting BEFORE closing modal
     try {
-      setIsLoading(true); // Show loading state during refresh
-
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/lantai-gambar?_t=${timestamp}`,
+        {
+          cache: "no-store", // Disable Next.js caching
+        },
       );
 
       if (res.ok) {
         const data = await res.json();
         setAllLantai(data); // Update source of truth, useEffect will handle filtering
-        // Toast is already shown by the form component, no need to show it again here
+        // Update image cache buster to force reload images
+        setImageCacheBuster(Date.now());
+        console.log("✅ Data refreshed after save:", data.length, "lantai");
       }
     } catch (error) {
       console.error("Error refreshing data:", error);
+      showToast("Gagal memuat data terbaru", "error");
     } finally {
-      setIsLoading(false);
+      // Close modal only AFTER data is refreshed
       handleCloseModal();
     }
   };
@@ -305,7 +312,7 @@ export default function LantaiPage() {
             >
               <div className="aspect-[16/9] bg-gray-100 dark:bg-gray-700/50 relative flex items-center justify-center p-3 border-b border-gray-100 dark:border-gray-700">
                 <img
-                  src={l.path_file}
+                  src={`${l.path_file}?_t=${imageCacheBuster}`}
                   alt={l.nama_file}
                   className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
                 />

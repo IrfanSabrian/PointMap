@@ -1191,7 +1191,7 @@ Berdasarkan skenario pengujian Admin – CRUD Bangunan, fitur manajemen data ban
 
    Gambar 4.54 Grid View - Kartu Gedung dengan Thumbnail
 
-   Gambar 4.55 Table View - Tabel Data Bangunan
+   Gambar 4.55 Table View - Tabel Data Gedung
 
    Gambar 4.56 Search Gedung
 

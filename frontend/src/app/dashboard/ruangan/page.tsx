@@ -523,14 +523,15 @@ export default function RuanganPage() {
   };
 
   const handleSuccess = async () => {
-    // Refresh data with cache busting
+    // Refresh data with cache busting BEFORE closing modal
     try {
-      setIsLoading(true); // Show loading state during refresh
-
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan?_t=${timestamp}`,
+        {
+          cache: "no-store", // Disable Next.js caching
+        },
       );
 
       if (res.ok) {
@@ -540,12 +541,17 @@ export default function RuanganPage() {
           bangunanIds.includes(r.id_bangunan),
         );
         setRuangan(filteredData);
-        // Toast is already shown by the form component, no need to show it again here
+        console.log(
+          "✅ Data refreshed after save:",
+          filteredData.length,
+          "ruangan",
+        );
       }
     } catch (error) {
       console.error("Error refreshing data:", error);
+      showToast("Gagal memuat data terbaru", "error");
     } finally {
-      setIsLoading(false);
+      // Close modal only AFTER data is refreshed
       handleCloseModal();
     }
   };

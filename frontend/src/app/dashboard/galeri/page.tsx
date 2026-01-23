@@ -20,6 +20,9 @@ export default function GaleriPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast } = useToast();
 
+  // Image cache busting - update this timestamp when data changes
+  const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -96,9 +99,37 @@ export default function GaleriPage() {
     }
   };
 
-  const handleSuccess = () => {
-    setIsModalOpen(false);
-    fetchGallery();
+  const handleSuccess = async () => {
+    // Refresh data with cache busting BEFORE closing modal
+    try {
+      const timestamp = new Date().getTime();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/ruangan-gallery?_t=${timestamp}`,
+        {
+          cache: "no-store", // Disable Next.js caching
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Sort by id descending (newest first) if possible
+        data.sort((a: any, b: any) => b.id_gallery - a.id_gallery);
+        setGalleryItems(data);
+        setFilteredItems(data);
+        // Update image cache buster to force reload images
+        setImageCacheBuster(Date.now());
+        console.log(
+          "✅ Data refreshed after save:",
+          data.length,
+          "gallery items",
+        );
+      }
+    } catch (error) {
+      console.error("Error refreshing gallery:", error);
+      showToast("Gagal memuat data terbaru", "error");
+    } finally {
+      // Close modal only AFTER data is refreshed
+      setIsModalOpen(false);
+    }
   };
 
   // Client-side pagination
@@ -156,7 +187,7 @@ export default function GaleriPage() {
                 className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700 aspect-square"
               >
                 <img
-                  src={`${item.path_file.startsWith("/") ? "" : "/"}${item.path_file}`}
+                  src={`${item.path_file.startsWith("/") ? "" : "/"}${item.path_file}?_t=${imageCacheBuster}`}
                   alt={item.deskripsi || "Foto Ruangan"}
                   className="w-full h-full object-cover"
                 />

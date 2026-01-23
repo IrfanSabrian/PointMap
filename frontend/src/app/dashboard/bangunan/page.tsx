@@ -68,6 +68,9 @@ export default function BangunanPage() {
   const { selectedCampus } = useCampus();
   const { showToast } = useToast();
 
+  // Image cache busting - update this timestamp when data changes
+  const [imageCacheBuster, setImageCacheBuster] = useState(Date.now());
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -130,25 +133,29 @@ export default function BangunanPage() {
   };
 
   const handleSuccess = async () => {
-    // Refresh data with cache busting
+    // Refresh data with cache busting BEFORE closing modal
     try {
-      setIsLoading(true); // Show loading state during refresh
-
       // Add timestamp to prevent caching
       const timestamp = new Date().getTime();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/bangunan?_t=${timestamp}`,
+        {
+          cache: "no-store", // Disable Next.js caching
+        },
       );
 
       if (res.ok) {
         const data = await res.json();
         setBangunan(data);
-        // Toast is already shown by the form component, no need to show it again here
+        // Update image cache buster to force reload images
+        setImageCacheBuster(Date.now());
+        console.log("✅ Data refreshed after save:", data.length, "buildings");
       }
     } catch (error) {
       console.error("Error refreshing data:", error);
+      showToast("Gagal memuat data terbaru", "error");
     } finally {
-      setIsLoading(false);
+      // Close modal only AFTER data is refreshed
       handleCloseModal();
     }
   };
@@ -338,8 +345,8 @@ export default function BangunanPage() {
               <div className="relative h-32 bg-gray-200 dark:bg-gray-700 overflow-hidden">
                 {b.thumbnail ? (
                   <img
-                    src={
-                      b.thumbnail.startsWith("http")
+                    src={(() => {
+                      let baseUrl = b.thumbnail.startsWith("http")
                         ? b.thumbnail
                         : b.thumbnail.startsWith("/img") ||
                             b.thumbnail.startsWith("img") ||
@@ -348,8 +355,11 @@ export default function BangunanPage() {
                           ? b.thumbnail
                           : `${
                               process.env.NEXT_PUBLIC_API_BASE_URL
-                            }/${b.thumbnail.replace(/^\//, "")}`
-                    }
+                            }/${b.thumbnail.replace(/^\//, "")}`;
+                      // Add cache buster to force reload
+                      const separator = baseUrl.includes("?") ? "&" : "?";
+                      return `${baseUrl}${separator}_t=${imageCacheBuster}`;
+                    })()}
                     alt={b.nama}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
@@ -427,8 +437,8 @@ export default function BangunanPage() {
                     <td className="p-4">
                       {b.thumbnail ? (
                         <img
-                          src={
-                            b.thumbnail.startsWith("http")
+                          src={(() => {
+                            let baseUrl = b.thumbnail.startsWith("http")
                               ? b.thumbnail
                               : b.thumbnail.startsWith("/img") ||
                                   b.thumbnail.startsWith("img") ||
@@ -437,8 +447,11 @@ export default function BangunanPage() {
                                 ? b.thumbnail
                                 : `${
                                     process.env.NEXT_PUBLIC_API_BASE_URL
-                                  }/${b.thumbnail.replace(/^\//, "")}`
-                          }
+                                  }/${b.thumbnail.replace(/^\//, "")}`;
+                            // Add cache buster to force reload
+                            const separator = baseUrl.includes("?") ? "&" : "?";
+                            return `${baseUrl}${separator}_t=${imageCacheBuster}`;
+                          })()}
                           alt={b.nama}
                           className="w-12 h-12 object-cover rounded-md bg-gray-200"
                         />
