@@ -971,17 +971,17 @@ Tabel 4.1 berikut menyajikan rincian skenario pengujian yang telah dilakukan:
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | **Halaman Beranda – Navbar & Language Toggle** 1. Muat halaman pertama kali. 2. Klik tombol Dark Mode. 3. Klik tombol Language Toggle (ID/EN). 4. Periksa tampilan cuaca di navbar.                                                                                                                                              | Memastikan navbar dan kontrol global berfungsi.                   | Navbar tampil dengan logo PointMap. Dark mode mengubah tema warna. Toggle bahasa mengubah interface ke English/Indonesia. Informasi cuaca Pontianak ditampilkan (suhu & kondisi).                                                                                                                                               | Navbar tampil normal dengan semua elemen. Dark mode berfungsi dengan baik. Language toggle bekerja sempurna. Cuaca muncul via OpenWeatherMap API.                                                                                                                                                             | Berhasil |
 | **Halaman Beranda – Hero Section & Campus Selection** 1. Perhatikan slider background hero section. 2. Pilih salah satu campus card (Pontianak/Sanggau/Kapuas Hulu/Sukamara). 3. Verifikasi scroll otomatis ke peta.                                                                                                             | Memastikan hero section interaktif dan campus selector berfungsi. | Background hero berganti otomatis setiap 5 detik (4 gambar). Klik campus card auto-scroll ke canvas peta. Peta menampilkan view sesuai kampus yang dipilih.                                                                                                                                                                     | Background slider smooth transition. Campus card click berfungsi. Auto-scroll ke peta sempurna. View peta berubah sesuai koordinat kampus.                                                                                                                                                                    | Berhasil |
-| **Canvas Peta – Multi-Campus Support** 1. Gunakan campus selector di header peta. 2. Pilih kampus berbeda (Pontianak, Sanggau, Kapuas Hulu, Sukamara). 3. Periksa perubahan koordinat & zoom level.                                                                                                                              | Memastikan sistem multi-campus berfungsi.                         | Dropdown campus selector tampil di header peta. Peta langsung pindah ke center koordinat kampus yang dipilih. Zoom level sesuai konfigurasi per kampus. Hanya bangunan kampus terpilih yang ditampilkan.                                                                                                                        | Campus selector berfungsi sempurna. Map center & zoom berubah dengan smooth. Filter bangunan per kampus akurat.                                                                                                                                                                                               | Berhasil |
-| **Canvas Peta – Layer Control & Basemap** 1. Klik kontrol layer (pojok kanan atas). 2. Toggle visibility layer Buildings. 3. Ganti basemap dari Satellite (default) ke Topographic, lalu ke Dark Carto.                                                                                                                          | Memastikan layer control dan basemap switching berfungsi.         | Layer control dapat membuka panel basemap & overlay. Toggle Buildings menampilkan/menyembunyikan semua bangunan. Basemap berganti sesuai pilihan tanpa reload page.                                                                                                                                                             | Layer control panel tampil responsif. Buildings layer dapat di-toggle. Basemap switching lancar (Esri Satellite sebagai default, Esri Topographic, Dark Carto).                                                                                                                                               | Berhasil |
+| **Canvas Peta – Multi-Campus Support** 1. Gunakan campus selector di header peta. 2. Pilih kampus berbeda (Pontianak, Sanggau, Kapuas Hulu, Sukamara). 3. Periksa perubahan koordinat & zoom level.                                                                                                                              | Memastikan sistem multi-campus berfungsi.                         | Dropdown campus selector tampil di header peta. Peta langsung pindah ke center koordinat kampus yang dipilih. Zoom level sesuai konfigurasi per kampus. Hanya gedung kampus terpilih yang ditampilkan.                                                                                                                          | Campus selector berfungsi sempurna. Map center & zoom berubah dengan smooth. Filter gedung per kampus akurat.                                                                                                                                                                                                 | Berhasil |
+| **Canvas Peta – Layer Control & Basemap** 1. Klik kontrol layer (pojok kanan atas). 2. Toggle visibility layer Buildings. 3. Ganti basemap dari Satellite (default) ke Topographic, lalu ke Dark Carto.                                                                                                                          | Memastikan layer control dan basemap switching berfungsi.         | Layer control dapat membuka panel basemap & overlay. Toggle Buildings menampilkan/menyembunyikan semua gedung. Basemap berganti sesuai pilihan tanpa reload page.                                                                                                                                                               | Layer control panel tampil responsif. Buildings layer dapat di-toggle. Basemap switching lancar (Esri Satellite sebagai default, Esri Topographic, Dark Carto).                                                                                                                                               | Berhasil |
 | **Canvas Peta – Kontrol Zoom & Reset** 1. Klik tombol Zoom In (+) beberapa kali. 2. Klik tombol Zoom Out (-). 3. Klik tombol Reset Position. 4. Test scroll wheel zoom.                                                                                                                                                          | Memastikan kontrol navigasi peta berfungsi.                       | Zoom in/out bekerja dengan smooth. Reset position mengembalikan ke center & zoom awal kampus. Scroll wheel dapat zoom peta. Tidak ada grey tiles saat zoom maksimal.                                                                                                                                                            | Zoom buttons berfungsi sempurna. Reset position dengan flyTo animation. Scroll zoom enabled. MaxZoom terkonfigurasi per kampus.                                                                                                                                                                               | Berhasil |
-| **Interaksi Bangunan – Popup & Thumbnail** 1. Klik polygon bangunan di peta (pilih bangunan Interaktif). 2. Lihat isi popup. 3. Klik thumbnail gambar untuk full view.                                                                                                                                                           | Memastikan building interaction dan popup berfungsi.              | Popup muncul dengan nama bangunan. Thumbnail bangunan ditampilkan. Tombol "Detail Bangunan" tersedia. Klik thumbnail membuka gambar full size.                                                                                                                                                                                  | Popup tampil responsif dengan info lengkap. Thumbnail loading dengan benar. Klik thumbnail buka image viewer. Close button (X) berfungsi.                                                                                                                                                                     | Berhasil |
-| **Detail Bangunan – Mode 2.5D & Floor Navigation** 1. Klik "Detail Bangunan" di popup. 2. Pilih lantai berbeda dari dropdown/list. 3. Toggle antara mode 2D dan 2.5D. 4. Test responsive di mobile.                                                                                                                              | Memastikan building detail page dan floor switching berfungsi.    | Redirect ke halaman building-details standalone. Default tampilan 2.5D dengan SVG floor plan. Dapat switch floor dengan smooth transition. Toggle 2D/2.5D mengubah perspektif. Layout responsive untuk mobile.                                                                                                                  | Building detail page load sempurna. Floor switching instant tanpa lag. 2D/2.5D toggle animation smooth. Mobile view optimal dengan touch friendly.                                                                                                                                                            | Berhasil |
-| **Detail Ruangan – Pin Marker & Gallery** 1. Di halaman detail bangunan, klik pin marker ruangan pada floor plan. 2. Atau klik nama ruangan di list sebelah kanan. 3. Lihat info ruangan (nama, jurusan, prodi). 4. Klik tombol Gallery untuk lihat foto ruangan.                                                                | Memastikan room interaction dan gallery berfungsi.                | Klik pin marker/list item membuka panel info ruangan. Info ruangan lengkap (nama, nomor lantai, jurusan, prodi). Tombol Gallery tersedia. Gallery modal menampilkan semua foto ruangan. Gallery dapat dinavigasi dengan tombol prev/next.                                                                                       | Pin marker click detection akurat. Info ruangan tampil lengkap. Gallery modal loading foto dengan benar. Navigation gallery (prev/next) lancar. Lightbox untuk zoom foto.                                                                                                                                     | Berhasil |
+| **Interaksi Gedung – Popup & Thumbnail** 1. Klik polygon gedung di peta (pilih gedung Interaktif). 2. Lihat isi popup. 3. Klik thumbnail gambar untuk full view.                                                                                                                                                                 | Memastikan building interaction dan popup berfungsi.              | Popup muncul dengan nama gedung. Thumbnail gedung ditampilkan. Tombol "Detail Gedung" tersedia. Klik thumbnail membuka gambar full size.                                                                                                                                                                                        | Popup tampil responsif dengan info lengkap. Thumbnail loading dengan benar. Klik thumbnail buka image viewer. Close button (X) berfungsi.                                                                                                                                                                     | Berhasil |
+| **Detail Gedung – Mode 2.5D & Floor Navigation** 1. Klik "Detail Gedung" di popup. 2. Pilih lantai berbeda dari dropdown/list. 3. Toggle antara mode 2D dan 2.5D. 4. Test responsive di mobile.                                                                                                                                  | Memastikan building detail page dan floor switching berfungsi.    | Redirect ke halaman building-details standalone. Default tampilan 2.5D dengan SVG floor plan. Dapat switch floor dengan smooth transition. Toggle 2D/2.5D mengubah perspektif. Layout responsive untuk mobile.                                                                                                                  | Building detail page load sempurna. Floor switching instant tanpa lag. 2D/2.5D toggle animation smooth. Mobile view optimal dengan touch friendly.                                                                                                                                                            | Berhasil |
+| **Detail Ruangan – Pin Marker & Gallery** 1. Di halaman detail gedung, klik pin marker ruangan pada floor plan. 2. Atau klik nama ruangan di list sebelah kanan. 3. Lihat info ruangan (nama, jurusan, prodi). 4. Klik tombol Gallery untuk lihat foto ruangan.                                                                  | Memastikan room interaction dan gallery berfungsi.                | Klik pin marker/list item membuka panel info ruangan. Info ruangan lengkap (nama, nomor lantai, jurusan, prodi). Tombol Gallery tersedia. Gallery modal menampilkan semua foto ruangan. Gallery dapat dinavigasi dengan tombol prev/next.                                                                                       | Pin marker click detection akurat. Info ruangan tampil lengkap. Gallery modal loading foto dengan benar. Navigation gallery (prev/next) lancar. Lightbox untuk zoom foto.                                                                                                                                     | Berhasil |
 | **Pencarian – Search Functionality** 1. Klik search box di kontrol panel peta. 2. Ketik nama gedung (contoh: "Teknik Elektro"). 3. Ketik nama ruangan (contoh: "Lab"). 4. Pilih hasil dari autocomplete.                                                                                                                         | Memastikan fitur search dengan autocomplete berfungsi.            | Search box dapat diakses dari map controls. Autocomplete muncul saat mengetik (min 2 karakter). Hasil search menampilkan gedung & ruangan. Klik hasil auto-zoom ke lokasi yang dipilih. Popup otomatis muncul untuk item yang dipilih.                                                                                          | Search autocomplete real-time. Hasil search akurat dan terfilter. Klik hasil zoom & open popup. Search case-insensitive.                                                                                                                                                                                      | Berhasil |
 | **Login Admin – Authentication** 1. Akses halaman /login. 2. Input username & password yang valid. 3. Klik tombol Login. 4. Verifikasi redirect ke dashboard.                                                                                                                                                                    | Memastikan sistem autentikasi berfungsi.                          | Halaman login tampil dengan form username & password. Input validation berfungsi. Login berhasil dengan kredensial benar. Token JWT disimpan di localStorage. Redirect otomatis ke /dashboard setelah login.                                                                                                                    | Login page UI clean & responsive. Form validation berfungsi. JWT token tersimpan. Auto-redirect ke dashboard. Error message muncul jika kredensial salah.                                                                                                                                                     | Berhasil |
 | **Dashboard – Overview & Statistics** 1. Login sebagai admin. 2. Lihat halaman dashboard utama. 3. Periksa stat cards (Total Gedung, Lantai, Ruangan, Galeri). 4. Periksa list gedung terbaru. 5. Gunakan campus selector di sidebar.                                                                                            | Memastikan dashboard analytics dan multi-campus filter berfungsi. | Dashboard tampil tanpa hero section & footer. Stat cards menampilkan jumlah akurat per kategori. List gedung terbaru dengan pagination. Persentase digitalisasi kampus. Campus selector filter data real-time. Greeting message sesuai waktu (Pagi/Siang/Sore/Malam).                                                           | Dashboard layout clean & informative. Statistics akurat dan update real-time. Pagination gedung berfungsi. Campus filter instant update. Analytics card dengan visualisasi menarik.                                                                                                                           | Berhasil |
-| **Admin – CRUD Bangunan** 1. Pilih gedung di peta dashboard. 2. Klik "Edit" di popup. 3. Ubah nama bangunan. 4. Ubah thumbnail (upload gambar baru). 5. Ubah status Interaktif/Noninteraktif. 6. Simpan perubahan.                                                                                                               | Memastikan manajemen data bangunan berfungsi.                     | Klik gedung membuka popup dengan tombol Edit. Modal edit muncul dengan form lengkap. Input nama dapat diubah. Upload thumbnail support JPG/PNG. Toggle Interaktif/Noninteraktif berfungsi. Tombol Simpan update data ke database. Toast notification muncul setelah berhasil.                                                   | Popup edit akurat. Form input validation berfungsi. Image upload + preview berfungsi. Data tersimpan ke DB. Toast "Berhasil memperbarui data" muncul. Peta auto-refresh data bangunan.                                                                                                                        | Berhasil |
-| **Admin – Map Editor (Draw Geometry)** 1. Di dashboard, klik tombol "Tambah Gedung Baru". 2. Aktifkan drawing tools. 3. Gambar polygon untuk area bangunan. 4. Edit vertex polygon yang sudah dibuat. 5. Simpan geometri.                                                                                                        | Memastikan map drawing & editing tools berfungsi.                 | Drawing sidebar muncul dengan toolbar. Dapat draw polygon di peta. Vertex polygon dapat di-drag untuk edit shape. Delete vertex dengan klik kanan. Geometry tersimpan dalam format GeoJSON. Polygon langsung muncul di peta setelah save.                                                                                       | Drawing tools intuitif & responsive. Polygon drawing akurat. Edit mode berfungsi sempurna. GeoJSON valid & tersimpan. Real-time preview saat drawing.                                                                                                                                                         | Berhasil |
+| **Admin – CRUD Gedung** 1. Pilih gedung di peta dashboard. 2. Klik "Edit" di popup. 3. Ubah nama gedung. 4. Ubah thumbnail (upload gambar baru). 5. Ubah status Interaktif/Noninteraktif. 6. Simpan perubahan.                                                                                                                   | Memastikan manajemen data gedung berfungsi.                       | Klik gedung membuka popup dengan tombol Edit. Modal edit muncul dengan form lengkap. Input nama dapat diubah. Upload thumbnail support JPG/PNG. Toggle Interaktif/Noninteraktif berfungsi. Tombol Simpan update data ke database. Toast notification muncul setelah berhasil.                                                   | Popup edit akurat. Form input validation berfungsi. Image upload + preview berfungsi. Data tersimpan ke DB. Toast "Berhasil memperbarui data" muncul. Peta auto-refresh data gedung.                                                                                                                          | Berhasil |
+| **Admin – Map Editor (Draw Geometry)** 1. Di dashboard, klik tombol "Tambah Gedung Baru". 2. Aktifkan drawing tools. 3. Gambar polygon untuk area gedung. 4. Edit vertex polygon yang sudah dibuat. 5. Simpan geometri.                                                                                                          | Memastikan map drawing & editing tools berfungsi.                 | Drawing sidebar muncul dengan toolbar. Dapat draw polygon di peta. Vertex polygon dapat di-drag untuk edit shape. Delete vertex dengan klik kanan. Geometry tersimpan dalam format GeoJSON. Polygon langsung muncul di peta setelah save.                                                                                       | Drawing tools intuitif & responsive. Polygon drawing akurat. Edit mode berfungsi sempurna. GeoJSON valid & tersimpan. Real-time preview saat drawing.                                                                                                                                                         | Berhasil |
 | **Admin – CRUD Lantai** 1. Pilih gedung, klik Edit, lalu Edit Lantai. 2. Klik "Tambah Lantai". 3. Upload file SVG denah lantai. 4. Edit nama/order lantai. 5. Hapus lantai (dengan konfirmasi). 6. Periksa notifikasi toast.                                                                                                     | Memastikan manajemen lantai berfungsi.                            | Modal list lantai tampil. Button Tambah Lantai buka upload form. Hanya accept file .SVG. Preview SVG sebelum upload. Edit lantai dapat ubah nama file. Konfirmasi muncul sebelum delete. Toast notification untuk setiap operasi (sukses/error).                                                                                | Modal lantai responsive. File validation (SVG only) berfungsi. Upload & preview SVG lancar. Delete dengan konfirmasi modal. Toast muncul dengan pesan yang sesuai: - "Format file harus SVG" - "Lantai berhasil ditambahkan" - "Lantai berhasil dihapus"                                                      | Berhasil |
 | **Admin – CRUD Ruangan & Pin Positioning** 1. Pilih gedung, Edit Lantai, Pilih lantai, Lihat list ruangan. 2. Klik "Tambah Ruangan". 3. Isi form ruangan (nama, jurusan, prodi, dll). 4. Klik "Plot Lokasi Ruangan". 5. Klik posisi di denah SVG untuk set pin marker. 6. Simpan ruangan. 7. Edit & hapus ruangan.               | Memastikan manajemen ruangan dan pin positioning berfungsi.       | List ruangan per lantai ditampilkan. Form tambah ruangan lengkap. Modal plot lokasi tampilkan denah SVG lantai. Klik di SVG set posisi pin (posisi_x, posisi_y dalam %). Pin marker muncul di posisi yang diklik. Data tersimpan dengan koordinat akurat. Edit ruangan dapat ubah posisi pin. Delete ruangan dengan konfirmasi. | Form ruangan validation berfungsi. Modal plot lokasi load SVG dengan benar. Click detection akurat di SVG. Posisi pin tersimpan dalam % (0-100). Pin positioning presisi. CRUD ruangan lengkap berfungsi. Toast notification untuk semua operasi.                                                             | Berhasil |
 | **Admin – CRUD Gallery Ruangan** 1. Pilih ruangan, klik "Edit Gallery". 2. Upload foto baru (JPG/PNG). 3. Preview foto yang sudah ada. 4. Hapus foto dari gallery. 5. Periksa limit ukuran file.                                                                                                                                 | Memastikan manajemen gallery ruangan berfungsi.                   | Modal gallery menampilkan semua foto ruangan. Button upload foto berfungsi. Support multiple file upload. File size limit 10MB. Preview thumbnail sebelum upload. Delete foto dengan konfirmasi. Toast notification setelah upload/delete.                                                                                      | Gallery modal responsive dengan grid layout. Multiple upload berfungsi. File validation (size, type) akurat. Image optimization otomatis. Delete foto instant update. Toast "Gallery berhasil ditambahkan/dihapus".                                                                                           | Berhasil |
@@ -996,9 +996,9 @@ Berdasarkan tabel di atas, seluruh kasus uji untuk fitur-fitur inti platform tel
 4.2 Hasil Pengujian
 Hasil pengujian sistem PointMap diperoleh berdasarkan pelaksanaan skenario pengujian pada Tabel 4.1 Skenario Pengujian. Pengujian dilakukan secara sistematis menggunakan metode integration testing untuk memastikan setiap komponen sistem dapat bekerja sama dengan baik sesuai rancangan pada Bab III. Pengujian mencakup 20 kasus uji utama yang melibatkan fitur-fitur yang dapat diakses tanpa login (guest user) hingga fitur manajemen yang memerlukan autentikasi sebagai admin.
 
-Setiap kasus uji dilakukan dengan langkah-langkah yang terstruktur, dimulai dari pengujian komponen dasar seperti navbar dan hero section, dilanjutkan dengan fitur peta interaktif dan multi-campus support, fitur pencarian dan navigasi, interaksi dengan bangunan dan ruangan, hingga pengujian pengelolaan data di dashboard admin. Pengujian juga mencakup aspek responsivitas di perangkat mobile dan persistensi pengaturan pengguna seperti dark mode.
+Setiap kasus uji dilakukan dengan langkah-langkah yang terstruktur, dimulai dari pengujian komponen dasar seperti navbar dan hero section, dilanjutkan dengan fitur peta interaktif dan multi-campus support, fitur pencarian dan navigasi, interaksi dengan gedung dan ruangan, hingga pengujian pengelolaan data di dashboard admin. Pengujian juga mencakup aspek responsivitas di perangkat mobile dan persistensi pengaturan pengguna seperti dark mode.
 
-Secara umum, seluruh fitur pada sistem telah berjalan sesuai dengan hasil yang diharapkan. Status pengujian untuk seluruh 20 kasus uji dinyatakan **Berhasil**, menunjukkan bahwa fitur navigasi peta interaktif, sistem multi-campus, pencarian lokasi, tampilan detail bangunan 2D/2.5D, galeri ruangan, sistem autentikasi admin, serta pengelolaan data (CRUD) bangunan, lantai, ruangan, dan galeri dapat digunakan tanpa error.
+Secara umum, seluruh fitur pada sistem telah berjalan sesuai dengan hasil yang diharapkan. Status pengujian untuk seluruh 20 kasus uji dinyatakan **Berhasil**, menunjukkan bahwa fitur navigasi peta interaktif, sistem multi-campus, pencarian lokasi, tampilan detail gedung 2D/2.5D, galeri ruangan, sistem autentikasi admin, serta pengelolaan data (CRUD) gedung, lantai, ruangan, dan galeri dapat digunakan tanpa error.
 
 Untuk memperjelas hasil pengujian, berikut disajikan dokumentasi berupa tangkapan layar dari beberapa halaman utama dan fitur penting pada sistem yang mengacu pada skenario pengujian yang telah dilakukan:
 
@@ -1081,25 +1081,25 @@ Berdasarkan skenario pengujian Canvas Peta – Kontrol Zoom & Reset, hasil pengu
 
    Gambar 4.22 Pesan Error Informatif (GPS Ditolak)
 
-4.2.4 Interaksi Bangunan – Popup dan Thumbnail
-Berdasarkan skenario pengujian Interaksi Bangunan – Popup & Thumbnail, hasil pengujian interaksi dengan bangunan adalah sebagai berikut:
-Ketika pengguna mengklik polygon bangunan dengan kategori "Interaktif" di peta, popup informasi muncul secara responsif. Popup menampilkan nama bangunan, thumbnail gambar, dan tombol "Detail Bangunan". Thumbnail gambar yang ditampilkan dapat diklik untuk membuka lightbox (image viewer) sehingga gambar dapat dilihat dalam ukuran penuh dengan kualitas yang baik. Tombol close pada popup dan lightbox berfungsi dengan baik untuk menutup tampilan.
+4.2.4 Interaksi Gedung – Popup dan Thumbnail
+Berdasarkan skenario pengujian Interaksi Gedung – Popup & Thumbnail, hasil pengujian interaksi dengan gedung adalah sebagai berikut:
+Ketika pengguna mengklik polygon gedung dengan kategori "Interaktif" di peta, popup informasi muncul secara responsif. Popup menampilkan nama gedung, thumbnail gambar, dan tombol "Detail Gedung". Thumbnail gedung yang ditampilkan dapat diklik untuk membuka lightbox (image viewer) sehingga gambar dapat dilihat dalam ukuran penuh dengan kualitas yang baik. Tombol close pada popup dan lightbox berfungsi dengan baik untuk menutup tampilan.
 
-Gambar 4.23 Bangunan Diklik - Popup Informasi Muncul
+Gambar 4.23 Gedung Diklik - Popup Informasi Muncul
 
 Gambar 4.24 Thumbnail Diklik - Image Viewer Full Size
 
-4.2.5 Detail Bangunan – Mode 2D/2.5D dan Navigasi Lantai
-Berdasarkan skenario pengujian Detail Bangunan – Mode 2.5D & Floor Navigation, halaman detail bangunan menunjukkan hasil pengujian sebagai berikut:
+4.2.5 Detail Gedung – Mode 2D/2.5D dan Navigasi Lantai
+Berdasarkan skenario pengujian Detail Gedung – Mode 2.5D & Floor Navigation, halaman detail gedung menunjukkan hasil pengujian sebagai berikut:
 
 1. Mode Tampilan
-   Ketika pengguna mengklik tombol "Detail Bangunan" dari popup, sistem melakukan redirect ke halaman building-details standalone yang menampilkan denah bangunan dalam tampilan 2.5D sebagai default dengan efek perspektif 3D. Toggle button untuk beralih antara mode 2D dan 2.5D bekerja dengan smooth transition tanpa lag. Mode 2D menampilkan denah secara flat tanpa perspektif untuk memudahkan pembacaan detail ruangan dengan lebih presisi.
+   Ketika pengguna mengklik tombol "Detail Gedung" dari popup, sistem melakukan redirect ke halaman building-details standalone yang menampilkan denah gedung dalam tampilan 2.5D sebagai default dengan efek perspektif 3D. Toggle button untuk beralih antara mode 2D dan 2.5D bekerja dengan smooth transition tanpa lag. Mode 2D menampilkan denah secara flat tanpa perspektif untuk memudahkan pembacaan detail ruangan dengan lebih presisi.
 
-   Gambar 4.25 Detail Bangunan - Tampilan Awal 2.5D
+   Gambar 4.25 Detail Gedung - Tampilan Awal 2.5D
 
-   Gambar 4.26 Detail Bangunan Mode 2.5D
+   Gambar 4.26 Detail Gedung Mode 2.5D
 
-   Gambar 4.27 Detail Bangunan Mode 2D
+   Gambar 4.27 Detail Gedung Mode 2D
 
 2. Floor Navigation
    Dropdown dan list lantai memungkinkan perpindahan antar lantai secara instant dengan loading denah SVG yang cepat.
@@ -1174,20 +1174,20 @@ Gambar 4.48 List Gedung Terbaru dengan Pagination
 
 Gambar 4.49 Campus Selector di Sidebar untuk Filter Kampus
 
-4.2.10 Manajemen Bangunan – CRUD Operations
-Berdasarkan skenario pengujian Admin – CRUD Bangunan, fitur manajemen data bangunan menunjukkan hasil pengujian sebagai berikut. Operasi CRUD (Create, Read, Update, Delete) bangunan dilakukan melalui halaman manajemen bangunan khusus (`/dashboard/bangunan`) yang menyediakan tampilan table dan grid view dengan interface yang user-friendly dan feedback system yang jelas.
+4.2.10 Manajemen Gedung – CRUD Operations
+Berdasarkan skenario pengujian Admin – CRUD Gedung, fitur manajemen data gedung menunjukkan hasil pengujian sebagai berikut. Operasi CRUD (Create, Read, Update, Delete) gedung dilakukan melalui halaman manajemen gedung khusus (`/dashboard/gedung`) yang menyediakan tampilan table dan grid view dengan interface yang user-friendly dan feedback system yang jelas.
 
-1. Tambah Bangunan (Create)
-   Admin mengakses halaman Manajemen Gedung dan mengklik tombol "Tambah Gedung" untuk membuka modal form tambah data. Form tambah bangunan mencakup input nama gedung, upload thumbnail gambar, input jumlah lantai, pemilihan kategori kampus dari dropdown, dan pengaturan status interaksi (Interaktif/Noninteraktif). Fitur khusus yang tersedia adalah Map Editor untuk menggambar geometri polygon bangunan di peta (dijelaskan detail di bagian 4.2.11). Form validation memastikan semua field required terisi dengan benar sebelum data dapat disimpan. Setelah berhasil, toast notification "Bangunan berhasil ditambahkan" muncul, modal tertutup, dan data baru langsung muncul di list bangunan.
+1. Tambah Gedung (Create)
+   Admin mengakses halaman Manajemen Gedung dan mengklik tombol "Tambah Gedung" untuk membuka modal form tambah data. Form tambah gedung mencakup input nama gedung, upload thumbnail gambar, input jumlah lantai, pemilihan kategori kampus dari dropdown, dan pengaturan status interaksi (Interaktif/Noninteraktif). Fitur khusus yang tersedia adalah Map Editor untuk menggambar geometri polygon gedung di peta (dijelaskan detail di bagian 4.2.11). Form validation memastikan semua field required terisi dengan benar sebelum data dapat disimpan. Setelah berhasil, toast notification "Gedung berhasil ditambahkan" muncul, modal tertutup, dan data baru langsung muncul di list gedung.
 
-   Gambar 4.50 Halaman Manajemen Gedung - Tombol Tambah Bangunan
+   Gambar 4.50 Halaman Manajemen Gedung - Tombol Tambah Gedung
 
-   Gambar 4.51 Form Tambah Bangunan dalam Modal
+   Gambar 4.51 Form Tambah Gedung dalam Modal
 
-   Gambar 4.52 Toast Notification Bangunan Berhasil Ditambahkan
+   Gambar 4.52 Notifikasi Gedung Berhasil Ditambahkan
 
-2. Lihat Data Bangunan (Read)
-   Halaman Manajemen Gedung menampilkan semua data bangunan dalam dua mode tampilan: Grid View dan Table View. Admin dapat toggle antara kedua mode menggunakan tombol di pojok kanan atas. Grid View menampilkan kartu gedung dengan thumbnail, nama, jumlah lantai, dan badge status interaktif dalam layout grid responsif. Table View menampilkan data dalam format tabel dengan kolom ID, Thumbnail, Nama Gedung, Lantai, Interaksi, dan Aksi. Fitur search box memungkinkan admin mencari gedung berdasarkan nama dengan pencarian real-time. Data otomatis terfilter sesuai kampus yang dipilih di campus selector sidebar. Sistem pagination menampilkan 10 item per halaman untuk memudahkan navigasi data yang banyak.
+2. Lihat Data Gedung (Read)
+   Halaman Manajemen Gedung menampilkan semua data gedung dalam dua mode tampilan: Grid View dan Table View. Admin dapat toggle antara kedua mode menggunakan tombol di pojok kanan atas. Grid View menampilkan kartu gedung dengan thumbnail, nama, jumlah lantai, dan badge status interaktif dalam layout grid responsif. Table View menampilkan data dalam format tabel dengan kolom ID, Thumbnail, Nama Gedung, Lantai, Interaksi, dan Aksi. Fitur search box memungkinkan admin mencari gedung berdasarkan nama dengan pencarian real-time. Data otomatis terfilter sesuai kampus yang dipilih di campus selector sidebar. Sistem pagination menampilkan 10 item per halaman untuk memudahkan navigasi data yang banyak.
 
    Gambar 4.53 Grid View - Kartu Gedung dengan Thumbnail
 
@@ -1195,141 +1195,138 @@ Berdasarkan skenario pengujian Admin – CRUD Bangunan, fitur manajemen data ban
 
    Gambar 4.55 Search Gedung
 
-3. Edit Bangunan (Update)
-   Setiap kartu gedung di Grid View atau baris di Table View memiliki tombol "Edit" yang membuka modal form edit. Form edit menampilkan semua data bangunan saat ini dan memungkinkan admin mengubah berbagai informasi dalam satu modal terintegrasi. Field yang dapat diubah meliputi: nama bangunan dengan validation untuk memastikan tidak kosong, upload thumbnail baru (mendukung format JPG/PNG dengan preview sebelum save), jumlah lantai, toggle status Interaktif/Noninteraktif, dan pemilihan kategori kampus. Untuk mengubah geometri polygon bangunan, admin dapat mengakses Map Editor melalui opsi edit geometri (dijelaskan detail di bagian 4.2.11). Form validation mencegah pengiriman data yang tidak valid seperti nama kosong atau file thumbnail bukan gambar. Setelah admin mengklik tombol "Simpan", sistem meng-update data ke database melalui API backend. Toast notification "Berhasil memperbarui data bangunan" muncul sebagai konfirmasi, modal tertutup, dan data yang diupdate langsung muncul di list tanpa perlu reload halaman.
+3. Edit Gedung (Update)
+   Setiap kartu gedung di Grid View atau baris di Table View memiliki tombol "Edit" yang membuka modal form edit. Form edit menampilkan semua data gedung saat ini dan memungkinkan admin mengubah berbagai informasi dalam satu modal terintegrasi. Field yang dapat diubah meliputi: nama gedung dengan validation untuk memastikan tidak kosong, upload thumbnail baru (mendukung format JPG/PNG dengan preview sebelum save), jumlah lantai, toggle status Interaktif/Noninteraktif, dan pemilihan kategori kampus. Untuk mengubah geometri polygon gedung, admin dapat mengakses Map Editor melalui opsi edit geometri (dijelaskan detail di bagian 4.2.11). Form validation mencegah pengiriman data yang tidak valid seperti nama kosong atau file thumbnail bukan gambar. Setelah admin mengklik tombol "Simpan", sistem meng-update data ke database melalui API backend. Toast notification "Berhasil memperbarui data gedung" muncul sebagai konfirmasi, modal tertutup, dan data yang diupdate langsung muncul di list tanpa perlu reload halaman.
 
-   Gambar 4.56 Halaman Manajemen Gedung - Tombol Edit Bangunan
+   Gambar 4.56 Halaman Manajemen Gedung - Tombol Edit Gedung
 
-   Gambar 4.57 Modal Edit Bangunan dengan Form Lengkap
+   Gambar 4.57 Modal Edit Gedung dengan Form Lengkap
 
    Gambar 4.58 Upload Thumbnail dengan Preview
 
-   Gambar 4.59 Toast Notification Berhasil Update Data
+   Gambar 4.59 Notifikasi Berhasil Update Data Gedung
 
-4. Hapus Bangunan (Delete)
-   Setiap item gedung memiliki tombol "Hapus" (icon trash) yang ketika diklik menampilkan modal konfirmasi delete dengan desain yang menarik. Modal konfirmasi menampilkan icon peringatan, judul "Hapus Gedung?", dan pesan bahwa tindakan ini tidak dapat dibatalkan. Sistem menerapkan mekanisme keamanan integritas data, di mana penghapusan bangunan akan ditolak jika masih terdapat data terkait seperti lantai, ruangan, atau galeri foto. Admin harus menghapus data terkait terlebih dahulu secara manual. Admin dapat memilih "Batal" untuk membatalkan atau "Ya, Hapus" untuk mencoba menghapus. Setelah konfirmasi, sistem mengirim DELETE request ke API backend. Jika berhasil, item gedung langsung hilang dari list dan toast notification "Gedung berhasil dihapus" muncul. Jika gedung masih memiliki dependencies, sistem menampilkan error toast yang merinci jumlah data (lantai, ruangan, galeri) yang harus dihapus terlebih dahulu.
+4. Hapus Gedung (Delete)
+   Setiap item gedung memiliki tombol "Hapus" (icon trash) yang ketika diklik menampilkan modal konfirmasi delete dengan desain yang menarik. Modal konfirmasi menampilkan icon peringatan, judul "Hapus Gedung?", dan pesan bahwa tindakan ini tidak dapat dibatalkan. Sistem menerapkan mekanisme keamanan integritas data, di mana penghapusan gedung akan ditolak jika masih terdapat data terkait seperti lantai, ruangan, atau galeri foto. Admin harus menghapus data terkait terlebih dahulu secara manual. Admin dapat memilih "Batal" untuk membatalkan atau "Ya, Hapus" untuk mencoba menghapus. Setelah konfirmasi, sistem mengirim DELETE request ke API backend. Jika berhasil, item gedung langsung hilang dari list dan toast notification "Gedung berhasil dihapus" muncul. Jika gedung masih memiliki dependencies, sistem menampilkan error toast yang merinci jumlah data (lantai, ruangan, galeri) yang harus dihapus terlebih dahulu.
 
-   Gambar 4.60 Halaman Manajemen Gedung - Tombol Hapus Bangunan
+   Gambar 4.60 Halaman Manajemen Gedung - Tombol Hapus Gedung
 
-   Gambar 4.61 Modal Konfirmasi Hapus Bangunan dengan Peringatan Cascade
+   Gambar 4.61 Modal Konfirmasi Hapus Gedung dengan Peringatan Cascade
 
-   Gambar 4.62 Toast Notification Bangunan Berhasil Dihapus
+   Gambar 4.62 Notifikasi Gedung Berhasil Dihapus
 
-   Gambar 4.63 Notifikasi Gagal Hapus Bangunan (Dependencies Exist)
+   Gambar 4.63 Notifikasi Gagal Hapus Gedung (Dependencies Exist)
 
-Seluruh operasi CRUD bangunan berjalan dengan lancar dan stabil. Halaman manajemen dengan dual-view (grid/table) memberikan fleksibilitas tampilan sesuai preferensi admin. Sistem berhasil menjaga integritas data dengan validasi dan cascade delete, serta memberikan user feedback yang jelas melalui toast notification untuk setiap operasi yang dilakukan.
+Seluruh operasi CRUD gedung berjalan dengan lancar dan stabil. Halaman manajemen dengan dual-view (grid/table) memberikan fleksibilitas tampilan sesuai preferensi admin. Sistem berhasil menjaga integritas data dengan validasi dan cascade delete, serta memberikan user feedback yang jelas melalui toast notification untuk setiap operasi yang dilakukan.
 
 4.2.11 Map Editor – Drawing dan Editing Geometry
 Berdasarkan skenario pengujian Admin – Map Editor (Draw Geometry), tools untuk menggambar dan mengedit geometri bangunan menunjukkan hasil pengujian sebagai berikut:
 
-Ketika admin mengklik tombol "Tambah Gedung Baru" di dashboard, drawing sidebar muncul dengan toolbar lengkap. Drawing tools yang tersedia bersifat intuitif dan responsive untuk memudahkan admin menggambar polygon area bangunan di peta. Setelah polygon dibuat, admin dapat masuk ke edit mode untuk menyesuaikan bentuk bangunan, vertex polygon dapat di-drag untuk mengubah shape dan ukuran area, serta dapat dihapus dengan klik kanan untuk menyederhanakan bentuk. Geometry yang dibuat otomatis disimpan dalam format GeoJSON yang valid, setelah save polygon langsung muncul di peta dengan style yang sesuai, dan real-time preview saat drawing memudahkan admin melihat hasil akhir sebelum menyimpan.
+Ketika admin mengklik tombol "Tambah Gedung Baru" di dashboard, drawing sidebar muncul dengan toolbar lengkap. Drawing tools yang tersedia bersifat intuitif dan responsive untuk memudahkan admin menggambar polygon area gedung di peta. Setelah polygon dibuat, admin dapat masuk ke edit mode untuk menyesuaikan bentuk gedung, vertex polygon dapat di-drag untuk mengubah shape dan ukuran area, serta dapat dihapus dengan klik kanan untuk menyederhanakan bentuk. Geometry yang dibuat otomatis disimpan dalam format GeoJSON yang valid. Setelah data berhasil disimpan, bentuk gedung yang telah digambar akan langsung tampil pada peta di halaman utama (homepage). Pengguna dapat berinteraksi dengan gedung tersebut, seperti mengkliknya untuk memunculkan popup informasi detail gedung sebagaimana diperlihatkan pada Gambar 4.67.
 
 Gambar 4.64 Drawing Sidebar dengan Toolbar
 
-Gambar 4.65 Menggambar Polygon Area Bangunan
+Gambar 4.65 Menggambar Polygon Area Gedung
 
 Gambar 4.66 Edit Mode - Drag Vertex Polygon
 
-Gambar 4.67 Real-time Preview saat Drawing
+Gambar 4.67 Tampilan Pop-up Detail Gedung di Homepage
 
 4.2.12 Manajemen Lantai – Upload dan Edit Denah SVG
 Berdasarkan skenario pengujian Admin – CRUD Lantai, pengelolaan lantai bangunan menunjukkan hasil pengujian sebagai berikut:
 
 Admin mengakses halaman Manajemen Lantai (`/dashboard/lantai`) yang menampilkan semua gambar denah lantai dari berbagai gedung. Halaman ini menyediakan tampilan Grid View dan Table View yang dapat di-toggle. Dropdown "Semua Gedung" memungkinkan filter lantai berdasarkan gedung tertentu. Data lantai otomatis terfilter berdasarkan kampus yang dipilih di campus selector sidebar.
 
-1. Tambah Lantai
+1. Tambah Lantai (Create)
    Button "Tambah Lantai" membuka form upload file. File validation berfungsi dengan ketat dan hanya menerima file dengan ekstensi .SVG. Jika admin mencoba upload file selain SVG, sistem menampilkan toast notification dengan pesan "Format file harus SVG". Preview SVG ditampilkan sebelum upload untuk memastikan file yang benar telah dipilih. Setelah upload berhasil, toast "Lantai berhasil ditambahkan" muncul.
 
-   Gambar 4.68 Modal Tambah Lantai Bangunan
+   Gambar 4.68 Halaman Manajemen Lantai - Tombol Tambah Lantai
 
-   Gambar 4.69 Notifikasi Format File Harus SVG
+   Gambar 4.69 Modal Tambah Lantai Gedung
 
-   Gambar 4.70 Upload Gambar Lantai Format SVG
+   Gambar 4.70 Notifikasi Format File Harus SVG
 
-   Gambar 4.71 Notifikasi Lantai Berhasil Ditambahkan
+   Gambar 4.71 Upload Gambar Lantai Format SVG
+
+   Gambar 4.72 Notifikasi Lantai Berhasil Ditambahkan
 
 2. Lihat Data Lantai (Read)
    Grid View menampilkan kartu lantai dengan preview SVG, badge nama gedung, dan nama file. Table View menampilkan data dalam format tabel dengan kolom Gedung, File, Preview, dan Aksi. Preview SVG ditampilkan dalam ukuran kecil di setiap item untuk identifikasi visual yang mudah. Sistem pagination menampilkan 10 item per halaman.
 
-   Gambar 4.72 Grid View - Kartu Lantai dengan Preview SVG
+   Gambar 4.73 Grid View - Kartu Lantai dengan Preview SVG
 
-   Gambar 4.73 Table View - Tabel Data Lantai
+   Gambar 4.74 Table View - Tabel Data Lantai
 
-   Gambar 4.74 Filter Gedung Data Lantai
+   Gambar 4.75 Filter Gedung Data Lantai
 
-3. Edit Lantai
+3. Edit Lantai (Update)
    Tombol "Edit" pada setiap item membuka modal untuk upload ulang file SVG atau mengubah data lantai. Admin dapat mengganti file SVG dengan yang baru. Perubahan tersimpan dengan baik setelah klik "Simpan". Toast "Lantai berhasil diperbarui" muncul sebagai konfirmasi.
 
-   Gambar 4.75 Halaman Manajemen Lantai - Tombol Edit Lantai
+   Gambar 4.76 Halaman Manajemen Lantai - Tombol Edit Lantai
 
-   Gambar 4.76 Modal Edit Lantai - Upload Ulang SVG
+   Gambar 4.77 Modal Edit Lantai - Upload Ulang SVG
 
-   Gambar 4.77 Notifikasi Lantai Berhasil Diperbarui
+   Gambar 4.78 Notifikasi Lantai Berhasil Diperbarui
 
-4. Hapus Lantai
+4. Hapus Lantai (Delete)
    Tombol "Hapus" (icon trash) pada setiap item lantai menampilkan modal konfirmasi dengan peringatan "Hapus Gambar Lantai?" dan pesan bahwa tindakan ini tidak dapat dibatalkan. Setelah konfirmasi, sistem mengirim DELETE request. Jika berhasil, item langsung hilang dari list dan toast "Gambar lantai berhasil dihapus" muncul. Sistem memvalidasi keberadaan data terkait sebelum menghapus; jika lantai masih memiliki ruangan atau galeri, penghapusan ditolak dan sistem menampilkan error toast yang menjelaskan data apa saja yang perlu dihapus terlebih dahulu untuk menjaga konsistensi database.
 
-   Gambar 4.78 Halaman Manajemen Lantai - Tombol Hapus Lantai
+   Gambar 4.79 Halaman Manajemen Lantai - Tombol Hapus Lantai
 
-   Gambar 4.79 Modal Konfirmasi Hapus Lantai
+   Gambar 4.80 Modal Konfirmasi Hapus Lantai
 
-   Gambar 4.80 Notifikasi Lantai Berhasil Dihapus
+   Gambar 4.81 Notifikasi Lantai Berhasil Dihapus
 
-   Gambar 4.81 Notifikasi Gagal Hapus Lantai (Dependencies Exist)
+   Gambar 4.82 Notifikasi Gagal Hapus Lantai (Dependencies Exist)
 
-4.2.13 Manajemen Ruangan – CRUD dan Pin Positioning
+4.2.13 Manajemen Ruangan – CRUD Operation
 Berdasarkan skenario pengujian Admin – CRUD Ruangan & Pin Positioning, pengelolaan ruangan dan positioning pin marker menunjukkan hasil pengujian sebagai berikut:
 
 Admin mengakses halaman Manajemen Ruangan (`/dashboard/ruangan`) yang menampilkan semua ruangan dari berbagai gedung dan lantai. Halaman ini menyediakan tampilan Grid View dan Table View yang dapat di-toggle. Fitur search box memungkinkan pencarian berdasarkan nama ruangan, jurusan, atau prodi. Dropdown "Semua Gedung" memungkinkan filter ruangan berdasarkan gedung tertentu. Data ruangan otomatis terfilter berdasarkan kampus yang dipilih di campus selector sidebar.
 
-1. Tambah Ruangan
+1. Tambah Ruangan (Create)
    Tombol "Tambah Ruangan" di pojok kanan atas membuka modal form. Form mencakup dropdown untuk memilih gedung, input nomor lantai, nama ruangan, dropdown jurusan dan program studi, serta dropdown kategori ruangan. Fitur khusus yang sangat penting adalah "Plot Lokasi Ruangan". Ketika button ini diklik, modal terpisah muncul menampilkan denah SVG lantai yang dipilih berdasarkan gedung dan nomor lantai yang telah dipilih. Admin dapat mengklik posisi di mana pin marker ruangan akan ditampilkan pada denah. Click detection di SVG bekerja dengan akurat dan menangkap koordinat klik dalam persentase (0-100% untuk x dan y). Pin marker muncul di posisi yang diklik sebagai preview real-time. Posisi pin tersimpan sebagai posisi_x dan posisi_y dalam database dengan presisi yang baik. Form validation memastikan field required seperti nama ruangan dan posisi pin terisi dengan benar. Setelah semua data diisi dan posisi pin ditentukan, admin klik "Simpan" dan data ruangan tersimpan ke database. Modal tertutup dan toast "Ruangan berhasil ditambahkan" muncul sebagai konfirmasi.
 
-   Gambar 4.82 Modal Tambah Ruangan
+   Gambar 4.83 Halaman Manajemen Ruangan - Tombol Tambah Ruangan
 
-   Gambar 4.83 Modal Plot Lokasi Ruangan - Tampilan Denah SVG
+   Gambar 4.84 Modal Tambah Ruangan
 
-   Gambar 4.84 Klik Posisi di Denah untuk Set Pin Marker
+   Gambar 4.85 Gedung dan Lantai yang Sudah Dipilih pada Form
 
-   Gambar 4.85 Preview Pin Marker Setelah Dipilih
+   Gambar 4.86 Plot Lokasi dan Preview Pin Marker pada Denah
 
-   Gambar 4.86 Notifikasi Ruangan Berhasil Ditambahkan
+   Gambar 4.87 Notifikasi Ruangan Berhasil Ditambahkan
 
 2. Lihat Data Ruangan (Read)
    Grid View menampilkan kartu ruangan dengan informasi gedung (badge biru), nama ruangan, nomor lantai, jurusan dan prodi. Setiap kartu dilengkapi tombol "Edit" dan "Galeri" untuk manajemen foto ruangan. Table View menampilkan data dalam format tabel dengan kolom lengkap termasuk Nama Ruangan, Gedung, Lantai, Jurusan, Prodi, Kategori, dan Aksi. Sistem pagination menampilkan 10 item per halaman.
 
-   Gambar 4.87 Grid View - Kartu Ruangan
+   Gambar 4.88 Grid View - Kartu Ruangan
 
-   Gambar 4.88 Table View - Tabel Data Ruangan
+   Gambar 4.89 Table View - Tabel Data Ruangan
 
-   Gambar 4.89 Search Ruangan
+   Gambar 4.90 Search Dan Filter Ruangan
 
-3. Edit Ruangan
+   Gambar 4.91 Tampilan Data Ruangan pada Homepage
+
+3. Edit Ruangan (Update)
    Tombol "Edit" pada setiap item membuka modal form edit yang telah terisi dengan data ruangan saat ini. Admin dapat mengubah semua informasi ruangan termasuk nama, jurusan, prodi, kategori, dan yang paling penting adalah posisi pin marker. Modal edit menyediakan akses ke "Plot Lokasi Ruangan" kembali untuk mengubah posisi pin jika diperlukan dengan menampilkan denah SVG dan preview pin marker saat ini. Toast "Ruangan berhasil diubah" muncul setelah update berhasil. Jika ada validation error, sistem menampilkan toast error dengan informasi yang jelas.
 
-   Gambar 4.90 Modal Edit Ruangan dengan Form Lengkap
+   Gambar 4.92 Halaman Manajemen Ruangan - Tombol Edit Ruangan
 
-   Gambar 4.91 Notifikasi Ruangan Berhasil Diubah
+   Gambar 4.93 Modal Edit Ruangan
 
-4. Hapus Ruangan
+   Gambar 4.94 Notifikasi Ruangan Berhasil Diubah
+
+4. Hapus Ruangan (Delete)
    Tombol "Hapus" (icon trash) pada setiap item ruangan menampilkan modal konfirmasi dengan peringatan "Hapus Ruangan?" dan pesan bahwa tindakan ini tidak dapat dibatalkan. Setelah konfirmasi, sistem mengirim DELETE request. Jika berhasil, Item langsung hilang dari list dan toast "Ruangan berhasil dihapus" muncul. Demi keamanan data, sistem tidak mengizinkan penghapusan ruangan yang masih memiliki foto galeri. Jika kondisi ini terpenuhi, sistem menampilkan error toast yang menginformasikan jumlah foto yang harus dihapus terlebih dahulu sebelum ruangan dapat dihapus.
 
-   Gambar 4.92 Modal Konfirmasi Hapus Ruangan
+   Gambar 4.95 Halaman Manajemen Ruangan - Tombol Hapus Ruangan
 
-   Gambar 4.93 Notifikasi Ruangan Berhasil Dihapus
+   Gambar 4.96 Modal Konfirmasi Hapus Ruangan
 
-   Gambar 4.94 Notifikasi Gagal Hapus Ruangan (Dependencies Exist)
+   Gambar 4.97 Notifikasi Ruangan Berhasil Dihapus
 
-5. Manajemen Galeri Ruangan (dari Halaman Ruangan)
-   Setiap kartu ruangan di Grid View memiliki tombol "Galeri" (icon images) yang membuka modal gallery khusus untuk ruangan tersebut. Modal gallery menampilkan semua foto yang sudah ter-upload dalam grid layout responsif dengan efek hover yang smooth. Admin dapat menambah foto baru dengan klik area "Tambah Foto" yang membuka file picker untuk multiple upload. Preview foto yang dipilih ditampilkan di bagian "Siap Diupload" sebelum admin klik tombol "Simpan". File validation memastikan hanya file gambar (JPG/PNG) dengan ukuran maksimal 10MB yang dapat di-upload. Setelah upload berhasil, foto langsung muncul di grid gallery dan toast "Foto berhasil diupload" muncul. Setiap foto memiliki tombol delete yang muncul saat hover, dengan konfirmasi modal sebelum penghapusan. Fancybox terintegrasi untuk viewing foto dalam ukuran penuh ketika foto diklik.
-
-   Gambar 4.95 Tombol Galeri pada Kartu Ruangan
-
-   Gambar 4.96 Modal Galeri Ruangan dengan Grid Layout
-
-   Gambar 4.97 Upload Multiple Foto dengan Preview
-
-   Gambar 4.98 Notifikasi Foto Berhasil Diupload
+   Gambar 4.98 Notifikasi Gagal Hapus Ruangan (Dependencies Exist)
 
 CRUD ruangan berfungsi lengkap dan stabil dengan validasi serta user feedback (toast notifications) yang baik untuk setiap operasi. Fitur pin positioning yang terintegrasi dengan denah SVG memberikan presisi lokasi ruangan untuk ditampilkan di halaman detail bangunan mode 2.5D.
 
@@ -1346,7 +1343,7 @@ Admin mengakses halaman Manajemen Galeri (`/dashboard/galeri`) yang menampilkan 
    Gambar 4.100 Search Filter Gallery
 
 2. Upload Foto Baru
-   Tombol "Upload Foto" di pojok kanan atas membuka modal form untuk upload foto galeri ruangan. Modal mencakup dropdown untuk memilih ruangan (dengan informasi gedung), input deskripsi foto (opsional), dan area upload yang mendukung multiple file upload. File validation memastikan hanya file gambar (JPG/PNG) dengan ukuran maksimal 10MB yang dapat di-upload. Preview thumbnail ditampilkan sebelum upload untuk memastikan foto yang benar telah dipilih. Setelah upload berhasil, modal tertutup, data refresh otomatis, dan toast "Foto berhasil diupload" muncul. Foto baru langsung muncul di grid gallery.
+   Tombol "Upload Foto" di pojok kanan atas mengarahkan admin ke halaman form upload khusus. Halaman ini membagi layout menjadi dua bagian utama: panel kiri untuk "Target Upload" (pilihan Gedung dan Ruangan) serta "Tips Upload" yang berisi panduan kualitas foto. Panel kanan menyediakan area drag-and-drop yang intuitif untuk memilih file. Fitur ini mendukung multiple upload sekaligus. File validation memastikan hanya file gambar (JPG/PNG) dengan ukuran maksimal 5MB yang dapat di-upload. Preview thumbnail ditampilkan dalam grid untuk setiap foto yang dipilih, memungkinkan admin meninjau atau menghapus item sebelum proses upload final. Setelah tombol "Simpan Galeri" diklik, data diproses, dan jika berhasil, pengguna diarahkan kembali ke daftar galeri disertai toast pemberitahuan sukses.
 
    Gambar 4.101 Modal Upload Foto Gallery
 
@@ -1419,7 +1416,7 @@ Gambar 4.117 Dark Mode Persistent Setelah Refresh
 Gambar 4.118 Theme Sync Homepage ke Dashboard
 
 4.3 Pembahasan
-Berdasarkan hasil pengujian pada Tabel 4.1 Skenario Pengujian serta dokumentasi yang disajikan pada bagian 4.2, dapat disimpulkan bahwa seluruh fitur pada sistem PointMap telah berfungsi sesuai dengan rancangan pada Bab III. Fitur yang dapat diakses tanpa login mencakup navigasi peta interaktif multi-campus, kontrol layer dan basemap, kontrol zoom dan GPS, serta penampilan popup informasi bangunan. Fitur lain seperti tampilan detail 2D/2.5D dengan floor navigation, galeri ruangan dengan pin marker, dan fitur pencarian lokasi dengan autocomplete juga berjalan lancar dan memberikan respon yang sesuai dengan hasil yang diharapkan. Hal ini menunjukkan bahwa integrasi antara frontend dan backend berjalan dengan baik, terutama pada proses pengambilan dan penampilan data dari basis data melalui API. Fitur admin yang memerlukan autentikasi juga telah diuji dan dinyatakan berhasil. Fitur-fitur tersebut mencakup sistem login dengan JWT, dashboard dengan statistik real-time, pengelolaan data bangunan dengan map editor untuk menggambar geometri, dan pengelolaan lantai dengan upload SVG. Selain itu, pengelolaan ruangan dengan pin positioning, pengelolaan galeri foto, serta sistem logout manual dan auto-logout juga berfungsi dengan baik. Operasi Create, Read, Update, dan Delete (CRUD) dapat dilakukan tanpa menimbulkan error, dan perubahan data dapat langsung terlihat pada tampilan peta. Hasil pengujian juga membuktikan bahwa sistem mampu menampilkan informasi sesuai kategori kampus dan mengatur visibility layer peta dengan baik. Sistem mendukung multi-campus dengan filter data yang akurat. Fitur Dark Mode bekerja konsisten di semua halaman dengan persistensi preferensi yang reliable. Responsivitas mobile di homepage dan dashboard juga berfungsi dengan excellent, memastikan pengalaman pengguna yang optimal di berbagai perangkat. Dengan tidak ditemukannya error selama proses pengujian terhadap 20 kasus uji yang telah didefinisikan, maka sistem PointMap dapat dikatakan telah memenuhi kebutuhan fungsional dan non-fungsional yang telah didefinisikan pada tahap perancangan. Meski demikian, pengembangan selanjutnya dapat mempertimbangkan peningkatan performa pemuatan peta pada koneksi internet lambat.
+Berdasarkan hasil pengujian pada Tabel 4.1 Skenario Pengujian serta dokumentasi yang disajikan pada bagian 4.2, dapat disimpulkan bahwa seluruh fitur pada sistem PointMap telah berfungsi sesuai dengan rancangan pada Bab III. Fitur yang dapat diakses tanpa login mencakup navigasi peta interaktif multi-campus, kontrol layer dan basemap, kontrol zoom dan GPS, serta penampilan popup informasi gedung. Fitur lain seperti tampilan detail 2D/2.5D dengan floor navigation, galeri ruangan dengan pin marker, dan fitur pencarian lokasi dengan autocomplete juga berjalan lancar dan memberikan respon yang sesuai dengan hasil yang diharapkan. Hal ini menunjukkan bahwa integrasi antara frontend dan backend berjalan dengan baik, terutama pada proses pengambilan dan penampilan data dari basis data melalui API. Fitur admin yang memerlukan autentikasi juga telah diuji dan dinyatakan berhasil. Fitur-fitur tersebut mencakup sistem login dengan JWT, dashboard dengan statistik real-time, pengelolaan data gedung dengan map editor untuk menggambar geometri, dan pengelolaan lantai dengan upload SVG. Selain itu, pengelolaan ruangan dengan pin positioning, pengelolaan galeri foto, serta sistem logout manual dan auto-logout juga berfungsi dengan baik. Operasi Create, Read, Update, dan Delete (CRUD) dapat dilakukan tanpa menimbulkan error, dan perubahan data dapat langsung terlihat pada tampilan peta. Hasil pengujian juga membuktikan bahwa sistem mampu menampilkan informasi sesuai kategori kampus dan mengatur visibility layer peta dengan baik. Sistem mendukung multi-campus dengan filter data yang akurat. Fitur Dark Mode bekerja konsisten di semua halaman dengan persistensi preferensi yang reliable. Responsivitas mobile di homepage dan dashboard juga berfungsi dengan excellent, memastikan pengalaman pengguna yang optimal di berbagai perangkat. Dengan tidak ditemukannya error selama proses pengujian terhadap 20 kasus uji yang telah didefinisikan, maka sistem PointMap dapat dikatakan telah memenuhi kebutuhan fungsional dan non-fungsional yang telah didefinisikan pada tahap perancangan. Meski demikian, pengembangan selanjutnya dapat mempertimbangkan peningkatan performa pemuatan peta pada koneksi internet lambat.
 
 BAB V
 PENUTUP

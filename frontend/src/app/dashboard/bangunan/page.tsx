@@ -528,8 +528,7 @@ export default function BangunanPage() {
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
                 Apakah Anda yakin ingin menghapus gedung{" "}
-                <strong>{deleteModal.name}</strong>? Tindakan ini tidak dapat
-                dibatalkan dan akan menghapus semua data terkait.
+                <strong>{deleteModal.name}</strong>? Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
 

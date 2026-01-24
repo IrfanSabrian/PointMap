@@ -139,14 +139,18 @@ export default function LantaiForm({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (!selectedFile.type.includes("svg")) {
+      // Check for SVG extension or mime type
+      const isSvg =
+        selectedFile.type.includes("svg") ||
+        selectedFile.name.toLowerCase().endsWith(".svg");
+
+      if (!isSvg) {
         showToast("Harap pilih file SVG untuk denah lantai", "warning");
-        // return; // Allow user to upload other formats if they really want, but warn relevantly?
-        // backend expects SVG for 'format: svg' if we look at controller, but image/png is also used for thumbnails?
-        // Controller says `if (!allowedTypes...)`? No, controller `addLantaiGambar` sets `format: "svg"`.
-        // So we should enforce SVG or check if backend supports others.
-        // In `lantaiGambar.js`, it sets `format: "svg"`. So it forces SVG conversion or expects SVG.
-        // Let's assume SVG is required.
+        // Clear the input value so user can retry
+        e.target.value = "";
+        setFile(null);
+        setPreview(null);
+        return;
       }
       setFile(selectedFile);
       setPreview(URL.createObjectURL(selectedFile));
