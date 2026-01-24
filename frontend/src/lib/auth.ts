@@ -48,22 +48,30 @@ export function setupAutoLogout(token: string, onExpire?: () => void) {
 
   // Schedule logout at expiry
   setTimeout(() => {
-    try {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-    } catch (_err) {
-      // ignore
-    }
-    if (typeof onExpire === "function") onExpire();
-    try {
-      window.dispatchEvent(new Event("login-status-changed"));
-    } catch (_err) {
-      // ignore
-    }
-    // Optional: redirect to login
-    // REMOVED: potentially causes redirect loops on public pages
-    // if (typeof window !== "undefined") {
-    //   window.location.href = "/login";
-    // }
+    // Show notification first
+    console.log("🔔 Token expired - showing notification");
+
+    // Dispatch custom event for toast notification
+    window.dispatchEvent(
+      new CustomEvent("token-expired", {
+        detail: { message: "Sesi Anda telah habis. Silakan login kembali." },
+      }),
+    );
+
+    // Wait 3 seconds before logout
+    setTimeout(() => {
+      try {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } catch (_err) {
+        // ignore
+      }
+      if (typeof onExpire === "function") onExpire();
+      try {
+        window.dispatchEvent(new Event("login-status-changed"));
+      } catch (_err) {
+        // ignore
+      }
+    }, 3000); // 3 second delay after showing notification
   }, msUntilExpiry);
 }

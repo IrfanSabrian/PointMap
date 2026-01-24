@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { useRouter } from "next/navigation";
-import { validateToken } from "@/lib/auth";
+import { validateToken, setupAutoLogout } from "@/lib/auth";
+import { useToast } from "@/components/ToastProvider";
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,8 @@ export default function DashboardLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const autoLogoutSetupRef = useRef<boolean>(false); // Track if auto-logout is already setup
+  const { showToast } = useToast();
 
   // Function to check token validity
   const checkAuth = () => {
@@ -38,8 +41,18 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // Initial check
+    const token = localStorage.getItem("token");
     if (checkAuth()) {
       setIsAuthenticated(true);
+
+      // Setup auto-logout timer (only once per token)
+      if (token && !autoLogoutSetupRef.current) {
+        autoLogoutSetupRef.current = true;
+        setupAutoLogout(token, () => {
+          setIsAuthenticated(false);
+          router.push("/login");
+        });
+      }
     }
     setIsLoading(false);
 
@@ -48,7 +61,7 @@ export default function DashboardLayout({
       if (!checkAuth()) {
         setIsAuthenticated(false);
       }
-    }, 30000); // Check every 30 seconds
+    }, 300000); // Check every 5 minutes (fallback only, setupAutoLogout handles exact expiry)
 
     // Listen for manual logout events
     const handleLogout = () => {
@@ -58,11 +71,23 @@ export default function DashboardLayout({
 
     window.addEventListener("login-status-changed", handleLogout);
 
+    // Listen for token expiry events to show notification
+    const handleTokenExpired = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const message = customEvent.detail?.message || "Sesi Anda telah habis";
+
+      // Show toast using existing toast component
+      showToast(message, "warning");
+    };
+
+    window.addEventListener("token-expired", handleTokenExpired);
+
     return () => {
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current);
       }
       window.removeEventListener("login-status-changed", handleLogout);
+      window.removeEventListener("token-expired", handleTokenExpired);
     };
   }, [router]);
 
