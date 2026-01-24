@@ -1330,45 +1330,61 @@ Admin mengakses halaman Manajemen Ruangan (`/dashboard/ruangan`) yang menampilka
 
 CRUD ruangan berfungsi lengkap dan stabil dengan validasi serta user feedback (toast notifications) yang baik untuk setiap operasi. Fitur pin positioning yang terintegrasi dengan denah SVG memberikan presisi lokasi ruangan untuk ditampilkan di halaman detail bangunan mode 2.5D.
 
-4.2.14 Manajemen Galeri Ruangan (Halaman Dedicated)
-Berdasarkan skenario pengujian Admin – CRUD Gallery Ruangan, selain manajemen galeri melalui modal pada halaman Ruangan, aplikasi juga menyediakan halaman dedicated untuk manajemen galeri secara terpusat.
+4.2.14 Manajemen Galeri Ruangan
+Berdasarkan skenario pengujian Admin – CRUD Gallery Ruangan, sistem menyediakan fitur manajemen galeri foto ruangan yang terintegrasi langsung dengan halaman Manajemen Ruangan. Galeri dikelola melalui modal khusus yang dapat diakses dari tombol "Galeri" pada setiap item ruangan, memberikan pengalaman manajemen yang efisien dan kontekstual.
 
-Admin mengakses halaman Manajemen Galeri (`/dashboard/galeri`) yang menampilkan semua foto galeri dari semua ruangan dalam satu view. Halaman ini khusus untuk melihat dan mengelola semua foto secara kolektif dengan fitur search berdasarkan nama ruangan, gedung, atau deskripsi. Data ditampilkan dalam grid layout dengan pagination client-side (12 item per halaman).
+Untuk mengelola galeri foto ruangan, admin mengakses halaman Manajemen Ruangan (`/dashboard/ruangan`) dan mengklik tombol "Galeri" (ikon gambar berwarna kuning) pada kartu ruangan yang ingin dikelola galerinya. Tombol ini tersedia baik di Grid View maupun Table View untuk kemudahan akses.
 
-1. Lihat Semua Foto Galeri (Read)
-   Grid menampilkan foto dalam aspect-square cards dengan image yang sudah di-optimize. Hover effect menampilkan overlay gradient dengan informasi nama ruangan dan gedung. Search box memungkinkan filtering real-time berdasarkan nama ruangan atau gedung. Setiap foto menampilkan tombol delete yang muncul saat hover untuk akses cepat ke fungsi hapus.
+Gambar 4.99 Halaman Manajemen Ruangan dengan Tombol Galeri pada Item
 
-   Gambar 4.99 Grid View - Gallery Ruangan
+1. Modal Galeri Ruangan
+   Ketika tombol "Galeri" diklik, sistem membuka modal full-screen (`RoomGalleryModal`) yang menampilkan header dengan judul "Galeri Ruangan", nama ruangan, dan tombol close. Area konten utama dibagi menjadi section "Foto Tersimpan" (grid foto existing) dan "Siap Diupload" (preview foto pending). Jika belum ada foto, ditampilkan placeholder "Belum ada foto tersimpan".
 
-   Gambar 4.100 Search Filter Gallery
+   Gambar 4.100 Modal Galeri Ruangan
 
 2. Upload Foto Baru
-   Tombol "Upload Foto" di pojok kanan atas mengarahkan admin ke halaman form upload khusus. Halaman ini membagi layout menjadi dua bagian utama: panel kiri untuk "Target Upload" (pilihan Gedung dan Ruangan) serta "Tips Upload" yang berisi panduan kualitas foto. Panel kanan menyediakan area drag-and-drop yang intuitif untuk memilih file. Fitur ini mendukung multiple upload sekaligus. File validation memastikan hanya file gambar (JPG/PNG) dengan ukuran maksimal 5MB yang dapat di-upload. Preview thumbnail ditampilkan dalam grid untuk setiap foto yang dipilih, memungkinkan admin meninjau atau menghapus item sebelum proses upload final. Setelah tombol "Simpan Galeri" diklik, data diproses, dan jika berhasil, pengguna diarahkan kembali ke daftar galeri disertai toast pemberitahuan sukses.
+   Footer modal menyediakan area upload dengan border dashed dan label "Tambah Foto" yang mendukung klik atau drag-and-drop. Multiple file dapat diupload sekaligus dengan batasan 5MB per file dan format JPG/PNG. Setelah file dipilih, preview muncul di section "Siap Diupload (n)" dengan tombol X untuk menghapus.
 
-   Gambar 4.101 Modal Upload Foto Gallery
+   Tombol "Simpan {n} Foto" mengirim POST request ke `/api/ruangan-gallery/upload` dengan FormData. Saat upload, tombol menampilkan spinner "Mengupload...". Jika berhasil, toast "Foto berhasil diupload" muncul dan grid refresh otomatis tanpa reload halaman.
 
-   Gambar 4.102 Upload dengan Preview Thumbnail
+   Gambar 4.101 Area Upload dengan Drag-and-Drop
 
-   Gambar 4.103 Notifikasi Foto Berhasil Diupload
+   Gambar 4.102 Preview Galeri Sebelum Upload Dan Simpan Galeri
 
-3. Hapus Foto
-   Tombol delete pada setiap foto menampilkan modal konfirmasi browser native untuk mencegah penghapusan tidak sengaja. Setelah konfirmasi, foto terhapus dari database dan storage server. Item foto langsung hilang dari grid tanpa reload halaman. Toast "Foto berhasil dihapus" muncul sebagai konfirmasi. Sistem menghandle error dengan baik jika terjadi kegagalan saat delete.
+   Gambar 4.103 Notifikasi Berhasil Upload
 
-   Gambar 4.104 Konfirmasi Hapus Foto dari Gallery
+3. Lihat dan Navigasi Galeri
+   Foto tersimpan ditampilkan dalam responsive grid (2-5 kolom) dengan aspect-square cards. Klik foto membuka Fancybox lightbox dengan fitur zoom, prev/next, dan slideshow. Hover menampilkan tombol delete di pojok kanan atas. Jika gambar gagal dimuat, ditampilkan placeholder "Gambar tidak tersedia".
 
-   Gambar 4.105 Notifikasi Gallery Berhasil Dihapus
+   Gambar 4.104 Fancybox Lightbox dengan Navigasi Prev/Next
 
-Gallery modal dengan grid layout responsive memudahkan admin melihat dan mengelola banyak foto sekaligus.
+4. Hapus Foto
+   Tombol delete menampilkan nested confirmation modal dengan icon trash, judul "Hapus Foto?", dan pesan "Tindakan ini tidak dapat dibatalkan". Admin dapat memilih "Batal" atau "Hapus" untuk melanjutkan.
+
+   Setelah konfirmasi, sistem mengirim DELETE request ke `/api/ruangan-gallery/{id}`. Jika berhasil, foto langsung hilang dari grid dan toast "Foto berhasil dihapus" muncul. Error ditangani dengan toast "Gagal menghapus foto".
+
+   Gambar 4.105 Tombol Delete Galeri Pada Modal Galeri Ruangan
+
+   Gambar 4.106 Modal Konfirmasi Hapus Foto
+
+   Gambar 4.107 Notifikasi Foto Berhasil Dihapus
+
+5. Tampilan Gallery di Halaman Detail Gedung
+   Pada halaman detail gedung (`/building-details/index.html`), galeri ditampilkan menggunakan **Fancybox** lightbox. Setiap ruangan menampilkan thumbnail foto pertama dengan badge counter. Foto lainnya sebagai hidden links dengan `data-fancybox="gallery-{space_id}"`. Klik thumbnail membuka lightbox dengan zoom, slideshow, dan navigation. Counter dihitung otomatis dari API. Jika tidak ada foto, ditampilkan placeholder "Tidak ada galeri".
+
+   Gambar 4.108 Gallery Thumbnail dengan Badge Counter di Building Details
+
+Sistem galeri yang terintegrasi dengan halaman Ruangan memberikan workflow yang efisien. Admin dapat langsung mengelola foto dari konteks ruangan yang sedang diedit tanpa perlu navigasi ke halaman terpisah, sementara end-user mendapat pengalaman viewing yang optimal melalui Fancybox lightbox di halaman detail gedung.
 
 4.2.15 Sistem Autentikasi – Logout dan Auto-Logout
 Berdasarkan skenario pengujian Admin – Auto-Logout (1 Hari) dan Admin – Logout Manual, sistem autentikasi menunjukkan hasil pengujian sebagai berikut:
 
 1. Logout Manual
-   Button "Logout" tampil di bagian bawah sidebar dashboard dengan ikon yang jelas. Ketika admin klik logout, sistem menghapus JWT token dan user data dari localStorage browser. Redirect ke halaman /login terjadi secara instant setelah logout. Setelah logout, jika admin mencoba akses route yang protected seperti /dashboard tanpa login, sistem otomatis redirect kembali ke /login. Middleware auth berfungsi dengan baik untuk melindungi halaman admin.
+   Button "Logout" tampil di bagian bawah sidebar dashboard dengan ikon yang jelas. Ketika admin klik logout, sistem menampilkan modal konfirmasi "Yakin ingin keluar?" untuk mencegah logout tidak sengaja. Setelah konfirmasi, sistem menghapus JWT token dan user data dari localStorage browser. Redirect ke halaman /login terjadi secara instant setelah logout. Setelah logout, jika admin mencoba akses route yang protected seperti /dashboard tanpa login, sistem otomatis redirect kembali ke /login. Middleware auth berfungsi dengan baik untuk melindungi halaman admin.
 
-   Gambar 4.106 Button Logout di Sidebar Dashboard
+   Gambar 4.109 Tombol Logout di Sidebar Dashboard
 
-   Gambar 4.107 Redirect ke Login Setelah Logout
+   Gambar 4.110 Modal Konfirmasi Logout
 
 2. Auto-Logout (1 Hari)
    JWT token dikonfigurasi dengan expiry time 1 hari (86400 detik). Setelah 1 hari sejak login, token otomatis menjadi invalid.
