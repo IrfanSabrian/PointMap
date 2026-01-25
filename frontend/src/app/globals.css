@@ -5,6 +5,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geoman drawing tooltips hidden */
+.leaflet-pm-tooltip {
+  display: none !important;
+}
+
 /* Google Translate customization - Hide the banner */
 .goog-te-banner-frame {
   display: none !important;
@@ -298,7 +303,11 @@ html > body > .skiptranslate {
 }
 
 .highlighted-polygon {
-  transition: fill 0.5s, stroke 0.5s, fill-opacity 0.5s, stroke-opacity 0.5s;
+  transition:
+    fill 0.5s,
+    stroke 0.5s,
+    fill-opacity 0.5s,
+    stroke-opacity 0.5s;
   fill: #22c55e !important;
   stroke: #22c55e !important;
   fill-opacity: 0.7 !important;
@@ -307,8 +316,13 @@ html > body > .skiptranslate {
 
 /* Smooth transition untuk highlight bangunan */
 .leaflet-interactive {
-  transition: fill 0.3s ease, stroke 0.3s ease, fill-opacity 0.3s ease,
-    stroke-opacity 0.3s ease, opacity 0.3s ease, stroke-width 0.3s ease !important;
+  transition:
+    fill 0.3s ease,
+    stroke 0.3s ease,
+    fill-opacity 0.3s ease,
+    stroke-opacity 0.3s ease,
+    opacity 0.3s ease,
+    stroke-width 0.3s ease !important;
 }
 
 /* Highlight effect untuk bangunan */
@@ -321,7 +335,11 @@ html > body > .skiptranslate {
 }
 
 .leaflet-interactive {
-  transition: fill 0.5s, stroke 0.5s, fill-opacity 0.5s, stroke-opacity 0.5s;
+  transition:
+    fill 0.5s,
+    stroke 0.5s,
+    fill-opacity 0.5s,
+    stroke-opacity 0.5s;
 }
 
 /* Custom dropdown styles untuk modal route */
@@ -531,7 +549,8 @@ html > body > .skiptranslate {
 
 /* Shadow Fixes for Dark Mode */
 .dark .custom-shadow-lg {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3),
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.3),
     0 4px 6px -2px rgba(0, 0, 0, 0.2);
 }
 

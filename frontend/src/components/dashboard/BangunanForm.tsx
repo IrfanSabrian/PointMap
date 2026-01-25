@@ -306,31 +306,31 @@ export default function BangunanForm({
   };
 
   return (
-    <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+    <div className="w-full h-full flex flex-col lg:flex-row gap-3 sm:gap-6">
       {/* Left Column: Form Inputs - Scrollable if needed but optimized to fit */}
       <div className="w-full lg:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
         {!onCancel && (
-          <div className="flex items-center gap-4 mb-2 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 mb-2 shrink-0">
             <button
               onClick={handleBack}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
             >
               <FaArrowLeft />
             </button>
-            <h1 className="text-2xl font-bold font-gray-800 dark:text-white">
+            <h1 className="text-lg sm:text-2xl font-bold font-gray-800 dark:text-white">
               {isEdit ? "Edit Gedung" : "Tambah Gedung"}
             </h1>
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 shrink-0">
-          <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 p-3 sm:p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 shrink-0">
+          <h3 className="text-sm sm:text-md font-semibold mb-2 sm:mb-3 border-b pb-1 sm:pb-2 flex items-center gap-2">
             <FaCity className="text-primary" /> Informasi Dasar
           </h3>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <div>
-              <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+              <label className="block text-[10px] sm:text-xs font-semibold mb-0.5 sm:mb-1 text-gray-500 uppercase">
                 Nama Gedung *
               </label>
               <input
@@ -339,15 +339,15 @@ export default function BangunanForm({
                 onChange={(e) =>
                   setFormData({ ...formData, nama: e.target.value })
                 }
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-xs sm:text-sm"
                 placeholder="Contoh: Gedung Rektorat"
                 required
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
-                <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                <label className="block text-[10px] sm:text-xs font-semibold mb-0.5 sm:mb-1 text-gray-500 uppercase">
                   Lantai *
                 </label>
                 <input
@@ -361,12 +361,12 @@ export default function BangunanForm({
                       lantai: parseInt(e.target.value),
                     })
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                  className="w-full px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-xs sm:text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1 text-gray-500 uppercase">
+                <label className="block text-[10px] sm:text-xs font-semibold mb-0.5 sm:mb-1 text-gray-500 uppercase">
                   Interaksi
                 </label>
                 <select
@@ -374,7 +374,7 @@ export default function BangunanForm({
                   onChange={(e) =>
                     setFormData({ ...formData, interaksi: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm"
+                  className="w-full px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent transition text-xs sm:text-sm"
                 >
                   <option value="Noninteraktif">Non-Interaktif</option>
                   <option value="Interaktif">Interaktif</option>
@@ -384,8 +384,8 @@ export default function BangunanForm({
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 shrink-0">
-          <h3 className="text-md font-semibold mb-3 border-b pb-2 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 p-3 sm:p-5 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 shrink-0">
+          <h3 className="text-sm sm:text-md font-semibold mb-2 sm:mb-3 border-b pb-1 sm:pb-2 flex items-center gap-2">
             <FaImage className="text-primary" /> Thumbnail
           </h3>
           <div className="flex gap-4 items-start">
@@ -438,7 +438,7 @@ export default function BangunanForm({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-3 px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-shadow duration-300 flex items-center justify-center gap-2 shrink-0 mt-auto"
+          className="w-full py-1.5 sm:py-3 px-3 sm:px-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-shadow duration-300 flex items-center justify-center gap-2 shrink-0 mt-auto text-xs sm:text-base"
         >
           {loading ? (
             "Menyimpan..."

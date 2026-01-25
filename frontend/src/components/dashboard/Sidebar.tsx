@@ -87,12 +87,15 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile Toggle Button */}
-      <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white dark:bg-gray-800 shadow-md text-primary dark:text-primary-dark"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? <FaTimes /> : <FaBars />}
-      </button>
+      {/* Mobile Toggle Button - Only visible when closed on mobile */}
+      {!isOpen && (
+        <button
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white dark:bg-gray-800 shadow-md text-primary dark:text-primary-dark"
+          onClick={() => setIsOpen(true)}
+        >
+          <FaBars />
+        </button>
+      )}
 
       {/* Overlay for mobile */}
       {isMobile && isOpen && (
@@ -110,11 +113,22 @@ export default function Sidebar() {
       >
         <div className="flex flex-col h-full">
           {/* Logo / Brand */}
-          <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
-            <span className="text-xl font-bold text-primary dark:text-primary-dark flex items-center gap-2">
-              <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
+          <div className="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-gray-200 dark:border-gray-800">
+            <span className="text-lg sm:text-xl font-bold text-primary dark:text-primary-dark flex items-center gap-2">
+              <img
+                src="/logo.svg"
+                alt="Logo"
+                className="w-7 h-7 sm:w-8 sm:h-8"
+              />
               PointMap Admin
             </span>
+            {/* Close button inside sidebar for mobile */}
+            <button
+              className="lg:hidden p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              onClick={() => setIsOpen(false)}
+            >
+              <FaTimes />
+            </button>
           </div>
 
           {/* Campus Selector */}
@@ -132,18 +146,23 @@ export default function Sidebar() {
               <Link
                 key={item.path}
                 href={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                onClick={() => {
+                  if (isMobile) setIsOpen(false);
+                }}
+                className={`flex items-center gap-3 px-3 py-2 sm:px-4 sm:py-3 rounded-lg transition-colors ${
                   isActive(item.path)
                     ? "bg-primary text-white shadow-md"
                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 <item.icon
-                  className={`w-5 h-5 ${
+                  className={`w-4 h-4 sm:w-5 sm:h-5 ${
                     isActive(item.path) ? "text-white" : ""
                   }`}
                 />
-                <span className="font-medium">{item.name}</span>
+                <span className="text-sm sm:text-base font-medium">
+                  {item.name}
+                </span>
               </Link>
             ))}
           </nav>

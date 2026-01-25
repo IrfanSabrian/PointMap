@@ -85,26 +85,26 @@ Alamat : Irfan Sabrian Fadhillah
 
 ABSTRAK
 
-Mahasiswa dan pengunjung sering mengalami kesulitan dalam menemukan lokasi gedung dan ruangan di lingkungan Politeknik Negeri Pontianak. Kurangnya sistem navigasi digital yang informatif membuat pencarian lokasi menjadi tidak efisien dan membingungkan, terutama bagi mahasiswa baru maupun tamu kampus yang belum familiar dengan area sekitar.
+Politeknik Negeri Pontianak (POLNEP) memiliki wilayah operasional yang luas, mencakup kampus utama di Pontianak serta kampus cabang di Sanggau, Kapuas Hulu, dan Sukamara. Sebaran lokasi ini sering menyulitkan mahasiswa dan pengunjung dalam menemukan gedung atau ruangan tertentu. Ketiadaan media informasi digital yang terpusat membuat pencarian lokasi menjadi kurang efisien, terutama bagi pengguna yang belum familiar dengan tata letak kampus.
 
-Solusi yang ditawarkan adalah PointMap, sebuah sistem informasi geografis berbasis web yang menyajikan peta interaktif dengan fitur pencarian ruangan, tampilan gedung 2.5D, galeri foto, dan navigasi rute berdasarkan titik tujuan pengguna.
+Solusi yang ditawarkan adalah PointMap, sebuah sistem informasi geografis berbasis web yang menyajikan peta interaktif dengan fitur pencarian ruangan, tampilan gedung 2.5D, galeri foto, serta informasi detail lokasi yang mencakup seluruh area kampus.
 
-Pengembangan sistem dilakukan menggunakan metode Waterfall, dimulai dari analisis kebutuhan, desain sistem, implementasi, hingga pengujian. Teknologi yang digunakan meliputi Next.js dan Leaflet untuk tampilan antarmuka, serta Express.js dan MySQL untuk pengelolaan data di sisi backend. Algoritma Dijkstra digunakan untuk menghitung rute terpendek antar lokasi berdasarkan data GeoJSON.
+Pengembangan sistem dilakukan menggunakan metode Waterfall, dimulai dari analisis kebutuhan, desain sistem, implementasi, hingga pengujian. Teknologi yang digunakan meliputi Next.js dan Leaflet untuk tampilan antarmuka, serta Express.js dan MySQL untuk pengelolaan data di sisi backend.
 
-Hasil pengujian menunjukkan seluruh fitur berjalan dengan baik sesuai skenario, seperti pencarian lokasi, tampilan peta interaktif, serta perhitungan rute. Sistem juga responsif di berbagai perangkat, cepat diakses, dan memiliki mekanisme logout otomatis dalam satu jam untuk menjaga keamanan.
+Hasil pengujian menunjukkan seluruh fitur berjalan dengan baik sesuai skenario, seperti pencarian lokasi, tampilan peta interaktif, serta pengelolaan data gedung dan ruangan. Sistem juga responsif di berbagai perangkat, cepat diakses, dan memiliki mekanisme logout otomatis dalam satu hari untuk menjaga keamanan.
 
-Kata Kunci : Web GIS, Peta Interaktif, Navigasi Digital, Leaflet, Next.js 
+Kata Kunci : Web GIS, Peta Interaktif, Informasi Kampus, Leaflet, Next.js
 ABSTRACT
 
-Students and visitors often face difficulties in locating buildings and rooms within the Politeknik Negeri Pontianak. The absence of an informative digital navigation system makes the process of finding locations inefficient and confusing, especially for new students and campus guests who are unfamiliar with the area.
+Politeknik Negeri Pontianak (POLNEP) operates across a wide area, comprising the main campus in Pontianak and branch campuses in Sanggau, Kapuas Hulu, and Sukamara. This geographic dispersion often makes it difficult for students and visitors to locate specific buildings or rooms. The lack of a centralized digital information system renders location searching inefficient, particularly for those unfamiliar with the campus layout.
 
-The proposed solution is PointMap, a web-based geographic information system that provides an interactive map equipped with features such as room search, 2.5D building visualization, photo galleries, and route navigation based on user-defined destinations.
+The proposed solution is PointMap, a web-based geographic information system that provides an interactive map equipped with features such as room search, 2.5D building visualization, photo galleries, and detailed location information across all campus areas.
 
-The system was developed using the Waterfall method, starting from requirement analysis, system design, implementation, and testing. Technologies used include Next.js and Leaflet for the user interface, and Express.js with MySQL for backend data management. The Dijkstra algorithm was implemented to calculate the shortest route between locations based on GeoJSON data.
+The system was developed using the Waterfall method, starting from requirement analysis, system design, implementation, and testing. Technologies used include Next.js and Leaflet for the user interface, and Express.js with MySQL for backend data management.
 
-Test results indicate that all features functioned as expected based on the predefined scenarios, including location search, interactive map rendering, and route calculations. The system also performed well across various devices, offered fast access, and included an automatic logout mechanism after one hour to enhance security.
+Test results indicate that all features functioned as expected based on the predefined scenarios, including location search, interactive map rendering, and building data management. The system also performed well across various devices, offered fast access, and included an automatic logout mechanism after one day to enhance security.
 
-Keywords: Web GIS, Interactive Map, Digital Navigation, Leaflet, Next.js
+Keywords: Web GIS, Interactive Map, Campus Information, Leaflet, Next.js
 
 PRAKATA
 
@@ -1391,7 +1391,7 @@ Berdasarkan skenario pengujian Admin – Auto-Logout (1 Hari) dan Admin – Logo
 
    Ketika admin dengan expired token mencoba melakukan request ke API atau akses dashboard, sistem otomatis mendeteksi token expired dan trigger auto-logout. Local storage di-clear dan user di-redirect ke halaman login dengan pesan yang informatif.
 
-   Gambar 4.108 Pesan Auto-Logout Token Expired
+   Gambar 4.111 Pesan Auto-Logout Token Expired
 
 Route protection dengan middleware auth berfungsi sempurna, unauthorized access ke halaman admin otomatis di-block dan di-redirect ke login.
 
@@ -1401,59 +1401,62 @@ C. Aspek Non-Fungsional
 Berdasarkan skenario pengujian Responsivitas Mobile – Homepage dan Responsivitas Mobile – Dashboard Admin, sistem menunjukkan hasil pengujian sebagai berikut:
 
 1. Homepage Mobile
-   Layout otomatis menyesuaikan untuk layar mobile (tested di 375px, iPhone SE, iPhone 12, dan iPad). Navbar tetap full width tanpa memerlukan hamburger menu yang kompleks sehingga semua elemen penting tetap accessible. Informasi cuaca di mobile di-simplify untuk menghemat space dengan hanya menampilkan icon dan suhu, sementara deskripsi cuaca dan tanggal di-hide untuk layar kecil. Hero section text dan spacing optimal untuk small screen dengan font size yang adjust otomatis. Campus cards menggunakan grid 2 kolom di mobile (grid-cols-2) untuk memanfaatkan lebar layar dengan baik. Smooth hover effect pada desktop berubah menjadi touch-friendly click interaction di mobile. Peta tetap sepenuhnya interaktif dengan touch gestures. Touch zoom (pinch to zoom) dan pan berfungsi sempurna. Semua kontrol peta seperti layer control, zoom buttons, dan search tetap accessible serta tidak terpotong di layar kecil.
+   Layout otomatis menyesuaikan untuk berbagai ukuran layar perangkat mobile dan tablet. Navbar tetap full width tanpa memerlukan hamburger menu yang kompleks sehingga semua elemen penting tetap accessible. Informasi cuaca di mobile di-simplify untuk menghemat space dengan hanya menampilkan icon dan suhu, sementara deskripsi cuaca dan tanggal di-hide untuk layar kecil. Hero section text dan spacing optimal untuk small screen dengan font size yang adjust otomatis. Campus cards menggunakan grid 2 kolom di mobile (grid-cols-2) untuk memanfaatkan lebar layar dengan baik. Smooth hover effect pada desktop berubah menjadi touch-friendly click interaction di mobile. Peta tetap sepenuhnya interaktif dengan touch gestures. Touch zoom (pinch to zoom) dan pan berfungsi sempurna. Semua kontrol peta seperti layer control, zoom buttons, dan search tetap accessible serta tidak terpotong di layar kecil.
 
-   Gambar 4.109 Homepage Responsive di iPhone SE (375px)
+   Gambar 4.112 Hero Section dan Navbar di Perangkat Mobile
 
-   Gambar 4.110 Navbar Mobile Compact
+   Gambar 4.113 Canvas Peta di Perangkat Mobile
 
-   Gambar 4.111 Campus Cards Grid 2 Kolom di Mobile
+   Gambar 4.114 Detail Gedung pada Peta di Perangkat Mobile
 
-   Gambar 4.112 Touch Zoom pada Peta Mobile
+   Gambar 4.115 Footer di Perangkat Mobile
 
 2. Dashboard Mobile
    Sidebar menggunakan tombol toggle (hamburger menu) untuk menghemat space di mobile. Toggle sidebar berjalan lancar dengan animasi smooth. Grid statistik responsive menggunakan 2x2 di tablet dan 1 kolom di mobile untuk optimal readability. Daftar gedung dapat di-scroll dengan baik, menggunakan scroll horizontal jika diperlukan untuk tabel yang lebar. Modal dan form input ramah mobile dengan tampil full screen atau near-full-screen di mobile untuk memaksimalkan area kerja. Upload file berfungsi dengan baik di browser mobile iOS dan Android, kompatibel dengan native file picker kedua platform.
 
-   Gambar 4.113 Dashboard Mobile dengan Hamburger Menu
+   Gambar 4.116 Sidebar Toggle dan Statistik Dashboard di Perangkat Mobile
 
-   Gambar 4.114 Stat Cards Responsive 1 Kolom di Mobile
+   Gambar 4.117 Manajemen Data Gedung di Perangkat Mobile
 
-   Gambar 4.115 Modal Form Full Screen di Mobile
+   Gambar 4.118 Form Input Modal di Perangkat Mobile
 
 4.2.17 Dark Mode dan Persistensi Preferensi
-Berdasarkan skenario pengujian Dark Mode Persistence, fitur dark mode menunjukkan hasil pengujian sebagai berikut:
+Berdasarkan pengujian yang dilakukan, fitur Dark Mode berjalan dengan baik. Sistem secara otomatis menyimpan pilihan tampilan pengguna.
 
-Dark mode preference disimpan menggunakan next-themes di localStorage dengan key "theme: dark" atau "theme: light". Setelah user mengaktifkan dark mode dan melakukan refresh halaman atau close dan reopen browser tab, theme tetap dark mode tanpa kembali ke light mode. Tidak ada flash of unstyled content (FOUT) atau flash of wrong theme. Halaman langsung load dengan theme yang benar sejak awal render, hal ini dicapai dengan implementasi theme provider yang proper dan SSR-safe. Theme synchronization sempurna antara homepage dan dashboard, jika user set dark mode di homepage kemudian navigate ke dashboard, dark mode tetap aktif, begitu juga sebaliknya perubahan theme di halaman manapun akan persist ke seluruh aplikasi. Transisi antara light dan dark mode smooth dengan animation yang tidak mengganggu, memberikan user experience yang menyenangkan.
+Ketika pengguna mengaktifkan Dark Mode, lalu menyegarkan halaman atau menutup browser, aplikasi tetap mengingat pilihan tersebut dan menampilkan Dark Mode saat dibuka kembali. Perpindahan tema antara halaman utama dan halaman dashboard juga saling terhubung, jika pengguna mengganti tema di satu halaman, halaman lainnya akan otomatis mengikuti. Perubahan warna saat berpindah mode terjadi dengan transisi yang halus dan nyaman di mata.
 
-Gambar 4.116 Dark Mode Aktif di Homepage
+Gambar 4.119 Dark Mode Aktif di Homepage
 
-Gambar 4.117 Dark Mode Persistent Setelah Refresh
-
-Gambar 4.118 Theme Sync Homepage ke Dashboard
+Gambar 4.120 Sinkronisasi Tema Homepage ke Dashboard
 
 4.3 Pembahasan
-Berdasarkan hasil pengujian pada Tabel 4.1 Skenario Pengujian serta dokumentasi yang disajikan pada bagian 4.2, dapat disimpulkan bahwa seluruh fitur pada sistem PointMap telah berfungsi sesuai dengan rancangan pada Bab III. Fitur yang dapat diakses tanpa login mencakup navigasi peta interaktif multi-campus, kontrol layer dan basemap, kontrol zoom dan GPS, serta penampilan popup informasi gedung. Fitur lain seperti tampilan detail 2D/2.5D dengan floor navigation, galeri ruangan dengan pin marker, dan fitur pencarian lokasi dengan autocomplete juga berjalan lancar dan memberikan respon yang sesuai dengan hasil yang diharapkan. Hal ini menunjukkan bahwa integrasi antara frontend dan backend berjalan dengan baik, terutama pada proses pengambilan dan penampilan data dari basis data melalui API. Fitur admin yang memerlukan autentikasi juga telah diuji dan dinyatakan berhasil. Fitur-fitur tersebut mencakup sistem login dengan JWT, dashboard dengan statistik real-time, pengelolaan data gedung dengan map editor untuk menggambar geometri, dan pengelolaan lantai dengan upload SVG. Selain itu, pengelolaan ruangan dengan pin positioning, pengelolaan galeri foto, serta sistem logout manual dan auto-logout juga berfungsi dengan baik. Operasi Create, Read, Update, dan Delete (CRUD) dapat dilakukan tanpa menimbulkan error, dan perubahan data dapat langsung terlihat pada tampilan peta. Hasil pengujian juga membuktikan bahwa sistem mampu menampilkan informasi sesuai kategori kampus dan mengatur visibility layer peta dengan baik. Sistem mendukung multi-campus dengan filter data yang akurat. Fitur Dark Mode bekerja konsisten di semua halaman dengan persistensi preferensi yang reliable. Responsivitas mobile di homepage dan dashboard juga berfungsi dengan excellent, memastikan pengalaman pengguna yang optimal di berbagai perangkat. Dengan tidak ditemukannya error selama proses pengujian terhadap 20 kasus uji yang telah didefinisikan, maka sistem PointMap dapat dikatakan telah memenuhi kebutuhan fungsional dan non-fungsional yang telah didefinisikan pada tahap perancangan. Meski demikian, pengembangan selanjutnya dapat mempertimbangkan peningkatan performa pemuatan peta pada koneksi internet lambat.
+Berdasarkan hasil pengujian pada Tabel 4.1 Skenario Pengujian serta dokumentasi yang disajikan pada bagian 4.2, dapat disimpulkan bahwa seluruh fitur pada sistem PointMap telah berfungsi dengan baik sesuai perancangan pada Bab III. Fitur publik yang diuji mencakup peta interaktif dengan dukungan multi-kampus, kontrol lapisan peta (layer), fitur perbesaran (zoom), dan pelacakan lokasi pengguna (GPS). Selain itu, fitur detail bangunan dengan tampilan 2D/2.5D, navigasi lantai, serta pencarian lokasi berjalan lancar dan memberikan informasi yang akurat. Hal ini menunjukkan bahwa sistem berhasil menghubungkan tampilan antarmuka (frontend) dengan data dari server (backend) secara efektif.
+
+Fitur administrator yang memerlukan login juga telah diuji dan dinyatakan berhasil. Sistem keamanan autentikasi berjalan dengan baik, memberikan akses ke dashboard admin yang menyajikan statistik data secara langsung (real-time). Pengelolaan data (CRUD) untuk gedung, lantai, ruangan, dan galeri foto dapat dilakukan dengan mudah tanpa kendala. Fitur pemetaan geometri bangunan dan pengaturan titik lokasi ruangan bekerja presisi sesuai koordinat yang ditentukan. Sistem juga mendukung pengelolaan gambar denah lantai berbasis SVG dengan baik.
+
+Selain aspek fungsional, pengujian aspek non-fungsional menunjukkan hasil yang positif. Fitur Dark Mode berfungsi konsisten di seluruh halaman dan mampu menyimpan pengaturan tampilan pengguna secara otomatis. Tampilan aplikasi juga terbukti responsif saat diakses melalui perangkat mobile, di mana tata letak menu dan konten menyesuaikan ukuran layar dengan baik, memberikan kenyamanan penggunaan yang optimal. Dengan keberhasilan pengujian pada 20 kasus uji yang telah dilakukan, sistem PointMap dapat dinyatakan siap digunakan dan telah memenuhi kebutuhan pengguna yang direncanakan.
 
 BAB V
 PENUTUP
 
 5.1 Kesimpulan
-Berdasarkan hasil yang telah dicapai, dapat disimpulkan bahwa website PointMap berhasil dibuat sebagai peta interaktif berbasis web untuk lingkungan Politeknik Negeri Pontianak. Aplikasi ini mampu menampilkan informasi gedung dan ruangan secara visual serta mendukung navigasi antar lokasi kampus dengan tampilan yang interaktif dan responsif.
-Seluruh fitur utama seperti pencarian ruangan, informasi bangunan, galeri foto, navigasi rute terpendek, serta panel admin dengan fungsi CRUD telah berjalan sesuai perancangan dan berhasil diuji secara fungsional dan non-fungsional. Tampilan antarmuka yang mendukung perangkat mobile dan keamanan akses berbasis JWT juga berfungsi dengan baik.
-Struktur basis data relasional yang dirancang mendukung integritas data dan keterhubungan antar entitas, sedangkan arsitektur pemisahan antara frontend dan backend memberikan fleksibilitas dalam pengelolaan.
-Dengan demikian, tujuan tugas akhir untuk merancang dan membuat aplikasi peta interaktif berbasis web telah tercapai secara keseluruhan. Namun, terdapat keterbatasan pada penyediaan data ruangan yang belum merata di semua gedung, khususnya untuk galeri foto, yang ke depannya dapat menjadi bahan pengembangan lanjutan.
+Berdasarkan hasil perancangan, implementasi, dan pengujian yang telah dilakukan, dapat disimpulkan bahwa aplikasi PointMap berhasil dibangun sebagai media informasi peta interaktif untuk Politeknik Negeri Pontianak. Aplikasi ini mampu memvisualisasikan data gedung, lantai, dan ruangan dalam tampilan peta yang informatif serta mendukung fitur multi-kampus untuk menampilkan lokasi PSDKU di luar kota Pontianak.
+
+Seluruh fitur fungsional utama, meliputi pencarian lokasi gedung dan ruangan, visualisasi detail denah lantai dalam mode 2D dan 2.5D, serta fitur administratif untuk pengelolaan data secara mandiri, telah berjalan sesuai dengan perancangan. Hasil pengujian menunjukkan bahwa sistem dapat dijalankan dengan baik pada berbagai perangkat, didukung dengan antarmuka yang responsif dan fitur Mode Gelap yang memberikan kenyamanan akses bagi pengguna.
+
+Dengan tersedianya fitur manajemen data yang lengkap, admin dapat melakukan pembaruan informasi gedung, denah lantai, dan data ruangan secara real-time, sehingga informasi yang disajikan kepada pengguna tetap akurat dan terkini. Secara keseluruhan, sistem ini telah memenuhi tujuan pembuatan peta digital kampus yang modern dan mudah diakses. Namun, kelengkapan data ruangan dan foto galeri untuk setiap gedung masih perlu dilengkapi secara bertahap oleh administrator ke depannya.
 
 5.2 Saran
 Berdasarkan hasil implementasi dan pengujian, terdapat beberapa hal yang dapat dijadikan bahan pertimbangan untuk pengembangan lebih lanjut, baik dari sisi fitur maupun cakupan data, yaitu:
 
-1. Penyempurnaan fitur navigasi
-   Fitur routing masih memiliki beberapa bug yang signifikan, terutama dalam menangani titik tujuan dengan banyak pintu masuk, serta dalam membedakan jalur kendaraan dan jalur pejalan kaki. Perlu dilakukan optimasi terhadap algoritma yang digunakan agar dapat mengakomodasi berbagai skenario navigasi secara lebih akurat.
+1. Penambahan fitur navigasi rute
+   Pengembangan selanjutnya sangat disarankan untuk menambahkan fitur routing atau penunjuk arah antar lokasi. Fitur ini akan sangat membantu pengguna baru atau tamu dalam menemukan jalur tercepat dari satu lokasi ke lokasi lain di dalam lingkungan kampus.
 2. Pelengkapan data ruangan
-   Saat ini data ruangan baru tersedia secara lengkap untuk Jurusan Teknik Elektro. Pengembangan lebih lanjut disarankan untuk melengkapi data dari seluruh jurusan dan gedung lainnya agar pengguna dapat memperoleh informasi yang lebih menyeluruh.
-3. Pengembangan tampilan peta ke mode 3D penuh dan panorama
-   Pengembangan lebih lanjut dapat mempertimbangkan peningkatan dari tampilan 2.5D saat ini menjadi peta 3D yang lebih realistis. Selain itu, fitur tambahan seperti kamera 360° atau tampilan panorama dapat diterapkan untuk memberikan pengalaman eksplorasi visual yang lebih interaktif, mirip dengan fitur Street View pada platform peta modern.
-4. Peningkatan dokumentasi dan pemahaman algoritma routing
-   Salah satu kendala utama dalam pengembangan adalah kompleksitas algoritma rute terpendek. Oleh karena itu, disarankan untuk menambahkan dokumentasi teknis yang lebih mendalam serta referensi yang dapat membantu pengembang berikutnya dalam memahami dan memodifikasi algoritma tersebut.
+   Saat ini data ruangan baru tersedia secara lengkap untuk beberapa gedung utama. Pengembangan lebih lanjut disarankan untuk melengkapi data dari seluruh jurusan dan gedung lainnya agar pengguna dapat memperoleh informasi yang lebih menyeluruh mengenai seluruh fasilitas kampus.
+3. Pengembangan tampilan peta ke mode 3D penuh
+   Pengembangan visual dapat mempertimbangkan peningkatan dari tampilan 2.5D saat ini menjadi peta 3D yang lebih realistis dan imersif. Hal ini akan meningkatkan estetika dan memberikan gambaran spasial yang lebih baik mengenai bentuk bangunan.
+4. Implementasi fitur Panorama 360°
+   Disarankan untuk mengganti atau melengkapi fitur galeri foto 2D konvensional saat ini dengan tampilan panorama 360° (virtual tour). Fitur ini akan memberikan pengalaman eksplorasi ruangan yang jauh lebih interaktif, memungkinkan pengguna melihat keliling ruangan seolah-olah berada di lokasi tersebut.
 
 DAFTAR PUSTAKA
 

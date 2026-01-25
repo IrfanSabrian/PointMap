@@ -41,17 +41,17 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
       >
         Previous
       </button>
-      <span className="flex items-center px-4 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
+      <span className="flex items-center px-3 sm:px-4 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
         Page {currentPage} of {totalPages}
       </span>
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
       >
         Next
       </button>
@@ -703,34 +703,34 @@ export default function RuanganPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+      <div className="flex flex-row justify-between items-center mb-4 md:mb-6 gap-2">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white">
           Manajemen Ruangan
         </h1>
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 shadow-lg shadow-primary/30"
+          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1 sm:gap-2 shadow-lg shadow-primary/30 text-xs sm:text-base whitespace-nowrap"
         >
-          <FaPlus /> Tambah Ruangan
+          <FaPlus /> <span>Tambah</span>
         </button>
       </div>
 
       {/* View Toggle & Search */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 md:mb-6 gap-3 md:gap-4">
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <div className="relative">
             <input
               type="text"
               placeholder="Cari nama ruangan..."
-              className="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+              className="w-full px-3 py-2 sm:px-4 sm:py-2 pl-9 sm:pl-10 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm sm:text-base"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <FaSearch className="absolute left-3 top-3 text-gray-400" />
+            <FaSearch className="absolute left-2.5 sm:left-3 top-2.5 sm:top-3 text-gray-400 text-sm sm:text-base" />
           </div>
           <div>
             <select
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary outline-none"
+              className="w-full px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary outline-none text-sm sm:text-base"
               value={selectedBangunan}
               onChange={(e) => setSelectedBangunan(e.target.value)}
             >
@@ -744,10 +744,10 @@ export default function RuanganPage() {
           </div>
         </div>
 
-        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 shrink-0">
+        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5 sm:p-1 shrink-0">
           <button
             onClick={() => setViewMode("table")}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 sm:p-2 rounded-md transition-all ${
               viewMode === "table"
                 ? "bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-white"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
@@ -758,7 +758,7 @@ export default function RuanganPage() {
           </button>
           <button
             onClick={() => setViewMode("grid")}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 sm:p-2 rounded-md transition-all ${
               viewMode === "grid"
                 ? "bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-white"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
@@ -785,34 +785,34 @@ export default function RuanganPage() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-fade-in-up">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 animate-fade-in-up">
           {currentItems.map((r) => (
             <div
               key={r.id_ruangan}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-300 group flex flex-col overflow-hidden"
             >
-              <div className="p-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md mb-2 inline-block">
-                  {r.bangunan?.nama || "Unknown"} Lantai {r.nomor_lantai}
+              <div className="p-1.5 sm:p-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                <span className="text-[9px] sm:text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md mb-1 sm:mb-2 inline-block">
+                  {r.bangunan?.nama || "Unknown"} Lt {r.nomor_lantai}
                 </span>
                 <h3
-                  className="font-bold text-gray-800 dark:text-white text-sm leading-tight line-clamp-1"
+                  className="font-bold text-gray-800 dark:text-white text-[10px] sm:text-lg leading-tight line-clamp-1"
                   title={r.nama_ruangan}
                 >
                   {r.nama_ruangan}
                 </h3>
               </div>
 
-              <div className="p-3 flex-1">
-                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <i className="fas fa-university w-5 text-gray-400"></i>
+              <div className="p-2 sm:p-3 flex-1">
+                <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <i className="fas fa-university w-4 sm:w-5 text-gray-400"></i>
                     <span className="truncate flex-1" title={r.nama_jurusan}>
                       {r.nama_jurusan || "-"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <i className="fas fa-graduation-cap w-5 text-gray-400"></i>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <i className="fas fa-graduation-cap w-4 sm:w-5 text-gray-400"></i>
                     <span className="truncate flex-1" title={r.nama_prodi}>
                       {r.nama_prodi || "-"}
                     </span>
@@ -820,7 +820,7 @@ export default function RuanganPage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+              <div className="p-1.5 sm:p-3 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-100 dark:border-gray-700 flex gap-1 sm:gap-2">
                 {/* Galeri Button - Integrated here */}
                 <button
                   onClick={() =>
@@ -829,20 +829,20 @@ export default function RuanganPage() {
                       name: r.nama_ruangan,
                     })
                   }
-                  className="p-2 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors text-[10px] sm:text-base"
                   title="Galeri Ruangan"
                 >
                   <FaImages />
                 </button>
                 <button
                   onClick={() => handleOpenEdit(r)}
-                  className="flex-1 text-center py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 transition-colors"
+                  className="flex-1 text-center py-1 sm:py-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[9px] sm:text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 transition-colors"
                 >
                   <FaEdit className="inline mr-1" /> Edit
                 </button>
                 <button
                   onClick={() => handleDelete(r.id_ruangan, r.nama_ruangan)}
-                  className="w-10 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 transition-colors"
+                  className="w-7 sm:w-10 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 transition-colors text-[10px] sm:text-base"
                 >
                   <FaTrash />
                 </button>

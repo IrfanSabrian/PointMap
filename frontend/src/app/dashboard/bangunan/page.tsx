@@ -40,17 +40,17 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
       >
         Previous
       </button>
-      <span className="flex items-center px-4 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
+      <span className="flex items-center px-3 sm:px-4 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
         Page {currentPage} of {totalPages}
       </span>
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
       >
         Next
       </button>
@@ -254,29 +254,30 @@ export default function BangunanPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-          <FaBuilding className="text-primary" /> Manajemen Gedung
+      <div className="flex flex-row justify-between items-center mb-4 md:mb-6 gap-2">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+          <FaBuilding className="text-primary text-base sm:text-xl" />{" "}
+          <span>Manajemen Gedung</span>
         </h1>
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 shadow-lg shadow-primary/30"
+          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1 sm:gap-2 shadow-lg shadow-primary/30 text-xs sm:text-base whitespace-nowrap"
         >
-          <FaPlus /> Tambah Gedung
+          <FaPlus /> <span>Tambah</span>
         </button>
       </div>
 
       {/* View Toggle & Search */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 md:mb-6 gap-3 md:gap-4">
         <div className="relative w-full sm:w-96">
           <input
             type="text"
             placeholder="Cari nama gedung..."
-            className="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+            className="w-full px-3 py-2 sm:px-4 sm:py-2 pl-9 sm:pl-10 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-sm sm:text-base"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <div className="absolute left-3 top-2.5 text-gray-400">
+          <div className="absolute left-2.5 sm:left-3 top-2 sm:top-2.5 text-gray-400">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5"
@@ -294,10 +295,10 @@ export default function BangunanPage() {
           </div>
         </div>
 
-        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5 sm:p-1">
           <button
             onClick={() => setViewMode("table")}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 sm:p-2 rounded-md transition-all ${
               viewMode === "table"
                 ? "bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-white"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
@@ -308,7 +309,7 @@ export default function BangunanPage() {
           </button>
           <button
             onClick={() => setViewMode("grid")}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 sm:p-2 rounded-md transition-all ${
               viewMode === "grid"
                 ? "bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-white"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
@@ -337,13 +338,13 @@ export default function BangunanPage() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 animate-fade-in-up">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 animate-fade-in-up">
           {currentItems.map((b) => (
             <div
               key={b.id_bangunan}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 group"
             >
-              <div className="relative h-32 bg-gray-200 dark:bg-gray-700 overflow-hidden">
+              <div className="relative h-20 sm:h-32 bg-gray-200 dark:bg-gray-700 overflow-hidden">
                 {b.thumbnail ? (
                   <img
                     src={(() => {
@@ -371,7 +372,7 @@ export default function BangunanPage() {
                 )}
                 <div className="absolute top-2 right-2">
                   <span
-                    className={`px-2 py-1 text-xs font-bold rounded-full shadow-sm ${
+                    className={`px-1.5 py-0.5 sm:px-2 sm:py-1 text-[10px] sm:text-xs font-bold rounded-full shadow-sm ${
                       b.interaksi === "Interaktif"
                         ? "bg-green-500 text-white"
                         : "bg-gray-500 text-white"
@@ -382,32 +383,33 @@ export default function BangunanPage() {
                 </div>
               </div>
 
-              <div className="p-3">
+              <div className="p-1.5 sm:p-3">
                 <h3
-                  className="text-sm font-bold text-gray-800 dark:text-white mb-1 line-clamp-1"
+                  className="text-[10px] sm:text-sm font-bold text-gray-800 dark:text-white mb-0.5 sm:mb-1 line-clamp-1"
                   title={b.nama}
                 >
                   {b.nama}
                 </h3>
-                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs">
-                    <FaLayerGroup className="text-xs" /> {b.lantai} Lantai
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-3">
+                  <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded text-[8px] sm:text-xs">
+                    <FaLayerGroup className="text-[8px] sm:text-xs" />{" "}
+                    {b.lantai} Lantai
                   </span>
                 </div>
 
-                <div className="flex gap-2 mt-auto">
+                <div className="flex gap-1 sm:gap-2 mt-auto">
                   <button
                     onClick={() => handleOpenEdit(b)}
-                    className="flex-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-colors flex items-center justify-center gap-1"
                   >
-                    <FaEdit className="text-xs" /> Edit
+                    <FaEdit className="text-[8px] sm:text-xs" /> Edit
                   </button>
                   <button
                     onClick={() => handleDelete(b.id_bangunan, b.nama)}
-                    className="w-8 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 py-1.5 rounded-lg transition-colors flex items-center justify-center"
+                    className="w-7 sm:w-8 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 py-1 sm:py-1.5 rounded-lg transition-colors flex items-center justify-center"
                     title="Hapus"
                   >
-                    <FaTrash className="text-xs" />
+                    <FaTrash className="text-[8px] sm:text-xs" />
                   </button>
                 </div>
               </div>
@@ -528,7 +530,8 @@ export default function BangunanPage() {
               </h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
                 Apakah Anda yakin ingin menghapus gedung{" "}
-                <strong>{deleteModal.name}</strong>? Tindakan ini tidak dapat dibatalkan.
+                <strong>{deleteModal.name}</strong>? Tindakan ini tidak dapat
+                dibatalkan.
               </p>
             </div>
 

@@ -37,17 +37,17 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
       >
         Previous
       </button>
-      <span className="flex items-center px-4 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
+      <span className="flex items-center px-3 sm:px-4 text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md">
         Page {currentPage} of {totalPages}
       </span>
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700"
+        className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm"
       >
         Next
       </button>
@@ -238,22 +238,23 @@ export default function LantaiPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-          <FaLayerGroup className="text-primary" /> Manajemen Lantai
+      <div className="flex flex-row justify-between items-center mb-4 md:mb-6 gap-2">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+          <FaLayerGroup className="text-primary text-base sm:text-xl" />{" "}
+          <span>Manajemen Lantai</span>
         </h1>
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2 shadow-lg shadow-primary/30"
+          className="px-2 py-1.5 sm:px-4 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1 sm:gap-2 shadow-lg shadow-primary/30 text-xs sm:text-base whitespace-nowrap"
         >
-          <FaPlus /> Tambah Lantai
+          <FaPlus /> <span>Tambah</span>
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 md:mb-6 gap-3 md:gap-4">
         <div className="flex-1 w-full">
           <select
-            className="w-full md:w-1/3 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary outline-none"
+            className="w-full md:w-1/3 px-3 py-2 sm:px-4 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary outline-none text-sm sm:text-base"
             value={selectedBangunan}
             onChange={(e) => setSelectedBangunan(e.target.value)}
           >
@@ -268,10 +269,10 @@ export default function LantaiPage() {
           </select>
         </div>
 
-        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 shrink-0">
+        <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-0.5 sm:p-1 shrink-0">
           <button
             onClick={() => setViewMode("table")}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 sm:p-2 rounded-md transition-all ${
               viewMode === "table"
                 ? "bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-white"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
@@ -282,7 +283,7 @@ export default function LantaiPage() {
           </button>
           <button
             onClick={() => setViewMode("grid")}
-            className={`p-2 rounded-md transition-all ${
+            className={`p-1.5 sm:p-2 rounded-md transition-all ${
               viewMode === "grid"
                 ? "bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-white"
                 : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
@@ -306,37 +307,38 @@ export default function LantaiPage() {
           </p>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4 animate-fade-in-up">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 animate-fade-in-up">
           {currentItems.map((l) => (
             <div
               key={l.id_lantai_gambar}
               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all group overflow-hidden"
             >
-              <div className="aspect-[16/9] bg-gray-100 dark:bg-gray-700/50 relative flex items-center justify-center p-3 border-b border-gray-100 dark:border-gray-700">
+              <div className="aspect-[16/9] bg-gray-100 dark:bg-gray-700/50 relative flex items-center justify-center p-2 sm:p-3 border-b border-gray-100 dark:border-gray-700">
                 <img
                   src={`${l.path_file}?_t=${imageCacheBuster}`}
                   alt={l.nama_file}
                   className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                <div className="absolute top-2 right-2 bg-black/50 text-white text-[8px] sm:text-xs px-1.5 py-0.5 sm:px-2 sm:py-1 rounded backdrop-blur-sm">
                   {l.nama_file.replace(".svg", "").replace("Lt", "Lantai ")}
                 </div>
               </div>
 
-              <div className="p-3">
+              <div className="p-2 sm:p-3">
                 <h3
-                  className="text-sm font-bold text-gray-800 dark:text-white mb-3 truncate"
+                  className="text-xs sm:text-sm font-bold text-gray-800 dark:text-white mb-2 sm:mb-3 truncate"
                   title={l.bangunan?.nama || "Unknown"}
                 >
                   {l.bangunan?.nama || "Unknown"}
                 </h3>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5 sm:gap-2">
                   <button
                     onClick={() => handleOpenEdit(l)}
-                    className="flex-1 text-center py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-xs font-medium transition-colors"
+                    className="flex-1 text-center py-1 sm:py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-[10px] sm:text-xs font-medium transition-colors"
                   >
-                    <FaEdit className="inline mr-1 text-xs" /> Edit
+                    <FaEdit className="inline mr-1 text-[10px] sm:text-xs" />{" "}
+                    Edit
                   </button>
                   <button
                     onClick={() =>
@@ -345,9 +347,9 @@ export default function LantaiPage() {
                         `${l.nama_file.replace("Lt", "Lantai ").replace(".svg", "")} - ${l.bangunan?.nama || "Unknown"}`,
                       )
                     }
-                    className="w-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                    className="w-7 sm:w-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                   >
-                    <FaTrash className="text-xs" />
+                    <FaTrash className="text-[10px] sm:text-xs" />
                   </button>
                 </div>
               </div>

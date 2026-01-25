@@ -26,7 +26,25 @@ export default function DashboardStats() {
 
   // Pagination State
   const [page, setPage] = useState(1);
-  const itemsPerPage = 6;
+  const [itemsPerPage, setItemsPerPage] = useState(6);
+
+  // Adjust items per page based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      // If screen width is less than 640px (sm in tailwind), show 4 items
+      if (window.innerWidth < 640) {
+        setItemsPerPage(4);
+      } else {
+        setItemsPerPage(6);
+      }
+    };
+
+    // Set initial value
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const paginatedBuildings = recentBuildings.slice(
     (page - 1) * itemsPerPage,
@@ -152,12 +170,12 @@ export default function DashboardStats() {
     <div className="space-y-6 animate-fade-in-up">
       {/* Header Section */}
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
             Dashboard
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1">
             {getGreeting()},{" "}
             <span className="font-semibold text-blue-600">
               {(() => {
@@ -179,7 +197,7 @@ export default function DashboardStats() {
             .
           </p>
         </div>
-        <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
+        <div className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400">
           {new Date().toLocaleDateString("id-ID", {
             weekday: "long",
             day: "numeric",
@@ -190,22 +208,22 @@ export default function DashboardStats() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 flex-shrink-0">
         {statItems.map((item) => (
           <div
             key={item.label}
-            className="group bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 relative overflow-hidden"
+            className="group bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-5 shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 relative overflow-hidden"
           >
             <div className="relative z-10 flex flex-col gap-1">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400">
                 {item.label}
               </p>
-              <div className="flex items-end justify-between mt-2">
-                <h3 className="text-3xl font-bold text-gray-800 dark:text-white">
+              <div className="flex items-end justify-between mt-1 sm:mt-2">
+                <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">
                   {item.value}
                 </h3>
                 <div
-                  className={`w-10 h-10 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center text-white text-lg ${item.shadow}`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center text-white text-base sm:text-lg ${item.shadow}`}
                 >
                   <item.icon />
                 </div>
@@ -216,24 +234,24 @@ export default function DashboardStats() {
       </div>
 
       {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 flex-1 min-h-0">
         {/* Main List: Daftar Gedung (Replaced Card View with Table View) */}
         <div className="lg:col-span-2 flex flex-col h-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-              <FaBuilding className="text-blue-500" /> Daftar Gedung (
-              {selectedCampus.shortName})
+          <div className="p-3 sm:p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+            <h2 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+              <FaBuilding className="text-blue-500 text-sm sm:text-base" />{" "}
+              Daftar Gedung ({selectedCampus.shortName})
             </h2>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 p-0.5">
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-300"
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-300 text-sm"
                 >
                   ←
                 </button>
-                <span className="px-3 flex items-center text-xs font-medium text-gray-600 dark:text-gray-300 border-x border-gray-100 dark:border-gray-600">
+                <span className="px-2 sm:px-3 flex items-center text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-300 border-x border-gray-100 dark:border-gray-600">
                   {page} /{" "}
                   {Math.max(
                     1,
@@ -252,14 +270,14 @@ export default function DashboardStats() {
                       ),
                     )
                   }
-                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-300"
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-300 text-sm"
                 >
                   →
                 </button>
               </div>
               <Link
                 href="/dashboard/bangunan"
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                className="text-[10px] sm:text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
               >
                 Lihat Semua
               </Link>
@@ -267,21 +285,21 @@ export default function DashboardStats() {
           </div>
 
           <div className="flex-1 overflow-y-auto min-h-0 p-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[360px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 min-h-[300px] sm:min-h-[360px]">
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="h-24 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse"
+                    className="h-20 sm:h-24 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse"
                   />
                 ))
               ) : paginatedBuildings.length > 0 ? (
                 paginatedBuildings.map((b) => (
                   <div
                     key={b.id_bangunan}
-                    className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all group flex gap-3 items-start"
+                    className="bg-white dark:bg-gray-800 rounded-xl p-2 sm:p-3 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all group flex gap-2 sm:gap-3 items-start"
                   >
-                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative shadow-sm border border-gray-100 dark:border-gray-600">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0 relative shadow-sm border border-gray-100 dark:border-gray-600">
                       {b.thumbnail ? (
                         <img
                           src={
@@ -305,35 +323,35 @@ export default function DashboardStats() {
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-between h-20">
+                    <div className="flex-1 min-w-0 flex flex-col justify-between h-16 sm:h-20">
                       <div>
                         <div className="flex items-start justify-between gap-1">
                           <h3
-                            className="font-bold text-sm text-gray-800 dark:text-white line-clamp-1"
+                            className="font-bold text-xs sm:text-sm text-gray-800 dark:text-white line-clamp-1"
                             title={b.nama}
                           >
                             {b.nama}
                           </h3>
-                          <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded text-[9px] font-mono border border-gray-200 dark:border-gray-600 flex-shrink-0">
+                          <span className="inline-flex items-center justify-center px-1 sm:px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded text-[8px] sm:text-[9px] font-mono border border-gray-200 dark:border-gray-600 flex-shrink-0">
                             #{b.id_bangunan}
                           </span>
                         </div>
-                        <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs">
+                        <div className="mt-0.5 flex flex-wrap gap-1 sm:gap-1.5 text-xs">
                           {/* Floors Badge */}
-                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                            <FaLayerGroup className="text-blue-500" />
+                          <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-1 sm:px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                            <FaLayerGroup className="text-blue-500 text-[8px] sm:text-[10px]" />
                             <span>{b.lantai} Lt</span>
                           </div>
                           {/* Active Status Badge */}
                           <div
-                            className={`flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded border ${
+                            className={`flex items-center gap-1 text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border ${
                               b.interaksi === "Interaktif"
                                 ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800"
                                 : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700"
                             }`}
                           >
                             <div
-                              className={`w-1.5 h-1.5 rounded-full ${
+                              className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
                                 b.interaksi === "Interaktif"
                                   ? "bg-green-500 animate-pulse"
                                   : "bg-gray-400"
@@ -350,7 +368,7 @@ export default function DashboardStats() {
                       <div className="flex justify-end">
                         <Link
                           href={`/dashboard/bangunan?edit=${b.id_bangunan}`}
-                          className="text-[10px] font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                          className="text-[9px] sm:text-[10px] font-medium text-blue-600 hover:text-blue-700 hover:underline"
                         >
                           Edit Gedung →
                         </Link>
@@ -368,23 +386,23 @@ export default function DashboardStats() {
         </div>
 
         {/* Sidebar: Analytics Cards */}
-        <div className="space-y-4 flex flex-col h-full overflow-hidden">
+        <div className="space-y-3 md:space-y-4 flex flex-col h-full overflow-hidden">
           {/* Card 1: Digitalisasi Kampus */}
-          <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 overflow-hidden shadow-lg flex-shrink-0 min-h-[180px]">
+          <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 sm:p-5 overflow-hidden shadow-lg flex-shrink-0 min-h-[150px] sm:min-h-[180px]">
             <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-black/10 rounded-full blur-xl"></div>
             <div className="relative z-10">
-              <div className="flex items-start justify-between mb-3">
-                <div className="bg-white/20 backdrop-blur-sm p-2 rounded-lg">
+              <div className="flex items-start justify-between mb-2 sm:mb-3">
+                <div className="bg-white/20 backdrop-blur-sm p-1.5 sm:p-2 rounded-lg">
                   <svg
-                    className="w-5 h-5 text-white"
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-white"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
                     <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                   </svg>
                 </div>
-                <span className="text-xs font-bold text-white/90 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
+                <span className="text-[10px] sm:text-xs font-bold text-white/90 bg-white/20 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full">
                   {
                     recentBuildings.filter((b) => b.interaksi === "Interaktif")
                       .length
@@ -392,11 +410,11 @@ export default function DashboardStats() {
                   /{recentBuildings.length}
                 </span>
               </div>
-              <h4 className="text-xs font-semibold text-white/80 mb-1">
+              <h4 className="text-[10px] sm:text-xs font-semibold text-white/80 mb-1">
                 Digitalisasi Kampus
               </h4>
-              <div className="flex items-end gap-1 mb-2">
-                <span className="text-3xl font-bold text-white">
+              <div className="flex items-end gap-1 mb-1.5 sm:mb-2">
+                <span className="text-2xl sm:text-3xl font-bold text-white">
                   {recentBuildings.length > 0
                     ? Math.round(
                         (recentBuildings.filter(
@@ -407,11 +425,11 @@ export default function DashboardStats() {
                       )
                     : 0}
                 </span>
-                <span className="text-lg font-semibold text-white/90 mb-1">
+                <span className="text-base sm:text-lg font-semibold text-white/90 mb-0.5 sm:mb-1">
                   %
                 </span>
               </div>
-              <div className="w-full bg-white/20 rounded-full h-1.5 overflow-hidden backdrop-blur-sm">
+              <div className="w-full bg-white/20 rounded-full h-1 sm:h-1.5 overflow-hidden backdrop-blur-sm">
                 <div
                   className="bg-white h-full rounded-full transition-all duration-1000 shadow-lg"
                   style={{
@@ -427,42 +445,45 @@ export default function DashboardStats() {
                   }}
                 ></div>
               </div>
-              <p className="text-[9px] text-white/70 mt-2 leading-tight">
+              <p className="text-[8px] sm:text-[9px] text-white/70 mt-1.5 sm:mt-2 leading-tight">
                 Gedung dengan data interaktif aktif
               </p>
             </div>
           </div>
 
           {/* Card 2: Visualisasi Gedung */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-pink-100 dark:border-pink-900/30 shadow-sm flex-shrink-0 min-h-[180px]">
-            <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-5 border border-pink-100 dark:border-pink-900/30 shadow-sm flex-shrink-0 min-h-[150px] sm:min-h-[180px]">
+            <h4 className="text-[10px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">
               Visualisasi Gedung
             </h4>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               {/* Circular Progress */}
-              <div className="relative w-20 h-20 flex-shrink-0">
-                <svg className="w-20 h-20 transform -rotate-90">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
+                <svg
+                  className="w-16 h-16 sm:w-20 sm:h-20 transform -rotate-90"
+                  viewBox="0 0 64 64"
+                >
                   <circle
-                    cx="40"
-                    cy="40"
-                    r="32"
+                    cx="32"
+                    cy="32"
+                    r="26"
                     stroke="currentColor"
-                    strokeWidth="6"
+                    strokeWidth="5"
                     fill="none"
                     className="text-gray-200 dark:text-gray-700"
                   />
                   <circle
-                    cx="40"
-                    cy="40"
-                    r="32"
+                    cx="32"
+                    cy="32"
+                    r="26"
                     stroke="currentColor"
-                    strokeWidth="6"
+                    strokeWidth="5"
                     fill="none"
-                    strokeDasharray={`${2 * Math.PI * 32}`}
+                    strokeDasharray={`${2 * Math.PI * 26}`}
                     strokeDashoffset={`${
                       2 *
                       Math.PI *
-                      32 *
+                      26 *
                       (1 -
                         (recentBuildings.length > 0
                           ? recentBuildings.filter((b) => b.thumbnail).length /
@@ -474,7 +495,7 @@ export default function DashboardStats() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold text-pink-600 dark:text-pink-400">
+                  <span className="text-base sm:text-lg font-bold text-pink-600 dark:text-pink-400">
                     {recentBuildings.length > 0
                       ? Math.round(
                           (recentBuildings.filter((b) => b.thumbnail).length /
@@ -488,8 +509,8 @@ export default function DashboardStats() {
               </div>
               {/* Info */}
               <div className="flex-1">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="flex items-center justify-between text-[10px] sm:text-xs">
                     <span className="text-gray-600 dark:text-gray-400">
                       Dengan Foto
                     </span>
@@ -497,7 +518,7 @@ export default function DashboardStats() {
                       {recentBuildings.filter((b) => b.thumbnail).length}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-[10px] sm:text-xs">
                     <span className="text-gray-600 dark:text-gray-400">
                       Tanpa Foto
                     </span>
@@ -507,8 +528,8 @@ export default function DashboardStats() {
                     </span>
                   </div>
                 </div>
-                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight">
+                <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 leading-tight">
                     Gedung dengan thumbnail visual
                   </p>
                 </div>

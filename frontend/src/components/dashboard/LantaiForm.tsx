@@ -165,19 +165,19 @@ export default function LantaiForm({
   // Content-only component - Modal wrapper will be provided by parent (Modal.tsx)
   // Layout: Left column (form) + Right column (preview)
   return (
-    <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+    <div className="w-full h-full flex flex-col lg:flex-row gap-3 sm:gap-6">
       {/* Left Column: Form Inputs */}
       <div className="w-full lg:w-1/3 flex flex-col gap-4">
         {/* Page Header (only show if not in modal mode) */}
         {!onCancel && (
-          <div className="flex items-center gap-4 mb-2 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 mb-2 shrink-0">
             <button
               onClick={handleBack}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
             >
               <FaArrowLeft />
             </button>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white">
               {isEdit ? "Edit Lantai" : "Tambah Lantai"}
             </h1>
           </div>
@@ -185,10 +185,10 @@ export default function LantaiForm({
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
             {/* Pilih Gedung */}
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+            <div className="space-y-0.5 sm:space-y-1">
+              <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 Gedung *
               </label>
               <div className="relative">
@@ -200,7 +200,7 @@ export default function LantaiForm({
                       id_bangunan: e.target.value,
                     })
                   }
-                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none text-gray-800 dark:text-white"
+                  className="w-full pl-8 sm:pl-9 pr-4 py-1.5 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-xs sm:text-sm appearance-none text-gray-800 dark:text-white"
                   required
                   disabled={isEdit}
                 >
@@ -213,13 +213,13 @@ export default function LantaiForm({
                       </option>
                     ))}
                 </select>
-                <FaCity className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                <FaCity className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] sm:text-xs" />
               </div>
             </div>
 
             {/* Nomor Lantai */}
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+            <div className="space-y-0.5 sm:space-y-1">
+              <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 Nomor Lantai *
               </label>
               <div className="relative">
@@ -231,7 +231,7 @@ export default function LantaiForm({
                       nomor_lantai: parseInt(e.target.value) || 1,
                     })
                   }
-                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-sm appearance-none text-gray-800 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full pl-8 sm:pl-9 pr-4 py-1.5 sm:py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 focus:ring-2 focus:ring-primary focus:border-transparent transition text-xs sm:text-sm appearance-none text-gray-800 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                   disabled={!selectedBangunan || isEdit}
                 >
@@ -245,18 +245,18 @@ export default function LantaiForm({
                       ),
                     )}
                 </select>
-                <FaLayerGroup className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                <FaLayerGroup className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] sm:text-xs" />
               </div>
               {selectedBangunan && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
                   Gedung ini memiliki {maxLantai} lantai
                 </p>
               )}
             </div>
 
             {/* Upload File SVG */}
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+            <div className="space-y-0.5 sm:space-y-1">
+              <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                 File Denah Lantai (SVG) *
               </label>
               <input
@@ -299,7 +299,7 @@ export default function LantaiForm({
                       : "Klik untuk upload file SVG"}
                 </span>
               </label>
-              <p className="text-xs text-gray-500">
+              <p className="text-[10px] sm:text-xs text-gray-500">
                 <FaFileImage className="inline mr-1" />
                 Format: SVG | Pastikan file berisi denah lantai yang jelas
               </p>
@@ -314,13 +314,13 @@ export default function LantaiForm({
                   (!file && !isEdit && !preview) || // For create: need file
                   (isEdit && !file) // For edit: MUST have new file
                 }
-                className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white py-1.5 sm:py-3 rounded-xl font-bold text-xs sm:text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {loading ? (
-                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    <FaSave className="text-xl" />{" "}
+                    <FaSave className="text-base sm:text-xl" />{" "}
                     {isEdit ? "Simpan Perubahan" : "Tambah Lantai"}
                   </>
                 )}

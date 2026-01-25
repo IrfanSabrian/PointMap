@@ -58,8 +58,8 @@ export default function Modal({
         } ${isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0">
+          <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-white">
             {title || "Modal"}
           </h2>
           <button
@@ -71,7 +71,7 @@ export default function Modal({
         </div>
 
         {/* Body (Scrollable) */}
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );
